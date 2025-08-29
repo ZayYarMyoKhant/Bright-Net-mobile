@@ -28,9 +28,9 @@ export function BottomNav() {
               <Link
                 key={item.label}
                 href={item.href}
-                className="flex h-10 w-12 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-md transition-transform active:scale-95"
+                className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-md transition-transform active:scale-95"
               >
-                <item.icon className="h-6 w-6" />
+                <item.icon className="h-7 w-7" />
                 <span className="sr-only">{item.label}</span>
               </Link>
             );
