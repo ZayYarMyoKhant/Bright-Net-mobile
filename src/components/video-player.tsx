@@ -1,3 +1,4 @@
+
 "use client";
 
 import type { Post } from "@/lib/data";
@@ -82,7 +83,7 @@ export function VideoPlayer({ post }: VideoPlayerProps) {
           </div>
           <div className="flex flex-col items-center space-y-6">
             <div className="flex flex-col items-center">
-              <Avatar className="h-12 w-12 border-2 border-white">
+              <Avatar className="h-12 w-12 border-2 border-white rounded-full">
                 <AvatarImage src={post.user.avatar} data-ai-hint="person portrait" />
                 <AvatarFallback>{post.user.username.charAt(0).toUpperCase()}</AvatarFallback>
               </Avatar>

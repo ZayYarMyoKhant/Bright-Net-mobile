@@ -1,8 +1,10 @@
+
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Grid3x3, Settings, UserPlus, Clapperboard } from "lucide-react";
 import Image from "next/image";
+import Link from "next/link";
 
 export default function ProfilePage() {
   const user = {
@@ -18,7 +20,7 @@ export default function ProfilePage() {
 
   const posts = Array.from({ length: 15 }, (_, i) => ({
     id: i + 1,
-    imageUrl: `https://picsum.photos/400/600?random=${i + 10}`,
+    imageUrl: `https://picsum.photos/400/400?random=${i + 10}`,
   }));
 
   return (
@@ -37,10 +39,9 @@ export default function ProfilePage() {
 
       <main className="flex-1 overflow-y-auto p-4">
         <div className="flex flex-col items-center">
-          <Avatar className="h-24 w-24 border-2 border-primary">
-            <AvatarImage src={user.avatar} alt={user.username} data-ai-hint="person portrait" />
-            <AvatarFallback>{user.username.charAt(0).toUpperCase()}</AvatarFallback>
-          </Avatar>
+          <div className="relative h-24 w-24 rounded-lg overflow-hidden border-2 border-primary">
+            <Image src={user.avatar} alt={user.username} layout="fill" objectFit="cover" data-ai-hint="person portrait" />
+          </div>
           <h2 className="mt-3 text-xl font-bold">{user.name}</h2>
           <p className="text-sm text-muted-foreground">@{user.username}</p>
           <p className="mt-2 text-center text-sm">{user.bio}</p>
@@ -62,7 +63,9 @@ export default function ProfilePage() {
         </div>
         
         <div className="mt-4 flex items-center gap-2">
-            <Button className="flex-1">Edit Profile</Button>
+            <Link href="/profile/edit" className="flex-1">
+              <Button className="w-full">Edit Profile</Button>
+            </Link>
         </div>
 
 
@@ -80,13 +83,13 @@ export default function ProfilePage() {
           <TabsContent value="posts">
             <div className="grid grid-cols-3 gap-1">
               {posts.map((post) => (
-                <div key={post.id} className="aspect-square w-full">
+                <div key={post.id} className="aspect-square w-full relative">
                   <Image
                     src={post.imageUrl}
                     alt={`Post ${post.id}`}
-                    width={400}
-                    height={600}
-                    className="h-full w-full object-cover"
+                    layout="fill"
+                    objectFit="cover"
+                    className="h-full w-full"
                     data-ai-hint="lifestyle content"
                   />
                 </div>
