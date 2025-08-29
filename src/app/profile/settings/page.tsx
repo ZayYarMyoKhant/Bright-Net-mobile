@@ -6,10 +6,10 @@ import { ArrowLeft, User, Shield, Globe, Ban, ChevronRight, LogOut } from "lucid
 import Link from "next/link";
 
 const settingsItems = [
-    { icon: User, label: "Account" },
-    { icon: Shield, label: "Privacy" },
-    { icon: Globe, label: "Language" },
-    { icon: Ban, label: "Block account" },
+    { icon: User, label: "Account", href: "/profile/settings/account" },
+    { icon: Shield, label: "Privacy", href: "/profile/settings/privacy" },
+    { icon: Globe, label: "Language", href: "#" },
+    { icon: Ban, label: "Block account", href: "#" },
 ];
 
 export default function SettingsPage() {
@@ -28,16 +28,17 @@ export default function SettingsPage() {
                 <div className="flex-1">
                     <div className="divide-y">
                         {settingsItems.map((item) => (
-                            <div
-                                key={item.label}
-                                className="flex cursor-pointer items-center justify-between p-4 hover:bg-muted/50"
-                            >
-                                <div className="flex items-center gap-4">
-                                    <item.icon className="h-6 w-6 text-muted-foreground" />
-                                    <span className="font-medium">{item.label}</span>
+                            <Link key={item.label} href={item.href} className="block">
+                                <div
+                                    className="flex cursor-pointer items-center justify-between p-4 hover:bg-muted/50"
+                                >
+                                    <div className="flex items-center gap-4">
+                                        <item.icon className="h-6 w-6 text-muted-foreground" />
+                                        <span className="font-medium">{item.label}</span>
+                                    </div>
+                                    <ChevronRight className="h-5 w-5 text-muted-foreground" />
                                 </div>
-                                <ChevronRight className="h-5 w-5 text-muted-foreground" />
-                            </div>
+                            </Link>
                         ))}
                     </div>
                 </div>
