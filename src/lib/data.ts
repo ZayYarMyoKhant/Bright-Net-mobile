@@ -1,3 +1,15 @@
+
+export type Comment = {
+    id: number;
+    user: {
+        username: string;
+        avatar: string;
+    };
+    text: string;
+    likes: number;
+    replies: Comment[];
+}
+
 export type Post = {
   id: number;
   user: {
@@ -6,10 +18,55 @@ export type Post = {
   };
   videoUrl: string;
   likes: number;
-  comments: number;
+  comments: Comment[];
   shares: number;
   descriptionMyanmar: string;
 };
+
+const comments: Comment[] = [
+    {
+        id: 1,
+        user: {
+            username: "thuzar",
+            avatar: "https://i.pravatar.cc/150?u=thuzar",
+        },
+        text: "အရမ်းလှတယ်!",
+        likes: 15,
+        replies: [
+            {
+                id: 4,
+                user: {
+                    username: "aungaung",
+                    avatar: "https://i.pravatar.cc/150?u=aungaung",
+                },
+                text: "ဟုတ်တယ်နော်!",
+                likes: 2,
+                replies: [],
+            }
+        ]
+    },
+    {
+        id: 2,
+        user: {
+            username: "susu",
+            avatar: "https://i.pravatar.cc/150?u=susu",
+        },
+        text: "ဘယ်နေရာလဲဟင်?",
+        likes: 8,
+        replies: [],
+    },
+    {
+        id: 3,
+        user: {
+            username: "kyawkyaw",
+            avatar: "https://i.pravatar.cc/150?u=kyawkyaw",
+        },
+        text: "Wow, amazing view!",
+        likes: 22,
+        replies: [],
+    }
+]
+
 
 const posts: Post[] = [
   {
@@ -20,7 +77,7 @@ const posts: Post[] = [
     },
     videoUrl: "https://picsum.photos/1080/1920?random=1",
     likes: 12345,
-    comments: 289,
+    comments: comments,
     shares: 456,
     descriptionMyanmar: "ရန်ကုန်မြို့ရဲ့ ညရှုခင်းတွေက အရမ်းလှတယ်။",
   },
@@ -32,7 +89,7 @@ const posts: Post[] = [
     },
     videoUrl: "https://picsum.photos/1080/1920?random=2",
     likes: 9876,
-    comments: 150,
+    comments: comments.slice(0, 2),
     shares: 321,
     descriptionMyanmar: "မနက်ခင်းဈေးမှာ မုန့်ဟင်းခါးစားကြမယ်။",
   },
@@ -44,7 +101,7 @@ const posts: Post[] = [
     },
     videoUrl: "https://picsum.photos/1080/1920?random=3",
     likes: 25000,
-    comments: 500,
+    comments: [],
     shares: 800,
     descriptionMyanmar: "ရွှေတိဂုံဘုရားပေါ်ကနေ နေဝင်ဆည်းဆာကြည့်ရတာ အရမ်းကြည်နူးဖို့ကောင်းတယ်။",
   },
@@ -56,7 +113,7 @@ const posts: Post[] = [
     },
     videoUrl: "https://picsum.photos/1080/1920?random=4",
     likes: 8800,
-    comments: 210,
+    comments: [comments[0]],
     shares: 112,
     descriptionMyanmar: "ဒီနေ့တော့ အိမ်မှာပဲ ကိုယ်တိုင်ချက်စားမယ်။",
   },
@@ -68,7 +125,7 @@ const posts: Post[] = [
     },
     videoUrl: "https://picsum.photos/1080/1920?random=5",
     likes: 15678,
-    comments: 340,
+    comments: comments.slice(1, 3),
     shares: 401,
     descriptionMyanmar: "ပုဂံဘုရားတွေကြားမှာ စက်ဘီးလေးနဲ့ လျှောက်သွားမယ်။",
   },
