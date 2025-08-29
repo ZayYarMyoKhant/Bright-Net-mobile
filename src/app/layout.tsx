@@ -3,7 +3,6 @@ import { PT_Sans } from 'next/font/google';
 import './globals.css';
 import { cn } from '@/lib/utils';
 import { Toaster } from '@/components/ui/toaster';
-import { BottomNav } from '@/components/bottom-nav';
 
 const ptSans = PT_Sans({
   subsets: ['latin'],
@@ -28,7 +27,7 @@ export default function RootLayout({
         className={cn('font-headline antialiased', ptSans.variable)}
       >
         <div className="relative flex h-dvh flex-col bg-background">
-          <main className="flex-1 overflow-hidden">{children}</main>
+          {children}
         </div>
         <Toaster />
       </body>
