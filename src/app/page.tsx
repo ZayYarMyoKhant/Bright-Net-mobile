@@ -12,14 +12,14 @@ export default function SplashPage() {
   const router = useRouter();
 
   useEffect(() => {
-    const splashTimer = setTimeout(() => {
+    const timer = setTimeout(() => {
       setShowSplash(false);
       // After the splash animation, start showing the feed.
       // In a real app, you might navigate to a login page first.
       setShowFeed(true); 
     }, 4000); // 4 seconds for the animation
 
-    return () => clearTimeout(splashTimer);
+    return () => clearTimeout(timer);
   }, [router]);
 
   if (showSplash) {
