@@ -1,3 +1,4 @@
+
 import type { Metadata } from 'next';
 import { PT_Sans } from 'next/font/google';
 import './globals.css';
@@ -26,7 +27,7 @@ export default function RootLayout({
       <body
         className={cn('font-headline antialiased', ptSans.variable)}
       >
-        <div className="relative flex h-dvh flex-col bg-background">
+        <div className="relative h-dvh bg-background">
           {children}
         </div>
         <Toaster />
