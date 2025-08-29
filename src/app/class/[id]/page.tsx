@@ -2,7 +2,7 @@
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ArrowLeft, Video, Phone, Mic, Image as ImageIcon, Send, Smile } from "lucide-react";
+import { ArrowLeft, Video, MoreVertical, Image as ImageIcon, Send, Smile, Mic } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 
@@ -55,8 +55,13 @@ export default function ClassChannelPage({ params }: { params: { id: string } })
             </div>
         </div>
         <div className="flex items-center gap-2">
+          <Link href={`/class/${classInfo.id}/video-call`}>
+            <Button variant="ghost" size="icon">
+              <Video className="h-5 w-5" />
+            </Button>
+          </Link>
           <Button variant="ghost" size="icon">
-            <Video className="h-5 w-5" />
+            <MoreVertical className="h-5 w-5" />
           </Button>
         </div>
       </header>
