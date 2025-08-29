@@ -2,6 +2,7 @@
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
 import { Search } from "lucide-react";
+import Link from "next/link";
 
 export default function ChatPage() {
   const chats = [
@@ -63,22 +64,24 @@ export default function ChatPage() {
       <main className="flex-1 overflow-y-auto">
         <div className="divide-y">
           {chats.map((chat) => (
-            <div key={chat.id} className="flex items-center gap-4 p-4 hover:bg-muted/50 cursor-pointer">
-              <div className="relative">
-                <Avatar className="h-14 w-14">
-                  <AvatarImage src={chat.avatar} alt={chat.name} data-ai-hint="person portrait" />
-                  <AvatarFallback>{chat.name.charAt(0)}</AvatarFallback>
-                </Avatar>
-                {chat.online && (
-                    <span className="absolute bottom-0 right-0 block h-3.5 w-3.5 rounded-full bg-green-500 border-2 border-background"></span>
-                )}
-              </div>
-              <div className="flex-1">
-                <p className="font-semibold">{chat.name}</p>
-                <p className="text-sm text-muted-foreground">{chat.lastMessage}</p>
-              </div>
-              <p className="text-xs text-muted-foreground self-start">{chat.status}</p>
-            </div>
+            <Link href={`/chat/${chat.id}`} key={chat.id} className="block">
+                <div className="flex items-center gap-4 p-4 hover:bg-muted/50 cursor-pointer">
+                <div className="relative">
+                    <Avatar className="h-14 w-14">
+                    <AvatarImage src={chat.avatar} alt={chat.name} data-ai-hint="person portrait" />
+                    <AvatarFallback>{chat.name.charAt(0)}</AvatarFallback>
+                    </Avatar>
+                    {chat.online && (
+                        <span className="absolute bottom-0 right-0 block h-3.5 w-3.5 rounded-full bg-green-500 border-2 border-background"></span>
+                    )}
+                </div>
+                <div className="flex-1">
+                    <p className="font-semibold">{chat.name}</p>
+                    <p className="text-sm text-muted-foreground">{chat.lastMessage}</p>
+                </div>
+                <p className="text-xs text-muted-foreground self-start">{chat.status}</p>
+                </div>
+            </Link>
           ))}
         </div>
       </main>
