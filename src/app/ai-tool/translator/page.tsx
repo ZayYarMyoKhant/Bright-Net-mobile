@@ -2,10 +2,9 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { ArrowLeft, ArrowRight, Send } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 
@@ -71,19 +70,10 @@ export default function AiTranslatorPage() {
                 </div>
             </main>
 
-            <footer className="flex-shrink-0 border-t p-2">
-                <div className="flex items-center gap-2">
-                    <Input 
-                      placeholder="Type a message..." 
-                      className="flex-1"
-                      value={inputText}
-                      onChange={(e) => setInputText(e.target.value)}
-                      onKeyDown={(e) => e.key === 'Enter' && handleTranslate()}
-                    />
-                    <Button size="icon" onClick={handleTranslate}>
-                        <Send className="h-5 w-5" />
-                    </Button>
-                </div>
+            <footer className="flex-shrink-0 border-t p-4">
+                <Button className="w-full" onClick={handleTranslate} disabled={!inputText}>
+                    Translate
+                </Button>
             </footer>
         </div>
     );
