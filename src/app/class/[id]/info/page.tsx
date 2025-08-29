@@ -1,11 +1,15 @@
 
+"use client";
+
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Users, User } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
+import { use } from "react";
 
-export default function ClassInfoPage({ params }: { params: { id: string } }) {
+export default function ClassInfoPage({ params: paramsPromise }: { params: Promise<{ id: string }> }) {
+  const params = use(paramsPromise);
   // In a real app, you would fetch class info based on params.id
   const classInfo = {
     id: params.id,

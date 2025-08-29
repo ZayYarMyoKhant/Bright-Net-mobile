@@ -8,7 +8,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { ArrowLeft, Video, MoreVertical, Image as ImageIcon, Send, Smile, Mic, MessageSquareReply, Trash2, X } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { useState } from "react";
+import { use, useState } from "react";
 
 const ChatMessage = ({ message, isSender, isImage, onReply }: { message: any, isSender: boolean, isImage?: boolean, onReply: (message: any) => void }) => {
     return (
@@ -49,7 +49,8 @@ const ChatMessage = ({ message, isSender, isImage, onReply }: { message: any, is
 };
 
 
-export default function ClassChannelPage({ params }: { params: { id: string } }) {
+export default function ClassChannelPage({ params: paramsPromise }: { params: Promise<{ id: string }> }) {
+  const params = use(paramsPromise);
   const [replyingTo, setReplyingTo] = useState<any | null>(null);
 
   const classInfo = {
