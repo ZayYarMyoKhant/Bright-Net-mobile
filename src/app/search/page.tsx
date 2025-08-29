@@ -2,6 +2,7 @@
 "use client"
 
 import { BottomNav } from "@/components/bottom-nav";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Search, Grid3x3, BookOpen, User } from "lucide-react"
@@ -15,9 +16,11 @@ export default function SearchPage() {
         </header>
         
         <div className="flex-shrink-0 p-4">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-            <Input placeholder="Search bar" className="pl-10" />
+          <div className="relative flex items-center">
+            <Input placeholder="Search bar" className="pr-10" />
+            <Button variant="ghost" size="icon" className="absolute right-1 h-8 w-8">
+              <Search className="h-5 w-5 text-muted-foreground" />
+            </Button>
           </div>
         </div>
 
