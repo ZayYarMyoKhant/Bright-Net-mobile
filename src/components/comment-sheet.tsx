@@ -18,7 +18,7 @@ type CommentSheetProps = {
 
 const currentUser = "aungaung"; // In a real app, this would come from auth
 
-const CommentItem = ({ comment, isReply = false }: { comment: Comment, isReply?: boolean }) => {
+const CommentItem = ({ comment, isReply = false, onReply }: { comment: Comment, isReply?: boolean, onReply: (comment: Comment) => void }) => {
   const [isLiked, setIsLiked] = useState(false);
   const [likes, setLikes] = useState(comment.likes);
 
@@ -26,6 +26,10 @@ const CommentItem = ({ comment, isReply = false }: { comment: Comment, isReply?:
     setIsLiked(!isLiked);
     setLikes(isLiked ? likes - 1 : likes + 1);
   };
+
+  const handleReplyClick = () => {
+    onReply(comment);
+  }
 
   return (
     <div className={cn("flex items-start gap-3", isReply && "ml-8")}>
@@ -38,12 +42,12 @@ const CommentItem = ({ comment, isReply = false }: { comment: Comment, isReply?:
             <p className="text-sm">{comment.text}</p>
             <div className="flex items-center gap-4 mt-1 text-xs text-muted-foreground">
                 <span>1d</span>
-                <button>Reply</button>
+                <button onClick={handleReplyClick}>Reply</button>
             </div>
              {comment.replies.length > 0 && (
                 <div className="mt-2">
                     {comment.replies.map(reply => (
-                        <CommentItem key={reply.id} comment={reply} isReply />
+                        <CommentItem key={reply.id} comment={reply} isReply onReply={onReply}/>
                     ))}
                 </div>
             )}
@@ -64,9 +68,9 @@ const CommentItem = ({ comment, isReply = false }: { comment: Comment, isReply?:
                 {comment.user.username === currentUser ? (
                      <DropdownMenuItem className="text-destructive">Delete</DropdownMenuItem>
                 ) : (
-                    <DropdownMenuItem>
+                    <DropdownMenuItem onClick={handleReplyClick}>
                         <MessageSquareReply className="mr-2 h-4 w-4"/>
-                        Reply
+                        <span>Reply</span>
                     </DropdownMenuItem>
                 )}
             </DropdownMenuContent>
@@ -78,23 +82,21 @@ const CommentItem = ({ comment, isReply = false }: { comment: Comment, isReply?:
 export function CommentSheet({ post }: CommentSheetProps) {
   const [comments, setComments] = useState(post.comments);
   const [newComment, setNewComment] = useState("");
+  const [replyingTo, setReplyingTo] = useState<Comment | null>(null);
 
   const handleAddComment = () => {
     if (newComment.trim() === "") return;
 
-    const newCommentData: Comment = {
-      id: Date.now(),
-      user: {
-        username: currentUser,
-        avatar: "https://i.pravatar.cc/150?u=aungaung",
-      },
-      text: newComment,
-      likes: 0,
-      replies: [],
-    };
-    setComments([newCommentData, ...comments]);
+    // Logic to add a reply or a new comment
+    console.log(`Replying to ${replyingTo?.user.username}: ${newComment}`);
+
     setNewComment("");
+    setReplyingTo(null);
   };
+  
+  const handleReply = (comment: Comment) => {
+    setReplyingTo(comment);
+  }
 
   return (
     <>
@@ -104,18 +106,28 @@ export function CommentSheet({ post }: CommentSheetProps) {
       <ScrollArea className="flex-1">
         <div className="p-4 space-y-6">
           {comments.map((comment) => (
-            <CommentItem key={comment.id} comment={comment} />
+            <CommentItem key={comment.id} comment={comment} onReply={handleReply} />
           ))}
         </div>
       </ScrollArea>
       <footer className="flex-shrink-0 border-t p-2">
-        <div className="flex items-center gap-2">
+        {replyingTo && (
+            <div className="flex items-center justify-between bg-muted/50 px-3 py-1.5 text-xs">
+                <p className="truncate text-muted-foreground">
+                    Replying to <span className="font-semibold text-foreground">@{replyingTo.user.username}</span>
+                </p>
+                <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => setReplyingTo(null)}>
+                    <X className="h-4 w-4" />
+                </Button>
+            </div>
+        )}
+        <div className="flex items-center gap-2 pt-1">
             <Avatar className="h-8 w-8">
                 <AvatarImage src="https://i.pravatar.cc/150?u=aungaung" data-ai-hint="person portrait" />
                 <AvatarFallback>A</AvatarFallback>
             </Avatar>
             <Input 
-                placeholder="Add a comment..." 
+                placeholder={replyingTo ? `Reply to @${replyingTo.user.username}` : "Add a comment..."} 
                 className="flex-1 bg-muted border-none"
                 value={newComment}
                 onChange={(e) => setNewComment(e.target.value)}

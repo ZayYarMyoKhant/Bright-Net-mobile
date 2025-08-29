@@ -1,31 +1,41 @@
 
+"use client";
+
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { ArrowLeft, Phone, Mic, Image as ImageIcon, Send, Smile, MoreVertical, MessageSquareReply, Trash2 } from "lucide-react";
+import { ArrowLeft, Phone, Mic, Image as ImageIcon, Send, Smile, MoreVertical, MessageSquareReply, Trash2, X } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
+import { useState } from "react";
 
-const ChatMessage = ({ message, isSender, isImage }: { message: string, isSender: boolean, isImage?: boolean }) => {
+const ChatMessage = ({ message, isSender, isImage, onReply }: { message: any, isSender: boolean, isImage?: boolean, onReply: (message: any) => void }) => {
     return (
-        <div className={`flex ${isSender ? 'justify-end' : 'justify-start'}`}>
+        <div className={`flex items-start gap-3 ${isSender ? 'justify-end' : 'justify-start'}`}>
+            {!isSender && (
+                 <Avatar className="h-8 w-8">
+                    <AvatarImage src="https://i.pravatar.cc/150?u=susu" alt="Su Su" data-ai-hint="person portrait" />
+                    <AvatarFallback>S</AvatarFallback>
+                </Avatar>
+            )}
              <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                     <div className="cursor-pointer">
                         {isImage ? (
                             <div className="relative h-48 w-48 rounded-lg overflow-hidden">
-                                <Image src={message} alt="sent image" layout="fill" objectFit="cover" data-ai-hint="photo message" />
+                                <Image src={message.text} alt="sent image" layout="fill" objectFit="cover" data-ai-hint="photo message" />
                             </div>
                         ) : (
                             <div className={`max-w-xs rounded-lg px-4 py-2 ${isSender ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}>
-                                {message}
+                                <p className="font-semibold text-xs mb-1">{message.user.name}</p>
+                                {message.text}
                             </div>
                         )}
                     </div>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent>
-                    <DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => onReply(message)}>
                         <MessageSquareReply className="mr-2 h-4 w-4" />
                         <span>Reply</span>
                     </DropdownMenuItem>
@@ -41,6 +51,7 @@ const ChatMessage = ({ message, isSender, isImage }: { message: string, isSender
 
 
 export default function IndividualChatPage({ params }: { params: { id: string } }) {
+  const [replyingTo, setReplyingTo] = useState<any | null>(null);
   // In a real app, you would fetch user and messages based on params.id
   const user = {
     id: params.id,
@@ -50,13 +61,17 @@ export default function IndividualChatPage({ params }: { params: { id: string } 
   };
 
   const messages = [
-    { id: 1, text: "Hello!", sender: false },
-    { id: 2, text: "Hi, how are you?", sender: true },
-    { id: 3, text: "I am fine, thank you! And you?", sender: false },
-    { id: 4, text: "https://picsum.photos/400/400?random=20", sender: false, isImage: true },
-    { id: 5, text: "I'm doing great. Look at this picture!", sender: false },
-    { id: 6, text: "Wow, that's beautiful!", sender: true },
+    { id: 1, text: "Hello!", sender: false, user: { name: 'Su Su' } },
+    { id: 2, text: "Hi, how are you?", sender: true, user: { name: 'Aung Aung' } },
+    { id: 3, text: "I am fine, thank you! And you?", sender: false, user: { name: 'Su Su' } },
+    { id: 4, text: "https://picsum.photos/400/400?random=20", sender: false, isImage: true, user: { name: 'Su Su' } },
+    { id: 5, text: "I'm doing great. Look at this picture!", sender: false, user: { name: 'Su Su' } },
+    { id: 6, text: "Wow, that's beautiful!", sender: true, user: { name: 'Aung Aung' } },
   ];
+
+  const handleReply = (message: any) => {
+    setReplyingTo(message);
+  };
 
   return (
     <div className="flex h-dvh flex-col bg-background text-foreground">
@@ -98,12 +113,24 @@ export default function IndividualChatPage({ params }: { params: { id: string } 
       
       <main className="flex-1 overflow-y-auto p-4 space-y-4">
         {messages.map((msg) => (
-            <ChatMessage key={msg.id} message={msg.text} isSender={msg.sender} isImage={msg.isImage} />
+            <ChatMessage key={msg.id} message={msg} isSender={msg.sender} isImage={msg.isImage} onReply={handleReply} />
         ))}
       </main>
 
       <footer className="flex-shrink-0 border-t p-2">
-        <div className="flex items-center gap-2">
+        {replyingTo && (
+            <div className="flex items-center justify-between bg-muted/50 px-3 py-1.5 text-xs">
+                <div className="truncate">
+                    <span className="text-muted-foreground">Replying to </span>
+                    <span className="font-semibold">{replyingTo.user.name}</span>: 
+                    <span className="text-muted-foreground ml-1">{replyingTo.isImage ? "an image" : replyingTo.text}</span>
+                </div>
+                <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => setReplyingTo(null)}>
+                    <X className="h-4 w-4" />
+                </Button>
+            </div>
+        )}
+        <div className="flex items-center gap-2 pt-1">
             <Button variant="ghost" size="icon"><ImageIcon className="h-5 w-5 text-muted-foreground" /></Button>
             <Button variant="ghost" size="icon"><Smile className="h-5 w-5 text-muted-foreground" /></Button>
             <Input placeholder="Type a message..." className="flex-1"/>
