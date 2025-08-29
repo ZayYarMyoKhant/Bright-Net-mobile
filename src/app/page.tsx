@@ -9,9 +9,8 @@ export default function SplashPage() {
 
   useEffect(() => {
     const timer = setTimeout(() => {
-      // After animation, navigate to the home feed or login page
-      // For now, let's assume we navigate to a page called /home
-      router.push('/home'); 
+      // After animation, navigate to the sign up page for new users
+      router.push('/signup'); 
     }, 4000); // Wait for 4 seconds to match animation duration
 
     return () => clearTimeout(timer);
