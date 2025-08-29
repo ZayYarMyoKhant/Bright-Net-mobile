@@ -8,6 +8,7 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/componen
 import { Badge } from "@/components/ui/badge";
 import { ExternalLink, Video } from "lucide-react";
 import { BottomNav } from "@/components/bottom-nav";
+import Link from "next/link";
 
 type ClassState = "joined" | "not_joined";
 
@@ -96,10 +97,12 @@ export default function ClassPage() {
                    {classItem.initialState === "not_joined" ? (
                       <Button className="w-full" onClick={() => handleJoinToggle(classItem.id)}>Join</Button>
                   ) : (
-                      <Button variant="secondary" className="w-full" onClick={() => handleJoinToggle(classItem.id)}>
+                    <Link href={`/class/${classItem.id}`} className="w-full">
+                      <Button variant="secondary" className="w-full">
                           <Video className="mr-2 h-4 w-4"/>
                           View Channel
                       </Button>
+                    </Link>
                   )}
               </CardFooter>
             </Card>
