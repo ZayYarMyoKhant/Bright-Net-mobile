@@ -30,6 +30,3 @@ export default function SplashPage() {
     </div>
   );
 }
-
-// Create a new page for the home feed at /src/app/home/page.tsx
-// For now this page will be empty until next steps.
