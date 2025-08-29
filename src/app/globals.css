@@ -82,3 +82,32 @@
     @apply bg-background text-foreground;
   }
 }
+
+@layer utilities {
+  @keyframes fade-in-1 {
+    0% {
+      opacity: 0;
+    }
+    100% {
+      opacity: 1;
+    }
+  }
+
+  @keyframes fade-in-2 {
+    0%, 50% {
+      opacity: 0;
+    }
+    100% {
+      opacity: 1;
+    }
+  }
+
+  .animate-fade-in-1 {
+    animation: fade-in-1 2s ease-in-out forwards;
+  }
+
+  .animate-fade-in-2 {
+    animation: fade-in-2 2s ease-in-out forwards;
+    animation-delay: 1s;
+  }
+}
