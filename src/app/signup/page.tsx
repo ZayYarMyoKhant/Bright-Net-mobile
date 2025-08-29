@@ -34,8 +34,8 @@ export default function SignUpPage() {
             <div className="space-y-2">
                 <Label htmlFor="phone">Phone Number</Label>
                 <div className="flex items-center">
-                    <span className="inline-flex items-center rounded-l-md border border-r-0 border-input bg-muted px-3 py-2 text-muted-foreground">+95</span>
-                    <Input id="phone" type="tel" placeholder="912345678" className="rounded-l-none" />
+                    <span className="inline-flex items-center rounded-l-md border border-r-0 border-input bg-muted px-3 py-2 text-muted-foreground">+</span>
+                    <Input id="phone" type="tel" placeholder="95912345678" className="rounded-l-none" />
                 </div>
             </div>
 
