@@ -88,7 +88,7 @@ export function VideoPlayer({ post }: VideoPlayerProps) {
           <div className="flex flex-col items-center space-y-6">
             <Link href={`/profile/${post.user.username}`}>
               <div className="flex flex-col items-center">
-                <Avatar className="h-12 w-12 border-2 border-white rounded-full">
+                <Avatar className="h-12 w-12 border-2 border-white">
                   <AvatarImage src={post.user.avatar} data-ai-hint="person portrait" />
                   <AvatarFallback>{post.user.username.charAt(0).toUpperCase()}</AvatarFallback>
                 </Avatar>
