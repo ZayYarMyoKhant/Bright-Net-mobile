@@ -6,10 +6,11 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft, MicOff, PhoneOff, Volume2, Video, VideoOff } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
-import { useState, useEffect } from "react";
+import { useState, useEffect, use } from "react";
 import { cn } from "@/lib/utils";
 
-export default function VoiceCallPage({ params }: { params: { id: string } }) {
+export default function VoiceCallPage({ params: paramsPromise }: { params: Promise<{ id: string }> }) {
+  const params = use(paramsPromise);
   const [callStatus, setCallStatus] = useState("ringing"); // ringing, active
   const [isMuted, setIsMuted] = useState(false);
   const [isCameraOn, setIsCameraOn] = useState(true);
