@@ -33,9 +33,9 @@ export default function LoginPage() {
         <form className="space-y-6">
             <div className="space-y-2">
                 <Label htmlFor="phone">Phone Number</Label>
-                <div className="flex items-center">
-                    <span className="inline-flex items-center rounded-l-md border border-r-0 border-input bg-muted px-3 py-2 text-muted-foreground">+</span>
-                    <Input id="phone" type="tel" placeholder="95912345678" className="rounded-l-none" />
+                <div className="flex items-center gap-2">
+                    <Input id="country-code" type="tel" placeholder="+95" className="w-20"/>
+                    <Input id="phone" type="tel" placeholder="912345678" className="flex-1" />
                 </div>
             </div>
 
