@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState } from "react";
+import { useState, use } from "react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Mic, MicOff, PhoneOff, Video, VideoOff } from "lucide-react";
@@ -9,7 +9,15 @@ import Image from "next/image";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 
-const members = Array.from({ length: 9 }, (_, i) => ({
+const host = {
+    id: 0,
+    name: `Host`,
+    avatarFallback: `H`,
+    isMuted: false,
+    avatar: `https://i.pravatar.cc/400?u=host`
+};
+
+const members = Array.from({ length: 8 }, (_, i) => ({
     id: i + 1,
     name: `Member ${i + 1}`,
     avatarFallback: `M${i+1}`,
@@ -17,7 +25,8 @@ const members = Array.from({ length: 9 }, (_, i) => ({
     avatar: `https://i.pravatar.cc/150?u=member${i+1}`
 }));
 
-export default function ClassVideoCallPage({ params }: { params: { id: string } }) {
+export default function ClassVideoCallPage({ params: paramsPromise }: { params: Promise<{ id: string }> }) {
+  const params = use(paramsPromise);
   const [isMuted, setIsMuted] = useState(false);
   const [isCameraOn, setIsCameraOn] = useState(true);
 
@@ -42,13 +51,28 @@ export default function ClassVideoCallPage({ params }: { params: { id: string } 
           </Avatar>
           <div>
             <p className="font-bold">{classInfo.name}</p>
-            <p className="text-xs text-green-500">{members.length} participants</p>
+            <p className="text-xs text-green-500">{members.length + 1} participants</p>
           </div>
         </div>
       </header>
 
-      <main className="flex-1 overflow-y-auto p-2">
-        <div className="grid grid-cols-3 grid-rows-3 gap-2 h-full">
+      <main className="flex-1 overflow-y-auto p-2 flex flex-col">
+        {/* Host View */}
+        <div className="relative aspect-video w-full rounded-lg overflow-hidden bg-muted mb-2">
+           <Image 
+                src={host.avatar}
+                alt={host.name}
+                layout="fill"
+                objectFit="cover"
+                data-ai-hint="person video"
+            />
+            <div className="absolute bottom-2 left-2 flex items-center gap-2 rounded-full bg-black/50 px-2 py-1 text-xs text-white">
+                {host.isMuted ? <MicOff className="h-3 w-3" /> : <Mic className="h-3 w-3" />}
+                <span>{host.name} (Host)</span>
+            </div>
+        </div>
+        {/* Members View */}
+        <div className="grid grid-cols-3 gap-2 flex-1">
             {members.map(member => (
                  <div key={member.id} className="relative aspect-square rounded-lg overflow-hidden bg-muted">
                     <Image 
