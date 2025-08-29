@@ -60,9 +60,11 @@ export default function IndividualChatPage({ params }: { params: { id: string } 
             </div>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="ghost" size="icon">
-            <Phone className="h-5 w-5" />
-          </Button>
+          <Link href={`/chat/${user.id}/voice-call`}>
+            <Button variant="ghost" size="icon">
+              <Phone className="h-5 w-5" />
+            </Button>
+          </Link>
            <Button variant="ghost" size="icon">
             <Swords className="h-5 w-5" />
           </Button>
