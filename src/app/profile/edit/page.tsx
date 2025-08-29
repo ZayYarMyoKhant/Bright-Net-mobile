@@ -47,12 +47,13 @@ export default function EditProfilePage() {
         <div className="flex flex-col items-center space-y-4">
           <div className="relative">
              <label htmlFor="avatar-upload" className="cursor-pointer">
-                <div className="relative h-32 w-32 rounded-lg overflow-hidden border-2 border-primary">
-                    <Image src={user.avatar} alt="Avatar" layout="fill" objectFit="cover" data-ai-hint="person portrait"/>
+                <Avatar className="relative h-32 w-32 border-2 border-primary">
+                    <AvatarImage src={user.avatar} alt="Avatar" data-ai-hint="person portrait"/>
+                    <AvatarFallback>{user.username.charAt(0)}</AvatarFallback>
                     <div className="absolute inset-0 bg-black bg-opacity-40 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
                         <Camera className="h-8 w-8 text-white" />
                     </div>
-                </div>
+                </Avatar>
              </label>
              <input id="avatar-upload" type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
           </div>

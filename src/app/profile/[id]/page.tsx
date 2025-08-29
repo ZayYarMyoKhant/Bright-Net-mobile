@@ -71,9 +71,10 @@ export default function UserProfilePage({ params: paramsPromise }: { params: Pro
 
         <main className="flex-1 overflow-y-auto p-4">
           <div className="flex flex-col items-center">
-             <div className="relative h-24 w-24 rounded-lg overflow-hidden border-2 border-primary">
-                <Image src={user.avatar} alt={user.username} layout="fill" objectFit="cover" data-ai-hint="person portrait" />
-            </div>
+            <Avatar className="h-24 w-24 border-2 border-primary">
+                <AvatarImage src={user.avatar} alt={user.username} data-ai-hint="person portrait" />
+                <AvatarFallback>{user.username.charAt(0)}</AvatarFallback>
+            </Avatar>
             <h2 className="mt-3 text-xl font-bold">{user.username}</h2>
             <p className="text-sm text-muted-foreground">@{user.username}</p>
             <p className="mt-2 text-center text-sm">{user.bio}</p>
@@ -139,4 +140,3 @@ export default function UserProfilePage({ params: paramsPromise }: { params: Pro
     </>
   );
 }
-
