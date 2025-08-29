@@ -88,34 +88,10 @@ export default {
             height: '0',
           },
         },
-        'text-color-change': {
-          '0%, 20%': {
-            color: 'hsl(var(--primary))',
-          },
-          '80%, 100%': {
-            color: 'white',
-          },
-        },
-        'sun-move-diagonal': {
-          '0%': {
-            transform: 'translate(-50%, 50%) scale(1)',
-            opacity: '1',
-          },
-          '80%': {
-            transform: 'translate(150%, -150%) scale(1.5)',
-            opacity: '1',
-          },
-          '100%': {
-            transform: 'translate(200%, -200%) scale(1.5)',
-            opacity: '0',
-          },
-        },
       },
       animation: {
         'accordion-down': 'accordion-down 0.2s ease-out',
         'accordion-up': 'accordion-up 0.2s ease-out',
-        splash: 'text-color-change 4s ease-in-out forwards',
-        sun: 'sun-move-diagonal 4s ease-in-out forwards',
       },
     },
   },
