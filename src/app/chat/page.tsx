@@ -1,4 +1,5 @@
 
+
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { BottomNav } from "@/components/bottom-nav";
 import { Input } from "@/components/ui/input";
@@ -8,7 +9,7 @@ import Link from "next/link";
 export default function ChatPage() {
   const chats = [
     {
-      id: 1,
+      id: "aungaung",
       name: "Aung Aung",
       avatar: "https://i.pravatar.cc/150?u=aungaung",
       lastMessage: "ပို့ထားတဲ့နောက်ဆုံးစာ",
@@ -16,7 +17,7 @@ export default function ChatPage() {
       online: false,
     },
     {
-      id: 2,
+      id: "susu",
       name: "Su Su",
       avatar: "https://i.pravatar.cc/150?u=susu",
       lastMessage: "ပို့ထားတဲ့နောက်ဆုံးစာ",
@@ -24,7 +25,7 @@ export default function ChatPage() {
       online: true,
     },
     {
-      id: 3,
+      id: "myomyint",
       name: "Myo Myint",
       avatar: "https://i.pravatar.cc/150?u=myomyint",
       lastMessage: "ပို့ထားတဲ့နောက်ဆုံးစာ",
@@ -32,7 +33,7 @@ export default function ChatPage() {
       online: false,
     },
     {
-      id: 4,
+      id: "thuzar",
       name: "Thuzar",
       avatar: "https://i.pravatar.cc/150?u=thuzar",
       lastMessage: "ပို့ထားတဲ့နောက်ဆုံးစာ",
@@ -40,7 +41,7 @@ export default function ChatPage() {
       online: false,
     },
      {
-      id: 5,
+      id: "kyawkyaw",
       name: "Kyaw Kyaw",
       avatar: "https://i.pravatar.cc/150?u=kyawkyaw",
       lastMessage: "ပို့ထားတဲ့နောက်ဆုံးစာ",
@@ -68,7 +69,7 @@ export default function ChatPage() {
           {chats.map((chat) => (
             <Link href={`/chat/${chat.id}`} key={chat.id} className="block">
                 <div className="flex items-center gap-4 p-4 hover:bg-muted/50 cursor-pointer">
-                <div className="relative">
+                <Link href={`/profile/${chat.id}`} className="relative" onClick={(e) => e.stopPropagation()}>
                     <Avatar className="h-14 w-14">
                     <AvatarImage src={chat.avatar} alt={chat.name} data-ai-hint="person portrait" />
                     <AvatarFallback>{chat.name.charAt(0)}</AvatarFallback>
@@ -76,7 +77,7 @@ export default function ChatPage() {
                     {chat.online && (
                         <span className="absolute bottom-0 right-0 block h-3.5 w-3.5 rounded-full bg-green-500 border-2 border-background"></span>
                     )}
-                </div>
+                </Link>
                 <div className="flex-1">
                     <p className="font-semibold">{chat.name}</p>
                     <p className="text-sm text-muted-foreground">{chat.lastMessage}</p>

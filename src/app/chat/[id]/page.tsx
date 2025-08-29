@@ -9,15 +9,18 @@ import { ArrowLeft, Phone, Mic, Image as ImageIcon, Send, Smile, MoreVertical, M
 import Image from "next/image";
 import Link from "next/link";
 import { use, useState } from "react";
+import { getVideoPosts } from "@/lib/data";
 
 const ChatMessage = ({ message, isSender, isImage, onReply }: { message: any, isSender: boolean, isImage?: boolean, onReply: (message: any) => void }) => {
     return (
         <div className={`flex items-start gap-3 ${isSender ? 'justify-end' : 'justify-start'}`}>
             {!isSender && (
-                 <Avatar className="h-8 w-8">
-                    <AvatarImage src="https://i.pravatar.cc/150?u=susu" alt="Su Su" data-ai-hint="person portrait" />
-                    <AvatarFallback>S</AvatarFallback>
-                </Avatar>
+                <Link href={`/profile/${message.user.username}`}>
+                    <Avatar className="h-8 w-8">
+                        <AvatarImage src={message.user.avatar} alt={message.user.name} data-ai-hint="person portrait" />
+                        <AvatarFallback>{message.user.name.charAt(0)}</AvatarFallback>
+                    </Avatar>
+                </Link>
             )}
              <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -53,21 +56,31 @@ const ChatMessage = ({ message, isSender, isImage, onReply }: { message: any, is
 export default function IndividualChatPage({ params: paramsPromise }: { params: Promise<{ id: string }> }) {
   const params = use(paramsPromise);
   const [replyingTo, setReplyingTo] = useState<any | null>(null);
-  // In a real app, you would fetch user and messages based on params.id
-  const user = {
+  
+  const allUsers = getVideoPosts().map(p => p.user);
+  const uniqueUsers = [...new Map(allUsers.map(item => [item['username'], item])).values()];
+  const currentUser = uniqueUsers.find(u => u.username === params.id) || {
     id: params.id,
-    name: "Su Su",
-    avatar: "https://i.pravatar.cc/150?u=susu",
+    username: params.id,
+    name: params.id.charAt(0).toUpperCase() + params.id.slice(1),
+    avatar: `https://i.pravatar.cc/150?u=${params.id}`,
     online: true
   };
 
+  const user = {
+      ...currentUser,
+      id: currentUser.username,
+      name: currentUser.username.charAt(0).toUpperCase() + currentUser.username.slice(1),
+      online: Math.random() > 0.5
+  }
+
   const messages = [
-    { id: 1, text: "Hello!", sender: false, user: { name: 'Su Su' } },
-    { id: 2, text: "Hi, how are you?", sender: true, user: { name: 'Aung Aung' } },
-    { id: 3, text: "I am fine, thank you! And you?", sender: false, user: { name: 'Su Su' } },
-    { id: 4, text: "https://picsum.photos/400/400?random=20", sender: false, isImage: true, user: { name: 'Su Su' } },
-    { id: 5, text: "I'm doing great. Look at this picture!", sender: false, user: { name: 'Su Su' } },
-    { id: 6, text: "Wow, that's beautiful!", sender: true, user: { name: 'Aung Aung' } },
+    { id: 1, text: "Hello!", sender: false, user: { name: user.name, username: user.username, avatar: user.avatar } },
+    { id: 2, text: "Hi, how are you?", sender: true, user: { name: 'Aung Aung', username: 'aungaung' } },
+    { id: 3, text: "I am fine, thank you! And you?", sender: false, user: { name: user.name, username: user.username, avatar: user.avatar } },
+    { id: 4, text: "https://picsum.photos/400/400?random=20", sender: false, isImage: true, user: { name: user.name, username: user.username, avatar: user.avatar } },
+    { id: 5, text: "I'm doing great. Look at this picture!", sender: false, user: { name: user.name, username: user.username, avatar: user.avatar } },
+    { id: 6, text: "Wow, that's beautiful!", sender: true, user: { name: 'Aung Aung', username: 'aungaung' } },
   ];
 
   const handleReply = (message: any) => {
@@ -83,10 +96,12 @@ export default function IndividualChatPage({ params: paramsPromise }: { params: 
                     <ArrowLeft className="h-5 w-5" />
                 </Button>
             </Link>
-            <Avatar className="h-10 w-10">
-                <AvatarImage src={user.avatar} alt={user.name} data-ai-hint="person portrait" />
-                <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
-            </Avatar>
+            <Link href={`/profile/${user.id}`}>
+                <Avatar className="h-10 w-10">
+                    <AvatarImage src={user.avatar} alt={user.name} data-ai-hint="person portrait" />
+                    <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
+                </Avatar>
+            </Link>
             <div>
                 <p className="font-bold">{user.name}</p>
                 {user.online && <p className="text-xs text-green-500">Active now</p>}

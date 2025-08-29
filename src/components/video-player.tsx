@@ -12,6 +12,7 @@ import { cn } from "@/lib/utils";
 import { Sheet, SheetContent, SheetTrigger } from "./ui/sheet";
 import { CommentSheet } from "./comment-sheet";
 import { ShareSheet } from "./share-sheet";
+import Link from "next/link";
 
 type VideoPlayerProps = {
   post: Post;
@@ -85,12 +86,14 @@ export function VideoPlayer({ post }: VideoPlayerProps) {
              </div>
           </div>
           <div className="flex flex-col items-center space-y-6">
-            <div className="flex flex-col items-center">
-              <Avatar className="h-12 w-12 border-2 border-white rounded-full">
-                <AvatarImage src={post.user.avatar} data-ai-hint="person portrait" />
-                <AvatarFallback>{post.user.username.charAt(0).toUpperCase()}</AvatarFallback>
-              </Avatar>
-            </div>
+            <Link href={`/profile/${post.user.username}`}>
+              <div className="flex flex-col items-center">
+                <Avatar className="h-12 w-12 border-2 border-white rounded-full">
+                  <AvatarImage src={post.user.avatar} data-ai-hint="person portrait" />
+                  <AvatarFallback>{post.user.username.charAt(0).toUpperCase()}</AvatarFallback>
+                </Avatar>
+              </div>
+            </Link>
 
             <button onClick={handleLike} className="flex flex-col items-center text-center">
               <span className={cn(

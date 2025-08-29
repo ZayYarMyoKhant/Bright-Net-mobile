@@ -1,56 +1,80 @@
 
+"use client";
+
+import { use, useEffect, useState } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Grid3x3, Settings, UserPlus, Clapperboard } from "lucide-react";
+import { Grid3x3, Settings, Clapperboard, ArrowLeft, MessageCircle } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { BottomNav } from '@/components/bottom-nav';
+import { useRouter } from "next/navigation";
+import { getVideoPosts } from "@/lib/data";
 
 
-export default function ProfilePage() {
-  const user = {
-    id: "aungaung",
-    name: "Aung Aung",
-    username: "aungaung",
-    avatar: "https://i.pravatar.cc/150?u=aungaung",
-    bio: "Digital Creator | Love to share my life.",
-    following: 124,
-    followers: 46,
-    postsCount: 1,
-    classCount: 1,
-  };
+export default function UserProfilePage({ params: paramsPromise }: { params: Promise<{ id: string }> }) {
+  const params = use(paramsPromise);
+  const router = useRouter();
+  const [user, setUser] = useState<any>(null);
+
+  useEffect(() => {
+    // In a real app, you would fetch user data based on params.id
+    // For now, we find the user from our mock data
+    const allPosts = getVideoPosts();
+    const foundUser = allPosts.find(p => p.user.username === params.id)?.user;
+    
+    if (foundUser) {
+        setUser({
+            ...foundUser,
+            following: Math.floor(Math.random() * 200),
+            followers: Math.floor(Math.random() * 100),
+            postsCount: allPosts.filter(p => p.user.username === params.id).length,
+            bio: "Another digital creator's bio.",
+        });
+    }
+
+  }, [params.id]);
+
 
   const posts = Array.from({ length: 15 }, (_, i) => ({
     id: i + 1,
-    imageUrl: `https://picsum.photos/400/400?random=${i + 10}`,
+    imageUrl: `https://picsum.photos/400/400?random=${i + 20}`,
   }));
+
+  if (!user) {
+    return (
+        <>
+            <div className="flex h-full flex-col bg-background text-foreground pb-16 items-center justify-center">
+                <p>User not found</p>
+            </div>
+            <BottomNav />
+        </>
+    )
+  }
 
   return (
     <>
       <div className="flex h-full flex-col bg-background text-foreground pb-16">
         <header className="flex h-16 flex-shrink-0 items-center justify-between border-b px-4">
-          <Link href="/profile/friend-request">
-            <Button variant="ghost" size="icon">
-              <UserPlus className="h-5 w-5" />
-              <span className="sr-only">Add Friend</span>
-            </Button>
-          </Link>
+          <Button variant="ghost" size="icon" onClick={() => router.back()}>
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
           <h1 className="font-bold">{user.username}</h1>
-          <Link href="/profile/settings">
+          <Link href={`/chat/${user.username}`}>
             <Button variant="ghost" size="icon">
-              <Settings className="h-5 w-5" />
-              <span className="sr-only">Settings</span>
+              <MessageCircle className="h-5 w-5" />
+              <span className="sr-only">Message user</span>
             </Button>
           </Link>
         </header>
 
         <main className="flex-1 overflow-y-auto p-4">
           <div className="flex flex-col items-center">
-            <div className="relative h-24 w-24 rounded-lg overflow-hidden border-2 border-primary">
-              <Image src={user.avatar} alt={user.username} layout="fill" objectFit="cover" data-ai-hint="person portrait" />
+             <div className="relative h-24 w-24 rounded-lg overflow-hidden border-2 border-primary">
+                <Image src={user.avatar} alt={user.username} layout="fill" objectFit="cover" data-ai-hint="person portrait" />
             </div>
-            <h2 className="mt-3 text-xl font-bold">{user.name}</h2>
+            <h2 className="mt-3 text-xl font-bold">{user.username}</h2>
             <p className="text-sm text-muted-foreground">@{user.username}</p>
             <p className="mt-2 text-center text-sm">{user.bio}</p>
           </div>
@@ -71,9 +95,7 @@ export default function ProfilePage() {
           </div>
           
           <div className="mt-4 flex items-center gap-2">
-              <Link href="/profile/edit" className="flex-1">
-                <Button className="w-full">Edit Profile</Button>
-              </Link>
+            <Button className="w-full">Follow</Button>
           </div>
 
 
@@ -117,3 +139,4 @@ export default function ProfilePage() {
     </>
   );
 }
+
