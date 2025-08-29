@@ -23,6 +23,24 @@ export type Post = {
   descriptionMyanmar: string;
 };
 
+export type Country = {
+  code: string;
+  flag: string;
+};
+
+export const countries: Country[] = [
+  { code: '95', flag: '🇲🇲' },
+  { code: '1', flag: '🇺🇸' },
+  { code: '44', flag: '🇬🇧' },
+  { code: '81', flag: '🇯🇵' },
+  { code: '82', flag: '🇰🇷' },
+  { code: '65', flag: '🇸🇬' },
+  { code: '66', flag: '🇹🇭' },
+  { code: '86', flag: '🇨🇳' },
+  { code: '91', flag: '🇮🇳' },
+];
+
+
 const comments: Comment[] = [
     {
         id: 1,

@@ -5,8 +5,9 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Eye, EyeOff } from 'lucide-react';
+import { Eye, EyeOff, Globe } from 'lucide-react';
 import Link from 'next/link';
+import { countries } from '@/lib/data';
 
 const GoogleIcon = (props: React.SVGProps<SVGSVGElement>) => (
     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 48 48" {...props}>
@@ -21,6 +22,10 @@ const GoogleIcon = (props: React.SVGProps<SVGSVGElement>) => (
 export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [countryCode, setCountryCode] = useState('');
+  
+  const country = countries.find(c => c.code === countryCode);
+
 
   return (
     <div className="flex h-dvh w-full flex-col items-center justify-center bg-background p-6">
@@ -34,7 +39,18 @@ export default function LoginPage() {
             <div className="space-y-2">
                 <Label htmlFor="phone">Phone Number</Label>
                 <div className="flex items-center gap-2">
-                    <Input id="country-code" type="tel" placeholder="+95" className="w-20"/>
+                     <div className="relative w-24">
+                        <div className="absolute top-[-1.2rem] right-1 text-2xl">{country ? country.flag : <Globe className="h-5 w-5 text-muted-foreground" />}</div>
+                        <div className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">+</div>
+                        <Input 
+                            id="country-code" 
+                            type="tel" 
+                            placeholder="95" 
+                            className="pl-7"
+                            value={countryCode}
+                            onChange={(e) => setCountryCode(e.target.value)}
+                        />
+                    </div>
                     <Input id="phone" type="tel" placeholder="912345678" className="flex-1" />
                 </div>
             </div>
