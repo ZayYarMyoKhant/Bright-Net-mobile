@@ -63,7 +63,9 @@ export default function AiToolPage() {
                  </div>
               </CardHeader>
               <CardFooter>
-                <Button className="w-full">Start</Button>
+                <Link href="/ai-tool/translator" className="w-full">
+                  <Button className="w-full">Start</Button>
+                </Link>
               </CardFooter>
             </Card>
           </div>
