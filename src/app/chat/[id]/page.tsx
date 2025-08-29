@@ -8,7 +8,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { ArrowLeft, Phone, Mic, Image as ImageIcon, Send, Smile, MoreVertical, MessageSquareReply, Trash2, X } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { use, useState } from "react";
+import { use, useState, useRef, useEffect } from "react";
 import { getVideoPosts } from "@/lib/data";
 
 const ChatMessage = ({ message, isSender, isImage, onReply }: { message: any, isSender: boolean, isImage?: boolean, onReply: (message: any) => void }) => {
@@ -56,6 +56,7 @@ const ChatMessage = ({ message, isSender, isImage, onReply }: { message: any, is
 export default function IndividualChatPage({ params: paramsPromise }: { params: Promise<{ id: string }> }) {
   const params = use(paramsPromise);
   const [replyingTo, setReplyingTo] = useState<any | null>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
   
   const allUsers = getVideoPosts().map(p => p.user);
   const uniqueUsers = [...new Map(allUsers.map(item => [item['username'], item])).values()];
@@ -82,6 +83,10 @@ export default function IndividualChatPage({ params: paramsPromise }: { params: 
     { id: 5, text: "I'm doing great. Look at this picture!", sender: false, user: { name: user.name, username: user.username, avatar: user.avatar } },
     { id: 6, text: "Wow, that's beautiful!", sender: true, user: { name: 'Aung Aung', username: 'aungaung' } },
   ];
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "auto" });
+  }, [messages]);
 
   const handleReply = (message: any) => {
     setReplyingTo(message);
@@ -131,6 +136,7 @@ export default function IndividualChatPage({ params: paramsPromise }: { params: 
         {messages.map((msg) => (
             <ChatMessage key={msg.id} message={msg} isSender={msg.sender} isImage={msg.isImage} onReply={handleReply} />
         ))}
+        <div ref={messagesEndRef} />
       </main>
 
       <footer className="flex-shrink-0 border-t p-2">

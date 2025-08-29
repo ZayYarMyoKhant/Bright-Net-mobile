@@ -8,7 +8,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { ArrowLeft, Video, MoreVertical, Image as ImageIcon, Send, Smile, Mic, MessageSquareReply, Trash2, X } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { use, useState } from "react";
+import { use, useState, useRef, useEffect } from "react";
 
 const ChatMessage = ({ message, isSender, isImage, onReply }: { message: any, isSender: boolean, isImage?: boolean, onReply: (message: any) => void }) => {
     return (
@@ -52,6 +52,7 @@ const ChatMessage = ({ message, isSender, isImage, onReply }: { message: any, is
 export default function ClassChannelPage({ params: paramsPromise }: { params: Promise<{ id: string }> }) {
   const params = use(paramsPromise);
   const [replyingTo, setReplyingTo] = useState<any | null>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const classInfo = {
     id: params.id,
@@ -65,6 +66,10 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
     { id: 3, text: "Here's the first design I'm working on.", sender: false, user: { name: 'Aung Aung' } },
     { id: 4, text: "https://picsum.photos/400/400?random=30", sender: false, isImage: true, user: { name: 'Aung Aung' } },
   ];
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "auto" });
+  }, [messages]);
 
   const handleReply = (message: any) => {
     setReplyingTo(message);
@@ -111,6 +116,7 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
         {messages.map((msg) => (
             <ChatMessage key={msg.id} message={msg} isSender={msg.sender} isImage={msg.isImage} onReply={handleReply} />
         ))}
+        <div ref={messagesEndRef} />
       </main>
 
       <footer className="flex-shrink-0 border-t p-2">
