@@ -25,11 +25,11 @@ export default function SplashPage() {
   if (showSplash) {
     return (
       <div className="flex h-dvh w-full items-center justify-center bg-black">
-        <div className="flex items-center gap-4">
+        <div className="relative flex items-center justify-center">
            <h1 className="animate-splash text-4xl font-bold">
             Welcome to Bright-Net
           </h1>
-          <Sun className="animate-sun h-12 w-12 text-yellow-400" />
+          <Sun className="animate-sun absolute -bottom-4 -left-8 h-12 w-12 text-yellow-400" />
         </div>
       </div>
     );
