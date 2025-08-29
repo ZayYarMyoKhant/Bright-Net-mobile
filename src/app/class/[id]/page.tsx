@@ -3,22 +3,38 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { ArrowLeft, Video, MoreVertical, Image as ImageIcon, Send, Smile, Mic } from "lucide-react";
+import { ArrowLeft, Video, MoreVertical, Image as ImageIcon, Send, Smile, Mic, MessageSquareReply, Trash2 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 
 const ChatMessage = ({ message, isSender, isImage }: { message: string, isSender: boolean, isImage?: boolean }) => {
     return (
         <div className={`flex ${isSender ? 'justify-end' : 'justify-start'}`}>
-            {isImage ? (
-                 <div className="relative h-48 w-48 rounded-lg overflow-hidden">
-                    <Image src={message} alt="sent image" layout="fill" objectFit="cover" data-ai-hint="photo message" />
-                </div>
-            ) : (
-                <div className={`max-w-xs rounded-lg px-4 py-2 ${isSender ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}>
-                    {message}
-                </div>
-            )}
+            <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                    <div className="cursor-pointer">
+                        {isImage ? (
+                            <div className="relative h-48 w-48 rounded-lg overflow-hidden">
+                                <Image src={message} alt="sent image" layout="fill" objectFit="cover" data-ai-hint="photo message" />
+                            </div>
+                        ) : (
+                            <div className={`max-w-xs rounded-lg px-4 py-2 ${isSender ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}>
+                                {message}
+                            </div>
+                        )}
+                    </div>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent>
+                    <DropdownMenuItem>
+                        <MessageSquareReply className="mr-2 h-4 w-4" />
+                        <span>Reply</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem className="text-destructive">
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        <span>Delete</span>
+                    </DropdownMenuItem>
+                </DropdownMenuContent>
+            </DropdownMenu>
         </div>
     )
 };
