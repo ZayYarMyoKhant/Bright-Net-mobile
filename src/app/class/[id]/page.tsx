@@ -47,9 +47,11 @@ export default function ClassChannelPage({ params }: { params: { id: string } })
                     <ArrowLeft className="h-5 w-5" />
                 </Button>
             </Link>
-            <Avatar className="h-10 w-10">
-                <AvatarFallback>{classInfo.avatarFallback}</AvatarFallback>
-            </Avatar>
+            <Link href={`/class/${classInfo.id}/info`}>
+              <Avatar className="h-10 w-10">
+                  <AvatarFallback>{classInfo.avatarFallback}</AvatarFallback>
+              </Avatar>
+            </Link>
             <div>
                 <p className="font-bold">{classInfo.name}</p>
             </div>
