@@ -2,15 +2,16 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Search, PlusSquare, User, Clapperboard } from "lucide-react";
+import { Home, Search, PlusSquare, User, Bot, BookOpen, MessageCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Logo } from "./icons";
 
 const navItems = [
   { href: "/", label: "Home", icon: Home },
-  { href: "/search", label: "Discover", icon: Search },
+  { href: "/search", label: "Search", icon: Search },
+  { href: "/ai-tool", label: "AI Tool", icon: Bot },
   { href: "/upload", label: "Upload", icon: PlusSquare, isSpecial: true },
-  { href: "/subscriptions", label: "Subscriptions", icon: Clapperboard },
+  { href: "/class", label: "Class", icon: BookOpen },
+  { href: "/chat", label: "Chat", icon: MessageCircle },
   { href: "/profile", label: "Profile", icon: User },
 ];
 
@@ -27,7 +28,7 @@ export function BottomNav() {
               <Link
                 key={item.label}
                 href={item.href}
-                className="flex h-10 w-14 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-md transition-transform active:scale-95"
+                className="flex h-10 w-12 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-md transition-transform active:scale-95"
               >
                 <item.icon className="h-6 w-6" />
                 <span className="sr-only">{item.label}</span>
@@ -39,12 +40,12 @@ export function BottomNav() {
               key={item.label}
               href={item.href}
               className={cn(
-                "flex flex-col items-center gap-1 text-xs font-medium transition-colors",
+                "flex flex-col items-center gap-1 text-xs font-medium transition-colors w-14",
                 isActive ? "text-primary" : "text-muted-foreground hover:text-foreground"
               )}
             >
-              <item.icon className="h-6 w-6" />
-              <span>{item.label}</span>
+              <item.icon className="h-5 w-5" />
+              <span className="text-[10px] text-center">{item.label}</span>
             </Link>
           );
         })}
