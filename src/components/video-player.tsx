@@ -11,6 +11,7 @@ import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import { Sheet, SheetContent, SheetTrigger } from "./ui/sheet";
 import { CommentSheet } from "./comment-sheet";
+import { ShareSheet } from "./share-sheet";
 
 type VideoPlayerProps = {
   post: Post;
@@ -114,12 +115,19 @@ export function VideoPlayer({ post }: VideoPlayerProps) {
               </SheetContent>
             </Sheet>
             
-            <div className="flex flex-col items-center text-center">
-                <span className="flex items-center justify-center h-12 w-12 rounded-full bg-white/20">
-                    <Send className="h-7 w-7" />
-                </span>
-                <span className="text-xs font-semibold mt-2">{formatCount(post.shares)}</span>
-            </div>
+            <Sheet>
+              <SheetTrigger asChild>
+                <div className="flex flex-col items-center text-center cursor-pointer">
+                    <span className="flex items-center justify-center h-12 w-12 rounded-full bg-white/20">
+                        <Send className="h-7 w-7" />
+                    </span>
+                    <span className="text-xs font-semibold mt-2">{formatCount(post.shares)}</span>
+                </div>
+              </SheetTrigger>
+              <SheetContent side="bottom" className="h-[75dvh] flex flex-col p-0">
+                <ShareSheet />
+              </SheetContent>
+            </Sheet>
           </div>
         </div>
       </div>
