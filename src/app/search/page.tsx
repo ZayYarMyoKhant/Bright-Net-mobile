@@ -4,7 +4,7 @@
 import { BottomNav } from "@/components/bottom-nav";
 import { Input } from "@/components/ui/input"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Search, Bot, BookOpen, User } from "lucide-react"
+import { Search, Grid3x3, BookOpen, User } from "lucide-react"
 
 export default function SearchPage() {
   return (
@@ -22,11 +22,11 @@ export default function SearchPage() {
         </div>
 
         <main className="flex-1 overflow-y-auto px-4">
-          <Tabs defaultValue="bot" className="w-full">
+          <Tabs defaultValue="post" className="w-full">
             <TabsList className="grid w-full grid-cols-3">
-              <TabsTrigger value="bot">
-                <Bot className="mr-2 h-4 w-4" />
-                Bot
+              <TabsTrigger value="post">
+                <Grid3x3 className="mr-2 h-4 w-4" />
+                Post
               </TabsTrigger>
               <TabsTrigger value="class">
                 <BookOpen className="mr-2 h-4 w-4" />
@@ -37,10 +37,10 @@ export default function SearchPage() {
                 User
               </TabsTrigger>
             </TabsList>
-            <TabsContent value="bot">
+            <TabsContent value="post">
               <div className="flex flex-col items-center justify-center pt-10 text-center">
-                  <Bot className="h-12 w-12 text-muted-foreground" />
-                  <p className="mt-4 text-sm text-muted-foreground">Search for bots and AI tools.</p>
+                  <Grid3x3 className="h-12 w-12 text-muted-foreground" />
+                  <p className="mt-4 text-sm text-muted-foreground">Search for posts.</p>
               </div>
             </TabsContent>
             <TabsContent value="class">
