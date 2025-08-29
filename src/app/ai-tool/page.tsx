@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Bot, BrainCircuit, Languages, Search } from "lucide-react";
+import Link from "next/link";
 
 export default function AiToolPage() {
   return (
@@ -43,7 +44,9 @@ export default function AiToolPage() {
                 </div>
               </CardHeader>
               <CardFooter>
-                <Button className="w-full">Start</Button>
+                <Link href="/ai-tool/problem-solver" className="w-full">
+                  <Button className="w-full">Start</Button>
+                </Link>
               </CardFooter>
             </Card>
             
