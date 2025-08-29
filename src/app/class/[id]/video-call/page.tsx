@@ -58,7 +58,7 @@ export default function ClassVideoCallPage({ params: paramsPromise }: { params: 
 
       <main className="flex-1 overflow-y-auto p-2 flex flex-col">
         {/* Host View */}
-        <div className="relative aspect-video w-full rounded-lg overflow-hidden bg-muted mb-2">
+        <div className="relative aspect-square w-full max-w-md mx-auto rounded-lg overflow-hidden bg-muted mb-2">
            <Image 
                 src={host.avatar}
                 alt={host.name}
@@ -72,7 +72,7 @@ export default function ClassVideoCallPage({ params: paramsPromise }: { params: 
             </div>
         </div>
         {/* Members View */}
-        <div className="grid grid-cols-3 gap-2 flex-1">
+        <div className="grid grid-cols-4 gap-2 flex-1">
             {members.map(member => (
                  <div key={member.id} className="relative aspect-square rounded-lg overflow-hidden bg-muted">
                     <Image 
@@ -82,9 +82,9 @@ export default function ClassVideoCallPage({ params: paramsPromise }: { params: 
                         objectFit="cover"
                         data-ai-hint="person video"
                     />
-                     <div className="absolute bottom-2 left-2 flex items-center gap-2 rounded-full bg-black/50 px-2 py-1 text-xs text-white">
-                        {member.isMuted ? <MicOff className="h-3 w-3" /> : <Mic className="h-3 w-3" />}
-                        <span>{member.name}</span>
+                     <div className="absolute bottom-1 left-1 flex items-center gap-1 rounded-full bg-black/50 px-1.5 py-0.5 text-[10px] text-white">
+                        {member.isMuted ? <MicOff className="h-2.5 w-2.5" /> : <Mic className="h-2.5 w-2.5" />}
+                        <span className="truncate">{member.name}</span>
                     </div>
                  </div>
             ))}
