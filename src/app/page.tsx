@@ -23,7 +23,7 @@ export default function SplashPage() {
 
   if (showSplash) {
     return (
-      <div className="flex flex-1 h-dvh w-full items-center justify-center bg-black">
+      <div className="flex h-dvh w-full items-center justify-center bg-black">
         <div className={`transition-opacity duration-1000 ${showSplash ? 'opacity-100' : 'opacity-0'}`}>
           <h1 className="animate-splash text-4xl font-bold text-primary">
             Welcome to Bright-Net
