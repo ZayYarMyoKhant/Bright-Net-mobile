@@ -10,6 +10,7 @@ import { ScrollArea } from "./ui/scroll-area";
 import { Heart, MessageSquareReply, MoreVertical, Send, X } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
+import { SheetHeader, SheetTitle } from "./ui/sheet";
 
 type CommentSheetProps = {
   post: Post;
@@ -97,9 +98,9 @@ export function CommentSheet({ post }: CommentSheetProps) {
 
   return (
     <>
-      <header className="flex h-12 flex-shrink-0 items-center justify-center border-b px-4 relative">
-        <h2 className="font-bold">{comments.length} Comments</h2>
-      </header>
+      <SheetHeader className="h-12 flex-shrink-0 items-center justify-center border-b px-4 relative text-center">
+        <SheetTitle>{comments.length} Comments</SheetTitle>
+      </SheetHeader>
       <ScrollArea className="flex-1">
         <div className="p-4 space-y-6">
           {comments.map((comment) => (
