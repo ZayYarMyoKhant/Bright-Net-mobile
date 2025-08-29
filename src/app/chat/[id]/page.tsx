@@ -2,7 +2,8 @@
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ArrowLeft, Phone, Mic, Image as ImageIcon, Send, Smile, Swords, MoreVertical } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { ArrowLeft, Phone, Mic, Image as ImageIcon, Send, Smile, MoreVertical } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 
@@ -65,12 +66,17 @@ export default function IndividualChatPage({ params }: { params: { id: string } 
               <Phone className="h-5 w-5" />
             </Button>
           </Link>
-           <Button variant="ghost" size="icon">
-            <Swords className="h-5 w-5" />
-          </Button>
-          <Button variant="ghost" size="icon">
-            <MoreVertical className="h-5 w-5" />
-          </Button>
+           <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon">
+                <MoreVertical className="h-5 w-5" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent>
+              <DropdownMenuItem className="text-destructive">Block user</DropdownMenuItem>
+              <DropdownMenuItem className="text-destructive">Delete chat</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </header>
       
