@@ -29,7 +29,6 @@ export default function RootLayout({
       >
         <div className="relative flex h-dvh flex-col bg-background">
           <main className="flex-1 overflow-hidden">{children}</main>
-          <BottomNav />
         </div>
         <Toaster />
       </body>

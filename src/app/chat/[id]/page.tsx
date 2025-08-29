@@ -2,7 +2,7 @@
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ArrowLeft, Video, Phone, Mic, Image as ImageIcon, Send, Smile } from "lucide-react";
+import { ArrowLeft, Video, Phone, Mic, Image as ImageIcon, Send, Smile, Swords } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 
@@ -42,7 +42,7 @@ export default function IndividualChatPage({ params }: { params: { id: string } 
   ];
 
   return (
-    <div className="flex h-full flex-col bg-background text-foreground">
+    <div className="flex h-dvh flex-col bg-background text-foreground">
       <header className="flex h-16 flex-shrink-0 items-center justify-between border-b px-4">
         <div className="flex items-center gap-3">
             <Link href="/chat">
@@ -65,6 +65,9 @@ export default function IndividualChatPage({ params }: { params: { id: string } 
           </Button>
           <Button variant="ghost" size="icon">
             <Phone className="h-5 w-5" />
+          </Button>
+           <Button variant="ghost" size="icon">
+            <Swords className="h-5 w-5" />
           </Button>
         </div>
       </header>

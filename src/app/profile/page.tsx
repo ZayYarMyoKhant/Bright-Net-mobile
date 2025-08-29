@@ -5,6 +5,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Grid3x3, Settings, UserPlus, Clapperboard } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
+import { BottomNav } from '@/components/bottom-nav';
+
 
 export default function ProfilePage() {
   const user = {
@@ -24,88 +26,91 @@ export default function ProfilePage() {
   }));
 
   return (
-    <div className="flex h-full flex-col bg-background text-foreground">
-      <header className="flex h-16 flex-shrink-0 items-center justify-between border-b px-4">
-        <Button variant="ghost" size="icon">
-          <UserPlus className="h-5 w-5" />
-          <span className="sr-only">Add Friend</span>
-        </Button>
-        <h1 className="font-bold">{user.username}</h1>
-        <Link href="/profile/settings">
+    <>
+      <div className="flex h-full flex-col bg-background text-foreground pb-16">
+        <header className="flex h-16 flex-shrink-0 items-center justify-between border-b px-4">
           <Button variant="ghost" size="icon">
-            <Settings className="h-5 w-5" />
-            <span className="sr-only">Settings</span>
+            <UserPlus className="h-5 w-5" />
+            <span className="sr-only">Add Friend</span>
           </Button>
-        </Link>
-      </header>
+          <h1 className="font-bold">{user.username}</h1>
+          <Link href="/profile/settings">
+            <Button variant="ghost" size="icon">
+              <Settings className="h-5 w-5" />
+              <span className="sr-only">Settings</span>
+            </Button>
+          </Link>
+        </header>
 
-      <main className="flex-1 overflow-y-auto p-4">
-        <div className="flex flex-col items-center">
-          <div className="relative h-24 w-24 rounded-lg overflow-hidden border-2 border-primary">
-            <Image src={user.avatar} alt={user.username} layout="fill" objectFit="cover" data-ai-hint="person portrait" />
+        <main className="flex-1 overflow-y-auto p-4">
+          <div className="flex flex-col items-center">
+            <div className="relative h-24 w-24 rounded-lg overflow-hidden border-2 border-primary">
+              <Image src={user.avatar} alt={user.username} layout="fill" objectFit="cover" data-ai-hint="person portrait" />
+            </div>
+            <h2 className="mt-3 text-xl font-bold">{user.name}</h2>
+            <p className="text-sm text-muted-foreground">@{user.username}</p>
+            <p className="mt-2 text-center text-sm">{user.bio}</p>
           </div>
-          <h2 className="mt-3 text-xl font-bold">{user.name}</h2>
-          <p className="text-sm text-muted-foreground">@{user.username}</p>
-          <p className="mt-2 text-center text-sm">{user.bio}</p>
-        </div>
 
-        <div className="mt-6 grid grid-cols-3 gap-4 text-center">
-            <div>
-                <p className="font-bold">{user.following}</p>
-                <p className="text-sm text-muted-foreground">Following</p>
-            </div>
-            <div>
-                <p className="font-bold">{user.followers}</p>
-                <p className="text-sm text-muted-foreground">Followers</p>
-            </div>
-             <div>
-                <p className="font-bold">{user.postsCount}</p>
-                <p className="text-sm text-muted-foreground">Posts</p>
-            </div>
-        </div>
-        
-        <div className="mt-4 flex items-center gap-2">
-            <Link href="/profile/edit" className="flex-1">
-              <Button className="w-full">Edit Profile</Button>
-            </Link>
-        </div>
+          <div className="mt-6 grid grid-cols-3 gap-4 text-center">
+              <div>
+                  <p className="font-bold">{user.following}</p>
+                  <p className="text-sm text-muted-foreground">Following</p>
+              </div>
+              <div>
+                  <p className="font-bold">{user.followers}</p>
+                  <p className="text-sm text-muted-foreground">Followers</p>
+              </div>
+               <div>
+                  <p className="font-bold">{user.postsCount}</p>
+                  <p className="text-sm text-muted-foreground">Posts</p>
+              </div>
+          </div>
+          
+          <div className="mt-4 flex items-center gap-2">
+              <Link href="/profile/edit" className="flex-1">
+                <Button className="w-full">Edit Profile</Button>
+              </Link>
+          </div>
 
 
-        <Tabs defaultValue="posts" className="mt-6">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="posts">
-              <Grid3x3 className="mr-2 h-4 w-4" />
-              Posts
-            </TabsTrigger>
-            <TabsTrigger value="class">
-              <Clapperboard className="mr-2 h-4 w-4" />
-              Class
-            </TabsTrigger>
-          </TabsList>
-          <TabsContent value="posts">
-            <div className="grid grid-cols-3 gap-1">
-              {posts.map((post) => (
-                <div key={post.id} className="aspect-square w-full relative">
-                  <Image
-                    src={post.imageUrl}
-                    alt={`Post ${post.id}`}
-                    layout="fill"
-                    objectFit="cover"
-                    className="h-full w-full"
-                    data-ai-hint="lifestyle content"
-                  />
-                </div>
-              ))}
-            </div>
-          </TabsContent>
-          <TabsContent value="class">
-             <div className="flex flex-col items-center justify-center pt-10">
-                <Clapperboard className="h-12 w-12 text-muted-foreground" />
-                <p className="mt-4 text-sm text-muted-foreground">No classes yet.</p>
-            </div>
-          </TabsContent>
-        </Tabs>
-      </main>
-    </div>
+          <Tabs defaultValue="posts" className="mt-6">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="posts">
+                <Grid3x3 className="mr-2 h-4 w-4" />
+                Posts
+              </TabsTrigger>
+              <TabsTrigger value="class">
+                <Clapperboard className="mr-2 h-4 w-4" />
+                Class
+              </TabsTrigger>
+            </TabsList>
+            <TabsContent value="posts">
+              <div className="grid grid-cols-3 gap-1">
+                {posts.map((post) => (
+                  <div key={post.id} className="aspect-square w-full relative">
+                    <Image
+                      src={post.imageUrl}
+                      alt={`Post ${post.id}`}
+                      layout="fill"
+                      objectFit="cover"
+                      className="h-full w-full"
+                      data-ai-hint="lifestyle content"
+                    />
+                  </div>
+                ))}
+              </div>
+            </TabsContent>
+            <TabsContent value="class">
+               <div className="flex flex-col items-center justify-center pt-10">
+                  <Clapperboard className="h-12 w-12 text-muted-foreground" />
+                  <p className="mt-4 text-sm text-muted-foreground">No classes yet.</p>
+              </div>
+            </TabsContent>
+          </Tabs>
+        </main>
+      </div>
+      <BottomNav />
+    </>
   );
 }

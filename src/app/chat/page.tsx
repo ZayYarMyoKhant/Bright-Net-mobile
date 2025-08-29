@@ -1,5 +1,6 @@
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { BottomNav } from "@/components/bottom-nav";
 import { Input } from "@/components/ui/input";
 import { Search } from "lucide-react";
 import Link from "next/link";
@@ -49,7 +50,8 @@ export default function ChatPage() {
   ];
 
   return (
-    <div className="flex h-full flex-col bg-background text-foreground">
+    <>
+    <div className="flex h-full flex-col bg-background text-foreground pb-16">
       <header className="flex h-16 flex-shrink-0 items-center justify-between border-b px-4">
         <h1 className="text-xl font-bold">Chat</h1>
       </header>
@@ -86,5 +88,7 @@ export default function ChatPage() {
         </div>
       </main>
     </div>
+    <BottomNav/>
+    </>
   );
 }
