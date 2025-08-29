@@ -29,10 +29,12 @@ export default function ProfilePage() {
     <>
       <div className="flex h-full flex-col bg-background text-foreground pb-16">
         <header className="flex h-16 flex-shrink-0 items-center justify-between border-b px-4">
-          <Button variant="ghost" size="icon">
-            <UserPlus className="h-5 w-5" />
-            <span className="sr-only">Add Friend</span>
-          </Button>
+          <Link href="/profile/friend-request">
+            <Button variant="ghost" size="icon">
+              <UserPlus className="h-5 w-5" />
+              <span className="sr-only">Add Friend</span>
+            </Button>
+          </Link>
           <h1 className="font-bold">{user.username}</h1>
           <Link href="/profile/settings">
             <Button variant="ghost" size="icon">
