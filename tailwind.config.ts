@@ -88,25 +88,34 @@ export default {
             height: '0',
           },
         },
-        'fade-in-out-scale': {
-          '0%': {
-            opacity: '0',
-            transform: 'scale(0.9)',
+        'text-color-change': {
+          '0%, 20%': {
+            color: 'hsl(var(--primary))',
           },
-          '20%, 80%': {
+          '80%, 100%': {
+            color: 'white',
+          },
+        },
+        'sun-move-up': {
+          '0%': {
+            transform: 'translateY(0) scale(1)',
             opacity: '1',
-            transform: 'scale(1)',
+          },
+          '80%': {
+            transform: 'translateY(-80px) scale(1.5)',
+            opacity: '1',
           },
           '100%': {
+            transform: 'translateY(-100px) scale(1.5)',
             opacity: '0',
-            transform: 'scale(0.9)',
           },
         },
       },
       animation: {
         'accordion-down': 'accordion-down 0.2s ease-out',
         'accordion-up': 'accordion-up 0.2s ease-out',
-        'splash': 'fade-in-out-scale 4s ease-in-out forwards',
+        'splash': 'text-color-change 4s ease-in-out forwards',
+        'sun': 'sun-move-up 4s ease-in-out forwards',
       },
     },
   },

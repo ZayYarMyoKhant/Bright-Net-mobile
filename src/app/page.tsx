@@ -4,6 +4,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { VideoFeed } from "@/components/video-feed";
+import { Sun } from "lucide-react";
 
 export default function SplashPage() {
   const [showSplash, setShowSplash] = useState(true);
@@ -24,10 +25,11 @@ export default function SplashPage() {
   if (showSplash) {
     return (
       <div className="flex h-dvh w-full items-center justify-center bg-black">
-        <div className={`transition-opacity duration-1000 ${showSplash ? 'opacity-100' : 'opacity-0'}`}>
-          <h1 className="animate-splash text-4xl font-bold text-primary">
+        <div className="flex items-center gap-4">
+           <h1 className="animate-splash text-4xl font-bold">
             Welcome to Bright-Net
           </h1>
+          <Sun className="animate-sun h-12 w-12 text-yellow-400" />
         </div>
       </div>
     );
