@@ -26,7 +26,7 @@ export default function UploadPostPage() {
     }
   };
 
-  const handleRemoveImage = () => {
+  const handleRemoveMedia = () => {
     setSelectedFile(null);
     setPreviewUrl(null);
     if(fileInputRef.current) {
@@ -39,8 +39,10 @@ export default function UploadPostPage() {
     console.log("Posting:", { caption, file: selectedFile });
     // Reset state after post
     setCaption("");
-    handleRemoveImage();
+    handleRemoveMedia();
   };
+
+  const isVideo = selectedFile?.type.startsWith("video/");
 
   return (
     <>
@@ -60,19 +62,27 @@ export default function UploadPostPage() {
             >
               {previewUrl ? (
                 <>
-                  <Image
-                    src={previewUrl}
-                    alt="Selected preview"
-                    fill
-                    className="object-contain rounded-md"
-                  />
+                  {isVideo ? (
+                     <video
+                        src={previewUrl}
+                        controls
+                        className="h-full w-full object-contain rounded-md"
+                      />
+                  ) : (
+                    <Image
+                      src={previewUrl}
+                      alt="Selected preview"
+                      fill
+                      className="object-contain rounded-md"
+                    />
+                  )}
                   <Button
                     variant="destructive"
                     size="icon"
                     className="absolute top-2 right-2 h-7 w-7 rounded-full z-10"
                     onClick={(e) => {
                       e.stopPropagation();
-                      handleRemoveImage();
+                      handleRemoveMedia();
                     }}
                   >
                     <X className="h-4 w-4" />
