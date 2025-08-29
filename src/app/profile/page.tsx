@@ -31,10 +31,12 @@ export default function ProfilePage() {
           <span className="sr-only">Add Friend</span>
         </Button>
         <h1 className="font-bold">{user.username}</h1>
-        <Button variant="ghost" size="icon">
-          <Settings className="h-5 w-5" />
-          <span className="sr-only">Settings</span>
-        </Button>
+        <Link href="/profile/settings">
+          <Button variant="ghost" size="icon">
+            <Settings className="h-5 w-5" />
+            <span className="sr-only">Settings</span>
+          </Button>
+        </Link>
       </header>
 
       <main className="flex-1 overflow-y-auto p-4">
