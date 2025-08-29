@@ -27,7 +27,9 @@ export default function RootLayout({
       <body
         className={cn('font-headline antialiased bg-background', ptSans.variable)}
       >
-        {children}
+        <div className="relative h-dvh w-full md:h-screen overflow-hidden">
+            {children}
+        </div>
         <Toaster />
       </body>
     </html>
