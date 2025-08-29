@@ -25,11 +25,9 @@ export default function RootLayout({
   return (
     <html lang="en" className="dark">
       <body
-        className={cn('font-headline antialiased', ptSans.variable)}
+        className={cn('font-headline antialiased bg-background', ptSans.variable)}
       >
-        <div className="relative h-dvh bg-background">
-          {children}
-        </div>
+        {children}
         <Toaster />
       </body>
     </html>
