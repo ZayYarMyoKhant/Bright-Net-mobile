@@ -1,6 +1,17 @@
 
 "use client";
 
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+    AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, User, Shield, Globe, Ban, ChevronRight, LogOut } from "lucide-react";
 import Link from "next/link";
@@ -8,8 +19,8 @@ import Link from "next/link";
 const settingsItems = [
     { icon: User, label: "Account", href: "/profile/settings/account" },
     { icon: Shield, label: "Privacy", href: "/profile/settings/privacy" },
-    { icon: Globe, label: "Language", href: "#" },
-    { icon: Ban, label: "Block account", href: "#" },
+    { icon: Globe, label: "Language", href: "/profile/settings/language" },
+    { icon: Ban, label: "Block account", href: "/profile/settings/blocked" },
 ];
 
 export default function SettingsPage() {
@@ -44,10 +55,26 @@ export default function SettingsPage() {
                 </div>
 
                 <div className="p-4">
-                    <Button variant="outline" className="w-full justify-between">
-                       <span>Log out</span>
-                       <LogOut className="h-5 w-5" />
-                    </Button>
+                    <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                             <Button variant="outline" className="w-full justify-between">
+                               <span>Log out</span>
+                               <LogOut className="h-5 w-5" />
+                            </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                            <AlertDialogHeader>
+                                <AlertDialogTitle>Are you sure to log out?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                    This action will sign you out of your account on this device.
+                                </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction>Yes, log out</AlertDialogAction>
+                            </AlertDialogFooter>
+                        </AlertDialogContent>
+                    </AlertDialog>
                 </div>
             </main>
         </div>
