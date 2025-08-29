@@ -2,7 +2,7 @@
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ArrowLeft, Video, Phone, Mic, Image as ImageIcon, Send, Smile, Swords } from "lucide-react";
+import { ArrowLeft, Phone, Mic, Image as ImageIcon, Send, Smile, Swords, MoreVertical } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 
@@ -61,13 +61,13 @@ export default function IndividualChatPage({ params }: { params: { id: string } 
         </div>
         <div className="flex items-center gap-2">
           <Button variant="ghost" size="icon">
-            <Video className="h-5 w-5" />
-          </Button>
-          <Button variant="ghost" size="icon">
             <Phone className="h-5 w-5" />
           </Button>
            <Button variant="ghost" size="icon">
             <Swords className="h-5 w-5" />
+          </Button>
+          <Button variant="ghost" size="icon">
+            <MoreVertical className="h-5 w-5" />
           </Button>
         </div>
       </header>
