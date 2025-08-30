@@ -42,7 +42,13 @@ export default function SignUpPage() {
 
     let signUpOptions;
     if (email) {
-        signUpOptions = { email, password };
+        signUpOptions = { 
+            email, 
+            password,
+            options: {
+                emailRedirectTo: `${location.origin}/auth/callback`,
+            },
+        };
     } else {
         const fullPhoneNumber = `+${countryCode}${phone}`;
         signUpOptions = { phone: fullPhoneNumber, password };
@@ -59,7 +65,7 @@ export default function SignUpPage() {
     } else {
       toast({
         title: "Success!",
-        description: "Your account has been created. Please check your email or phone to verify.",
+        description: "Your account has been created.",
       });
       router.push('/profile/setup');
     }
