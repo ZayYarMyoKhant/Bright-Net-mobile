@@ -62,12 +62,12 @@ export default function SignUpPage() {
     } else if (data.user) {
       // On successful sign up, Supabase creates a session.
       // We can now directly navigate to profile setup.
-      // The middleware will see the new session and allow access.
       toast({
         title: "Success!",
         description: "Your account has been created. Let's set up your profile.",
       });
       router.push('/profile/setup');
+      router.refresh(); // Refresh router state
     } else {
         toast({
             variant: "destructive",

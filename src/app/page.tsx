@@ -23,7 +23,7 @@ export default function SplashPage() {
           // No session, go to sign up
           router.push('/signup');
         }
-      }, 2000); // 2 seconds delay
+      }, 1500); // 1.5 seconds delay
     };
     
     checkUserAndRedirect();
