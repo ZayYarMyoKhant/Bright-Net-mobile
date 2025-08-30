@@ -13,26 +13,13 @@ export default function SplashPage() {
       const supabase = createClient();
       const { data: { session } } = await supabase.auth.getSession();
 
-      // After 2 seconds, check session and profile
+      // After 2 seconds, check session
       setTimeout(async () => {
         if (session) {
-          // User is logged in, check if they have a profile
-          const { data: profile, error } = await supabase
-            .from('profiles')
-            .select('username, full_name')
-            .eq('id', session.user.id)
-            .single();
-
-          if (error && error.code !== 'PGRST116') { // PGRST116 means no rows found, which is expected for new users
-             console.error('Error fetching profile:', error);
-          }
-          
-          // If profile is incomplete (e.g., no username), go to setup. Otherwise, go to home.
-          if (profile && profile.username && profile.full_name) {
-            router.push('/home');
-          } else {
-            router.push('/profile/setup');
-          }
+          // If a session exists, the auth/callback logic or subsequent navigation will handle profile checks.
+          // Just go to the home page. If the profile is not set up, they will be redirected from there if necessary,
+          // but our new callback handles it first.
+          router.push('/home');
         } else {
           // No session, go to sign up
           router.push('/signup');

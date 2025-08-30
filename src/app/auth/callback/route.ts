@@ -21,15 +21,17 @@ export async function GET(request: Request) {
           .eq('id', user.id)
           .single();
 
-        if (profile && profile.username) {
-           return NextResponse.redirect(`${origin}/home`);
-        } else {
+        // If the user has no username, they are a new user. Redirect to profile setup.
+        if (!profile?.username) {
            return NextResponse.redirect(`${origin}/profile/setup`);
         }
       }
+      // For existing users with a profile, redirect to home.
+      return NextResponse.redirect(`${origin}/home`);
     }
   }
 
   // return the user to an error page with instructions
-  return NextResponse.redirect(`${origin}/auth/auth-code-error`);
+  console.error('Auth code error or other error');
+  return NextResponse.redirect(`${origin}/login`);
 }
