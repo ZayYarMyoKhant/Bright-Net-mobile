@@ -40,23 +40,13 @@ export default function LoginPage() {
         title: "Login failed",
         description: error.message,
       });
+      setLoading(false);
     } else {
       router.push('/home'); 
       router.refresh();
     }
-    setLoading(false);
   };
   
-   const handleGoogleLogin = async () => {
-    const supabase = createClient();
-    await supabase.auth.signInWithOAuth({
-      provider: 'google',
-       options: {
-        // This will be handled by the splash screen logic now
-      },
-    });
-  };
-
   return (
     <div className="flex h-dvh w-full flex-col items-center justify-center bg-background p-6">
       <div className="w-full max-w-sm">
@@ -65,16 +55,12 @@ export default function LoginPage() {
             <p className="text-muted-foreground">Log in to your account</p>
         </div>
         
-        <Button variant="outline" className="w-full" onClick={handleGoogleLogin}>
-            Sign in with Google
-        </Button>
-        
         <div className="relative my-6">
             <div className="absolute inset-0 flex items-center">
                 <span className="w-full border-t" />
             </div>
             <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-background px-2 text-muted-foreground">Or continue with</span>
+                <span className="bg-background px-2 text-muted-foreground">Log in with</span>
             </div>
         </div>
 

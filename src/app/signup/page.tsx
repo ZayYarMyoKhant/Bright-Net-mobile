@@ -33,7 +33,7 @@ export default function SignUpPage() {
         phone: fullPhoneNumber,
         password,
         options: {
-          // No email verification
+          // No email verification needed, skip it.
         }
     });
 
@@ -49,6 +49,7 @@ export default function SignUpPage() {
         title: "Success!",
         description: "Your account has been created. Let's set up your profile.",
       });
+      // Directly navigate to profile setup. The page will handle fetching the user.
       router.push('/profile/setup');
     } else {
         toast({
@@ -59,17 +60,6 @@ export default function SignUpPage() {
         setLoading(false);
     }
   };
-  
-  const handleGoogleLogin = async () => {
-    const supabase = createClient();
-    await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: {
-        redirectTo: `${location.origin}/auth/callback`,
-      },
-    });
-  };
-
 
   return (
     <div className="flex h-dvh w-full flex-col items-center justify-center bg-background p-6">
@@ -78,10 +68,6 @@ export default function SignUpPage() {
             <h1 className="text-3xl font-bold">Create your account</h1>
             <p className="text-muted-foreground">Let's get started</p>
         </div>
-
-        <Button variant="outline" className="w-full" onClick={handleGoogleLogin}>
-            Sign up with Google
-        </Button>
         
         <div className="relative my-6">
             <div className="absolute inset-0 flex items-center">

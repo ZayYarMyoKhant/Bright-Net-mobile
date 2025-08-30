@@ -10,6 +10,7 @@ import { Camera, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import type { User } from '@supabase/supabase-js';
 
 export default function ProfileSetupPage() {
   const supabase = createClient();
@@ -18,20 +19,15 @@ export default function ProfileSetupPage() {
   
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [authUser, setAuthUser] = useState<User | null>(null);
   const [fullName, setFullName] = useState("");
   const [username, setUsername] = useState("");
   const [bio, setBio] = useState("");
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
-  const [userId, setUserId] = useState<string | null>(null);
 
-  const getProfile = useCallback(async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      router.push('/login');
-      return;
-    }
-    setUserId(user.id);
+  const getProfile = useCallback(async (user: User) => {
+    setAuthUser(user);
 
     const { data, error } = await supabase
       .from('profiles')
@@ -40,7 +36,7 @@ export default function ProfileSetupPage() {
       .single();
 
     if (error && error.code !== 'PGRST116') {
-      console.error(error);
+      console.error('Error fetching profile:', error);
       toast({ variant: 'destructive', title: 'Error fetching profile' });
     }
 
@@ -51,11 +47,21 @@ export default function ProfileSetupPage() {
       setAvatarUrl(data.avatar_url || null);
     }
     setLoading(false);
-  }, [supabase, router, toast]);
+  }, [supabase, toast]);
+
 
   useEffect(() => {
-    getProfile();
-  }, [getProfile]);
+    const checkUser = async () => {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+            getProfile(user);
+        } else {
+            // No user, redirect to login. This is a protected route.
+            router.push('/login');
+        }
+    };
+    checkUser();
+  }, [supabase, router, getProfile]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -66,14 +72,14 @@ export default function ProfileSetupPage() {
   };
 
   const handleSaveProfile = async () => {
-    if (!userId) return;
+    if (!authUser) return;
     setSaving(true);
     
     let publicAvatarUrl = avatarUrl;
 
     if (avatarFile) {
       const fileExt = avatarFile.name.split('.').pop();
-      const filePath = `${userId}-${Math.random()}.${fileExt}`;
+      const filePath = `${authUser.id}-${Math.random()}.${fileExt}`;
       
       const { error: uploadError } = await supabase.storage
         .from('avatars')
@@ -94,7 +100,7 @@ export default function ProfileSetupPage() {
     }
 
     const { error: updateError } = await supabase.from('profiles').upsert({
-      id: userId,
+      id: authUser.id,
       full_name: fullName,
       username: username,
       bio: bio,
@@ -108,6 +114,7 @@ export default function ProfileSetupPage() {
     } else {
       toast({ title: "Profile saved successfully!" });
       router.push('/home');
+      router.refresh(); // force a refresh to ensure all layouts know we are logged in.
     }
     setSaving(false);
   };

@@ -12,6 +12,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { BottomNav } from '@/components/bottom-nav';
 import { useToast } from '@/hooks/use-toast';
+import type { User } from '@supabase/supabase-js';
 
 type ProfileData = {
   fullName: string;
@@ -29,22 +30,23 @@ export default function ProfilePage() {
   const { toast } = useToast();
   const [user, setUser] = useState<ProfileData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [authUser, setAuthUser] = useState<User | null>(null);
 
-  const getProfile = useCallback(async () => {
-    const { data: { user: authUser } } = await supabase.auth.getUser();
-    if (!authUser) {
-      router.push('/login');
-      return;
-    }
-
+  const getProfile = useCallback(async (user: User) => {
+    setAuthUser(user);
     const { data, error } = await supabase
       .from('profiles')
       .select('full_name, username, avatar_url, bio')
-      .eq('id', authUser.id)
+      .eq('id', user.id)
       .single();
 
     if (error) {
       console.error('Error fetching profile:', error);
+       // It's possible the profile doesn't exist yet if they quit setup
+      if (error.code === 'PGRST116') {
+        router.push('/profile/setup');
+        return;
+      }
       toast({ variant: 'destructive', title: 'Error fetching profile' });
       setLoading(false);
       return;
@@ -54,20 +56,33 @@ export default function ProfilePage() {
       setUser({
         fullName: data.full_name || '',
         username: data.username || '',
-        avatarUrl: data.avatar_url || `https://i.pravatar.cc/150?u=${authUser.id}`,
+        avatarUrl: data.avatar_url || `https://i.pravatar.cc/150?u=${user.id}`,
         bio: data.bio || '',
         // These are still mock, would need tables for this
         following: Math.floor(Math.random() * 200),
         followers: Math.floor(Math.random() * 500),
         postsCount: 15, 
       });
+    } else {
+        // If there is no profile data, they need to set it up.
+        router.push('/profile/setup');
+        return;
     }
     setLoading(false);
   }, [supabase, router, toast]);
 
   useEffect(() => {
-    getProfile();
-  }, [getProfile]);
+     const checkUser = async () => {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+            getProfile(user);
+        } else {
+            // No user, redirect to login. This is a protected route.
+            router.push('/login');
+        }
+    };
+    checkUser();
+  }, [getProfile, router, supabase]);
 
   const posts = Array.from({ length: 15 }, (_, i) => ({
     id: i + 1,
@@ -85,12 +100,12 @@ export default function ProfilePage() {
     )
   }
 
-  if (!user) {
+  if (!user || !authUser) {
     return (
          <>
             <div className="flex h-full flex-col bg-background text-foreground pb-16 items-center justify-center">
                 <p>Could not load profile. Please try again.</p>
-                <Button onClick={() => getProfile()} className="mt-4">Retry</Button>
+                <Button onClick={() => authUser && getProfile(authUser)} className="mt-4">Retry</Button>
             </div>
             <BottomNav />
         </>
