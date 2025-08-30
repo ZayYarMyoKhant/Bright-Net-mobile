@@ -49,9 +49,7 @@ export default function SignUpPage() {
         title: "Success!",
         description: "Your account has been created. Let's set up your profile.",
       });
-      // Direct redirection to profile setup page. No middleware to interfere.
       router.push('/profile/setup');
-      router.refresh();
     } else {
         toast({
             variant: "destructive",
@@ -67,7 +65,7 @@ export default function SignUpPage() {
     await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        // This will be handled by the splash screen logic now
+        redirectTo: `${location.origin}/auth/callback`,
       },
     });
   };
