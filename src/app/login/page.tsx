@@ -51,7 +51,7 @@ export default function LoginPage() {
         description: error.message,
       });
     } else {
-      router.push('/'); // Redirect to splash page to check profile status
+      router.push('/home'); // Redirect to home, middleware will handle the rest
     }
     setLoading(false);
   };
