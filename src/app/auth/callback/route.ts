@@ -12,8 +12,25 @@ export async function GET(request: Request) {
     const supabase = createClient();
     const { error } = await supabase.auth.exchangeCodeForSession(code);
     if (!error) {
-       // On successful sign in, always redirect to home.
-       // The middleware will handle redirecting to /profile/setup if needed.
+      // After successfully exchanging the code, the user is signed in.
+      // Now, check if they have a profile.
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('username')
+          .eq('id', user.id)
+          .single();
+
+        // If the user has no username in their profile, they are a new user.
+        // Redirect them to the profile setup page.
+        if (!profile || !profile.username) {
+          return NextResponse.redirect(`${origin}/profile/setup`);
+        }
+      }
+      
+      // If the user has a profile, they are an existing user.
+      // Redirect them to the home page.
       return NextResponse.redirect(`${origin}/home`);
     }
   }

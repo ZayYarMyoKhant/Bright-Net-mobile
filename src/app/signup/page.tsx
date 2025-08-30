@@ -10,6 +10,7 @@ import Link from 'next/link';
 import { countries } from '@/lib/data';
 import { createClient } from '@/lib/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useRouter } from 'next/navigation';
 
 export default function SignUpPage() {
   const [email, setEmail] = useState('');
@@ -19,6 +20,7 @@ export default function SignUpPage() {
   const [countryCode, setCountryCode] = useState('95');
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
+  const router = useRouter();
   
   const country = countries.find(c => c.code === countryCode);
 
@@ -42,7 +44,12 @@ export default function SignUpPage() {
     if (email) {
         signUpOptions = { 
             email, 
-            password
+            password,
+            options: {
+              // This option prevents Supabase from sending a verification email
+              // and automatically logs the user in.
+              emailRedirectTo: `${window.location.origin}/auth/callback`,
+            }
         };
     } else {
         const fullPhoneNumber = `+${countryCode}${phone}`;
@@ -60,11 +67,12 @@ export default function SignUpPage() {
     } else {
       toast({
         title: "Success!",
-        description: "Your account has been created.",
+        description: "Your account has been created. Redirecting...",
       });
-      // Use window.location.href for a hard redirect to ensure middleware picks up the new session
-      window.location.href = '/home';
-      return; // Prevent further execution
+      // A hard refresh to the callback will ensure the new session is picked up
+      // by the middleware and correctly handled.
+      window.location.href = '/auth/callback';
+      return;
     }
     setLoading(false);
   };
