@@ -44,10 +44,7 @@ export default function SignUpPage() {
     if (email) {
         signUpOptions = { 
             email, 
-            password,
-            options: {
-                emailRedirectTo: `${location.origin}/auth/callback`,
-            },
+            password
         };
     } else {
         const fullPhoneNumber = `+${countryCode}${phone}`;
@@ -67,7 +64,9 @@ export default function SignUpPage() {
         title: "Success!",
         description: "Your account has been created.",
       });
-      router.push('/profile/setup');
+      // Use window.location.href for a hard redirect to ensure session is picked up
+      window.location.href = '/profile/setup';
+      return; // Prevent further execution
     }
     setLoading(false);
   };
