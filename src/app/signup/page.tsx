@@ -9,7 +9,6 @@ import { Eye, EyeOff, Globe, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { countries } from '@/lib/data';
 import { createClient } from '@/lib/supabase/client';
-import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 
 export default function SignUpPage() {
@@ -19,7 +18,6 @@ export default function SignUpPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [countryCode, setCountryCode] = useState('95');
   const [loading, setLoading] = useState(false);
-  const router = useRouter();
   const { toast } = useToast();
   
   const country = countries.find(c => c.code === countryCode);
@@ -64,8 +62,8 @@ export default function SignUpPage() {
         title: "Success!",
         description: "Your account has been created.",
       });
-      // Use window.location.href for a hard redirect to ensure session is picked up
-      window.location.href = '/profile/setup';
+      // Use window.location.href for a hard redirect to ensure middleware picks up the new session
+      window.location.href = '/home';
       return; // Prevent further execution
     }
     setLoading(false);

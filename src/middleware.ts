@@ -8,9 +8,36 @@ export async function middleware(request: NextRequest) {
     // Feel free to remove once you have Supabase connected.
     const { supabase, response } = createClient(request)
 
-    // Refresh session if expired - required for Server Components
-    // https://supabase.com/docs/guides/auth/auth-helpers/nextjs#managing-session-with-middleware
-    await supabase.auth.getSession()
+    const { data: { session } } = await supabase.auth.getSession();
+
+    const { data: { user } } = await supabase.auth.getUser();
+
+    const publicUrls = ['/login', '/signup', '/auth/callback'];
+
+    // if user is not signed in and the current path is not public
+    // redirect the user to the login page
+    if (!session && !publicUrls.includes(request.nextUrl.pathname)) {
+      return NextResponse.redirect(new URL('/login', request.url))
+    }
+
+    // if user is signed in and the current path is /profile/setup, but they already have a username
+    // redirect them to the home page
+    if (session && request.nextUrl.pathname === '/profile/setup') {
+      const { data: profile } = await supabase.from('profiles').select('username').eq('id', session.user.id).single();
+      if (profile?.username) {
+        return NextResponse.redirect(new URL('/home', request.url))
+      }
+    }
+    
+    // if user is signed in and doesn't have a username, and is not on the setup page,
+    // redirect them to the setup page
+    if (session && !publicUrls.includes(request.nextUrl.pathname) && request.nextUrl.pathname !== '/profile/setup') {
+        const { data: profile } = await supabase.from('profiles').select('username').eq('id', session.user.id).single();
+        if (!profile?.username) {
+            return NextResponse.redirect(new URL('/profile/setup', request.url))
+        }
+    }
+
 
     return response
   } catch (e) {
