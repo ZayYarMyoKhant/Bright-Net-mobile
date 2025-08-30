@@ -10,44 +10,7 @@ export async function middleware(request: NextRequest) {
 
     // Refresh session if expired - required for Server Components
     // https://supabase.com/docs/guides/auth/auth-helpers/nextjs#managing-session-with-middleware
-    const { data: { session } } = await supabase.auth.getSession();
-
-    const { pathname } = request.nextUrl;
-
-    // Define public routes that don't require authentication
-    const publicRoutes = ['/login', '/signup', '/auth/callback'];
-
-    // If the user is not logged in and is trying to access a protected route
-    if (!session && !publicRoutes.includes(pathname) && pathname !== '/') {
-        const url = request.nextUrl.clone();
-        url.pathname = '/login';
-        return NextResponse.redirect(url);
-    }
-
-    // If the user is logged in
-    if (session) {
-        // If they try to access login or signup, redirect to home
-        if (pathname === '/login' || pathname === '/signup') {
-            return NextResponse.redirect(new URL('/home', request.url));
-        }
-
-        // Check if the user has completed profile setup
-        const { data: profile } = await supabase
-            .from('profiles')
-            .select('username')
-            .eq('id', session.user.id)
-            .single();
-
-        // If profile is not complete and they are not on the setup page, redirect them
-        if ((!profile || !profile.username) && pathname !== '/profile/setup') {
-            return NextResponse.redirect(new URL('/profile/setup', request.url));
-        }
-
-        // If profile is complete and they try to access the setup page, redirect to home
-        if (profile && profile.username && pathname === '/profile/setup') {
-            return NextResponse.redirect(new URL('/home', request.url));
-        }
-    }
+    await supabase.auth.getSession()
 
     return response
   } catch (e) {
@@ -69,9 +32,8 @@ export const config = {
      * - _next/static (static files)
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
-     * - / (the splash page)
      * Feel free to modify this pattern to include more paths.
      */
-    '/((?!_next/static|_next/image|favicon.ico|api/|).*)',
+    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 }
