@@ -29,7 +29,6 @@ export default function SignUpPage() {
     setLoading(true);
     const supabase = createClient();
 
-    // Check if email or phone is provided
     if (!email && !phone) {
         toast({
             variant: "destructive",
@@ -44,19 +43,14 @@ export default function SignUpPage() {
     if (email) {
         signUpOptions = { 
             email, 
-            password,
-            options: {
-              // This option prevents Supabase from sending a verification email
-              // and automatically logs the user in.
-              emailRedirectTo: `${window.location.origin}/auth/callback`,
-            }
+            password
         };
     } else {
         const fullPhoneNumber = `+${countryCode}${phone}`;
         signUpOptions = { phone: fullPhoneNumber, password };
     }
 
-    const { error } = await supabase.auth.signUp(signUpOptions);
+    const { data, error } = await supabase.auth.signUp(signUpOptions);
 
     if (error) {
       toast({
@@ -64,17 +58,24 @@ export default function SignUpPage() {
         title: "Sign up failed",
         description: error.message,
       });
-    } else {
+      setLoading(false);
+    } else if (data.user) {
+      // On successful sign up, Supabase creates a session.
+      // We can now directly navigate to profile setup.
+      // The middleware will see the new session and allow access.
       toast({
         title: "Success!",
-        description: "Your account has been created. Redirecting...",
+        description: "Your account has been created. Let's set up your profile.",
       });
-      // A hard refresh to the callback will ensure the new session is picked up
-      // by the middleware and correctly handled.
-      window.location.href = '/auth/callback';
-      return;
+      router.push('/profile/setup');
+    } else {
+        toast({
+            variant: "destructive",
+            title: "Sign up failed",
+            description: "An unexpected error occurred. Please try again.",
+        });
+        setLoading(false);
     }
-    setLoading(false);
   };
 
   return (

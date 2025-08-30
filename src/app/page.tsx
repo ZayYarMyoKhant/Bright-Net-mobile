@@ -4,34 +4,33 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { Loader2 } from "lucide-react";
 
 export default function SplashPage() {
   const router = useRouter();
 
   useEffect(() => {
-    const checkUser = async () => {
+    const checkUserAndRedirect = async () => {
       const supabase = createClient();
       const { data: { session } } = await supabase.auth.getSession();
 
-      // After 2 seconds, check session
-      setTimeout(async () => {
+      // Wait a bit for dramatic effect and to ensure session is resolved
+      setTimeout(() => {
         if (session) {
-          // If a session exists, the auth/callback logic or subsequent navigation will handle profile checks.
-          // Just go to the home page. If the profile is not set up, they will be redirected from there if necessary,
-          // but our new callback handles it first.
+          // User is logged in, go to home
           router.push('/home');
         } else {
           // No session, go to sign up
           router.push('/signup');
         }
-      }, 4000); // Wait for 4 seconds to match animation duration
+      }, 2000); // 2 seconds delay
     };
     
-    checkUser();
+    checkUserAndRedirect();
   }, [router]);
 
   return (
-    <div className="bg-black flex h-dvh w-full items-center justify-center">
+    <div className="bg-black flex h-dvh w-full flex-col items-center justify-center gap-4">
       <h1 className="text-4xl font-bold text-center">
         <span className="animate-fade-in-1 inline-block text-white">
           Welcome to
@@ -40,6 +39,7 @@ export default function SplashPage() {
           Bright-Net
         </span>
       </h1>
+      <Loader2 className="h-8 w-8 animate-spin text-white mt-4" />
     </div>
   );
 }
