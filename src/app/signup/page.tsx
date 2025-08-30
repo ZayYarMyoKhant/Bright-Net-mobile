@@ -12,17 +12,8 @@ import { createClient } from '@/lib/supabase/client';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 
-const GoogleIcon = (props: React.SVGProps<SVGSVGElement>) => (
-    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 48 48" {...props}>
-        <path fill="#FFC107" d="M43.611 20.083H42V20H24v8h11.303c-1.649 4.657-6.08 8-11.303 8c-6.627 0-12-5.373-12-12s5.373-12 12-12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4C12.955 4 4 12.955 4 24s8.955 20 20 20s20-8.955 20-20c0-1.341-.138-2.65-.389-3.917z" />
-        <path fill="#FF3D00" d="M6.306 14.691l6.571 4.819C14.655 15.108 18.961 12 24 12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4C16.318 4 9.656 8.337 6.306 14.691z" />
-        <path fill="#4CAF50" d="M24 44c5.166 0 9.86-1.977 13.409-5.192l-6.19-5.238C29.211 35.091 26.715 36 24 36c-5.223 0-9.657-3.657-11.303-8H6.306C9.656 39.663 16.318 44 24 44z" />
-        <path fill="#1976D2" d="M43.611 20.083H42V20H24v8h11.303c-.792 2.237-2.231 4.166-4.087 5.571l6.19 5.238C42.012 35.244 44 30.028 44 24c0-1.341-.138-2.65-.389-3.917z" />
-    </svg>
-);
-
-
 export default function SignUpPage() {
+  const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -33,16 +24,31 @@ export default function SignUpPage() {
   
   const country = countries.find(c => c.code === countryCode);
 
-  const handlePhoneSignUp = async (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSignUp = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setLoading(true);
     const supabase = createClient();
-    const fullPhoneNumber = `+${countryCode}${phone}`;
 
-    const { error } = await supabase.auth.signUp({
-      phone: fullPhoneNumber,
-      password,
-    });
+    // Check if email or phone is provided
+    if (!email && !phone) {
+        toast({
+            variant: "destructive",
+            title: "Sign up failed",
+            description: "Please provide either an email or a phone number.",
+        });
+        setLoading(false);
+        return;
+    }
+
+    let signUpOptions;
+    if (email) {
+        signUpOptions = { email, password };
+    } else {
+        const fullPhoneNumber = `+${countryCode}${phone}`;
+        signUpOptions = { phone: fullPhoneNumber, password };
+    }
+
+    const { error } = await supabase.auth.signUp(signUpOptions);
 
     if (error) {
       toast({
@@ -53,21 +59,11 @@ export default function SignUpPage() {
     } else {
       toast({
         title: "Success!",
-        description: "Your account has been created. Please verify your phone number.",
+        description: "Your account has been created. Please check your email or phone to verify.",
       });
       router.push('/profile/setup');
     }
     setLoading(false);
-  };
-
-  const handleGoogleSignUp = async () => {
-    const supabase = createClient();
-    await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: {
-        redirectTo: `${location.origin}/auth/callback`,
-      },
-    });
   };
 
   return (
@@ -78,7 +74,28 @@ export default function SignUpPage() {
             <p className="text-muted-foreground">Let's get started</p>
         </div>
 
-        <form className="space-y-6" onSubmit={handlePhoneSignUp}>
+        <form className="space-y-6" onSubmit={handleSignUp}>
+            <div className="space-y-2">
+                <Label htmlFor="email">Email</Label>
+                <Input 
+                    id="email" 
+                    type="email" 
+                    placeholder="you@example.com" 
+                    value={email} 
+                    onChange={(e) => setEmail(e.target.value)} 
+                    disabled={!!phone}
+                />
+            </div>
+            
+            <div className="relative my-6">
+                <div className="absolute inset-0 flex items-center">
+                    <span className="w-full border-t" />
+                </div>
+                <div className="relative flex justify-center text-xs uppercase">
+                    <span className="bg-background px-2 text-muted-foreground">Or</span>
+                </div>
+            </div>
+
             <div className="space-y-2">
                 <Label htmlFor="phone">Phone Number</Label>
                 <div className="flex items-center gap-2">
@@ -92,10 +109,18 @@ export default function SignUpPage() {
                             className="pl-7"
                             value={countryCode}
                             onChange={(e) => setCountryCode(e.target.value)}
-                            required
+                            disabled={!!email}
                         />
                     </div>
-                    <Input id="phone" type="tel" placeholder="912345678" className="flex-1" value={phone} onChange={(e) => setPhone(e.target.value)} required/>
+                    <Input 
+                        id="phone" 
+                        type="tel" 
+                        placeholder="912345678" 
+                        className="flex-1" 
+                        value={phone} 
+                        onChange={(e) => setPhone(e.target.value)} 
+                        disabled={!!email}
+                    />
                 </div>
             </div>
 
@@ -116,25 +141,11 @@ export default function SignUpPage() {
                 </div>
             </div>
             
-            <Button className="w-full" type="submit" disabled={loading}>
+            <Button className="w-full" type="submit" disabled={loading || (!email && !phone) || !password}>
               {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Sign Up
             </Button>
         </form>
-
-        <div className="relative my-6">
-            <div className="absolute inset-0 flex items-center">
-                <span className="w-full border-t" />
-            </div>
-            <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-background px-2 text-muted-foreground">Or continue with</span>
-            </div>
-        </div>
-
-        <Button variant="outline" className="w-full" onClick={handleGoogleSignUp} disabled={loading}>
-            <GoogleIcon className="mr-2 h-5 w-5" />
-            Sign up with Google
-        </Button>
 
         <p className="mt-8 text-center text-sm text-muted-foreground">
             Already have an account?{' '}
