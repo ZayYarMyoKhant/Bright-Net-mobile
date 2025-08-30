@@ -37,14 +37,10 @@ export default function SignUpPage() {
     e.preventDefault();
     setLoading(true);
     const supabase = createClient();
-    const fullPhoneNumber = `${countryCode}${phone}`;
-    
-    // In a real app, you'd likely use email, but we use phone as an email for demo purposes
-    // as Supabase phone auth requires more setup. This is a workaround.
-    const email = `${fullPhoneNumber}@example.com`;
+    const fullPhoneNumber = `+${countryCode}${phone}`;
 
     const { error } = await supabase.auth.signUp({
-      email,
+      phone: fullPhoneNumber,
       password,
     });
 
@@ -57,7 +53,7 @@ export default function SignUpPage() {
     } else {
       toast({
         title: "Success!",
-        description: "Your account has been created.",
+        description: "Your account has been created. Please verify your phone number.",
       });
       router.push('/profile/setup');
     }

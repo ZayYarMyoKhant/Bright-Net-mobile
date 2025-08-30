@@ -37,11 +37,10 @@ export default function LoginPage() {
     e.preventDefault();
     setLoading(true);
     const supabase = createClient();
-    const fullPhoneNumber = `${countryCode}${phone}`;
-    const email = `${fullPhoneNumber}@example.com`;
+    const fullPhoneNumber = `+${countryCode}${phone}`;
 
     const { error } = await supabase.auth.signInWithPassword({
-      email,
+      phone: fullPhoneNumber,
       password,
     });
 
