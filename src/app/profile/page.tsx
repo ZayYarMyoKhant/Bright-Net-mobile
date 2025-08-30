@@ -11,6 +11,7 @@ import { Grid3x3, Settings, UserPlus, Clapperboard, Loader2 } from "lucide-react
 import Image from "next/image";
 import Link from "next/link";
 import { BottomNav } from '@/components/bottom-nav';
+import { useToast } from '@/hooks/use-toast';
 
 type ProfileData = {
   fullName: string;
@@ -25,6 +26,7 @@ type ProfileData = {
 export default function ProfilePage() {
   const supabase = createClient();
   const router = useRouter();
+  const { toast } = useToast();
   const [user, setUser] = useState<ProfileData | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -61,7 +63,7 @@ export default function ProfilePage() {
       });
     }
     setLoading(false);
-  }, [supabase, router]);
+  }, [supabase, router, toast]);
 
   useEffect(() => {
     getProfile();
@@ -188,5 +190,3 @@ export default function ProfilePage() {
     </>
   );
 }
-
-    
