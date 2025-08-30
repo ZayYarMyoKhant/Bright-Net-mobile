@@ -12,6 +12,20 @@ export default function SplashPage() {
   useEffect(() => {
     const checkUserAndRedirect = async () => {
       const supabase = createClient();
+      // Listen for auth state changes to handle OAuth callbacks
+      const { data: { subscription } } = supabase.auth.onAuthStateChange(
+        (event, session) => {
+          if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') {
+             if (session) {
+                router.push('/home');
+             } else {
+                router.push('/signup');
+             }
+          }
+        }
+      );
+
+      // Also check the initial session on page load
       const { data: { session } } = await supabase.auth.getSession();
 
       // Wait a bit for dramatic effect and to ensure session is resolved
@@ -24,6 +38,10 @@ export default function SplashPage() {
           router.push('/signup');
         }
       }, 1500); // 1.5 seconds delay
+
+      return () => {
+        subscription.unsubscribe();
+      };
     };
     
     checkUserAndRedirect();

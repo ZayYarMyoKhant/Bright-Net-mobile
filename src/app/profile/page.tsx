@@ -90,7 +90,7 @@ export default function ProfilePage() {
          <>
             <div className="flex h-full flex-col bg-background text-foreground pb-16 items-center justify-center">
                 <p>Could not load profile. Please try again.</p>
-                <Button onClick={() => router.push('/login')} className="mt-4">Go to Login</Button>
+                <Button onClick={() => getProfile()} className="mt-4">Retry</Button>
             </div>
             <BottomNav />
         </>

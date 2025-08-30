@@ -52,7 +52,7 @@ export default function LoginPage() {
     await supabase.auth.signInWithOAuth({
       provider: 'google',
        options: {
-        redirectTo: `${location.origin}/auth/callback`,
+        // This will be handled by the splash screen logic now
       },
     });
   };

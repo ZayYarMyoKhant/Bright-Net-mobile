@@ -32,6 +32,9 @@ export default function SignUpPage() {
     const { data, error } = await supabase.auth.signUp({
         phone: fullPhoneNumber,
         password,
+        options: {
+          // No email verification
+        }
     });
 
     if (error) {
@@ -46,7 +49,7 @@ export default function SignUpPage() {
         title: "Success!",
         description: "Your account has been created. Let's set up your profile.",
       });
-      // Redirect to profile setup. The new session will be picked up.
+      // Direct redirection to profile setup page. No middleware to interfere.
       router.push('/profile/setup');
       router.refresh();
     } else {
@@ -64,7 +67,7 @@ export default function SignUpPage() {
     await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: `${location.origin}/auth/callback`,
+        // This will be handled by the splash screen logic now
       },
     });
   };
