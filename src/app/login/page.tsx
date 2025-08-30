@@ -51,7 +51,7 @@ export default function LoginPage() {
         description: error.message,
       });
     } else {
-      router.push('/home'); // Redirect to home, middleware will handle the rest
+      router.push('/home'); // Redirect to home, middleware and callback will handle the rest
     }
     setLoading(false);
   };
