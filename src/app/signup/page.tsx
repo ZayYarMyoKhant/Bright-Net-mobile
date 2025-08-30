@@ -5,9 +5,12 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Eye, EyeOff, Globe } from 'lucide-react';
+import { Eye, EyeOff, Globe, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { countries } from '@/lib/data';
+import { createClient } from '@/lib/supabase/client';
+import { useRouter } from 'next/navigation';
+import { useToast } from '@/hooks/use-toast';
 
 const GoogleIcon = (props: React.SVGProps<SVGSVGElement>) => (
     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 48 48" {...props}>
@@ -20,11 +23,56 @@ const GoogleIcon = (props: React.SVGProps<SVGSVGElement>) => (
 
 
 export default function SignUpPage() {
+  const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [countryCode, setCountryCode] = useState('');
+  const [countryCode, setCountryCode] = useState('95');
+  const [loading, setLoading] = useState(false);
+  const router = useRouter();
+  const { toast } = useToast();
   
   const country = countries.find(c => c.code === countryCode);
+
+  const handlePhoneSignUp = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setLoading(true);
+    const supabase = createClient();
+    const fullPhoneNumber = `${countryCode}${phone}`;
+    
+    // In a real app, you'd likely use email, but we use phone as an email for demo purposes
+    // as Supabase phone auth requires more setup. This is a workaround.
+    const email = `${fullPhoneNumber}@example.com`;
+
+    const { error } = await supabase.auth.signUp({
+      email,
+      password,
+    });
+
+    if (error) {
+      toast({
+        variant: "destructive",
+        title: "Sign up failed",
+        description: error.message,
+      });
+    } else {
+      toast({
+        title: "Success!",
+        description: "Your account has been created.",
+      });
+      router.push('/profile/setup');
+    }
+    setLoading(false);
+  };
+
+  const handleGoogleSignUp = async () => {
+    const supabase = createClient();
+    await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: `${location.origin}/auth/callback`,
+      },
+    });
+  };
 
   return (
     <div className="flex h-dvh w-full flex-col items-center justify-center bg-background p-6">
@@ -34,7 +82,7 @@ export default function SignUpPage() {
             <p className="text-muted-foreground">Let's get started</p>
         </div>
 
-        <form className="space-y-6">
+        <form className="space-y-6" onSubmit={handlePhoneSignUp}>
             <div className="space-y-2">
                 <Label htmlFor="phone">Phone Number</Label>
                 <div className="flex items-center gap-2">
@@ -48,9 +96,10 @@ export default function SignUpPage() {
                             className="pl-7"
                             value={countryCode}
                             onChange={(e) => setCountryCode(e.target.value)}
+                            required
                         />
                     </div>
-                    <Input id="phone" type="tel" placeholder="912345678" className="flex-1" />
+                    <Input id="phone" type="tel" placeholder="912345678" className="flex-1" value={phone} onChange={(e) => setPhone(e.target.value)} required/>
                 </div>
             </div>
 
@@ -63,6 +112,7 @@ export default function SignUpPage() {
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
                         placeholder="Create a password"
+                        required
                     />
                     <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute inset-y-0 right-0 flex items-center pr-3 text-muted-foreground">
                         {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
@@ -70,7 +120,10 @@ export default function SignUpPage() {
                 </div>
             </div>
             
-            <Button className="w-full" type="submit">Sign Up</Button>
+            <Button className="w-full" type="submit" disabled={loading}>
+              {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Sign Up
+            </Button>
         </form>
 
         <div className="relative my-6">
@@ -82,7 +135,7 @@ export default function SignUpPage() {
             </div>
         </div>
 
-        <Button variant="outline" className="w-full">
+        <Button variant="outline" className="w-full" onClick={handleGoogleSignUp} disabled={loading}>
             <GoogleIcon className="mr-2 h-5 w-5" />
             Sign up with Google
         </Button>
