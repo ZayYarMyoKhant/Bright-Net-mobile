@@ -114,7 +114,7 @@ export async function saveProfile(formData: FormData) {
       if (uploadError) {
         console.error("Avatar Upload Error:", uploadError);
         const errorMessage = encodeURIComponent("Failed to upload avatar: " + uploadError.message);
-        return redirect(`/profile/setup?error=${errorMessage}`);
+        return redirect(`/profile/edit?error=${errorMessage}`);
       }
       
       const { data: { publicUrl } } = supabase.storage
@@ -124,21 +124,24 @@ export async function saveProfile(formData: FormData) {
       publicAvatarUrl = publicUrl;
     }
 
-    const { error: updateError } = await supabase.from('profiles').upsert({
+    const updates = {
       id: user.id,
       full_name: fullName,
       username: username,
       bio: bio,
-      avatar_url: publicAvatarUrl,
       updated_at: new Date().toISOString(),
-    });
+      ...(publicAvatarUrl && { avatar_url: publicAvatarUrl }), // Only include avatar_url if a new one was uploaded
+    };
+
+
+    const { error: updateError } = await supabase.from('profiles').upsert(updates);
 
     if (updateError) {
        console.error("Profile Update Error:", updateError);
        const errorMessage = encodeURIComponent("Failed to save profile: " + updateError.message);
-       return redirect(`/profile/setup?error=${errorMessage}`);
+       return redirect(`/profile/edit?error=${errorMessage}`);
     }
     
     // Redirect on success
-    return redirect('/home');
+    return redirect('/profile');
 }

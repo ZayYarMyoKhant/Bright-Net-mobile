@@ -7,7 +7,7 @@ import { useRouter } from 'next/navigation';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Grid3x3, Settings, UserPlus, Clapperboard, Loader2 } from "lucide-react";
+import { Grid3x3, Settings, UserPlus, Clapperboard, Loader2, CameraOff } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { BottomNav } from '@/components/bottom-nav';
@@ -23,6 +23,9 @@ type ProfileData = {
   followers: number;
   postsCount: number;
 };
+
+// In a real app, you would fetch posts for the user
+const posts: any[] = []; 
 
 export default function ProfilePage() {
   const supabase = createClient();
@@ -42,7 +45,6 @@ export default function ProfilePage() {
 
     if (error) {
       console.error('Error fetching profile:', error);
-       // It's possible the profile doesn't exist yet if they quit setup
       if (error.code === 'PGRST116') {
         router.push('/profile/setup');
         return;
@@ -57,14 +59,13 @@ export default function ProfilePage() {
         fullName: data.full_name || '',
         username: data.username || '',
         avatarUrl: data.avatar_url || `https://i.pravatar.cc/150?u=${user.id}`,
-        bio: data.bio || '',
-        // These are still mock, would need tables for this
-        following: Math.floor(Math.random() * 200),
-        followers: Math.floor(Math.random() * 500),
-        postsCount: 15, 
+        bio: data.bio || 'No bio yet.',
+        // TODO: These should be real counts from the database
+        following: 0,
+        followers: 0,
+        postsCount: posts.length, 
       });
     } else {
-        // If there is no profile data, they need to set it up.
         router.push('/profile/setup');
         return;
     }
@@ -77,17 +78,11 @@ export default function ProfilePage() {
         if (user) {
             getProfile(user);
         } else {
-            // No user, redirect to login. This is a protected route.
             router.push('/login');
         }
     };
     checkUser();
   }, [getProfile, router, supabase]);
-
-  const posts = Array.from({ length: 15 }, (_, i) => ({
-    id: i + 1,
-    imageUrl: `https://picsum.photos/400/400?random=${i + 10}`,
-  }));
 
   if (loading) {
     return (
@@ -177,20 +172,27 @@ export default function ProfilePage() {
               </TabsTrigger>
             </TabsList>
             <TabsContent value="posts">
-              <div className="grid grid-cols-3 gap-1">
-                {posts.map((post) => (
-                  <div key={post.id} className="aspect-square w-full relative">
-                    <Image
-                      src={post.imageUrl}
-                      alt={`Post ${post.id}`}
-                      layout="fill"
-                      objectFit="cover"
-                      className="h-full w-full"
-                      data-ai-hint="lifestyle content"
-                    />
-                  </div>
-                ))}
-              </div>
+              {posts.length > 0 ? (
+                <div className="grid grid-cols-3 gap-1">
+                  {posts.map((post) => (
+                    <div key={post.id} className="aspect-square w-full relative">
+                      <Image
+                        src={post.imageUrl}
+                        alt={`Post ${post.id}`}
+                        layout="fill"
+                        objectFit="cover"
+                        className="h-full w-full"
+                        data-ai-hint="lifestyle content"
+                      />
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center pt-10 text-center text-muted-foreground">
+                  <CameraOff className="h-12 w-12" />
+                  <p className="mt-4 text-sm">You have no posts yet.</p>
+                </div>
+              )}
             </TabsContent>
             <TabsContent value="class">
                <div className="flex flex-col items-center justify-center pt-10">
