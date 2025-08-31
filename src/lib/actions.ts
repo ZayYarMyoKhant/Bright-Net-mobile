@@ -85,3 +85,57 @@ export async function login(formData: FormData) {
 
     return redirect('/home');
 }
+
+export async function saveProfile(formData: FormData) {
+    const supabase = createClient();
+
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+
+    if (userError || !user) {
+        return { error: "Your session could not be verified. Please try signing up again." };
+    }
+
+    const fullName = formData.get("full_name") as string;
+    const username = formData.get("username") as string;
+    const bio = formData.get("bio") as string;
+    const avatarFile = formData.get("avatar_file") as File | null;
+    
+    let publicAvatarUrl: string | null = null;
+
+    if (avatarFile && avatarFile.size > 0) {
+      const fileExt = avatarFile.name.split('.').pop();
+      const filePath = `${user.id}/${Date.now()}.${fileExt}`;
+      
+      const { error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(filePath, avatarFile);
+
+      if (uploadError) {
+        console.error("Avatar Upload Error:", uploadError);
+        return { error: "Failed to upload avatar." };
+      }
+      
+      const { data: { publicUrl } } = supabase.storage
+        .from('avatars')
+        .getPublicUrl(filePath);
+      
+      publicAvatarUrl = publicUrl;
+    }
+
+    const { error: updateError } = await supabase.from('profiles').upsert({
+      id: user.id,
+      full_name: fullName,
+      username: username,
+      bio: bio,
+      avatar_url: publicAvatarUrl,
+      updated_at: new Date().toISOString(),
+    });
+
+    if (updateError) {
+       console.error("Profile Update Error:", updateError);
+       return { error: "Failed to save profile." };
+    }
+    
+    // Redirect on success
+    return redirect('/home');
+}
