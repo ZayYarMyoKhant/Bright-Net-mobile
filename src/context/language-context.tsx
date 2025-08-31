@@ -4,12 +4,24 @@
 import { createContext, useState, useEffect, ReactNode, useCallback, useContext } from 'react';
 import en from '@/locales/en.json';
 import my from '@/locales/my.json';
+import es from '@/locales/es.json';
+import fr from '@/locales/fr.json';
+import zhCN from '@/locales/zh-CN.json';
+import hi from '@/locales/hi.json';
+import ar from '@/locales/ar.json';
+import ru from '@/locales/ru.json';
 
 type Translations = { [key: string]: string | Translations };
 
 const translations: { [key: string]: Translations } = {
   en,
   my,
+  es,
+  fr,
+  'zh-CN': zhCN,
+  hi,
+  ar,
+  ru,
 };
 
 interface LanguageContextType {

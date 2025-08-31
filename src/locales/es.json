@@ -1,0 +1,24 @@
+
+{
+    "bottomNav": {
+        "home": "Inicio",
+        "search": "Buscar",
+        "aiTool": "Herramienta IA",
+        "upload": "Subir",
+        "class": "Clase",
+        "chat": "Chat",
+        "profile": "Perfil"
+    },
+    "settings": {
+        "title": "Ajustes",
+        "account": "Cuenta",
+        "privacy": "Privacidad",
+        "language": "Idioma",
+        "blocked": "Cuentas bloqueadas",
+        "logout": "Cerrar sesión",
+        "logoutConfirmTitle": "¿Estás seguro de que quieres cerrar sesión?",
+        "logoutConfirmDesc": "Esta acción cerrará tu sesión en este dispositivo.",
+        "cancel": "Cancelar",
+        "confirmLogout": "Sí, cerrar sesión"
+    }
+}

@@ -1,0 +1,24 @@
+
+{
+    "bottomNav": {
+        "home": "होम",
+        "search": "खोज",
+        "aiTool": "एआई टूल",
+        "upload": "अपलोड",
+        "class": "कक्षा",
+        "chat": "चैट",
+        "profile": "प्रोफ़ाइल"
+    },
+    "settings": {
+        "title": "सेटिंग्स",
+        "account": "अकाउंट",
+        "privacy": "प्राइवेसी",
+        "language": "भाषा",
+        "blocked": "ब्लॉक किए गए अकाउंट",
+        "logout": "लॉग आउट",
+        "logoutConfirmTitle": "क्या आप निश्चित रूप से लॉग आउट करना चाहते हैं?",
+        "logoutConfirmDesc": "यह कार्रवाई आपको इस डिवाइस पर आपके अकाउंट से साइन आउट कर देगी।",
+        "cancel": "रद्द करें",
+        "confirmLogout": "हाँ, लॉग आउट करें"
+    }
+}

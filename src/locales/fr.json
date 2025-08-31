@@ -1,0 +1,24 @@
+
+{
+    "bottomNav": {
+        "home": "Accueil",
+        "search": "Rechercher",
+        "aiTool": "Outil d'IA",
+        "upload": "Publier",
+        "class": "Classe",
+        "chat": "Chat",
+        "profile": "Profil"
+    },
+    "settings": {
+        "title": "Paramètres",
+        "account": "Compte",
+        "privacy": "Confidentialité",
+        "language": "Langue",
+        "blocked": "Comptes bloqués",
+        "logout": "Se déconnecter",
+        "logoutConfirmTitle": "Êtes-vous sûr de vouloir vous déconnecter ?",
+        "logoutConfirmDesc": "Cette action vous déconnectera de votre compte sur cet appareil.",
+        "cancel": "Annuler",
+        "confirmLogout": "Oui, se déconnecter"
+    }
+}
