@@ -92,7 +92,8 @@ export async function saveProfile(formData: FormData) {
     const { data: { user }, error: userError } = await supabase.auth.getUser();
 
     if (userError || !user) {
-        return { error: "Your session could not be verified. Please try signing up again." };
+        const errorMessage = encodeURIComponent("Your session could not be verified. Please log in and try again.");
+        return redirect(`/login?error=${errorMessage}`);
     }
 
     const fullName = formData.get("full_name") as string;
@@ -112,7 +113,8 @@ export async function saveProfile(formData: FormData) {
 
       if (uploadError) {
         console.error("Avatar Upload Error:", uploadError);
-        return { error: "Failed to upload avatar." };
+        const errorMessage = encodeURIComponent("Failed to upload avatar: " + uploadError.message);
+        return redirect(`/profile/setup?error=${errorMessage}`);
       }
       
       const { data: { publicUrl } } = supabase.storage
@@ -133,7 +135,8 @@ export async function saveProfile(formData: FormData) {
 
     if (updateError) {
        console.error("Profile Update Error:", updateError);
-       return { error: "Failed to save profile." };
+       const errorMessage = encodeURIComponent("Failed to save profile: " + updateError.message);
+       return redirect(`/profile/setup?error=${errorMessage}`);
     }
     
     // Redirect on success
