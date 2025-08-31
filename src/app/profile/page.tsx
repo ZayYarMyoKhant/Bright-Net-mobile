@@ -15,6 +15,7 @@ import { useToast } from '@/hooks/use-toast';
 import type { User } from '@supabase/supabase-js';
 
 type ProfileData = {
+  id: string;
   fullName: string;
   username: string;
   avatarUrl: string;
@@ -56,6 +57,7 @@ export default function ProfilePage() {
 
     if (data) {
       setUser({
+        id: user.id,
         fullName: data.full_name || '',
         username: data.username || '',
         avatarUrl: data.avatar_url || `https://i.pravatar.cc/150?u=${user.id}`,
@@ -139,14 +141,18 @@ export default function ProfilePage() {
           </div>
 
           <div className="mt-6 grid grid-cols-3 gap-4 text-center">
-              <div>
-                  <p className="font-bold">{user.following}</p>
-                  <p className="text-sm text-muted-foreground">Following</p>
-              </div>
-              <div>
-                  <p className="font-bold">{user.followers}</p>
-                  <p className="text-sm text-muted-foreground">Followers</p>
-              </div>
+              <Link href={`/profile/${user.id}/following`}>
+                <div>
+                    <p className="font-bold">{user.following}</p>
+                    <p className="text-sm text-muted-foreground">Following</p>
+                </div>
+              </Link>
+              <Link href={`/profile/${user.id}/followers`}>
+                <div>
+                    <p className="font-bold">{user.followers}</p>
+                    <p className="text-sm text-muted-foreground">Followers</p>
+                </div>
+              </Link>
                <div>
                   <p className="font-bold">{user.postsCount}</p>
                   <p className="text-sm text-muted-foreground">Posts</p>
