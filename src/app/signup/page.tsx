@@ -34,6 +34,7 @@ export default function SignUpPage() {
         password,
         options: {
           // No email verification needed, skip it.
+          // No phone verification/OTP needed, skip it.
         }
     });
 
@@ -49,10 +50,7 @@ export default function SignUpPage() {
         title: "Success!",
         description: "Your account has been created. Let's set up your profile.",
       });
-      // Use window.location.href for a hard navigation.
-      // This ensures the new session is fully recognized by the browser and all parts of the app
-      // before the next page loads, preventing redirection issues.
-      window.location.href = '/profile/setup';
+      router.push('/profile/setup');
     } else {
         toast({
             variant: "destructive",

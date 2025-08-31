@@ -26,42 +26,16 @@ export default function ProfileSetupPage() {
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
 
-  const getProfile = useCallback(async (user: User) => {
-    setAuthUser(user);
-
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('full_name, username, bio, avatar_url')
-      .eq('id', user.id)
-      .single();
-
-    if (error && error.code !== 'PGRST116') {
-      console.error('Error fetching profile:', error);
-      toast({ variant: 'destructive', title: 'Error fetching profile' });
-    }
-
-    if (data) {
-      setFullName(data.full_name || '');
-      setUsername(data.username || '');
-      setBio(data.bio || '');
-      setAvatarUrl(data.avatar_url || null);
-    }
-    setLoading(false);
-  }, [supabase, toast]);
-
-
   useEffect(() => {
-    const checkUser = async () => {
+    const fetchUser = async () => {
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
-            getProfile(user);
-        } else {
-            // No user, redirect to login. This is a protected route.
-            router.push('/login');
+            setAuthUser(user);
         }
+        setLoading(false);
     };
-    checkUser();
-  }, [supabase, router, getProfile]);
+    fetchUser();
+  }, [supabase]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -72,7 +46,11 @@ export default function ProfileSetupPage() {
   };
 
   const handleSaveProfile = async () => {
-    if (!authUser) return;
+    if (!authUser) {
+        toast({ variant: "destructive", title: "Authentication error.", description: "Please try logging in again." });
+        router.push('/login');
+        return;
+    };
     setSaving(true);
     
     let publicAvatarUrl = avatarUrl;
@@ -114,7 +92,7 @@ export default function ProfileSetupPage() {
     } else {
       toast({ title: "Profile saved successfully!" });
       router.push('/home');
-      router.refresh(); // force a refresh to ensure all layouts know we are logged in.
+      router.refresh(); 
     }
     setSaving(false);
   };
