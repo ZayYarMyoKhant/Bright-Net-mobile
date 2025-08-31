@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState } from 'react';
+import { useState, useContext } from 'react';
 import { ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 
@@ -14,6 +14,8 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { LanguageContext } from '@/context/language-context';
+import { useToast } from '@/hooks/use-toast';
 
 const languages = [
     { value: 'my', label: 'မြန်မာ' },
@@ -37,7 +39,7 @@ const languages = [
     { value: 'vi', label: 'Tiếng Việt' },
     { value: 'tr', label: 'Türkçe' },
     { value: 'nl', label: 'Nederlands' },
-    { value: 'pl', label: 'Polski' },
+    { value: 'pl', 'label': 'Polski' },
     { value: 'sv', label: 'Svenska' },
     { value: 'da', label: 'Dansk' },
     { value: 'fi', label: 'Suomi' },
@@ -122,7 +124,18 @@ const languages = [
 ];
 
 export default function LanguageSettingsPage() {
-    const [selectedLanguage, setSelectedLanguage] = useState('my');
+    const { language, setLanguage } = useContext(LanguageContext);
+    const [selectedLanguage, setSelectedLanguage] = useState(language);
+    const { toast } = useToast();
+
+    const handleChangeLanguage = () => {
+        setLanguage(selectedLanguage);
+        const selectedLangLabel = languages.find(l => l.value === selectedLanguage)?.label;
+        toast({
+            title: "Language Changed",
+            description: `App language has been set to ${selectedLangLabel}.`,
+        });
+    }
 
     return (
         <div className="flex h-full flex-col bg-background text-foreground">
@@ -150,7 +163,7 @@ export default function LanguageSettingsPage() {
                 </Select>
             </main>
             <footer className="flex-shrink-0 border-t p-4">
-                <Button className="w-full">
+                <Button className="w-full" onClick={handleChangeLanguage}>
                     Change Language
                 </Button>
             </footer>

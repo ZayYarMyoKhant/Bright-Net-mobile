@@ -1,0 +1,24 @@
+
+{
+    "bottomNav": {
+        "home": "Home",
+        "search": "Search",
+        "aiTool": "AI Tool",
+        "upload": "Upload",
+        "class": "Class",
+        "chat": "Chat",
+        "profile": "Profile"
+    },
+    "settings": {
+        "title": "Settings",
+        "account": "Account",
+        "privacy": "Privacy",
+        "language": "Language",
+        "blocked": "Blocked Accounts",
+        "logout": "Log out",
+        "logoutConfirmTitle": "Are you sure you want to log out?",
+        "logoutConfirmDesc": "This action will sign you out of your account on this device.",
+        "cancel": "Cancel",
+        "confirmLogout": "Yes, log out"
+    }
+}

@@ -4,6 +4,7 @@ import { PT_Sans } from 'next/font/google';
 import './globals.css';
 import { cn } from '@/lib/utils';
 import { Toaster } from '@/components/ui/toaster';
+import { LanguageProvider } from '@/context/language-context';
 
 const ptSans = PT_Sans({
   subsets: ['latin'],
@@ -27,10 +28,12 @@ export default function RootLayout({
       <body
         className={cn('font-headline antialiased bg-background', ptSans.variable)}
       >
-        <div className="relative h-dvh w-full md:h-screen overflow-hidden">
-            {children}
-        </div>
-        <Toaster />
+        <LanguageProvider>
+          <div className="relative h-dvh w-full md:h-screen overflow-hidden">
+              {children}
+          </div>
+          <Toaster />
+        </LanguageProvider>
       </body>
     </html>
   );
