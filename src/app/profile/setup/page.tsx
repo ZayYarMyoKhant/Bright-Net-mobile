@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,38 +10,18 @@ import { Camera, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import type { User } from '@supabase/supabase-js';
 
 export default function ProfileSetupPage() {
   const supabase = createClient();
   const router = useRouter();
   const { toast } = useToast();
   
-  const [loading, setLoading] = useState(true); // For initial user fetch
   const [saving, setSaving] = useState(false);
-  const [authUser, setAuthUser] = useState<User | null>(null);
   const [fullName, setFullName] = useState("");
   const [username, setUsername] = useState("");
   const [bio, setBio] = useState("");
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
-
-  useEffect(() => {
-    const fetchUser = async () => {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
-            setAuthUser(user);
-        } else {
-            // This case should ideally not happen if coming from signup.
-            // But as a fallback, we can redirect.
-            // However, the user's main complaint is this redirection.
-            // So we will just log it and let the user fill the form.
-            console.error("No user session found on setup page.");
-        }
-        setLoading(false);
-    };
-    fetchUser();
-  }, [supabase]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -52,30 +32,28 @@ export default function ProfileSetupPage() {
   };
 
   const handleSaveProfile = async () => {
-    // We now fetch the user again right before saving.
-    // This is more robust than relying on the initial useEffect.
-    const { data: { user: currentUser } } = await supabase.auth.getUser();
+    setSaving(true);
+    const { data: { user } } = await supabase.auth.getUser();
 
-    if (!currentUser) {
-        toast({ variant: "destructive", title: "Authentication session expired.", description: "Please log in and try again." });
-        router.push('/login');
+    if (!user) {
+        toast({ variant: "destructive", title: "Authentication Error", description: "Your session could not be verified. Please try signing up again." });
+        setSaving(false);
+        router.push('/signup');
         return;
     };
 
-    setSaving(true);
-    
     let publicAvatarUrl = avatarUrl;
 
     if (avatarFile) {
       const fileExt = avatarFile.name.split('.').pop();
-      const filePath = `${currentUser.id}-${Math.random()}.${fileExt}`;
+      const filePath = `${user.id}/${Date.now()}.${fileExt}`;
       
       const { error: uploadError } = await supabase.storage
         .from('avatars')
         .upload(filePath, avatarFile);
 
       if (uploadError) {
-        toast({ variant: "destructive", title: "Failed to upload avatar." });
+        toast({ variant: "destructive", title: "Failed to upload avatar.", description: uploadError.message });
         console.error(uploadError);
         setSaving(false);
         return;
@@ -89,7 +67,7 @@ export default function ProfileSetupPage() {
     }
 
     const { error: updateError } = await supabase.from('profiles').upsert({
-      id: currentUser.id,
+      id: user.id,
       full_name: fullName,
       username: username,
       bio: bio,
@@ -100,21 +78,13 @@ export default function ProfileSetupPage() {
     if (updateError) {
       toast({ variant: "destructive", title: "Failed to save profile.", description: updateError.message });
       console.error(updateError);
+      setSaving(false);
     } else {
       toast({ title: "Profile saved successfully!" });
       // Use window.location.href for a full page refresh to ensure all states are cleared.
       window.location.href = '/home';
     }
-    setSaving(false);
   };
-  
-  if (loading) {
-    return (
-      <div className="flex h-dvh w-full items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin" />
-      </div>
-    );
-  }
 
   return (
     <div className="flex h-full flex-col bg-background text-foreground">
