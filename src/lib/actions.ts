@@ -155,18 +155,18 @@ export async function createPost(formData: FormData) {
 
   const { data: { user }, error: userError } = await supabase.auth.getUser();
   if (userError || !user) {
-    return { success: false, error: "Authentication failed. Please log in again." };
+    return redirect('/login?error=' + encodeURIComponent('You must be logged in to post.'));
   }
 
   const caption = formData.get('caption') as string;
   const mediaFile = formData.get('media') as File;
   
   if (!mediaFile || mediaFile.size === 0) {
-     return { success: false, error: "No media file provided." };
+     return redirect('/upload/post?error=' + encodeURIComponent('Please select an image or video to post.'));
   }
    if (!caption) {
-     return { success: false, error: "Caption is required." };
-  }
+     return redirect('/upload/post?error=' + encodeURIComponent('Caption is required.'));
+   }
 
   const fileExt = mediaFile.name.split('.').pop();
   const mediaType = mediaFile.type.startsWith('image') ? 'image' : 'video';
@@ -178,7 +178,7 @@ export async function createPost(formData: FormData) {
 
   if (uploadError) {
     console.error("Media Upload Error:", uploadError);
-    return { success: false, error: "Failed to upload media: " + uploadError.message };
+    return redirect('/upload/post?error=' + encodeURIComponent("Failed to upload media: " + uploadError.message));
   }
 
   const { data: { publicUrl } } = supabase.storage
@@ -186,7 +186,7 @@ export async function createPost(formData: FormData) {
     .getPublicUrl(filePath);
   
   if (!publicUrl) {
-    return { success: false, error: "Could not get public URL for the uploaded media." };
+    return redirect('/upload/post?error=' + encodeURIComponent("Could not get public URL for the uploaded media."));
   }
 
   const { error: dbError } = await supabase.from('posts').insert({
@@ -198,10 +198,11 @@ export async function createPost(formData: FormData) {
 
   if (dbError) {
     console.error("Database Insert Error:", dbError);
-    return { success: false, error: "Failed to save post to database: " + dbError.message };
+    return redirect('/upload/post?error=' + encodeURIComponent("Failed to save post to database: " + dbError.message));
   }
 
   revalidatePath('/home');
+  revalidatePath(`/profile`);
   revalidatePath(`/profile/${user.id}`);
-  return { success: true };
+  return redirect('/home');
 }

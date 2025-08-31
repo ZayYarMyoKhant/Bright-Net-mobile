@@ -9,8 +9,9 @@ import { ImagePlus, X, ArrowLeft, Loader2 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { createPost } from "@/lib/actions";
-import { useToast } from "@/hooks/use-toast";
-import { useRouter } from "next/navigation";
+import { useSearchParams } from "next/navigation";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+
 
 function SubmitButton() {
   const { pending } = useFormStatus();
@@ -30,9 +31,9 @@ export default function UploadPostPage() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const formRef = useRef<HTMLFormElement>(null);
-  const { toast } = useToast();
-  const router = useRouter();
+  const searchParams = useSearchParams();
+  const errorMessage = searchParams.get('error');
+
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -56,25 +57,6 @@ export default function UploadPostPage() {
 
   const isVideo = selectedFile?.type.startsWith("video/");
 
-  const handleFormSubmit = async (formData: FormData) => {
-    if (!selectedFile) {
-        toast({ variant: 'destructive', title: 'No media selected', description: 'Please select an image or video to post.' });
-        return;
-    }
-    formData.append('media', selectedFile);
-
-    const result = await createPost(formData);
-
-    if (result.success) {
-      toast({ title: 'Post created successfully!' });
-      formRef.current?.reset();
-      handleRemoveMedia();
-      router.push('/home');
-    } else {
-      toast({ variant: 'destructive', title: 'Failed to create post', description: result.error });
-    }
-  };
-
   return (
     <>
       <div className="flex h-full flex-col bg-background text-foreground">
@@ -86,7 +68,13 @@ export default function UploadPostPage() {
         </header>
 
         <main className="flex-1 overflow-y-auto p-4">
-          <form ref={formRef} action={handleFormSubmit} className="space-y-4">
+           {errorMessage && (
+             <Alert variant="destructive" className="mb-4">
+                <AlertTitle>Upload Failed</AlertTitle>
+                <AlertDescription>{decodeURIComponent(errorMessage)}</AlertDescription>
+              </Alert>
+          )}
+          <form action={createPost} className="space-y-4">
             <div
               onClick={() => fileInputRef.current?.click()}
               className="relative flex aspect-video w-full cursor-pointer flex-col items-center justify-center rounded-md border-2 border-dashed bg-muted/50"
@@ -131,7 +119,7 @@ export default function UploadPostPage() {
 
             <input
               type="file"
-              name="media_file"
+              name="media"
               ref={fileInputRef}
               onChange={handleFileChange}
               className="hidden"
