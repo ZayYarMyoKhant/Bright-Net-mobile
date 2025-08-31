@@ -49,8 +49,10 @@ export default function SignUpPage() {
         title: "Success!",
         description: "Your account has been created. Let's set up your profile.",
       });
-      // Directly navigate to profile setup. The page will handle fetching the user.
-      router.push('/profile/setup');
+      // Use window.location.href for a hard navigation.
+      // This ensures the new session is fully recognized by the browser and all parts of the app
+      // before the next page loads, preventing redirection issues.
+      window.location.href = '/profile/setup';
     } else {
         toast({
             variant: "destructive",
@@ -74,7 +76,7 @@ export default function SignUpPage() {
                 <span className="w-full border-t" />
             </div>
             <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-background px-2 text-muted-foreground">Or continue with</span>
+                <span className="bg-background px-2 text-muted-foreground">Sign up with Phone</span>
             </div>
         </div>
 
