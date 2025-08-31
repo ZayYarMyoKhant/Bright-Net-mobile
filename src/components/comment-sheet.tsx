@@ -44,7 +44,7 @@ const CommentItem = ({ comment, isReply = false, onReply }: { comment: Comment, 
                 <span>1d</span>
                 <button onClick={handleReplyClick}>Reply</button>
             </div>
-             {comment.replies.length > 0 && (
+             {comment.replies && comment.replies.length > 0 && (
                 <div className="mt-2">
                     {comment.replies.map(reply => (
                         <CommentItem key={reply.id} comment={reply} isReply onReply={onReply}/>
@@ -80,7 +80,7 @@ const CommentItem = ({ comment, isReply = false, onReply }: { comment: Comment, 
 }
 
 export function CommentSheet({ post }: CommentSheetProps) {
-  const [comments, setComments] = useState(post.comments);
+  const [comments, setComments] = useState(post.comments || []);
   const [newComment, setNewComment] = useState("");
   const [replyingTo, setReplyingTo] = useState<Comment | null>(null);
 

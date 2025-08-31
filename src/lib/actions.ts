@@ -5,6 +5,8 @@ import { createClient } from "@/lib/supabase/server";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { z } from "zod";
+import { revalidatePath } from "next/cache";
+
 
 const translateSchema = z.object({
   description: z.string(),
@@ -139,9 +141,67 @@ export async function saveProfile(formData: FormData) {
     if (updateError) {
        console.error("Profile Update Error:", updateError);
        const errorMessage = encodeURIComponent("Failed to save profile: " + updateError.message);
-       return redirect(`/profile/edit?error=${errorMessage}`);
+       const currentPath = formData.get("current_path") || "/profile/edit";
+       return redirect(`${currentPath}?error=${errorMessage}`);
     }
     
     // Redirect on success
     return redirect('/profile');
+}
+
+
+export async function createPost(formData: FormData) {
+  const supabase = createClient();
+
+  const { data: { user }, error: userError } = await supabase.auth.getUser();
+  if (userError || !user) {
+    return { success: false, error: "Authentication failed. Please log in again." };
+  }
+
+  const caption = formData.get('caption') as string;
+  const mediaFile = formData.get('media') as File;
+  
+  if (!mediaFile || mediaFile.size === 0) {
+     return { success: false, error: "No media file provided." };
+  }
+   if (!caption) {
+     return { success: false, error: "Caption is required." };
+  }
+
+  const fileExt = mediaFile.name.split('.').pop();
+  const mediaType = mediaFile.type.startsWith('image') ? 'image' : 'video';
+  const filePath = `${user.id}/posts/${Date.now()}.${fileExt}`;
+
+  const { error: uploadError } = await supabase.storage
+    .from('posts')
+    .upload(filePath, mediaFile);
+
+  if (uploadError) {
+    console.error("Media Upload Error:", uploadError);
+    return { success: false, error: "Failed to upload media: " + uploadError.message };
+  }
+
+  const { data: { publicUrl } } = supabase.storage
+    .from('posts')
+    .getPublicUrl(filePath);
+  
+  if (!publicUrl) {
+    return { success: false, error: "Could not get public URL for the uploaded media." };
+  }
+
+  const { error: dbError } = await supabase.from('posts').insert({
+    user_id: user.id,
+    caption: caption,
+    media_url: publicUrl,
+    media_type: mediaType,
+  });
+
+  if (dbError) {
+    console.error("Database Insert Error:", dbError);
+    return { success: false, error: "Failed to save post to database: " + dbError.message };
+  }
+
+  revalidatePath('/home');
+  revalidatePath(`/profile/${user.id}`);
+  return { success: true };
 }

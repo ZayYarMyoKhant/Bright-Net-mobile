@@ -1,41 +1,31 @@
 
-'use client';
-
 import { BottomNav } from "@/components/bottom-nav";
 import { VideoFeed } from "@/components/video-feed";
-import { createClient } from "@/lib/supabase/client";
+import { createClient } from "@/lib/supabase/server";
 import { Loader2 } from "lucide-react";
-import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { redirect } from "next/navigation";
+import { Suspense } from "react";
 
-export default function HomePage() {
-  const router = useRouter();
-  const [loading, setLoading] = useState(true);
+function VideoFeedFallback() {
+  return (
+    <div className="flex h-dvh w-full items-center justify-center bg-black">
+      <Loader2 className="h-8 w-8 animate-spin text-white" />
+    </div>
+  );
+}
 
-  useEffect(() => {
-    const checkSession = async () => {
-      const supabase = createClient();
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        router.push('/login');
-      } else {
-        setLoading(false);
-      }
-    };
-    checkSession();
-  }, [router]);
-
-  if (loading) {
-    return (
-      <div className="flex h-dvh w-full items-center justify-center bg-background">
-        <Loader2 className="h-8 w-8 animate-spin" />
-      </div>
-    )
+export default async function HomePage() {
+  const supabase = createClient();
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) {
+    redirect('/login');
   }
 
   return (
     <>
-      <VideoFeed />
+      <Suspense fallback={<VideoFeedFallback />}>
+        <VideoFeed />
+      </Suspense>
       <BottomNav />
     </>
   );

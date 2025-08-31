@@ -13,6 +13,8 @@ import Link from "next/link";
 import { BottomNav } from '@/components/bottom-nav';
 import { useToast } from '@/hooks/use-toast';
 import type { User } from '@supabase/supabase-js';
+import type { Post } from '@/lib/data';
+
 
 type ProfileData = {
   id: string;
@@ -22,17 +24,14 @@ type ProfileData = {
   bio: string;
   following: number;
   followers: number;
-  postsCount: number;
 };
-
-// In a real app, you would fetch posts for the user
-const posts: any[] = []; 
 
 export default function ProfilePage() {
   const supabase = createClient();
   const router = useRouter();
   const { toast } = useToast();
   const [user, setUser] = useState<ProfileData | null>(null);
+  const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
   const [authUser, setAuthUser] = useState<User | null>(null);
 
@@ -56,6 +55,17 @@ export default function ProfilePage() {
     }
 
     if (data) {
+       const { data: postsData, error: postsError } = await supabase
+        .from('posts')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+
+      if (postsError) {
+        console.error("Error fetching posts:", postsError);
+      }
+      setPosts((postsData as any) || []);
+
       setUser({
         id: user.id,
         fullName: data.full_name || '',
@@ -65,8 +75,8 @@ export default function ProfilePage() {
         // TODO: These should be real counts from the database
         following: 0,
         followers: 0,
-        postsCount: posts.length, 
       });
+
     } else {
         router.push('/profile/setup');
         return;
@@ -154,7 +164,7 @@ export default function ProfilePage() {
                 </div>
               </Link>
                <div>
-                  <p className="font-bold">{user.postsCount}</p>
+                  <p className="font-bold">{posts.length}</p>
                   <p className="text-sm text-muted-foreground">Posts</p>
               </div>
           </div>
@@ -182,14 +192,18 @@ export default function ProfilePage() {
                 <div className="grid grid-cols-3 gap-1">
                   {posts.map((post) => (
                     <div key={post.id} className="aspect-square w-full relative">
-                      <Image
-                        src={post.imageUrl}
-                        alt={`Post ${post.id}`}
-                        layout="fill"
-                        objectFit="cover"
-                        className="h-full w-full"
-                        data-ai-hint="lifestyle content"
-                      />
+                       {post.media_type === 'video' ? (
+                           <video src={post.media_url} className="h-full w-full object-cover" />
+                       ) : (
+                           <Image
+                                src={post.media_url}
+                                alt={`Post by ${user.username}`}
+                                layout="fill"
+                                objectFit="cover"
+                                className="h-full w-full"
+                                data-ai-hint="lifestyle content"
+                            />
+                       )}
                     </div>
                   ))}
                 </div>

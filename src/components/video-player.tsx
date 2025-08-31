@@ -21,32 +21,51 @@ type VideoPlayerProps = {
 export function VideoPlayer({ post }: VideoPlayerProps) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [isLiked, setIsLiked] = useState(false);
-  const [likes, setLikes] = useState(post.likes);
-  const videoRef = useRef<HTMLDivElement>(null);
+  const [likes, setLikes] = useState(post.likes || 0);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const observer = new IntersectionObserver(
       ([entry]) => {
         setIsPlaying(entry.isIntersecting);
+        if (entry.isIntersecting) {
+            videoRef.current?.play();
+        } else {
+            videoRef.current?.pause();
+        }
       },
       { threshold: 0.5 }
     );
 
-    if (videoRef.current) {
-      observer.observe(videoRef.current);
+    if (containerRef.current) {
+      observer.observe(containerRef.current);
     }
 
     return () => {
-      if (videoRef.current) {
-        observer.unobserve(videoRef.current);
+      if (containerRef.current) {
+        observer.unobserve(containerRef.current);
       }
     };
   }, []);
-
+  
   const handleLike = () => {
     setIsLiked(!isLiked);
     setLikes(isLiked ? likes - 1 : likes + 1);
   };
+
+  const togglePlay = () => {
+      if (videoRef.current) {
+          if (videoRef.current.paused) {
+              videoRef.current.play();
+              setIsPlaying(true);
+          } else {
+              videoRef.current.pause();
+              setIsPlaying(false);
+          }
+      }
+  }
+
 
   const formatCount = (num: number) => {
     if (num >= 1000) {
@@ -56,20 +75,30 @@ export function VideoPlayer({ post }: VideoPlayerProps) {
   };
 
   return (
-    <div ref={videoRef} className="relative h-full w-full bg-black" data-ai-hint="video player">
-      <Image
-        src={post.videoUrl}
-        alt={`Video by ${post.user.username}`}
-        fill
-        className="object-cover"
-        data-ai-hint="lifestyle video"
-        priority
-      />
+    <div ref={containerRef} className="relative h-full w-full bg-black" onClick={togglePlay}>
+       {post.media_type === 'video' ? (
+           <video
+            ref={videoRef}
+            src={post.media_url}
+            loop
+            className="h-full w-full object-cover"
+            playsInline // Important for iOS
+           />
+       ) : (
+            <Image
+                src={post.media_url}
+                alt={`Post by ${post.user.username}`}
+                fill
+                className="object-cover"
+                priority
+            />
+       )}
+      
       <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent" />
       
       <div
         className={cn(
-          "absolute inset-0 flex items-center justify-center transition-opacity duration-300",
+          "absolute inset-0 flex items-center justify-center transition-opacity duration-300 pointer-events-none",
           isPlaying ? "opacity-0" : "opacity-100"
         )}
       >
@@ -79,14 +108,14 @@ export function VideoPlayer({ post }: VideoPlayerProps) {
       <div className="absolute bottom-0 left-0 right-0 p-4 pb-20 md:pb-4 text-white">
         <div className="flex items-end justify-between">
           <div className="w-full max-w-[calc(100%-60px)] space-y-3">
-             <VideoDescription username={post.user.username} descriptionMyanmar={post.descriptionMyanmar} />
+             <VideoDescription username={post.user.username} descriptionMyanmar={post.caption} />
              <div className="flex items-center gap-2">
                 <Music className="h-4 w-4" />
                 <p className="text-sm font-medium">Original Sound - {post.user.username}</p>
              </div>
           </div>
           <div className="flex flex-col items-center space-y-6">
-            <Link href={`/profile/${post.user.username}`}>
+            <Link href={`/profile/${post.user.username}`} onClick={(e) => e.stopPropagation()}>
               <div className="flex flex-col items-center">
                 <Avatar className="h-12 w-12 border-2 border-white">
                   <AvatarImage src={post.user.avatar} data-ai-hint="person portrait" />
@@ -95,7 +124,7 @@ export function VideoPlayer({ post }: VideoPlayerProps) {
               </div>
             </Link>
 
-            <button onClick={handleLike} className="flex flex-col items-center text-center">
+            <button onClick={(e) => { e.stopPropagation(); handleLike(); }} className="flex flex-col items-center text-center">
               <span className={cn(
                   "flex items-center justify-center h-12 w-12 rounded-full bg-white/20 transition-colors",
                   isLiked && "bg-primary"
@@ -106,28 +135,28 @@ export function VideoPlayer({ post }: VideoPlayerProps) {
             </button>
             <Sheet>
               <SheetTrigger asChild>
-                <div className="flex flex-col items-center text-center cursor-pointer">
+                <div onClick={(e) => e.stopPropagation()} className="flex flex-col items-center text-center cursor-pointer">
                     <span className="flex items-center justify-center h-12 w-12 rounded-full bg-white/20">
                         <MessageCircle className="h-7 w-7" />
                     </span>
-                    <span className="text-xs font-semibold mt-2">{formatCount(post.comments.length)}</span>
+                    <span className="text-xs font-semibold mt-2">{formatCount(post.comments?.length || 0)}</span>
                 </div>
               </SheetTrigger>
-              <SheetContent side="bottom" className="h-[75dvh] flex flex-col p-0">
+              <SheetContent side="bottom" className="h-[75dvh] flex flex-col p-0" onClick={(e) => e.stopPropagation()}>
                   <CommentSheet post={post} />
               </SheetContent>
             </Sheet>
             
             <Sheet>
               <SheetTrigger asChild>
-                <div className="flex flex-col items-center text-center cursor-pointer">
+                 <div onClick={(e) => e.stopPropagation()} className="flex flex-col items-center text-center cursor-pointer">
                     <span className="flex items-center justify-center h-12 w-12 rounded-full bg-white/20">
                         <Send className="h-7 w-7" />
                     </span>
-                    <span className="text-xs font-semibold mt-2">{formatCount(post.shares)}</span>
+                    <span className="text-xs font-semibold mt-2">{formatCount(post.shares || 0)}</span>
                 </div>
               </SheetTrigger>
-              <SheetContent side="bottom" className="h-[75dvh] flex flex-col p-0">
+              <SheetContent side="bottom" className="h-[75dvh] flex flex-col p-0" onClick={(e) => e.stopPropagation()}>
                 <ShareSheet />
               </SheetContent>
             </Sheet>

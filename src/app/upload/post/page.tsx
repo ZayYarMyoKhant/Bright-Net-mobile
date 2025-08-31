@@ -2,17 +2,37 @@
 "use client";
 
 import { useState, useRef } from "react";
+import { useFormStatus } from "react-dom";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { ImagePlus, X, ArrowLeft } from "lucide-react";
+import { ImagePlus, X, ArrowLeft, Loader2 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
+import { createPost } from "@/lib/actions";
+import { useToast } from "@/hooks/use-toast";
+import { useRouter } from "next/navigation";
+
+function SubmitButton() {
+  const { pending } = useFormStatus();
+  return (
+    <Button
+      className="w-full"
+      type="submit"
+      disabled={pending}
+    >
+      {pending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+      Post
+    </Button>
+  );
+}
 
 export default function UploadPostPage() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [caption, setCaption] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const formRef = useRef<HTMLFormElement>(null);
+  const { toast } = useToast();
+  const router = useRouter();
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -29,54 +49,67 @@ export default function UploadPostPage() {
   const handleRemoveMedia = () => {
     setSelectedFile(null);
     setPreviewUrl(null);
-    if(fileInputRef.current) {
-        fileInputRef.current.value = "";
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
     }
-  };
-  
-  const handlePost = () => {
-    // Handle post submission logic here
-    console.log("Posting:", { caption, file: selectedFile });
-    // Reset state after post
-    setCaption("");
-    handleRemoveMedia();
   };
 
   const isVideo = selectedFile?.type.startsWith("video/");
+
+  const handleFormSubmit = async (formData: FormData) => {
+    if (!selectedFile) {
+        toast({ variant: 'destructive', title: 'No media selected', description: 'Please select an image or video to post.' });
+        return;
+    }
+    formData.append('media', selectedFile);
+
+    const result = await createPost(formData);
+
+    if (result.success) {
+      toast({ title: 'Post created successfully!' });
+      formRef.current?.reset();
+      handleRemoveMedia();
+      router.push('/home');
+    } else {
+      toast({ variant: 'destructive', title: 'Failed to create post', description: result.error });
+    }
+  };
 
   return (
     <>
       <div className="flex h-full flex-col bg-background text-foreground">
         <header className="flex h-16 flex-shrink-0 items-center border-b px-4 relative">
           <Link href="/upload" className="p-2 -ml-2 absolute left-4">
-              <ArrowLeft className="h-5 w-5" />
+            <ArrowLeft className="h-5 w-5" />
           </Link>
           <h1 className="text-xl font-bold mx-auto">Create your own post</h1>
         </header>
 
         <main className="flex-1 overflow-y-auto p-4">
-          <div className="space-y-4">
-            <div 
+          <form ref={formRef} action={handleFormSubmit} className="space-y-4">
+            <div
               onClick={() => fileInputRef.current?.click()}
               className="relative flex aspect-video w-full cursor-pointer flex-col items-center justify-center rounded-md border-2 border-dashed bg-muted/50"
             >
               {previewUrl ? (
                 <>
                   {isVideo ? (
-                     <video
-                        src={previewUrl}
-                        controls
-                        className="h-full w-full object-contain rounded-md"
-                      />
+                    <video
+                      src={previewUrl}
+                      controls
+                      className="h-full w-full object-contain rounded-md"
+                    />
                   ) : (
                     <Image
                       src={previewUrl}
                       alt="Selected preview"
                       fill
                       className="object-contain rounded-md"
+                      data-ai-hint="user upload"
                     />
                   )}
                   <Button
+                    type="button"
                     variant="destructive"
                     size="icon"
                     className="absolute top-2 right-2 h-7 w-7 rounded-full z-10"
@@ -98,41 +131,38 @@ export default function UploadPostPage() {
 
             <input
               type="file"
+              name="media_file"
               ref={fileInputRef}
               onChange={handleFileChange}
               className="hidden"
               accept="image/*,video/*"
+              required
             />
 
             <div>
-               <Button
-                  variant="outline"
-                  className="w-full"
-                  onClick={() => fileInputRef.current?.click()}
-                >
-                  Gallery
-               </Button>
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full"
+                onClick={() => fileInputRef.current?.click()}
+              >
+                Gallery
+              </Button>
             </div>
 
             <div>
               <Textarea
+                name="caption"
                 placeholder="Write caption"
-                value={caption}
-                onChange={(e) => setCaption(e.target.value)}
                 className="min-h-[100px] text-base"
+                required
               />
             </div>
 
             <div>
-              <Button
-                className="w-full"
-                onClick={handlePost}
-                disabled={!selectedFile || !caption}
-              >
-                Post
-              </Button>
+              <SubmitButton />
             </div>
-          </div>
+          </form>
         </main>
       </div>
     </>

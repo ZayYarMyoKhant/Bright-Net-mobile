@@ -5,51 +5,95 @@ import { use, useEffect, useState } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Grid3x3, Settings, Clapperboard, ArrowLeft, MessageCircle } from "lucide-react";
+import { Grid3x3, Clapperboard, ArrowLeft, MessageCircle, CameraOff } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { BottomNav } from '@/components/bottom-nav';
 import { useRouter } from "next/navigation";
-import { getVideoPosts } from "@/lib/data";
+import { createClient } from "@/lib/supabase/client";
+import type { Post } from "@/lib/data";
 
+type ProfileData = {
+  id: string;
+  username: string;
+  avatar: string;
+  following: number;
+  followers: number;
+  bio: string;
+};
 
 export default function UserProfilePage({ params: paramsPromise }: { params: Promise<{ id: string }> }) {
   const params = use(paramsPromise);
   const router = useRouter();
-  const [user, setUser] = useState<any>(null);
+  const supabase = createClient();
+  const [user, setUser] = useState<ProfileData | null>(null);
+  const [posts, setPosts] = useState<Post[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // In a real app, you would fetch user data based on params.id
-    // For now, we find the user from our mock data
-    const allPosts = getVideoPosts();
-    const foundUser = allPosts.find(p => p.user.username === params.id)?.user;
-    
-    if (foundUser) {
-        setUser({
-            ...foundUser,
-            following: Math.floor(Math.random() * 200),
-            followers: Math.floor(Math.random() * 100),
-            postsCount: allPosts.filter(p => p.user.username === params.id).length,
-            bio: "Another digital creator's bio.",
-        });
+    const fetchUserData = async () => {
+      setLoading(true);
+      
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .select('id, username, avatar_url, bio')
+        .eq('username', params.id)
+        .single();
+        
+      if (profileError || !profileData) {
+        console.error("Error fetching user profile:", profileError);
+        setUser(null);
+        setLoading(false);
+        return;
+      }
+      
+      const { data: postsData, error: postsError } = await supabase
+        .from('posts')
+        .select('*')
+        .eq('user_id', profileData.id)
+        .order('created_at', { ascending: false });
+
+      if (postsError) {
+        console.error("Error fetching user posts:", postsError);
+      }
+
+      setUser({
+        id: profileData.id,
+        username: profileData.username,
+        avatar: profileData.avatar_url || `https://i.pravatar.cc/150?u=${profileData.id}`,
+        bio: profileData.bio || "Another digital creator's bio.",
+        following: 0, // Placeholder
+        followers: 0, // Placeholder
+      });
+      
+      setPosts((postsData as any) || []);
+      setLoading(false);
+    };
+
+    if (params.id) {
+      fetchUserData();
     }
+  }, [params.id, supabase]);
 
-  }, [params.id]);
-
-
-  const posts = Array.from({ length: 15 }, (_, i) => ({
-    id: i + 1,
-    imageUrl: `https://picsum.photos/400/400?random=${i + 20}`,
-  }));
+  if (loading) {
+    return (
+       <>
+        <div className="flex h-full flex-col bg-background text-foreground pb-16 items-center justify-center">
+            <p>Loading profile...</p>
+        </div>
+        <BottomNav />
+      </>
+    )
+  }
 
   if (!user) {
     return (
-        <>
-            <div className="flex h-full flex-col bg-background text-foreground pb-16 items-center justify-center">
-                <p>User not found</p>
-            </div>
-            <BottomNav />
-        </>
+      <>
+        <div className="flex h-full flex-col bg-background text-foreground pb-16 items-center justify-center">
+          <p>User not found</p>
+        </div>
+        <BottomNav />
+      </>
     )
   }
 
@@ -72,8 +116,8 @@ export default function UserProfilePage({ params: paramsPromise }: { params: Pro
         <main className="flex-1 overflow-y-auto p-4">
           <div className="flex flex-col items-center">
             <Avatar className="h-24 w-24 border-2 border-primary">
-                <AvatarImage src={user.avatar} alt={user.username} data-ai-hint="person portrait" />
-                <AvatarFallback>{user.username.charAt(0)}</AvatarFallback>
+              <AvatarImage src={user.avatar} alt={user.username} data-ai-hint="person portrait" />
+              <AvatarFallback>{user.username.charAt(0)}</AvatarFallback>
             </Avatar>
             <h2 className="mt-3 text-xl font-bold">{user.username}</h2>
             <p className="text-sm text-muted-foreground">@{user.username}</p>
@@ -81,20 +125,24 @@ export default function UserProfilePage({ params: paramsPromise }: { params: Pro
           </div>
 
           <div className="mt-6 grid grid-cols-3 gap-4 text-center">
+            <Link href={`/profile/${user.id}/following`}>
               <div>
-                  <p className="font-bold">{user.following}</p>
-                  <p className="text-sm text-muted-foreground">Following</p>
+                <p className="font-bold">{user.following}</p>
+                <p className="text-sm text-muted-foreground">Following</p>
               </div>
+            </Link>
+             <Link href={`/profile/${user.id}/followers`}>
               <div>
-                  <p className="font-bold">{user.followers}</p>
-                  <p className="text-sm text-muted-foreground">Followers</p>
+                <p className="font-bold">{user.followers}</p>
+                <p className="text-sm text-muted-foreground">Followers</p>
               </div>
-               <div>
-                  <p className="font-bold">{user.postsCount}</p>
-                  <p className="text-sm text-muted-foreground">Posts</p>
-              </div>
+            </Link>
+            <div>
+              <p className="font-bold">{posts.length}</p>
+              <p className="text-sm text-muted-foreground">Posts</p>
+            </div>
           </div>
-          
+
           <div className="mt-4 flex items-center gap-2">
             <Button className="w-full">Follow</Button>
           </div>
@@ -112,25 +160,36 @@ export default function UserProfilePage({ params: paramsPromise }: { params: Pro
               </TabsTrigger>
             </TabsList>
             <TabsContent value="posts">
-              <div className="grid grid-cols-3 gap-1">
-                {posts.map((post) => (
-                  <div key={post.id} className="aspect-square w-full relative">
-                    <Image
-                      src={post.imageUrl}
-                      alt={`Post ${post.id}`}
-                      layout="fill"
-                      objectFit="cover"
-                      className="h-full w-full"
-                      data-ai-hint="lifestyle content"
-                    />
-                  </div>
-                ))}
-              </div>
+             {posts.length > 0 ? (
+                <div className="grid grid-cols-3 gap-1">
+                    {posts.map((post) => (
+                    <div key={post.id} className="aspect-square w-full relative">
+                        {post.media_type === 'video' ? (
+                             <video src={post.media_url} className="h-full w-full object-cover" />
+                        ) : (
+                             <Image
+                                src={post.media_url}
+                                alt={`Post by ${user.username}`}
+                                layout="fill"
+                                objectFit="cover"
+                                className="h-full w-full"
+                                data-ai-hint="lifestyle content"
+                            />
+                        )}
+                    </div>
+                    ))}
+                </div>
+             ) : (
+                <div className="flex flex-col items-center justify-center pt-10 text-center text-muted-foreground">
+                  <CameraOff className="h-12 w-12" />
+                  <p className="mt-4 text-sm">This user has no posts yet.</p>
+                </div>
+             )}
             </TabsContent>
             <TabsContent value="class">
-               <div className="flex flex-col items-center justify-center pt-10">
-                  <Clapperboard className="h-12 w-12 text-muted-foreground" />
-                  <p className="mt-4 text-sm text-muted-foreground">No classes yet.</p>
+              <div className="flex flex-col items-center justify-center pt-10">
+                <Clapperboard className="h-12 w-12 text-muted-foreground" />
+                <p className="mt-4 text-sm text-muted-foreground">No classes yet.</p>
               </div>
             </TabsContent>
           </Tabs>
