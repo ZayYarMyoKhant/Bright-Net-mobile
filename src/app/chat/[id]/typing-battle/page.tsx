@@ -14,7 +14,12 @@ import { getVideoPosts } from "@/lib/data";
 export default function TypingBattlePage({ params: paramsPromise }: { params: Promise<{ id:string }> }) {
   const params = use(paramsPromise);
   const [inputValue, setInputValue] = useState("");
-  const [opponent, setOpponent] = useState<any>(null);
+  // Set an initial default state to prevent rendering errors
+  const [opponent, setOpponent] = useState<any>({
+      name: "Opponent",
+      avatar: "https://i.pravatar.cc/150",
+      username: "opponent"
+  });
 
   useEffect(() => {
     const allUsers = getVideoPosts().map(p => p.user);
@@ -50,14 +55,6 @@ export default function TypingBattlePage({ params: paramsPromise }: { params: Pr
       setInputValue("");
     }
   };
-
-  if (!opponent) {
-    return (
-        <div className="flex h-dvh w-full items-center justify-center">
-            <p>Loading opponent...</p>
-        </div>
-    )
-  }
 
   return (
     <div className="flex h-dvh flex-col bg-background text-foreground">
