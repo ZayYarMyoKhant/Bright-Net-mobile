@@ -7,7 +7,7 @@ export async function VideoFeed() {
   const supabase = createClient();
   const { data: posts, error } = await supabase
     .from('posts')
-    .select('*, profiles:user_id (*)')
+    .select('*, profiles (*)')
     .order('created_at', { ascending: false });
 
   if (error) {
