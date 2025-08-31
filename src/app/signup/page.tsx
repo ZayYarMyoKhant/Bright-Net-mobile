@@ -50,6 +50,7 @@ export default function SignUpPage() {
         title: "Success!",
         description: "Your account has been created. Let's set up your profile.",
       });
+      // Redirect to profile setup page immediately.
       router.push('/profile/setup');
     } else {
         toast({

@@ -17,7 +17,7 @@ export default function ProfileSetupPage() {
   const router = useRouter();
   const { toast } = useToast();
   
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(true); // For initial user fetch
   const [saving, setSaving] = useState(false);
   const [authUser, setAuthUser] = useState<User | null>(null);
   const [fullName, setFullName] = useState("");
@@ -31,6 +31,12 @@ export default function ProfileSetupPage() {
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
             setAuthUser(user);
+        } else {
+            // This case should ideally not happen if coming from signup.
+            // But as a fallback, we can redirect.
+            // However, the user's main complaint is this redirection.
+            // So we will just log it and let the user fill the form.
+            console.error("No user session found on setup page.");
         }
         setLoading(false);
     };
@@ -46,18 +52,23 @@ export default function ProfileSetupPage() {
   };
 
   const handleSaveProfile = async () => {
-    if (!authUser) {
-        toast({ variant: "destructive", title: "Authentication error.", description: "Please try logging in again." });
+    // We now fetch the user again right before saving.
+    // This is more robust than relying on the initial useEffect.
+    const { data: { user: currentUser } } = await supabase.auth.getUser();
+
+    if (!currentUser) {
+        toast({ variant: "destructive", title: "Authentication session expired.", description: "Please log in and try again." });
         router.push('/login');
         return;
     };
+
     setSaving(true);
     
     let publicAvatarUrl = avatarUrl;
 
     if (avatarFile) {
       const fileExt = avatarFile.name.split('.').pop();
-      const filePath = `${authUser.id}-${Math.random()}.${fileExt}`;
+      const filePath = `${currentUser.id}-${Math.random()}.${fileExt}`;
       
       const { error: uploadError } = await supabase.storage
         .from('avatars')
@@ -78,7 +89,7 @@ export default function ProfileSetupPage() {
     }
 
     const { error: updateError } = await supabase.from('profiles').upsert({
-      id: authUser.id,
+      id: currentUser.id,
       full_name: fullName,
       username: username,
       bio: bio,
@@ -91,8 +102,8 @@ export default function ProfileSetupPage() {
       console.error(updateError);
     } else {
       toast({ title: "Profile saved successfully!" });
-      router.push('/home');
-      router.refresh(); 
+      // Use window.location.href for a full page refresh to ensure all states are cleared.
+      window.location.href = '/home';
     }
     setSaving(false);
   };
