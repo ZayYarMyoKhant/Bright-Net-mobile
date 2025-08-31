@@ -11,7 +11,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { getVideoPosts } from "@/lib/data";
 
 
-export default function TypingBattlePage({ params: paramsPromise }: { params: Promise<{ id: string }> }) {
+export default function TypingBattlePage({ params: paramsPromise }: { params: Promise<{ id:string }> }) {
   const params = use(paramsPromise);
   const [inputValue, setInputValue] = useState("");
   const [opponent, setOpponent] = useState<any>(null);
