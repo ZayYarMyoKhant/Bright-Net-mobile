@@ -1,7 +1,7 @@
 
 "use client";
 
-import { createContext, useState, useEffect, ReactNode, useCallback } from 'react';
+import { createContext, useState, useEffect, ReactNode, useCallback, useContext } from 'react';
 import en from '@/locales/en.json';
 import my from '@/locales/my.json';
 
