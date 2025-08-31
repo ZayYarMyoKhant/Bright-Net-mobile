@@ -17,7 +17,7 @@ export default function TypingBattlePage({ params: paramsPromise }: { params: Pr
   // Set an initial default state to prevent rendering errors
   const [opponent, setOpponent] = useState<any>({
       name: "Opponent",
-      avatar: "https://i.pravatar.cc/150",
+      avatar: "https://i.pravatar.cc/150?u=opponent",
       username: "opponent"
   });
 
