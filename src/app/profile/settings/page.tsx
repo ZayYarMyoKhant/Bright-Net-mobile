@@ -15,6 +15,10 @@ import {
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, User, Shield, Globe, Ban, ChevronRight, LogOut } from "lucide-react";
 import Link from "next/link";
+import { createClient } from "@/lib/supabase/client";
+import { useRouter } from "next/navigation";
+import { useToast } from "@/hooks/use-toast";
+
 
 const settingsItems = [
     { icon: User, label: "Account", href: "/profile/settings/account" },
@@ -24,6 +28,24 @@ const settingsItems = [
 ];
 
 export default function SettingsPage() {
+    const router = useRouter();
+    const { toast } = useToast();
+
+    const handleLogout = async () => {
+        const supabase = createClient();
+        const { error } = await supabase.auth.signOut();
+        if (error) {
+            toast({
+                title: "Logout Failed",
+                description: error.message,
+                variant: "destructive",
+            });
+        } else {
+            router.push('/login');
+        }
+    };
+
+
     return (
         <div className="flex h-full flex-col bg-background text-foreground">
             <header className="flex h-16 flex-shrink-0 items-center border-b px-4">
@@ -71,7 +93,7 @@ export default function SettingsPage() {
                             </AlertDialogHeader>
                             <AlertDialogFooter>
                                 <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                <AlertDialogAction>Yes, log out</AlertDialogAction>
+                                <AlertDialogAction onClick={handleLogout}>Yes, log out</AlertDialogAction>
                             </AlertDialogFooter>
                         </AlertDialogContent>
                     </AlertDialog>

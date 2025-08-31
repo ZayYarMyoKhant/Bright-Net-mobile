@@ -9,12 +9,23 @@ import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 
 export default function PrivacySettingsPage() {
+    // In a real app, these values would be fetched from the user's profile
     const [showActive, setShowActive] = useState(true);
     const [isPrivateAccount, setIsPrivateAccount] = useState(false);
     const [isPrivatePost, setIsPrivatePost] = useState(false);
 
+    // In a real app, you would have a function to save these settings
+    const handleSaveChanges = () => {
+        console.log({
+            showActive,
+            isPrivateAccount,
+            isPrivatePost
+        });
+        // Add server action to update user profile in Supabase
+    }
+
     return (
-        <div className="flex h-full flex-col bg-background text-foreground">
+        <div className="flex h-dvh flex-col bg-background text-foreground">
             <header className="flex h-16 flex-shrink-0 items-center border-b px-4 relative">
                 <Link href="/profile/settings" className="p-2 -ml-2 absolute left-4">
                     <ArrowLeft className="h-5 w-5" />
@@ -47,6 +58,9 @@ export default function PrivacySettingsPage() {
                     </div>
                 </div>
             </main>
+            <footer className="p-4 border-t">
+                <Button className="w-full" onClick={handleSaveChanges}>Save Changes</Button>
+            </footer>
         </div>
     );
 }

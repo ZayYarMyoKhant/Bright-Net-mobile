@@ -10,14 +10,13 @@ import Link from "next/link";
 import { cn } from "@/lib/utils";
 
 export default function AccountSettingsPage() {
-    const [currentPassword, setCurrentPassword] = useState("");
     const [newPassword, setNewPassword] = useState("");
     const [confirmPassword, setConfirmPassword] = useState("");
-    const [showCurrentPassword, setShowCurrentPassword] = useState(false);
     const [showNewPassword, setShowNewPassword] = useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-    const email = "aungaung@example.com";
+    // In a real app, you would fetch this from Supabase auth
+    const phoneNumber = "+95 912345678";
 
     return (
         <div className="flex h-full flex-col bg-background text-foreground">
@@ -30,26 +29,12 @@ export default function AccountSettingsPage() {
 
             <main className="flex-1 overflow-y-auto p-4 space-y-6">
                 <div>
-                    <Label htmlFor="email">Email</Label>
-                    <Input id="email" value={email} readOnly className="mt-1 bg-muted" />
+                    <Label htmlFor="phone">Phone Number</Label>
+                    <Input id="phone" value={phoneNumber} readOnly className="mt-1 bg-muted" />
                 </div>
 
                 <div className="space-y-4">
                     <h2 className="text-lg font-semibold border-b pb-2">Change Password</h2>
-                    <div className="space-y-2">
-                        <Label htmlFor="current-password">Current Password</Label>
-                        <div className="relative">
-                            <Input 
-                                id="current-password" 
-                                type={showCurrentPassword ? "text" : "password"} 
-                                value={currentPassword} 
-                                onChange={(e) => setCurrentPassword(e.target.value)}
-                            />
-                            <Button variant="ghost" size="icon" className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7" onClick={() => setShowCurrentPassword(!showCurrentPassword)}>
-                               {showCurrentPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                            </Button>
-                        </div>
-                    </div>
                     <div className="space-y-2">
                         <Label htmlFor="new-password">New Password</Label>
                         <div className="relative">
@@ -80,7 +65,7 @@ export default function AccountSettingsPage() {
                     </div>
                 </div>
 
-                <Button className="w-full" disabled={!currentPassword || !newPassword || newPassword !== confirmPassword}>
+                <Button className="w-full" disabled={!newPassword || newPassword !== confirmPassword}>
                     Save Changes
                 </Button>
             </main>
