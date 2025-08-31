@@ -66,7 +66,19 @@ export default function UserProfilePage({ params: paramsPromise }: { params: Pro
         followers: 0, // Placeholder
       });
       
-      setPosts((postsData as any) || []);
+      const formattedPosts: Post[] = ((postsData as any) || []).map((post: any) => ({
+        ...post,
+        user: {
+          id: profileData.id,
+          username: profileData.username,
+          avatar: profileData.avatar_url || `https://i.pravatar.cc/150?u=${profileData.id}`,
+        },
+        likes: 0,
+        comments: [],
+        shares: 0,
+      }));
+      setPosts(formattedPosts);
+
       setLoading(false);
     };
 

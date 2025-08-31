@@ -13,7 +13,7 @@ export async function VideoFeed() {
       media_type,
       caption,
       created_at,
-      user:profiles (
+      profiles:user_id (
         id,
         username,
         avatar_url
@@ -36,9 +36,9 @@ export async function VideoFeed() {
     media_type: post.media_type,
     caption: post.caption,
     user: {
-      id: post.user.id,
-      username: post.user.username,
-      avatar: post.user.avatar_url,
+      id: post.profiles.id,
+      username: post.profiles.username,
+      avatar: post.profiles.avatar_url,
     },
     // These are placeholders for now
     likes: 0,

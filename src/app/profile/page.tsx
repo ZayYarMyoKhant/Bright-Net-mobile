@@ -39,7 +39,7 @@ export default function ProfilePage() {
     setAuthUser(user);
     const { data, error } = await supabase
       .from('profiles')
-      .select('full_name, username, avatar_url, bio')
+      .select('id, full_name, username, avatar_url, bio')
       .eq('id', user.id)
       .single();
 
@@ -64,7 +64,20 @@ export default function ProfilePage() {
       if (postsError) {
         console.error("Error fetching posts:", postsError);
       }
-      setPosts((postsData as any) || []);
+      
+      const formattedPosts: Post[] = ((postsData as any) || []).map((post: any) => ({
+        ...post,
+        user: {
+          id: data.id,
+          username: data.username,
+          avatar: data.avatar_url || `https://i.pravatar.cc/150?u=${data.id}`,
+        },
+        likes: 0,
+        comments: [],
+        shares: 0,
+      }));
+      setPosts(formattedPosts);
+
 
       setUser({
         id: user.id,
