@@ -1,7 +1,7 @@
 
 "use client";
 
-import { use, useState } from "react";
+import { use, useState, useEffect } from "react";
 import { ArrowLeft, Send, Swords } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -14,15 +14,26 @@ import { getVideoPosts } from "@/lib/data";
 export default function TypingBattlePage({ params: paramsPromise }: { params: Promise<{ id: string }> }) {
   const params = use(paramsPromise);
   const [inputValue, setInputValue] = useState("");
+  const [opponent, setOpponent] = useState<any>(null);
 
-  const allUsers = getVideoPosts().map(p => p.user);
-  const uniqueUsers = [...new Map(allUsers.map(item => [item['username'], item])).values()];
-  const opponent = uniqueUsers.find(u => u.username === params.id) || {
-    id: params.id,
-    username: params.id,
-    name: params.id.charAt(0).toUpperCase() + params.id.slice(1),
-    avatar: `https://i.pravatar.cc/150?u=${params.id}`,
-  };
+  useEffect(() => {
+    const allUsers = getVideoPosts().map(p => p.user);
+    const uniqueUsers = [...new Map(allUsers.map(item => [item['username'], item])).values()];
+    const foundOpponent = uniqueUsers.find(u => u.username === params.id);
+
+    if (foundOpponent) {
+      setOpponent(foundOpponent);
+    } else {
+      // Create a fallback opponent if not found
+      setOpponent({
+        id: params.id,
+        username: params.id,
+        name: params.id.charAt(0).toUpperCase() + params.id.slice(1),
+        avatar: `https://i.pravatar.cc/150?u=${params.id}`,
+      });
+    }
+  }, [params.id]);
+
 
   const you = {
     name: "You",
@@ -39,6 +50,14 @@ export default function TypingBattlePage({ params: paramsPromise }: { params: Pr
       setInputValue("");
     }
   };
+
+  if (!opponent) {
+    return (
+        <div className="flex h-dvh w-full items-center justify-center">
+            <p>Loading opponent...</p>
+        </div>
+    )
+  }
 
   return (
     <div className="flex h-dvh flex-col bg-background text-foreground">
