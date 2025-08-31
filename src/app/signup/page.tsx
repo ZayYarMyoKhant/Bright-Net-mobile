@@ -33,8 +33,13 @@ export default function SignUpPage() {
         phone: fullPhoneNumber,
         password,
         options: {
-          // No email verification needed, skip it.
-          // No phone verification/OTP needed, skip it.
+          // We can pass data to the user's metadata
+          data: {
+            full_name: '', // initial empty values
+            username: '',
+            bio: '',
+            avatar_url: ''
+          }
         }
     });
 

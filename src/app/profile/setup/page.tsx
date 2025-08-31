@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -38,7 +38,7 @@ export default function ProfileSetupPage() {
     if (!user) {
         toast({ variant: "destructive", title: "Authentication Error", description: "Your session could not be verified. Please try signing up again." });
         setSaving(false);
-        router.push('/signup');
+        router.push('/signup'); // Go back to signup if session is lost
         return;
     };
 
