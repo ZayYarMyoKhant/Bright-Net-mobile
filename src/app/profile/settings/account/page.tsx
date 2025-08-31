@@ -1,22 +1,73 @@
 
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ArrowLeft, Eye, EyeOff } from "lucide-react";
+import { ArrowLeft, Eye, EyeOff, Loader2 } from "lucide-react";
 import Link from "next/link";
-import { cn } from "@/lib/utils";
+import { createClient } from "@/lib/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 export default function AccountSettingsPage() {
+    const [loading, setLoading] = useState(true);
+    const [phoneNumber, setPhoneNumber] = useState("");
     const [newPassword, setNewPassword] = useState("");
     const [confirmPassword, setConfirmPassword] = useState("");
     const [showNewPassword, setShowNewPassword] = useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+    const [isSaving, setIsSaving] = useState(false);
+    const { toast } = useToast();
+    const supabase = createClient();
 
-    // In a real app, you would fetch this from Supabase auth
-    const phoneNumber = "+95 912345678";
+    useEffect(() => {
+        const fetchUser = async () => {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (user) {
+                setPhoneNumber(user.phone || "No phone number found.");
+            }
+            setLoading(false);
+        };
+        fetchUser();
+    }, [supabase]);
+
+    const handlePasswordChange = async () => {
+        if (!newPassword || newPassword !== confirmPassword) {
+            toast({
+                variant: "destructive",
+                title: "Passwords do not match",
+                description: "Please ensure both password fields are identical.",
+            });
+            return;
+        }
+
+        setIsSaving(true);
+        const { error } = await supabase.auth.updateUser({ password: newPassword });
+        setIsSaving(false);
+
+        if (error) {
+            toast({
+                variant: "destructive",
+                title: "Failed to change password",
+                description: error.message,
+            });
+        } else {
+            toast({
+                title: "Password changed successfully",
+            });
+            setNewPassword("");
+            setConfirmPassword("");
+        }
+    };
+
+    if (loading) {
+        return (
+            <div className="flex h-dvh w-full items-center justify-center">
+                <Loader2 className="h-8 w-8 animate-spin" />
+            </div>
+        );
+    }
 
     return (
         <div className="flex h-full flex-col bg-background text-foreground">
@@ -42,7 +93,8 @@ export default function AccountSettingsPage() {
                                 id="new-password" 
                                 type={showNewPassword ? "text" : "password"}
                                 value={newPassword}
-                                onChange={(e) => setNewPassword(e.target.value)} 
+                                onChange={(e) => setNewPassword(e.target.value)}
+                                placeholder="Enter new password"
                             />
                              <Button variant="ghost" size="icon" className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7" onClick={() => setShowNewPassword(!showNewPassword)}>
                                {showNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -57,6 +109,7 @@ export default function AccountSettingsPage() {
                                 type={showConfirmPassword ? "text" : "password"} 
                                 value={confirmPassword}
                                 onChange={(e) => setConfirmPassword(e.target.value)}
+                                placeholder="Confirm new password"
                             />
                              <Button variant="ghost" size="icon" className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7" onClick={() => setShowConfirmPassword(!showConfirmPassword)}>
                                {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -65,7 +118,8 @@ export default function AccountSettingsPage() {
                     </div>
                 </div>
 
-                <Button className="w-full" disabled={!newPassword || newPassword !== confirmPassword}>
+                <Button className="w-full" disabled={!newPassword || newPassword !== confirmPassword || isSaving} onClick={handlePasswordChange}>
+                    {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                     Save Changes
                 </Button>
             </main>
