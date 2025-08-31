@@ -57,7 +57,7 @@ export default function ProfilePage() {
     if (data) {
        const { data: postsData, error: postsError } = await supabase
         .from('posts')
-        .select('*')
+        .select('*, profiles(*)')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false });
 
@@ -68,9 +68,9 @@ export default function ProfilePage() {
       const formattedPosts: Post[] = ((postsData as any) || []).map((post: any) => ({
         ...post,
         user: {
-          id: data.id,
-          username: data.username,
-          avatar: data.avatar_url || `https://i.pravatar.cc/150?u=${data.id}`,
+          id: post.profiles.id,
+          username: post.profiles.username,
+          avatar: post.profiles.avatar_url || `https://i.pravatar.cc/150?u=${post.profiles.id}`,
         },
         likes: 0,
         comments: [],
