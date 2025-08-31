@@ -1,22 +1,26 @@
+
 "use client";
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Home, Search, PlusSquare, User, Bot, BookOpen, MessageCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
-
-const navItems = [
-  { href: "/", label: "Home", icon: Home },
-  { href: "/search", label: "Search", icon: Search },
-  { href: "/ai-tool", label: "AI Tool", icon: Bot },
-  { href: "/upload", label: "Upload", icon: PlusSquare, isSpecial: true },
-  { href: "/class", label: "Class", icon: BookOpen },
-  { href: "/chat", label: "Chat", icon: MessageCircle },
-  { href: "/profile", label: "Profile", icon: User },
-];
+import { useTranslation } from "@/context/language-context";
 
 export function BottomNav() {
   const pathname = usePathname();
+  const { t } = useTranslation();
+
+  const navItems = [
+    { href: "/", label: t('bottomNav.home'), icon: Home },
+    { href: "/search", label: t('bottomNav.search'), icon: Search },
+    { href: "/ai-tool", label: t('bottomNav.aiTool'), icon: Bot },
+    { href: "/upload", label: t('bottomNav.upload'), icon: PlusSquare, isSpecial: true },
+    { href: "/class", label: t('bottomNav.class'), icon: BookOpen },
+    { href: "/chat", label: t('bottomNav.chat'), icon: MessageCircle },
+    { href: "/profile", label: t('bottomNav.profile'), icon: User },
+  ];
+
 
   return (
     <footer className="fixed bottom-0 left-0 right-0 z-10 border-t bg-background/80 backdrop-blur-sm md:hidden">

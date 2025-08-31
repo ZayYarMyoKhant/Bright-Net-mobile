@@ -18,18 +18,21 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
+import { useTranslation } from "@/context/language-context";
 
-
-const settingsItems = [
-    { icon: User, label: "Account", href: "/profile/settings/account" },
-    { icon: Shield, label: "Privacy", href: "/profile/settings/privacy" },
-    { icon: Globe, label: "Language", href: "/profile/settings/language" },
-    { icon: Ban, label: "Block account", href: "/profile/settings/blocked" },
-];
 
 export default function SettingsPage() {
     const router = useRouter();
     const { toast } = useToast();
+    const { t } = useTranslation();
+
+    const settingsItems = [
+        { icon: User, label: t('settings.account'), href: "/profile/settings/account" },
+        { icon: Shield, label: t('settings.privacy'), href: "/profile/settings/privacy" },
+        { icon: Globe, label: t('settings.language'), href: "/profile/settings/language" },
+        { icon: Ban, label: t('settings.blocked'), href: "/profile/settings/blocked" },
+    ];
+
 
     const handleLogout = async () => {
         const supabase = createClient();
@@ -52,7 +55,7 @@ export default function SettingsPage() {
                 <Link href="/profile" className="p-2 -ml-2">
                     <ArrowLeft className="h-5 w-5" />
                 </Link>
-                <h1 className="mx-auto text-xl font-bold">Setting</h1>
+                <h1 className="mx-auto text-xl font-bold">{t('settings.title')}</h1>
                 {/* Spacer to balance the header */}
                 <div className="w-5 h-5"></div>
             </header>
@@ -80,20 +83,20 @@ export default function SettingsPage() {
                     <AlertDialog>
                         <AlertDialogTrigger asChild>
                              <Button variant="outline" className="w-full justify-between">
-                               <span>Log out</span>
+                               <span>{t('settings.logout')}</span>
                                <LogOut className="h-5 w-5" />
                             </Button>
                         </AlertDialogTrigger>
                         <AlertDialogContent>
                             <AlertDialogHeader>
-                                <AlertDialogTitle>Are you sure to log out?</AlertDialogTitle>
+                                <AlertDialogTitle>{t('settings.logoutConfirmTitle')}</AlertDialogTitle>
                                 <AlertDialogDescription>
-                                    This action will sign you out of your account on this device.
+                                    {t('settings.logoutConfirmDesc')}
                                 </AlertDialogDescription>
                             </AlertDialogHeader>
                             <AlertDialogFooter>
-                                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                <AlertDialogAction onClick={handleLogout}>Yes, log out</AlertDialogAction>
+                                <AlertDialogCancel>{t('settings.cancel')}</AlertDialogCancel>
+                                <AlertDialogAction onClick={handleLogout}>{t('settings.confirmLogout')}</AlertDialogAction>
                             </AlertDialogFooter>
                         </AlertDialogContent>
                     </AlertDialog>
