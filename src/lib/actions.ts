@@ -148,3 +148,56 @@ export async function saveProfile(formData: FormData) {
     // Redirect on success
     return redirect('/profile');
 }
+
+
+export async function createPost(formData: FormData) {
+  const supabase = createClient();
+
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
+    return redirect('/login');
+  }
+
+  const caption = formData.get('caption') as string;
+  const mediaFile = formData.get('media') as File;
+
+  if (!mediaFile || mediaFile.size === 0) {
+      const errorMessage = encodeURIComponent("Please select a file to upload.");
+      return redirect(`/upload/post?error=${errorMessage}`);
+  }
+
+  // Upload media to storage
+  const fileExt = mediaFile.name.split('.').pop();
+  const filePath = `${user.id}/posts/${Date.now()}.${fileExt}`;
+  
+  const { error: uploadError } = await supabase.storage
+    .from('posts')
+    .upload(filePath, mediaFile);
+
+  if (uploadError) {
+    console.error('Post Upload Error:', uploadError);
+    const errorMessage = encodeURIComponent(`Failed to upload media: ${uploadError.message}`);
+    return redirect(`/upload/post?error=${errorMessage}`);
+  }
+
+  const { data: { publicUrl } } = supabase.storage
+    .from('posts')
+    .getPublicUrl(filePath);
+
+  // Insert post into the database
+  const { error: insertError } = await supabase.from('posts').insert({
+    user_id: user.id,
+    caption: caption,
+    media_url: publicUrl,
+    media_type: mediaFile.type.startsWith('image/') ? 'image' : 'video',
+  });
+
+  if (insertError) {
+    console.error('Post Insert Error:', insertError);
+    const errorMessage = encodeURIComponent(`Failed to create post: ${insertError.message}`);
+    return redirect(`/upload/post?error=${errorMessage}`);
+  }
+
+  revalidatePath('/home');
+  redirect('/home');
+}

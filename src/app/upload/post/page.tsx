@@ -2,6 +2,7 @@
 "use client";
 
 import { useState, useRef } from "react";
+import { useFormStatus } from "react-dom";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ImagePlus, X, ArrowLeft, Loader2 } from "lucide-react";
@@ -9,6 +10,25 @@ import Image from "next/image";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { createPost } from "@/lib/actions";
+
+function SubmitButton() {
+  const { pending } = useFormStatus();
+
+  return (
+    <Button className="w-full" type="submit" disabled={pending}>
+      {pending ? (
+        <>
+          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          Posting...
+        </>
+      ) : (
+        "Post"
+      )}
+    </Button>
+  );
+}
+
 
 export default function UploadPostPage() {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -50,7 +70,7 @@ export default function UploadPostPage() {
         </header>
 
         <main className="flex-1 overflow-y-auto p-4">
-          <form className="space-y-4">
+          <form action={createPost} className="space-y-4">
              {errorMessage && (
                 <Alert variant="destructive" className="mb-4">
                   <AlertTitle>Upload Failed</AlertTitle>
@@ -98,6 +118,7 @@ export default function UploadPostPage() {
               onChange={handleFileChange}
               className="hidden"
               accept="image/*"
+              required
             />
 
             <div>
@@ -116,11 +137,12 @@ export default function UploadPostPage() {
                 name="caption"
                 placeholder="Write caption"
                 className="min-h-[100px] text-base"
+                required
               />
             </div>
             
              <div className="pt-4">
-                <Button className="w-full" type="submit" disabled>Post</Button>
+                <SubmitButton />
             </div>
 
           </form>

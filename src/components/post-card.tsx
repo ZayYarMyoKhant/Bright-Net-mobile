@@ -1,7 +1,6 @@
 
 "use client";
 
-import type { Post } from "@/lib/data";
 import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
@@ -19,8 +18,22 @@ import {
 import { CommentSheet } from "./comment-sheet";
 import { ShareSheet } from "./share-sheet";
 
+// A simplified Post type for the client component
+type PostCardProps = {
+    id: string;
+    user: {
+      username: string;
+      avatar: string;
+    };
+    media_url: string;
+    caption: string;
+    likes: number;
+    comments: any[]; // Using any for now
+    shares: number;
+    created_at: string;
+}
 
-export function PostCard({ post }: { post: Post }) {
+export function PostCard({ post }: { post: PostCardProps }) {
   const [isLiked, setIsLiked] = useState(false);
   const [likes, setLikes] = useState(post.likes || 0);
 
@@ -79,7 +92,7 @@ export function PostCard({ post }: { post: Post }) {
                 </Button>
               </SheetTrigger>
               <SheetContent side="bottom" className="h-[75dvh] flex flex-col p-0">
-                  <CommentSheet post={post} />
+                  <CommentSheet post={post as any} />
               </SheetContent>
             </Sheet>
          </div>
