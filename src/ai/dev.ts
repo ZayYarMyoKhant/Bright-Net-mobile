@@ -4,4 +4,4 @@ config();
 import '@/ai/flows/translate-video-description.ts';
 import '@/ai/flows/solve-problem-flow.ts';
 import '@/ai/flows/translate-text-flow.ts';
-import '@/ai/flows/google-search-flow.ts';
+import '@/ai/flows/generate-media-flow.ts';

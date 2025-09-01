@@ -4,10 +4,9 @@
 import { Suspense, useEffect, useState, useTransition } from "react";
 import { BottomNav } from "@/components/bottom-nav";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft, Loader2, Video, Image as ImageIcon, Globe, FileText, Bot } from "lucide-react";
-import { googleSearch, GoogleSearchOutput } from "@/ai/flows/google-search-flow";
+import { Card, CardContent } from "@/components/ui/card";
+import { ArrowLeft, Loader2, Video, Image as ImageIcon } from "lucide-react";
+import { generateMedia } from "@/ai/flows/generate-media-flow";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -16,7 +15,7 @@ function SearchResultsComponent() {
   const searchParams = useSearchParams();
   const query = searchParams.get("q") || "";
   const [isPending, startTransition] = useTransition();
-  const [results, setResults] = useState<GoogleSearchOutput | null>(null);
+  const [results, setResults] = useState<{ imageUrl: string; videoUrl: string; } | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -25,11 +24,11 @@ function SearchResultsComponent() {
         setError(null);
         setResults(null);
         try {
-          const searchResult = await googleSearch({ query });
-          setResults(searchResult);
+          const mediaResult = await generateMedia(query);
+          setResults(mediaResult);
         } catch (e) {
           console.error(e);
-          setError("Failed to fetch search results. Please try again.");
+          setError("Failed to generate media. The model may be unavailable. Please try again later.");
         }
       });
     }
@@ -37,44 +36,53 @@ function SearchResultsComponent() {
 
   if (isPending) {
     return (
-      <div className="flex flex-col items-center justify-center pt-10 text-center">
-        <Loader2 className="h-12 w-12 animate-spin text-muted-foreground" />
-        <p className="mt-4 text-sm text-muted-foreground">Searching for "{query}"...</p>
+      <div className="flex flex-col items-center justify-center pt-10 text-center text-muted-foreground space-y-4">
+        <Loader2 className="h-12 w-12 animate-spin" />
+        <p className="font-semibold">Generating media for "{query}"...</p>
+        <p className="text-sm">This may take a minute, especially the video.</p>
       </div>
     );
   }
   
   if (error) {
      return (
-        <div className="flex flex-col items-center justify-center pt-10 text-center text-destructive">
-            <p>{error}</p>
-        </div>
+        <Alert variant="destructive" className="mt-4">
+          <AlertTitle>Generation Failed</AlertTitle>
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
      )
   }
 
-  if (!results || results.results.length === 0) {
+  if (!results) {
     return (
       <div className="flex flex-col items-center justify-center pt-10 text-center">
-        <p className="mt-4 text-sm text-muted-foreground">No results found for "{query}".</p>
+        <p className="mt-4 text-sm text-muted-foreground">Start by searching for a topic.</p>
       </div>
     );
   }
 
   return (
-    <div className="space-y-4 py-4">
-        {results.results.map((item, index) => (
-             <a href={item.link} target="_blank" rel="noopener noreferrer" key={index} className="block">
-                <Card className="hover:bg-muted/50">
-                    <CardHeader className="pb-2">
-                        <CardTitle className="text-base text-blue-600 dark:text-blue-400">{item.title}</CardTitle>
-                         <p className="text-xs text-green-700 dark:text-green-500 truncate pt-1">{item.link}</p>
-                    </CardHeader>
-                    <CardContent>
-                        <p className="text-sm text-muted-foreground">{item.snippet}</p>
-                    </CardContent>
-                </Card>
-            </a>
-        ))}
+    <div className="space-y-6 py-4">
+      {results.imageUrl && (
+        <Card>
+          <CardContent className="p-2">
+            <div className="relative aspect-video w-full">
+              <ImageIcon className="absolute top-2 left-2 h-5 w-5 text-white/80 bg-black/50 p-1 rounded" />
+              <img src={results.imageUrl} alt={`Generated image for ${query}`} className="w-full h-full object-cover rounded-md" />
+            </div>
+          </CardContent>
+        </Card>
+      )}
+      {results.videoUrl && (
+        <Card>
+          <CardContent className="p-2">
+             <div className="relative aspect-video w-full">
+              <Video className="absolute top-2 left-2 h-5 w-5 text-white/80 bg-black/50 p-1 rounded" />
+              <video src={results.videoUrl} className="w-full h-full object-cover rounded-md" autoPlay loop muted playsInline />
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
@@ -90,44 +98,14 @@ export default function SearchPage() {
                 <ArrowLeft className="h-5 w-5" />
              </Button>
            </Link>
-          <h1 className="text-xl font-bold">Search anything</h1>
+          <h1 className="text-xl font-bold">Educational Search</h1>
           <div className="w-10"></div> {/* Spacer */}
         </header>
         
         <main className="flex-1 overflow-y-auto px-4">
-          <Tabs defaultValue="all" className="w-full">
-            <TabsList className="grid w-full grid-cols-3 sticky top-0 bg-background z-10">
-              <TabsTrigger value="all">
-                <Globe className="mr-2 h-4 w-4" />
-                All
-              </TabsTrigger>
-              <TabsTrigger value="video">
-                <Video className="mr-2 h-4 w-4" />
-                Video
-              </TabsTrigger>
-              <TabsTrigger value="image">
-                <ImageIcon className="mr-2 h-4 w-4" />
-                Image
-              </TabsTrigger>
-            </TabsList>
-            <TabsContent value="all">
-                <Suspense fallback={<p>Loading...</p>}>
-                    <SearchResultsComponent />
-                </Suspense>
-            </TabsContent>
-            <TabsContent value="video">
-              <div className="flex flex-col items-center justify-center pt-10 text-center">
-                  <Video className="h-12 w-12 text-muted-foreground" />
-                  <p className="mt-4 text-sm text-muted-foreground">Video search is coming soon.</p>
-              </div>
-            </TabsContent>
-            <TabsContent value="image">
-              <div className="flex flex-col items-center justify-center pt-10 text-center">
-                  <ImageIcon className="h-12 w-12 text-muted-foreground" />
-                  <p className="mt-4 text-sm text-muted-foreground">Image search is coming soon.</p>
-              </div>
-            </TabsContent>
-          </Tabs>
+           <Suspense fallback={<p>Loading...</p>}>
+              <SearchResultsComponent />
+           </Suspense>
         </main>
       </div>
       <BottomNav />
