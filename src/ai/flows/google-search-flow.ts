@@ -1,4 +1,3 @@
-
 'use server';
 
 /**
@@ -80,13 +79,13 @@ const googleSearchFlow = ai.defineFlow(
   },
   async (input) => {
     const llmResponse = await prompt(input);
-    const toolResponse = ll.toolRequest?.tool.response;
+    const toolResponse = llmResponse.choices[0].message.toolRequest?.tool.response;
 
     if (!toolResponse || !toolResponse.results) {
       return { answer: "Sorry, I couldn't find any information about that.", results: [] };
     }
     
-    const output = llmResponse.output()
+    const output = llmResponse.output;
     
     return { 
         answer: output?.answer || "I found some results, but I couldn't summarize them.",
