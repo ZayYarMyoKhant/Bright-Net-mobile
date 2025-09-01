@@ -44,12 +44,6 @@ export const countries: Country[] = [
   { code: '91', flag: '🇮🇳' },
 ];
 
-export function getVideoPosts(): Post[] {
-  // This is now a legacy function, data will be fetched from Supabase.
-  // Returning an empty array to avoid breaking components that still use it.
-  return [];
-}
-
 const sampleComments: Comment[] = [
     {
         id: 1,
@@ -74,7 +68,6 @@ const sampleComments: Comment[] = [
         replies: []
     }
 ];
-
 
 export function getNewsPosts(): Post[] {
     return [
@@ -109,4 +102,40 @@ export function getNewsPosts(): Post[] {
             created_at: '2024-07-30T12:30:00Z',
         }
     ];
+}
+
+
+export function getVideoPosts(): Post[] {
+  return [
+    {
+        id: 101,
+        user: {
+            id: 'aungaung',
+            username: 'aungaung',
+            avatar: 'https://i.pravatar.cc/150?u=aungaung',
+        },
+        media_url: 'https://picsum.photos/400/800?random=10',
+        media_type: 'video',
+        caption: 'ဒါက ဗီဒီယို caption ပါ။',
+        likes: 1052,
+        comments: sampleComments,
+        shares: 112,
+        created_at: '2024-07-31T10:00:00Z',
+    },
+    {
+        id: 102,
+        user: {
+            id: 'susu',
+            username: 'susu',
+            avatar: 'https://i.pravatar.cc/150?u=susu',
+        },
+        media_url: 'https://picsum.photos/400/800?random=11',
+        media_type: 'video',
+        caption: 'ဒီနေ့ हवामान खूप छान आहे',
+        likes: 2345,
+        comments: [],
+        shares: 301,
+        created_at: '2024-07-31T12:30:00Z',
+    }
+  ];
 }
