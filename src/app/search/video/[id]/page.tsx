@@ -6,7 +6,8 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Download } from "lucide-react";
 
-export default function VideoViewerPage({ params }: { params: { id: string } }) {
+export default function VideoViewerPage({ params: paramsPromise }: { params: Promise<{ id: string }> }) {
+  const params = use(paramsPromise);
   const router = useRouter();
   // Using a placeholder video URL. In a real app, you'd fetch this based on the ID.
   const videoUrl = `https://videos.pexels.com/video-files/2022395/2022395-hd_1280_720_25fps.mp4`;

@@ -7,7 +7,8 @@ import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Download } from "lucide-react";
 
-export default function ImageViewerPage({ params }: { params: { id: string } }) {
+export default function ImageViewerPage({ params: paramsPromise }: { params: Promise<{ id: string }> }) {
+  const params = use(paramsPromise);
   const router = useRouter();
   const imageUrl = `https://picsum.photos/1080/1920?random=${params.id}`;
 
