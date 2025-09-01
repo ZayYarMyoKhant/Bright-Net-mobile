@@ -1,7 +1,7 @@
 
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { BottomNav } from "@/components/bottom-nav";
 import { Button } from "@/components/ui/button";
@@ -11,15 +11,16 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import Image from "next/image";
 
 const mockImages = Array.from({ length: 12 }, (_, i) => ({
-  id: i,
+  id: i + 1,
   url: `https://picsum.photos/300/300?random=${i + 1}`,
   source: "picsum.photos",
 }));
 
 const mockVideos = Array.from({ length: 8 }, (_, i) => ({
-    id: i,
+    id: i + 20,
     thumbnail: `https://picsum.photos/300/200?random=${i + 20}`,
-    title: `Educational Video Title ${i + 1}`
+    title: `Educational Video Title ${i + 1}`,
+    videoUrl: `https://videos.pexels.com/video-files/2022395/2022395-hd_1280_720_25fps.mp4` // Placeholder video
 }));
 
 
@@ -53,36 +54,40 @@ function SearchResultsComponent() {
       <TabsContent value="images">
         <div className="p-2 grid grid-cols-3 gap-1">
           {mockImages.map((img) => (
-            <div key={img.id} className="relative aspect-square">
-              <Image
-                src={img.url}
-                alt={`Search result for ${query}`}
-                fill
-                className="object-cover rounded-md"
-                data-ai-hint="search result"
-              />
-            </div>
+             <Link href={`/search/image/${img.id}`} key={img.id}>
+              <div className="relative aspect-square">
+                <Image
+                  src={img.url}
+                  alt={`Search result for ${query}`}
+                  fill
+                  className="object-cover rounded-md"
+                  data-ai-hint="search result"
+                />
+              </div>
+            </Link>
           ))}
         </div>
       </TabsContent>
       <TabsContent value="videos">
         <div className="p-2 grid grid-cols-2 gap-2">
            {mockVideos.map((video) => (
-            <div key={video.id} className="relative group">
-                <div className="relative aspect-video w-full overflow-hidden rounded-md">
-                    <Image
-                        src={video.thumbnail}
-                        alt={video.title}
-                        fill
-                        className="object-cover transition-transform group-hover:scale-105"
-                        data-ai-hint="video thumbnail"
-                    />
-                     <div className="absolute inset-0 bg-black/30 flex items-center justify-center">
-                        <Video className="h-8 w-8 text-white/80" />
+             <Link href={`/search/video/${video.id}`} key={video.id}>
+                <div className="relative group">
+                    <div className="relative aspect-video w-full overflow-hidden rounded-md">
+                        <Image
+                            src={video.thumbnail}
+                            alt={video.title}
+                            fill
+                            className="object-cover transition-transform group-hover:scale-105"
+                            data-ai-hint="video thumbnail"
+                        />
+                         <div className="absolute inset-0 bg-black/30 flex items-center justify-center">
+                            <Video className="h-8 w-8 text-white/80" />
+                        </div>
                     </div>
+                    <p className="text-xs mt-1 font-medium truncate">{video.title}</p>
                 </div>
-                <p className="text-xs mt-1 font-medium truncate">{video.title}</p>
-            </div>
+            </Link>
            ))}
         </div>
       </TabsContent>
