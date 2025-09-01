@@ -1,49 +1,37 @@
 
 "use client";
 
-import { useState, useRef, useActionState } from "react";
+import { useState, useRef } from "react";
+import { useFormStatus } from "react-dom";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ImagePlus, X, ArrowLeft, Loader2 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { createPost } from "@/lib/actions";
-import { useToast } from "@/hooks/use-toast";
-import { useRouter } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 function SubmitButton() {
-  const [state, formAction, isPending] = useActionState(createPost, null);
+  const { pending } = useFormStatus();
   
   return (
-     <>
-      {state?.error && (
-        <Alert variant="destructive" className="mb-4">
-          <AlertTitle>Upload Failed</AlertTitle>
-          <AlertDescription>{state.error}</AlertDescription>
-        </Alert>
-      )}
-      <Button
-        className="w-full"
-        type="submit"
-        disabled={isPending}
-        onClick={(e) => {
-          const form = e.currentTarget.form;
-          if (form) {
-            formAction(new FormData(form));
-          }
-        }}
-      >
-        {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-        Post
-      </Button>
-    </>
+    <Button
+      className="w-full"
+      type="submit"
+      disabled={pending}
+    >
+      {pending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+      Post
+    </Button>
   );
 }
 
 export default function UploadPostPage() {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const searchParams = useSearchParams();
+  const errorMessage = searchParams.get('error');
   
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -80,6 +68,12 @@ export default function UploadPostPage() {
 
         <main className="flex-1 overflow-y-auto p-4">
           <form action={createPost} className="space-y-4">
+             {errorMessage && (
+                <Alert variant="destructive" className="mb-4">
+                  <AlertTitle>Upload Failed</AlertTitle>
+                  <AlertDescription>{decodeURIComponent(errorMessage)}</AlertDescription>
+                </Alert>
+              )}
             <div
               onClick={() => fileInputRef.current?.click()}
               className="relative flex aspect-video w-full cursor-pointer flex-col items-center justify-center rounded-md border-2 border-dashed bg-muted/50"
@@ -154,4 +148,3 @@ export default function UploadPostPage() {
     </>
   );
 }
-

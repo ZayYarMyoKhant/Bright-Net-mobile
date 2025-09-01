@@ -150,7 +150,7 @@ export async function saveProfile(formData: FormData) {
 }
 
 
-export async function createPost(prevState: { error: string | null } | null, formData: FormData): Promise<{ error: string | null }> {
+export async function createPost(formData: FormData) {
   const supabase = createClient();
 
   const { data: { user }, error: userError } = await supabase.auth.getUser();
@@ -162,13 +162,16 @@ export async function createPost(prevState: { error: string | null } | null, for
   const mediaFile = formData.get('media') as File;
   
   if (!mediaFile || mediaFile.size === 0) {
-     return { error: 'Please select an image to post.' };
+     const errorMessage = encodeURIComponent("Please select an image to post.");
+     return redirect(`/upload/post?error=${errorMessage}`);
   }
   if (!mediaFile.type.startsWith('image/')) {
-    return { error: 'Only image files are allowed.' };
+    const errorMessage = encodeURIComponent("Only image files are allowed.");
+    return redirect(`/upload/post?error=${errorMessage}`);
   }
   if (!caption) {
-     return { error: 'Caption is required.' };
+     const errorMessage = encodeURIComponent("Caption is required.");
+     return redirect(`/upload/post?error=${errorMessage}`);
   }
 
   const fileExt = mediaFile.name.split('.').pop();
@@ -181,7 +184,8 @@ export async function createPost(prevState: { error: string | null } | null, for
 
   if (uploadError) {
     console.error("Media Upload Error:", uploadError);
-    return { error: `Failed to upload media: ${uploadError.message}` };
+    const errorMessage = encodeURIComponent(`Failed to upload media: ${uploadError.message}`);
+    return redirect(`/upload/post?error=${errorMessage}`);
   }
 
   const { data: { publicUrl } } = supabase.storage
@@ -189,7 +193,8 @@ export async function createPost(prevState: { error: string | null } | null, for
     .getPublicUrl(filePath);
   
   if (!publicUrl) {
-    return { error: "Could not get public URL for the uploaded media."};
+    const errorMessage = encodeURIComponent("Could not get public URL for the uploaded media.");
+    return redirect(`/upload/post?error=${errorMessage}`);
   }
 
   const { error: dbError } = await supabase.from('posts').insert({
@@ -201,11 +206,12 @@ export async function createPost(prevState: { error: string | null } | null, for
 
   if (dbError) {
     console.error("Database Insert Error:", dbError);
-    return { error: `Failed to save post to database: ${dbError.message}` };
+    const errorMessage = encodeURIComponent(`Failed to save post to database: ${dbError.message}`);
+    return redirect(`/upload/post?error=${errorMessage}`);
   }
 
   revalidatePath('/home');
   revalidatePath(`/profile`);
-  revalidatePath(`/profile/${user.username}`);
+  revalidatePath(`/profile/${user.username}`); // Assuming username is available on user object from auth
   redirect('/home');
 }
