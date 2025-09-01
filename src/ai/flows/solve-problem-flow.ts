@@ -1,0 +1,67 @@
+'use server';
+
+/**
+ * @fileOverview This file defines a Genkit flow for solving user problems like a chatbot.
+ *
+ * - solveProblem - A function that takes conversation history and returns an AI response.
+ * - SolveProblemInput - The input type for the solveProblem function.
+ * - SolveProblemOutput - The return type for the solveProblem function.
+ */
+
+import {ai} from '@/ai/genkit';
+import {z} from 'genkit';
+
+const MessageSchema = z.object({
+  role: z.enum(['user', 'model']),
+  content: z.string(),
+});
+
+const SolveProblemInputSchema = z.object({
+  history: z.array(MessageSchema).describe("The conversation history."),
+  prompt: z.string().describe('The latest user prompt.'),
+});
+export type SolveProblemInput = z.infer<typeof SolveProblemInputSchema>;
+
+const SolveProblemOutputSchema = z.object({
+  response: z.string().describe('The AI-generated response.'),
+});
+export type SolveProblemOutput = z.infer<typeof SolveProblemOutputSchema>;
+
+export async function solveProblem(
+  input: SolveProblemInput
+): Promise<SolveProblemOutput> {
+  return solveProblemFlow(input);
+}
+
+const prompt = ai.definePrompt(
+    {
+      name: 'solveProblemPrompt',
+      input: { schema: SolveProblemInputSchema },
+      output: { schema: SolveProblemOutputSchema },
+      prompt: `You are a friendly and helpful AI problem solver. Your goal is to assist users with their questions and problems as accurately and concisely as possible.
+  
+      Here is the conversation history:
+      {{#each history}}
+      {{role}}: {{{content}}}
+      {{/each}}
+      
+      New user prompt: {{{prompt}}}
+      
+      Your response:`,
+    },
+);
+
+const solveProblemFlow = ai.defineFlow(
+  {
+    name: 'solveProblemFlow',
+    inputSchema: SolveProblemInputSchema,
+    outputSchema: SolveProblemOutputSchema,
+  },
+  async (input) => {
+    const llmResponse = await prompt(input);
+    const output = llmResponse.output!;
+    return {
+        response: output.response,
+    }
+  }
+);

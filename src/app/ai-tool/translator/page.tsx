@@ -4,18 +4,35 @@
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Languages, Loader2 } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useTransition } from "react";
+import { translateText } from "@/ai/flows/translate-text-flow";
+import { useToast } from "@/hooks/use-toast";
 
 export default function AiTranslatorPage() {
     const [inputText, setInputText] = useState("");
     const [outputText, setOutputText] = useState("");
-    const [targetLanguage, setTargetLanguage] = useState("english");
+    const [targetLanguage, setTargetLanguage] = useState("myanmar");
+    const [isPending, startTransition] = useTransition();
+    const { toast } = useToast();
 
     const handleTranslate = () => {
-        // Placeholder for translation logic
-        setOutputText(`Translated: ${inputText}`);
+        if (inputText.trim() && !isPending) {
+            startTransition(async () => {
+                setOutputText("");
+                try {
+                    const result = await translateText({ text: inputText, targetLanguage });
+                    setOutputText(result.translatedText);
+                } catch (error) {
+                    toast({
+                        variant: "destructive",
+                        title: "Translation Failed",
+                        description: "Could not translate the text. Please try again.",
+                    });
+                }
+            });
+        }
     }
 
     return (
@@ -37,6 +54,7 @@ export default function AiTranslatorPage() {
                             rows={5}
                             value={inputText}
                             onChange={(e) => setInputText(e.target.value)}
+                            disabled={isPending}
                         />
                     </div>
                     
@@ -47,7 +65,7 @@ export default function AiTranslatorPage() {
                     </div>
 
                     <div className="rounded-md border p-2">
-                         <Select value={targetLanguage} onValueChange={setTargetLanguage}>
+                         <Select value={targetLanguage} onValueChange={setTargetLanguage} disabled={isPending}>
                             <SelectTrigger className="border-0 focus:ring-0">
                                 <SelectValue placeholder="Choose language" />
                             </SelectTrigger>
@@ -57,10 +75,14 @@ export default function AiTranslatorPage() {
                                 <SelectItem value="spanish">Spanish</SelectItem>
                                 <SelectItem value="french">French</SelectItem>
                                 <SelectItem value="japanese">Japanese</SelectItem>
+                                <SelectItem value="chinese">Chinese</SelectItem>
+                                <SelectItem value="hindi">Hindi</SelectItem>
+                                <SelectItem value="arabic">Arabic</SelectItem>
+                                <SelectItem value="russian">Russian</SelectItem>
                             </SelectContent>
                         </Select>
                         <Textarea
-                            placeholder="Translation"
+                            placeholder={isPending ? "Translating..." : "Translation"}
                             className="bg-transparent border-0 focus-visible:ring-0 text-base"
                             rows={5}
                             value={outputText}
@@ -71,8 +93,9 @@ export default function AiTranslatorPage() {
             </main>
 
             <footer className="flex-shrink-0 border-t p-4">
-                <Button className="w-full" onClick={handleTranslate} disabled={!inputText}>
-                    Translate
+                <Button className="w-full" onClick={handleTranslate} disabled={!inputText || isPending}>
+                    {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Languages className="mr-2 h-4 w-4" />}
+                    {isPending ? "Translating..." : "Translate"}
                 </Button>
             </footer>
         </div>

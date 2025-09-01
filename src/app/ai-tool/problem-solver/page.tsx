@@ -1,42 +1,84 @@
 
 "use client";
 
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ArrowLeft, Send, Bot } from "lucide-react";
+import { ArrowLeft, Send, Bot, User, Loader2 } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useRef, useEffect, useTransition } from "react";
+import { solveProblem } from "@/ai/flows/solve-problem-flow";
+import { useToast } from "@/hooks/use-toast";
 
-const ChatMessage = ({ message, isSender }: { message: string, isSender: boolean }) => {
+interface Message {
+  id: number;
+  text: string;
+  sender: 'user' | 'model';
+}
+
+const ChatMessage = ({ message, sender }: { message: string, sender: 'user' | 'model' }) => {
+    const isUser = sender === 'user';
     return (
-        <div className={`flex items-start gap-3 ${isSender ? 'justify-end' : 'justify-start'}`}>
-            {!isSender && (
+        <div className={`flex items-start gap-3 ${isUser ? 'justify-end' : 'justify-start'}`}>
+            {!isUser && (
                 <Avatar className="h-8 w-8">
                     <AvatarFallback><Bot className="h-5 w-5"/></AvatarFallback>
                 </Avatar>
             )}
-            <div className={`max-w-xs rounded-lg px-4 py-2 ${isSender ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}>
+            <div className={`max-w-xs rounded-lg px-4 py-2 ${isUser ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}>
                 {message}
             </div>
+             {isUser && (
+                <Avatar className="h-8 w-8">
+                    <AvatarFallback><User className="h-5 w-5"/></AvatarFallback>
+                </Avatar>
+            )}
         </div>
     )
 };
 
 
 export default function AiProblemSolverPage() {
-  const [messages, setMessages] = useState([
-    { id: 1, text: "Ask me anything", sender: false },
-    { id: 2, text: "1+1=?", sender: true },
-    { id: 3, text: "the answer is 2", sender: false },
+  const [messages, setMessages] = useState<Message[]>([
+    { id: 1, text: "Hello! How can I assist you today?", sender: 'model' },
   ]);
   const [inputValue, setInputValue] = useState("");
+  const [isPending, startTransition] = useTransition();
+  const { toast } = useToast();
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
 
   const handleSendMessage = () => {
-    if (inputValue.trim()) {
-      setMessages([...messages, { id: Date.now(), text: inputValue, sender: true }]);
+    if (inputValue.trim() && !isPending) {
+      const newUserMessage: Message = { id: Date.now(), text: inputValue, sender: 'user' };
+      setMessages(prev => [...prev, newUserMessage]);
+      const currentInput = inputValue;
       setInputValue("");
-      // Add AI response logic here
+
+      startTransition(async () => {
+        try {
+          // Format history for the flow
+          const history = messages.map(msg => ({
+            role: msg.sender,
+            content: msg.text,
+          }));
+
+          const result = await solveProblem({ history, prompt: currentInput });
+          const aiResponse: Message = { id: Date.now() + 1, text: result.response, sender: 'model' };
+          setMessages(prev => [...prev, aiResponse]);
+        } catch (error) {
+          toast({
+            variant: 'destructive',
+            title: 'An error occurred',
+            description: 'Failed to get a response from the AI. Please try again.',
+          });
+          // Optional: remove the user's message if the API call fails
+           setMessages(prev => prev.filter(msg => msg.id !== newUserMessage.id));
+        }
+      });
     }
   };
 
@@ -52,8 +94,19 @@ export default function AiProblemSolverPage() {
       
       <main className="flex-1 overflow-y-auto p-4 space-y-4">
         {messages.map((msg) => (
-            <ChatMessage key={msg.id} message={msg.text} isSender={msg.sender} />
+            <ChatMessage key={msg.id} message={msg.text} sender={msg.sender} />
         ))}
+         {isPending && (
+          <div className="flex items-start gap-3 justify-start">
+            <Avatar className="h-8 w-8">
+              <AvatarFallback><Bot className="h-5 w-5"/></AvatarFallback>
+            </Avatar>
+            <div className="max-w-xs rounded-lg px-4 py-2 bg-muted flex items-center">
+              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+            </div>
+          </div>
+        )}
+        <div ref={messagesEndRef} />
       </main>
 
       <footer className="flex-shrink-0 border-t p-2">
@@ -64,8 +117,9 @@ export default function AiProblemSolverPage() {
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
+              disabled={isPending}
             />
-            <Button size="icon" onClick={handleSendMessage}>
+            <Button size="icon" onClick={handleSendMessage} disabled={isPending || !inputValue.trim()}>
                 <Send className="h-5 w-5" />
             </Button>
         </div>
