@@ -47,21 +47,66 @@ export const countries: Country[] = [
 export function getVideoPosts(): Post[] {
   // This is now a legacy function, data will be fetched from Supabase.
   // Returning an empty array to avoid breaking components that still use it.
-  return [
+  return [];
+}
+
+const sampleComments: Comment[] = [
     {
         id: 1,
-        user: {
-            id: 'aungaung',
-            username: 'aungaung',
-            avatar: 'https://i.pravatar.cc/150?u=aungaung',
-        },
-        media_url: 'https://picsum.photos/400/800?random=1',
-        media_type: 'image',
-        caption: 'This is a sample caption in Myanmar language.',
-        likes: 123,
-        comments: [],
-        shares: 45,
-        created_at: '2024-07-29T12:34:56.789Z',
+        user: { username: 'susu', avatar: 'https://i.pravatar.cc/150?u=susu' },
+        text: 'This is a great post!',
+        likes: 5,
+        replies: [
+            {
+                id: 2,
+                user: { username: 'aungaung', avatar: 'https://i.pravatar.cc/150?u=aungaung' },
+                text: 'Thank you!',
+                likes: 2,
+                replies: []
+            }
+        ]
+    },
+    {
+        id: 3,
+        user: { username: 'myomyint', avatar: 'https://i.pravatar.cc/150?u=myomyint' },
+        text: 'Love this!',
+        likes: 10,
+        replies: []
     }
-  ];
+];
+
+
+export function getNewsPosts(): Post[] {
+    return [
+        {
+            id: 1,
+            user: {
+                id: 'aungaung',
+                username: 'aungaung',
+                avatar: 'https://i.pravatar.cc/150?u=aungaung',
+            },
+            media_url: 'https://picsum.photos/600/400?random=1',
+            media_type: 'image',
+            caption: 'Just a beautiful landscape picture. Enjoying the view!',
+            likes: 123,
+            comments: sampleComments,
+            shares: 45,
+            created_at: '2024-07-30T10:00:00Z',
+        },
+        {
+            id: 2,
+            user: {
+                id: 'susu',
+                username: 'susu',
+                avatar: 'https://i.pravatar.cc/150?u=susu',
+            },
+            media_url: 'https://picsum.photos/600/400?random=2',
+            media_type: 'image',
+            caption: 'My lunch today. It was delicious! 🍔🍟',
+            likes: 250,
+            comments: [],
+            shares: 80,
+            created_at: '2024-07-30T12:30:00Z',
+        }
+    ];
 }

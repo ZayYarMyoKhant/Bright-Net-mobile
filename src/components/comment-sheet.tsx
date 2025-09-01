@@ -45,7 +45,7 @@ const CommentItem = ({ comment, isReply = false, onReply }: { comment: Comment, 
                 <button onClick={handleReplyClick}>Reply</button>
             </div>
              {comment.replies && comment.replies.length > 0 && (
-                <div className="mt-2">
+                <div className="mt-2 space-y-4">
                     {comment.replies.map(reply => (
                         <CommentItem key={reply.id} comment={reply} isReply onReply={onReply}/>
                     ))}

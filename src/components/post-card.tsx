@@ -53,7 +53,7 @@ export function PostCard({ post }: { post: Post }) {
       
       <CardContent className="p-0">
         <p className="px-4 pb-3 text-sm">{post.caption}</p>
-        <div className="relative w-full aspect-square bg-muted">
+        <div className="relative w-full aspect-[4/3] bg-muted">
              <Image 
                 src={post.media_url}
                 alt={`Post by ${post.user.username}`}
