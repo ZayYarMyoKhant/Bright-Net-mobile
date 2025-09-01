@@ -80,7 +80,7 @@ const googleSearchFlow = ai.defineFlow(
   },
   async (input) => {
     const llmResponse = await prompt(input);
-    const toolResponse = llmResponse.toolRequest?.tool.response;
+    const toolResponse = ll.toolRequest?.tool.response;
 
     if (!toolResponse || !toolResponse.results) {
       return { answer: "Sorry, I couldn't find any information about that.", results: [] };
