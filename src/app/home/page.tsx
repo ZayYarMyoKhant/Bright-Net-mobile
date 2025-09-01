@@ -20,32 +20,30 @@ export default function HomePage() {
   
   return (
     <>
-      <div className="flex h-dvh flex-col bg-background text-foreground pb-16">
-        <header className="fixed top-0 left-0 right-0 z-10 flex h-16 flex-shrink-0 items-center justify-center bg-background/80 px-4 text-center backdrop-blur-sm">
-           <Tabs defaultValue="news" className="w-full">
-            <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="news">News</TabsTrigger>
-                <TabsTrigger value="lite">Lite</TabsTrigger>
-            </TabsList>
-           </Tabs>
-        </header>
+      <Tabs defaultValue="news" className="w-full">
+        <div className="flex h-dvh flex-col bg-background text-foreground pb-16">
+          <header className="fixed top-0 left-0 right-0 z-10 flex h-16 flex-shrink-0 items-center justify-center bg-background/80 px-4 text-center backdrop-blur-sm">
+              <TabsList className="grid w-full grid-cols-2">
+                  <TabsTrigger value="news">News</TabsTrigger>
+                  <TabsTrigger value="lite">Lite</TabsTrigger>
+              </TabsList>
+          </header>
 
-        <main className="flex-1 overflow-y-auto pt-16">
-           <Tabs defaultValue="news" className="w-full">
-            <TabsContent value="news">
-                 <Suspense fallback={<FeedFallback />}>
-                    <PostFeed />
-                </Suspense>
-            </TabsContent>
-            <TabsContent value="lite">
-                 <Suspense fallback={<FeedFallback />}>
-                    <VideoFeed />
-                 </Suspense>
-            </TabsContent>
-           </Tabs>
-        </main>
-      </div>
-      <BottomNav />
+          <main className="flex-1 overflow-y-auto pt-16">
+              <TabsContent value="news">
+                  <Suspense fallback={<FeedFallback />}>
+                      <PostFeed />
+                  </Suspense>
+              </TabsContent>
+              <TabsContent value="lite">
+                  <Suspense fallback={<FeedFallback />}>
+                      <VideoFeed />
+                  </Suspense>
+              </TabsContent>
+          </main>
+        </div>
+        <BottomNav />
+      </Tabs>
     </>
   );
 }
