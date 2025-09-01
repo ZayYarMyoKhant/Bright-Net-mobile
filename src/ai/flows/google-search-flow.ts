@@ -1,3 +1,4 @@
+
 'use server';
 
 /**
@@ -11,7 +12,6 @@
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
 import { defineTool } from 'genkit';
-import { search } from '@genkit-ai/googleai';
 
 // Note: In a real app, you would likely have more complex logic
 // to handle different types of search results (videos, images, etc.)
@@ -24,6 +24,8 @@ const googleSearchTool = defineTool(
         outputSchema: z.any(),
     },
     async (input) => {
+        // Dynamically import search to avoid build issues
+        const { search } = await import('@genkit-ai/googleai');
         return await search({ q: input.query });
     }
 );
