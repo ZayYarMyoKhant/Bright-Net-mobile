@@ -7,8 +7,20 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/componen
 import { Input } from "@/components/ui/input";
 import { Bot, BrainCircuit, Languages, Search } from "lucide-react";
 import Link from "next/link";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
 
 export default function AiToolPage() {
+  const router = useRouter();
+  const [searchQuery, setSearchQuery] = useState("");
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (searchQuery.trim()) {
+      router.push(`/search?q=${encodeURIComponent(searchQuery.trim())}`);
+    }
+  };
+
   return (
     <>
       <div className="flex h-full flex-col bg-background text-foreground pb-16">
@@ -22,10 +34,20 @@ export default function AiToolPage() {
             <p className="text-muted-foreground">How can I help you?</p>
           </div>
 
-          <div className="relative my-4">
+           <form onSubmit={handleSearch} className="relative my-4 flex items-center">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-            <Input placeholder="Search" className="pl-10" />
-          </div>
+            <Input 
+              placeholder="Search with Google" 
+              className="pl-10 flex-1"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+            {searchQuery && (
+              <Button type="submit" size="icon" variant="ghost" className="absolute right-1">
+                <Search className="h-5 w-5" />
+              </Button>
+            )}
+          </form>
           
           <div className="relative flex flex-col items-center justify-center space-y-4">
             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
