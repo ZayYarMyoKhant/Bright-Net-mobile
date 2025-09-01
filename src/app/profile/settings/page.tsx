@@ -15,7 +15,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, User, Shield, Globe, Ban, ChevronRight, LogOut } from "lucide-react";
 import Link from "next/link";
-import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "@/context/language-context";
@@ -34,18 +33,11 @@ export default function SettingsPage() {
     ];
 
 
-    const handleLogout = async () => {
-        const supabase = createClient();
-        const { error } = await supabase.auth.signOut();
-        if (error) {
-            toast({
-                title: "Logout Failed",
-                description: error.message,
-                variant: "destructive",
-            });
-        } else {
-            router.push('/login');
-        }
+    const handleLogout = () => {
+       toast({
+            title: "Logout Clicked",
+            description: "Authentication has been removed, so this is a mock action.",
+       });
     };
 
 

@@ -2,7 +2,6 @@
 "use client";
 
 import { useState, useEffect, useCallback } from 'react';
-import { createClient } from '@/lib/supabase/client';
 import { useRouter } from 'next/navigation';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -12,7 +11,6 @@ import Image from "next/image";
 import Link from "next/link";
 import { BottomNav } from '@/components/bottom-nav';
 import { useToast } from '@/hooks/use-toast';
-import type { User } from '@supabase/supabase-js';
 import type { Post } from '@/lib/data';
 
 
@@ -26,64 +24,22 @@ type ProfileData = {
   followers: number;
 };
 
+// Mock user data since auth is removed for now
+const mockUser: ProfileData = {
+    id: 'aungaung',
+    fullName: 'Aung Aung',
+    username: 'aungaung',
+    avatarUrl: 'https://i.pravatar.cc/150?u=aungaung',
+    bio: 'Digital Creator | Building cool stuff with code ✨',
+    following: 120,
+    followers: 450,
+}
+
+
 export default function ProfilePage() {
-  const supabase = createClient();
-  const router = useRouter();
-  const { toast } = useToast();
-  const [user, setUser] = useState<ProfileData | null>(null);
+  const [user, setUser] = useState<ProfileData | null>(mockUser);
   const [posts, setPosts] = useState<Post[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [authUser, setAuthUser] = useState<User | null>(null);
-
-  const getProfile = useCallback(async (user: User) => {
-    setAuthUser(user);
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('id, full_name, username, avatar_url, bio')
-      .eq('id', user.id)
-      .single();
-
-    if (error) {
-      console.error('Error fetching profile:', error);
-      if (error.code === 'PGRST116') {
-        router.push('/profile/setup');
-        return;
-      }
-      toast({ variant: 'destructive', title: 'Error fetching profile' });
-      setLoading(false);
-      return;
-    }
-
-    if (data) {
-      setUser({
-        id: user.id,
-        fullName: data.full_name || '',
-        username: data.username || '',
-        avatarUrl: data.avatar_url || `https://i.pravatar.cc/150?u=${user.id}`,
-        bio: data.bio || 'No bio yet.',
-        // TODO: These should be real counts from the database
-        following: 0,
-        followers: 0,
-      });
-
-    } else {
-        router.push('/profile/setup');
-        return;
-    }
-    setLoading(false);
-  }, [supabase, router, toast]);
-
-  useEffect(() => {
-     const checkUser = async () => {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
-            getProfile(user);
-        } else {
-            router.push('/login');
-        }
-    };
-    checkUser();
-  }, [getProfile, router, supabase]);
+  const [loading, setLoading] = useState(false);
 
   if (loading) {
     return (
@@ -96,12 +52,11 @@ export default function ProfilePage() {
     )
   }
 
-  if (!user || !authUser) {
+  if (!user) {
     return (
          <>
             <div className="flex h-full flex-col bg-background text-foreground pb-16 items-center justify-center">
                 <p>Could not load profile. Please try again.</p>
-                <Button onClick={() => authUser && getProfile(authUser)} className="mt-4">Retry</Button>
             </div>
             <BottomNav />
         </>

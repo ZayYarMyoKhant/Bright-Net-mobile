@@ -3,35 +3,18 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
 import { Loader2 } from "lucide-react";
 
 export default function SplashPage() {
   const router = useRouter();
 
   useEffect(() => {
-    const checkUserAndRedirect = async () => {
-      const supabase = createClient();
-      
-      // Give Supabase a moment to initialize and potentially load session from localStorage
-      await new Promise(resolve => setTimeout(resolve, 50)); 
-      
-      const { data: { session } } = await supabase.auth.getSession();
+    // Wait a bit for dramatic effect then go to home page
+    const timer = setTimeout(() => {
+      router.push('/home');
+    }, 1500); // 1.5 seconds delay
 
-      // Wait a bit for dramatic effect and to ensure session is resolved
-      setTimeout(() => {
-        if (session) {
-          // User is logged in, go to home
-          router.push('/home');
-        } else {
-          // No session, go to sign up
-          router.push('/signup');
-        }
-      }, 1500); // 1.5 seconds delay
-
-    };
-    
-    checkUserAndRedirect();
+    return () => clearTimeout(timer);
   }, [router]);
 
   return (

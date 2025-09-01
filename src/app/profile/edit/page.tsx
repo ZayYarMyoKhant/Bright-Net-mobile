@@ -1,9 +1,8 @@
 
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { useFormStatus } from "react-dom";
-import { createClient } from "@/lib/supabase/client";
 import { useRouter } from 'next/navigation';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -11,9 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { ArrowLeft, Camera, Loader2 } from "lucide-react";
 import Link from "next/link";
-import { saveProfile } from "@/lib/actions";
 import { useToast } from "@/hooks/use-toast";
-import type { User } from '@supabase/supabase-js';
 
 function SubmitButton() {
   const { pending } = useFormStatus();
@@ -27,52 +24,14 @@ function SubmitButton() {
 }
 
 export default function EditProfilePage() {
-  const supabase = createClient();
   const router = useRouter();
   const { toast } = useToast();
-  const [loading, setLoading] = useState(true);
-  const [authUser, setAuthUser] = useState<User | null>(null);
-
-  const [fullName, setFullName] = useState("");
-  const [username, setUsername] = useState("");
-  const [bio, setBio] = useState("");
-  const [avatarUrl, setAvatarUrl] = useState("");
+  
+  const [fullName, setFullName] = useState("Aung Aung");
+  const [username, setUsername] = useState("aungaung");
+  const [bio, setBio] = useState("Digital Creator | Building cool stuff with code ✨");
+  const [avatarUrl, setAvatarUrl] = useState("https://i.pravatar.cc/150?u=aungaung");
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
-
-  const getProfile = useCallback(async (user: User) => {
-    setAuthUser(user);
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('full_name, username, avatar_url, bio')
-      .eq('id', user.id)
-      .single();
-
-    if (error || !data) {
-      console.error('Error fetching profile for editing:', error);
-      toast({ variant: 'destructive', title: 'Error fetching your data', description: "Please try again later." });
-      setLoading(false);
-      return;
-    }
-    
-    setFullName(data.full_name || "");
-    setUsername(data.username || "");
-    setBio(data.bio || "");
-    setAvatarUrl(data.avatar_url || `https://i.pravatar.cc/150?u=${user.id}`);
-    setLoading(false);
-  }, [supabase, toast]);
-
-  useEffect(() => {
-     const checkUser = async () => {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
-            getProfile(user);
-        } else {
-            router.push('/login');
-        }
-    };
-    checkUser();
-  }, [getProfile, router, supabase]);
-
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -82,12 +41,11 @@ export default function EditProfilePage() {
     }
   };
 
-  if (loading) {
-      return (
-          <div className="flex h-dvh w-full items-center justify-center">
-              <Loader2 className="h-8 w-8 animate-spin" />
-          </div>
-      )
+  const handleSave = (e: React.FormEvent) => {
+      e.preventDefault();
+      // Mock saving logic
+      toast({ title: 'Profile Updated!', description: 'Your changes have been saved (mocked).' });
+      router.push('/profile');
   }
 
   return (
@@ -100,7 +58,7 @@ export default function EditProfilePage() {
       </header>
 
       <main className="flex-1 overflow-y-auto p-4 space-y-6">
-        <form action={saveProfile}>
+        <form onSubmit={handleSave}>
             <div className="flex flex-col items-center space-y-4">
               <div className="relative">
                  <label htmlFor="avatar-upload" className="cursor-pointer">
