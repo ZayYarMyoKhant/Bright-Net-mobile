@@ -17,14 +17,23 @@ const SearchResultSchema = z.object({
     snippet: z.string().describe('A brief snippet of the search result content.')
 });
 
+const GoogleSearchInputSchema = z.object({
+  query: z.string().describe('The search term.'),
+});
+export type GoogleSearchInput = z.infer<typeof GoogleSearchInputSchema>;
+
+
+const GoogleSearchOutputSchema = z.object({
+  results: z.array(SearchResultSchema).describe('A list of the source search results.'),
+});
+export type GoogleSearchOutput = z.infer<typeof GoogleSearchOutputSchema>;
+
 const googleSearchTool = ai.defineTool(
     {
         name: 'googleSearch',
         description: 'Performs a Google search for the given query and returns a list of web results.',
-        inputSchema: z.object({ query: z.string() }),
-        outputSchema: z.object({
-            results: z.array(SearchResultSchema).describe('A list of search results.'),
-        }),
+        inputSchema: GoogleSearchInputSchema,
+        outputSchema: GoogleSearchOutputSchema,
     },
     async (input) => {
         // Dynamically import search to avoid build issues
@@ -41,35 +50,11 @@ const googleSearchTool = ai.defineTool(
     }
 );
 
-
-const GoogleSearchInputSchema = z.object({
-  query: z.string().describe('The search term.'),
-});
-export type GoogleSearchInput = z.infer<typeof GoogleSearchInputSchema>;
-
-
-const GoogleSearchOutputSchema = z.object({
-  answer: z.string().describe('A helpful, summarized answer based on the search results.'),
-  results: z.array(SearchResultSchema).describe('A list of the source search results.'),
-});
-export type GoogleSearchOutput = z.infer<typeof GoogleSearchOutputSchema>;
-
-
 export async function googleSearch(
   input: GoogleSearchInput
 ): Promise<GoogleSearchOutput> {
   return googleSearchFlow(input);
 }
-
-
-const prompt = ai.definePrompt({
-    name: 'googleSearchPrompt',
-    input: { schema: GoogleSearchInputSchema },
-    output: { schema: z.object({ answer: z.string() }) },
-    tools: [googleSearchTool],
-    prompt: `Perform a Google search for {{{query}}}. Then, analyze the search results to answer the user's query.`
-});
-
 
 const googleSearchFlow = ai.defineFlow(
   {
@@ -78,18 +63,7 @@ const googleSearchFlow = ai.defineFlow(
     outputSchema: GoogleSearchOutputSchema,
   },
   async (input) => {
-    const llmResponse = await prompt(input);
-    const toolResponse = llmResponse.choices[0].message.toolRequest?.tool.response;
-
-    if (!toolResponse || !toolResponse.results) {
-      return { answer: "Sorry, I couldn't find any information about that.", results: [] };
-    }
-    
-    const output = llmResponse.output;
-    
-    return { 
-        answer: output?.answer || "I found some results, but I couldn't summarize them.",
-        results: toolResponse.results 
-    };
+    const searchResult = await googleSearchTool(input);
+    return searchResult;
   }
 );
