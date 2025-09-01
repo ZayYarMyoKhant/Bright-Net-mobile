@@ -24,6 +24,7 @@ export async function PostFeed() {
     media_url: post.media_url,
     media_type: post.media_type,
     caption: post.caption,
+    created_at: post.created_at,
     user: {
       id: post.profiles.id,
       username: post.profiles.username,
@@ -33,7 +34,6 @@ export async function PostFeed() {
     likes: 0,
     comments: [],
     shares: 0,
-    created_at: post.created_at,
   }));
 
 
