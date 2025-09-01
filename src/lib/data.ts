@@ -1,17 +1,19 @@
 
 
 export type Post = {
-  id: string; // Changed to string for UUID
-  user_id: string;
-  caption: string;
+  id: number;
+  user: {
+    id: string;
+    username: string;
+    avatar: string;
+  };
   media_url: string;
   media_type: 'image' | 'video';
+  caption: string;
+  likes: number;
+  comments: Comment[];
+  shares: number;
   created_at: string;
-  // Relationship to profiles table
-  profiles: {
-    username: string;
-    avatar_url: string;
-  };
 };
 
 export type Comment = {
@@ -68,8 +70,43 @@ const sampleComments: Comment[] = [
     }
 ];
 
+export function getNewsPosts(): Post[] {
+    return [
+        {
+            id: 1,
+            user: {
+                id: 'aungaung',
+                username: 'aungaung',
+                avatar: 'https://i.pravatar.cc/150?u=aungaung',
+            },
+            media_url: 'https://picsum.photos/600/400?random=1',
+            media_type: 'image',
+            caption: 'ဒီနေ့ हवामान खूप छान आहे',
+            likes: 152,
+            comments: sampleComments,
+            shares: 12,
+            created_at: '2024-07-31T10:00:00Z',
+        },
+        {
+            id: 2,
+            user: {
+                id: 'susu',
+                username: 'susu',
+                avatar: 'https://i.pravatar.cc/150?u=susu',
+            },
+            media_url: 'https://picsum.photos/600/400?random=2',
+            media_type: 'image',
+            caption: 'ဒါက ဒုတိယ post ပါ။ This is the second post.',
+            likes: 345,
+            comments: [],
+            shares: 31,
+            created_at: '2024-07-31T12:30:00Z',
+        }
+    ]
+}
 
-export function getVideoPosts(): any[] { // Changed return type to any[]
+
+export function getVideoPosts(): Post[] {
   return [
     {
         id: 101,

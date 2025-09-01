@@ -2,18 +2,16 @@
 "use client";
 
 import { useState, useRef } from "react";
-import { useFormStatus } from "react-dom";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ImagePlus, X, ArrowLeft, Loader2 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { createPost } from "@/lib/actions";
+
 
 function SubmitButton() {
-  const { pending } = useFormStatus();
+  // This is a placeholder now
+  const [pending, setPending] = useState(false);
 
   return (
     <Button className="w-full" type="submit" disabled={pending}>
@@ -33,8 +31,6 @@ function SubmitButton() {
 export default function UploadPostPage() {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const searchParams = useSearchParams();
-  const errorMessage = searchParams.get('error');
   
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -59,6 +55,12 @@ export default function UploadPostPage() {
     }
   };
 
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    // Placeholder for submission logic
+    alert("This feature is under construction!");
+  }
+
   return (
     <>
       <div className="flex h-full flex-col bg-background text-foreground">
@@ -70,13 +72,7 @@ export default function UploadPostPage() {
         </header>
 
         <main className="flex-1 overflow-y-auto p-4">
-          <form action={createPost} className="space-y-4">
-             {errorMessage && (
-                <Alert variant="destructive" className="mb-4">
-                  <AlertTitle>Upload Failed</AlertTitle>
-                  <AlertDescription>{decodeURIComponent(errorMessage)}</AlertDescription>
-                </Alert>
-              )}
+          <form onSubmit={handleSubmit} className="space-y-4">
             <div
               onClick={() => fileInputRef.current?.click()}
               className="relative flex aspect-video w-full cursor-pointer flex-col items-center justify-center rounded-md border-2 border-dashed bg-muted/50"
@@ -118,7 +114,6 @@ export default function UploadPostPage() {
               onChange={handleFileChange}
               className="hidden"
               accept="image/*"
-              required
             />
 
             <div>
@@ -137,7 +132,6 @@ export default function UploadPostPage() {
                 name="caption"
                 placeholder="Write caption"
                 className="min-h-[100px] text-base"
-                required
               />
             </div>
             
