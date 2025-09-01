@@ -6,10 +6,11 @@ import { BottomNav } from "@/components/bottom-nav";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft, Loader2, Video, Image as ImageIcon, Globe, FileText } from "lucide-react";
+import { ArrowLeft, Loader2, Video, Image as ImageIcon, Globe, FileText, Bot } from "lucide-react";
 import { googleSearch, GoogleSearchOutput } from "@/ai/flows/google-search-flow";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 function SearchResultsComponent() {
   const searchParams = useSearchParams();
@@ -51,7 +52,7 @@ function SearchResultsComponent() {
      )
   }
 
-  if (!results || results.results.length === 0) {
+  if (!results || (!results.answer && results.results.length === 0)) {
     return (
       <div className="flex flex-col items-center justify-center pt-10 text-center">
         <p className="mt-4 text-sm text-muted-foreground">No results found for "{query}".</p>
@@ -61,12 +62,19 @@ function SearchResultsComponent() {
 
   return (
     <div className="space-y-4 py-4">
+        {results.answer && (
+          <Alert>
+            <Bot className="h-4 w-4" />
+            <AlertTitle>AI Answer</AlertTitle>
+            <AlertDescription>{results.answer}</AlertDescription>
+          </Alert>
+        )}
         {results.results.map((item, index) => (
              <a href={item.link} target="_blank" rel="noopener noreferrer" key={index} className="block">
                 <Card className="hover:bg-muted/50">
-                    <CardHeader>
+                    <CardHeader className="pb-2">
                         <CardTitle className="text-base text-blue-600 dark:text-blue-400">{item.title}</CardTitle>
-                         <p className="text-xs text-green-700 dark:text-green-500 truncate">{item.link}</p>
+                         <p className="text-xs text-green-700 dark:text-green-500 truncate pt-1">{item.link}</p>
                     </CardHeader>
                     <CardContent>
                         <p className="text-sm text-muted-foreground">{item.snippet}</p>

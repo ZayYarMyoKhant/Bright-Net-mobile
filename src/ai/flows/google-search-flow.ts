@@ -11,22 +11,34 @@
 
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
-import { defineTool } from 'genkit';
 
-// Note: In a real app, you would likely have more complex logic
-// to handle different types of search results (videos, images, etc.)
-// and potentially use different tools for each.
-const googleSearchTool = defineTool(
+const SearchResultSchema = z.object({
+    title: z.string().describe('The title of the search result.'),
+    link: z.string().describe('The URL of the search result.'),
+    snippet: z.string().describe('A brief snippet of the search result content.')
+});
+
+const googleSearchTool = ai.defineTool(
     {
         name: 'googleSearch',
         description: 'Performs a Google search for the given query and returns a list of web results.',
         inputSchema: z.object({ query: z.string() }),
-        outputSchema: z.any(),
+        outputSchema: z.object({
+            results: z.array(SearchResultSchema).describe('A list of search results.'),
+        }),
     },
     async (input) => {
         // Dynamically import search to avoid build issues
         const { search } = await import('@genkit-ai/googleai');
-        return await search({ q: input.query });
+        const response = await search({ q: input.query });
+
+        const results = response.web_results.map(r => ({
+            title: r.title || 'No title',
+            link: r.link || '',
+            snippet: r.snippet || 'No snippet'
+        }));
+
+        return { results };
     }
 );
 
@@ -36,14 +48,10 @@ const GoogleSearchInputSchema = z.object({
 });
 export type GoogleSearchInput = z.infer<typeof GoogleSearchInputSchema>;
 
-const SearchResultSchema = z.object({
-    title: z.string().describe('The title of the search result.'),
-    link: z.string().describe('The URL of the search result.'),
-    snippet: z.string().describe('A brief snippet of the search result content.')
-});
 
 const GoogleSearchOutputSchema = z.object({
-  results: z.array(SearchResultSchema).describe('A list of search results.'),
+  answer: z.string().describe('A helpful, summarized answer based on the search results.'),
+  results: z.array(SearchResultSchema).describe('A list of the source search results.'),
 });
 export type GoogleSearchOutput = z.infer<typeof GoogleSearchOutputSchema>;
 
@@ -58,9 +66,9 @@ export async function googleSearch(
 const prompt = ai.definePrompt({
     name: 'googleSearchPrompt',
     input: { schema: GoogleSearchInputSchema },
-    output: { schema: GoogleSearchOutputSchema },
+    output: { schema: z.object({ answer: z.string() }) },
     tools: [googleSearchTool],
-    prompt: `Perform a Google search for {{{query}}}. Return the results.`
+    prompt: `Perform a Google search for {{{query}}}. Then, analyze the search results to answer the user's query.`
 });
 
 
@@ -74,17 +82,15 @@ const googleSearchFlow = ai.defineFlow(
     const llmResponse = await prompt(input);
     const toolResponse = llmResponse.toolRequest?.tool.response;
 
-    if (!toolResponse) {
-      return { results: [] };
+    if (!toolResponse || !toolResponse.results) {
+      return { answer: "Sorry, I couldn't find any information about that.", results: [] };
     }
     
-    // Extract the relevant fields from the tool's response
-    const results = toolResponse.results.map((r: any) => ({
-      title: r.title,
-      link: r.link,
-      snippet: r.snippet,
-    }));
+    const output = llmResponse.output()
     
-    return { results };
+    return { 
+        answer: output?.answer || "I found some results, but I couldn't summarize them.",
+        results: toolResponse.results 
+    };
   }
 );
