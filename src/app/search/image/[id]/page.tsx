@@ -10,7 +10,30 @@ import { ArrowLeft, Download } from "lucide-react";
 export default function ImageViewerPage({ params: paramsPromise }: { params: Promise<{ id: string }> }) {
   const params = use(paramsPromise);
   const router = useRouter();
-  const imageUrl = `https://picsum.photos/1080/1920?random=${params.id}`;
+  // Decode the URL from the parameter
+  const imageUrl = decodeURIComponent(params.id);
+
+  // Function to handle download
+  const handleDownload = async () => {
+    try {
+      const response = await fetch(imageUrl);
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.style.display = 'none';
+      a.href = url;
+      // Create a filename
+      a.download = `generated-image-${Date.now()}.png`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (error) {
+      console.error("Download failed:", error);
+      alert("Failed to download image.");
+    }
+  };
+
 
   return (
     <div className="flex h-dvh flex-col bg-black text-white">
@@ -25,7 +48,7 @@ export default function ImageViewerPage({ params: paramsPromise }: { params: Pro
       <main className="flex-1 relative">
         <Image
           src={imageUrl}
-          alt={`Image ${params.id}`}
+          alt={`AI Generated Image`}
           fill
           className="object-contain"
           data-ai-hint="full screen image"
@@ -33,12 +56,10 @@ export default function ImageViewerPage({ params: paramsPromise }: { params: Pro
       </main>
 
       <footer className="absolute bottom-0 left-0 right-0 z-10 p-4 bg-gradient-to-t from-black/50 to-transparent">
-        <a href={imageUrl} download={`image-${params.id}.jpg`}>
-          <Button className="w-full">
-            <Download className="mr-2 h-4 w-4" />
-            Download
-          </Button>
-        </a>
+        <Button className="w-full" onClick={handleDownload}>
+          <Download className="mr-2 h-4 w-4" />
+          Download
+        </Button>
       </footer>
     </div>
   );
