@@ -1,9 +1,9 @@
 
 import { createClient } from "@/lib/supabase/server";
-import { VideoPlayer } from "@/components/video-player";
 import type { Post } from "@/lib/data";
+import { PostCard } from "./post-card";
 
-export async function VideoFeed() {
+export async function PostFeed() {
   const supabase = createClient();
   const { data: posts, error } = await supabase
     .from('posts')
@@ -12,11 +12,11 @@ export async function VideoFeed() {
 
   if (error) {
     console.error('Error fetching posts:', error);
-    return <div className="text-white flex items-center justify-center h-full">Error loading feed.</div>;
+    return <div className="text-white flex items-center justify-center h-full p-4">Error loading feed. Please try again.</div>;
   }
   
   if (!posts || posts.length === 0) {
-    return <div className="text-white flex items-center justify-center h-full">No posts yet. Be the first one!</div>
+    return <div className="text-muted-foreground flex items-center justify-center h-full p-10 text-center">No posts yet. Be the first one to share something!</div>
   }
 
   const formattedPosts: Post[] = posts.map((post: any) => ({
@@ -27,7 +27,7 @@ export async function VideoFeed() {
     user: {
       id: post.profiles.id,
       username: post.profiles.username,
-      avatar: post.profiles.avatar_url,
+      avatar: post.profiles.avatar_url || `https://i.pravatar.cc/150?u=${post.profiles.id}`,
     },
     // These are placeholders for now
     likes: 0,
@@ -38,14 +38,9 @@ export async function VideoFeed() {
 
 
   return (
-    <div className="relative h-full w-full snap-y snap-mandatory overflow-y-auto bg-black">
+    <div className="w-full max-w-lg mx-auto py-4 space-y-4">
       {formattedPosts.map((post) => (
-        <div
-          key={post.id}
-          className="h-full w-full snap-start relative flex items-center justify-center"
-        >
-          <VideoPlayer post={post} />
-        </div>
+        <PostCard key={post.id} post={post} />
       ))}
     </div>
   );

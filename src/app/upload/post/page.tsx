@@ -1,61 +1,72 @@
 
 "use client";
 
-import { useState, useRef } from "react";
-import { useFormStatus } from "react-dom";
+import { useState, useRef, useActionState } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ImagePlus, X, ArrowLeft, Loader2 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { createPost } from "@/lib/actions";
-import { useSearchParams } from "next/navigation";
+import { useToast } from "@/hooks/use-toast";
+import { useRouter } from "next/navigation";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
-
 function SubmitButton() {
-  const { pending } = useFormStatus();
+  const [state, formAction, isPending] = useActionState(createPost, null);
+  
   return (
-    <Button
-      className="w-full"
-      type="submit"
-      disabled={pending}
-    >
-      {pending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-      Post
-    </Button>
+     <>
+      {state?.error && (
+        <Alert variant="destructive" className="mb-4">
+          <AlertTitle>Upload Failed</AlertTitle>
+          <AlertDescription>{state.error}</AlertDescription>
+        </Alert>
+      )}
+      <Button
+        className="w-full"
+        type="submit"
+        disabled={isPending}
+        onClick={(e) => {
+          const form = e.currentTarget.form;
+          if (form) {
+            formAction(new FormData(form));
+          }
+        }}
+      >
+        {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+        Post
+      </Button>
+    </>
   );
 }
 
 export default function UploadPostPage() {
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const searchParams = useSearchParams();
-  const errorMessage = searchParams.get('error');
-
-
+  
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
-      setSelectedFile(file);
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setPreviewUrl(reader.result as string);
-      };
-      reader.readAsDataURL(file);
+      if(file.type.startsWith("image/")){
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          setPreviewUrl(reader.result as string);
+        };
+        reader.readAsDataURL(file);
+      } else {
+        alert("Only images are allowed for now.");
+        handleRemoveMedia();
+      }
     }
   };
 
   const handleRemoveMedia = () => {
-    setSelectedFile(null);
     setPreviewUrl(null);
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
   };
-
-  const isVideo = selectedFile?.type.startsWith("video/");
 
   return (
     <>
@@ -68,12 +79,6 @@ export default function UploadPostPage() {
         </header>
 
         <main className="flex-1 overflow-y-auto p-4">
-           {errorMessage && (
-             <Alert variant="destructive" className="mb-4">
-                <AlertTitle>Upload Failed</AlertTitle>
-                <AlertDescription>{decodeURIComponent(errorMessage)}</AlertDescription>
-              </Alert>
-          )}
           <form action={createPost} className="space-y-4">
             <div
               onClick={() => fileInputRef.current?.click()}
@@ -81,21 +86,13 @@ export default function UploadPostPage() {
             >
               {previewUrl ? (
                 <>
-                  {isVideo ? (
-                    <video
-                      src={previewUrl}
-                      controls
-                      className="h-full w-full object-contain rounded-md"
-                    />
-                  ) : (
-                    <Image
-                      src={previewUrl}
-                      alt="Selected preview"
-                      fill
-                      className="object-contain rounded-md"
-                      data-ai-hint="user upload"
-                    />
-                  )}
+                  <Image
+                    src={previewUrl}
+                    alt="Selected preview"
+                    fill
+                    className="object-contain rounded-md"
+                    data-ai-hint="user upload"
+                  />
                   <Button
                     type="button"
                     variant="destructive"
@@ -112,7 +109,7 @@ export default function UploadPostPage() {
               ) : (
                 <div className="text-center text-muted-foreground">
                   <ImagePlus className="mx-auto h-12 w-12" />
-                  <p className="mt-2 text-sm font-medium">Click to upload a video or photo</p>
+                  <p className="mt-2 text-sm font-medium">Click to upload a photo</p>
                 </div>
               )}
             </div>
@@ -123,7 +120,7 @@ export default function UploadPostPage() {
               ref={fileInputRef}
               onChange={handleFileChange}
               className="hidden"
-              accept="image/*,video/*"
+              accept="image/*"
               required
             />
 
@@ -146,13 +143,15 @@ export default function UploadPostPage() {
                 required
               />
             </div>
-
-            <div>
+            
+             <div className="pt-4">
               <SubmitButton />
             </div>
+
           </form>
         </main>
       </div>
     </>
   );
 }
+

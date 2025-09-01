@@ -150,7 +150,7 @@ export async function saveProfile(formData: FormData) {
 }
 
 
-export async function createPost(formData: FormData) {
+export async function createPost(prevState: { error: string | null } | null, formData: FormData): Promise<{ error: string | null }> {
   const supabase = createClient();
 
   const { data: { user }, error: userError } = await supabase.auth.getUser();
@@ -162,14 +162,17 @@ export async function createPost(formData: FormData) {
   const mediaFile = formData.get('media') as File;
   
   if (!mediaFile || mediaFile.size === 0) {
-     return redirect('/upload/post?error=' + encodeURIComponent('Please select an image or video to post.'));
+     return { error: 'Please select an image to post.' };
   }
-   if (!caption) {
-     return redirect('/upload/post?error=' + encodeURIComponent('Caption is required.'));
-   }
+  if (!mediaFile.type.startsWith('image/')) {
+    return { error: 'Only image files are allowed.' };
+  }
+  if (!caption) {
+     return { error: 'Caption is required.' };
+  }
 
   const fileExt = mediaFile.name.split('.').pop();
-  const mediaType = mediaFile.type.startsWith('image') ? 'image' : 'video';
+  const mediaType = 'image';
   const filePath = `${user.id}/posts/${Date.now()}.${fileExt}`;
 
   const { error: uploadError } = await supabase.storage
@@ -178,7 +181,7 @@ export async function createPost(formData: FormData) {
 
   if (uploadError) {
     console.error("Media Upload Error:", uploadError);
-    return redirect('/upload/post?error=' + encodeURIComponent("Failed to upload media: " + uploadError.message));
+    return { error: `Failed to upload media: ${uploadError.message}` };
   }
 
   const { data: { publicUrl } } = supabase.storage
@@ -186,7 +189,7 @@ export async function createPost(formData: FormData) {
     .getPublicUrl(filePath);
   
   if (!publicUrl) {
-    return redirect('/upload/post?error=' + encodeURIComponent("Could not get public URL for the uploaded media."));
+    return { error: "Could not get public URL for the uploaded media."};
   }
 
   const { error: dbError } = await supabase.from('posts').insert({
@@ -198,11 +201,11 @@ export async function createPost(formData: FormData) {
 
   if (dbError) {
     console.error("Database Insert Error:", dbError);
-    return redirect('/upload/post?error=' + encodeURIComponent("Failed to save post to database: " + dbError.message));
+    return { error: `Failed to save post to database: ${dbError.message}` };
   }
 
   revalidatePath('/home');
   revalidatePath(`/profile`);
-  revalidatePath(`/profile/${user.id}`);
-  return redirect('/home');
+  revalidatePath(`/profile/${user.username}`);
+  redirect('/home');
 }
