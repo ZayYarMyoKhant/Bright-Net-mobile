@@ -129,10 +129,8 @@ export default function SearchPage() {
     <>
       <div className="flex h-full flex-col bg-background text-foreground pb-16">
         <header className="flex h-16 flex-shrink-0 items-center gap-4 border-b px-4">
-          <Link href="/ai-tool" legacyBehavior>
-            <a className="p-2 -ml-2">
-              <ArrowLeft className="h-5 w-5" />
-            </a>
+          <Link href="/ai-tool" className="p-2 -ml-2">
+            <ArrowLeft className="h-5 w-5" />
           </Link>
           <Suspense fallback={<div>Loading...</div>}>
             <SearchBar />
