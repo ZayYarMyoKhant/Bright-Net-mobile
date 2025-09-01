@@ -1,114 +1,116 @@
 
 "use client";
 
-import { Suspense, useEffect, useState, useTransition } from "react";
+import { Suspense, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { BottomNav } from "@/components/bottom-nav";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { ArrowLeft, Loader2, Video, Image as ImageIcon } from "lucide-react";
-import { generateMedia } from "@/ai/flows/generate-media-flow";
-import { useSearchParams } from "next/navigation";
+import { ArrowLeft, Video, Image as ImageIcon } from "lucide-react";
 import Link from "next/link";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import Image from "next/image";
+
+const mockImages = Array.from({ length: 12 }, (_, i) => ({
+  id: i,
+  url: `https://picsum.photos/300/300?random=${i + 1}`,
+  source: "picsum.photos",
+}));
+
+const mockVideos = Array.from({ length: 8 }, (_, i) => ({
+    id: i,
+    thumbnail: `https://picsum.photos/300/200?random=${i + 20}`,
+    title: `Educational Video Title ${i + 1}`
+}));
+
 
 function SearchResultsComponent() {
   const searchParams = useSearchParams();
   const query = searchParams.get("q") || "";
-  const [isPending, startTransition] = useTransition();
-  const [results, setResults] = useState<{ imageUrl: string; videoUrl: string; } | null>(null);
-  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (query) {
-      startTransition(async () => {
-        setError(null);
-        setResults(null);
-        try {
-          const mediaResult = await generateMedia(query);
-          setResults(mediaResult);
-        } catch (e) {
-          console.error(e);
-          setError("Failed to generate media. The model may be unavailable. Please try again later.");
-        }
-      });
-    }
-  }, [query]);
-
-  if (isPending) {
+  if (!query) {
     return (
-      <div className="flex flex-col items-center justify-center pt-10 text-center text-muted-foreground space-y-4">
-        <Loader2 className="h-12 w-12 animate-spin" />
-        <p className="font-semibold">Generating media for "{query}"...</p>
-        <p className="text-sm">This may take a minute, especially the video.</p>
-      </div>
-    );
-  }
-  
-  if (error) {
-     return (
-        <Alert variant="destructive" className="mt-4">
-          <AlertTitle>Generation Failed</AlertTitle>
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
-     )
-  }
-
-  if (!results) {
-    return (
-      <div className="flex flex-col items-center justify-center pt-10 text-center">
-        <p className="mt-4 text-sm text-muted-foreground">Start by searching for a topic.</p>
+      <div className="text-center p-10 text-muted-foreground">
+        <p>Start searching for images and videos.</p>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6 py-4">
-      {results.imageUrl && (
-        <Card>
-          <CardContent className="p-2">
-            <div className="relative aspect-video w-full">
-              <ImageIcon className="absolute top-2 left-2 h-5 w-5 text-white/80 bg-black/50 p-1 rounded" />
-              <img src={results.imageUrl} alt={`Generated image for ${query}`} className="w-full h-full object-cover rounded-md" />
+    <Tabs defaultValue="images" className="w-full">
+        <div className="px-4 py-2 border-b">
+            <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="images">
+                    <ImageIcon className="mr-2 h-4 w-4" />
+                    Images
+                </TabsTrigger>
+                <TabsTrigger value="videos">
+                    <Video className="mr-2 h-4 w-4" />
+                    Videos
+                </TabsTrigger>
+            </TabsList>
+        </div>
+
+      <TabsContent value="images">
+        <div className="p-2 grid grid-cols-3 gap-1">
+          {mockImages.map((img) => (
+            <div key={img.id} className="relative aspect-square">
+              <Image
+                src={img.url}
+                alt={`Search result for ${query}`}
+                fill
+                className="object-cover rounded-md"
+                data-ai-hint="search result"
+              />
             </div>
-          </CardContent>
-        </Card>
-      )}
-      {results.videoUrl && (
-        <Card>
-          <CardContent className="p-2">
-             <div className="relative aspect-video w-full">
-              <Video className="absolute top-2 left-2 h-5 w-5 text-white/80 bg-black/50 p-1 rounded" />
-              <video src={results.videoUrl} className="w-full h-full object-cover rounded-md" autoPlay loop muted playsInline />
+          ))}
+        </div>
+      </TabsContent>
+      <TabsContent value="videos">
+        <div className="p-2 grid grid-cols-2 gap-2">
+           {mockVideos.map((video) => (
+            <div key={video.id} className="relative group">
+                <div className="relative aspect-video w-full overflow-hidden rounded-md">
+                    <Image
+                        src={video.thumbnail}
+                        alt={video.title}
+                        fill
+                        className="object-cover transition-transform group-hover:scale-105"
+                        data-ai-hint="video thumbnail"
+                    />
+                     <div className="absolute inset-0 bg-black/30 flex items-center justify-center">
+                        <Video className="h-8 w-8 text-white/80" />
+                    </div>
+                </div>
+                <p className="text-xs mt-1 font-medium truncate">{video.title}</p>
             </div>
-          </CardContent>
-        </Card>
-      )}
-    </div>
+           ))}
+        </div>
+      </TabsContent>
+    </Tabs>
   );
 }
-
 
 export default function SearchPage() {
   return (
     <>
       <div className="flex h-full flex-col bg-background text-foreground pb-16">
         <header className="flex h-16 flex-shrink-0 items-center justify-between border-b px-4 text-center">
-           <Link href="/ai-tool">
-             <Button variant="ghost" size="icon">
-                <ArrowLeft className="h-5 w-5" />
-             </Button>
-           </Link>
+          <Link href="/ai-tool">
+            <Button variant="ghost" size="icon">
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+          </Link>
           <h1 className="text-xl font-bold">Educational Search</h1>
           <div className="w-10"></div> {/* Spacer */}
         </header>
-        
-        <main className="flex-1 overflow-y-auto px-4">
-           <Suspense fallback={<p>Loading...</p>}>
-              <SearchResultsComponent />
-           </Suspense>
+
+        <main className="flex-1 overflow-y-auto">
+          <Suspense fallback={<p>Loading...</p>}>
+            <SearchResultsComponent />
+          </Suspense>
         </main>
       </div>
       <BottomNav />
     </>
-  )
+  );
 }
