@@ -47,16 +47,6 @@ export default function UserProfilePage({ params: paramsPromise }: { params: Pro
         return;
       }
       
-      const { data: postsData, error: postsError } = await supabase
-        .from('posts')
-        .select('*, profiles(*)')
-        .eq('user_id', profileData.id)
-        .order('created_at', { ascending: false });
-
-      if (postsError) {
-        console.error("Error fetching user posts:", postsError);
-      }
-
       setUser({
         id: profileData.id,
         username: profileData.username,
@@ -66,18 +56,7 @@ export default function UserProfilePage({ params: paramsPromise }: { params: Pro
         followers: 0, // Placeholder
       });
       
-      const formattedPosts: Post[] = ((postsData as any) || []).map((post: any) => ({
-        ...post,
-        user: {
-          id: post.profiles.id,
-          username: post.profiles.username,
-          avatar: post.profiles.avatar_url || `https://i.pravatar.cc/150?u=${post.profiles.id}`,
-        },
-        likes: 0,
-        comments: [],
-        shares: 0,
-      }));
-      setPosts(formattedPosts);
+      setPosts([]); // No posts for now
 
       setLoading(false);
     };

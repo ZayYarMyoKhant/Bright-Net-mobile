@@ -55,30 +55,6 @@ export default function ProfilePage() {
     }
 
     if (data) {
-       const { data: postsData, error: postsError } = await supabase
-        .from('posts')
-        .select('*, profiles(*)')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false });
-
-      if (postsError) {
-        console.error("Error fetching posts:", postsError);
-      }
-      
-      const formattedPosts: Post[] = ((postsData as any) || []).map((post: any) => ({
-        ...post,
-        user: {
-          id: post.profiles.id,
-          username: post.profiles.username,
-          avatar: post.profiles.avatar_url || `https://i.pravatar.cc/150?u=${post.profiles.id}`,
-        },
-        likes: 0,
-        comments: [],
-        shares: 0,
-      }));
-      setPosts(formattedPosts);
-
-
       setUser({
         id: user.id,
         fullName: data.full_name || '',

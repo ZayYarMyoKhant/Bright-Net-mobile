@@ -47,5 +47,21 @@ export const countries: Country[] = [
 export function getVideoPosts(): Post[] {
   // This is now a legacy function, data will be fetched from Supabase.
   // Returning an empty array to avoid breaking components that still use it.
-  return [];
+  return [
+    {
+        id: 1,
+        user: {
+            id: 'aungaung',
+            username: 'aungaung',
+            avatar: 'https://i.pravatar.cc/150?u=aungaung',
+        },
+        media_url: 'https://picsum.photos/400/800?random=1',
+        media_type: 'image',
+        caption: 'This is a sample caption in Myanmar language.',
+        likes: 123,
+        comments: [],
+        shares: 45,
+        created_at: '2024-07-29T12:34:56.789Z',
+    }
+  ];
 }
