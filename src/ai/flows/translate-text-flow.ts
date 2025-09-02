@@ -10,7 +10,6 @@
  */
 
 import {ai} from '@/ai/genkit';
-import {generate} from 'genkit';
 import {z} from 'zod';
 
 const TranslateTextInputSchema = z.object({
@@ -19,7 +18,7 @@ const TranslateTextInputSchema = z.object({
 });
 export type TranslateTextInput = z.infer<typeof TranslateTextInputSchema>;
 
-const TranslateTextOutputSchema = z_object({
+const TranslateTextOutputSchema = z.object({
   translatedText: z.string().describe('The translated text.'),
 });
 export type TranslateTextOutput = z.infer<typeof TranslateTextOutputSchema>;
@@ -27,8 +26,20 @@ export type TranslateTextOutput = z.infer<typeof TranslateTextOutputSchema>;
 export async function translateText(
   input: TranslateTextInput
 ): Promise<TranslateTextOutput> {
-  return translateTextFlow(input);
+    if (!process.env.GEMINI_API_KEY) {
+      throw new Error('GEMINI_API_KEY is not configured.');
+    }
+    return translateTextFlow(input);
 }
+
+
+const translateTextPrompt = ai.definePrompt({
+    name: 'translateTextPrompt',
+    input: { schema: TranslateTextInputSchema },
+    output: { schema: z.string() },
+    prompt: `Translate the following text to {{{targetLanguage}}}. Do not add any extra explanations or introductory text, just provide the raw translated text.\n\nText to translate: "{{{text}}}"`,
+    model: 'googleai/gemini-pro'
+})
 
 const translateTextFlow = ai.defineFlow(
   {
@@ -36,17 +47,10 @@ const translateTextFlow = ai.defineFlow(
     inputSchema: TranslateTextInputSchema,
     outputSchema: TranslateTextOutputSchema,
   },
-  async ({ text, targetLanguage }) => {
-    if (!process.env.GEMINI_API_KEY) {
-      throw new Error('GEMINI_API_KEY is not configured.');
-    }
-
-    const llmResponse = await generate({
-      model: 'googleai/gemini-pro',
-      prompt: `Translate the following text to ${targetLanguage}. Do not add any extra explanations or introductory text, just provide the raw translated text.\n\nText to translate: "${text}"`,
-    });
-
-    const translatedText = llmResponse.text;
+  async (input) => {
+    
+    const llmResponse = await translateTextPrompt(input);
+    const translatedText = llmResponse.output || "";
 
     return {
         translatedText,

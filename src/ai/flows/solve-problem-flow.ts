@@ -10,7 +10,6 @@
  */
 
 import {ai} from '@/ai/genkit';
-import {generate} from 'genkit';
 import {z} from 'zod';
 
 const MessageSchema = z.object({
@@ -32,8 +31,25 @@ export type SolveProblemOutput = z.infer<typeof SolveProblemOutputSchema>;
 export async function solveProblem(
   input: SolveProblemInput
 ): Promise<SolveProblemOutput> {
+  if (!process.env.GEMINI_API_KEY) {
+    throw new Error('GEMINI_API_KEY is not configured.');
+  }
   return solveProblemFlow(input);
 }
+
+const solveProblemPrompt = ai.definePrompt(
+    {
+        name: "solveProblemPrompt",
+        input: { schema: SolveProblemInputSchema },
+        output: { schema: z.string() },
+        prompt: `You are a friendly and helpful AI problem solver. Your goal is to assist users with their questions and problems as accurately and concisely as possible.
+        
+        New user prompt: {{{prompt}}}
+        `,
+        // NOTE: History is handled by the model config, not directly in the prompt text.
+        model: 'googleai/gemini-pro',
+    }
+)
 
 
 const solveProblemFlow = ai.defineFlow(
@@ -43,22 +59,17 @@ const solveProblemFlow = ai.defineFlow(
     outputSchema: SolveProblemOutputSchema,
   },
   async ({ history, prompt }) => {
-    if (!process.env.GEMINI_API_KEY) {
-      throw new Error('GEMINI_API_KEY is not configured.');
-    }
 
-    const llmResponse = await generate({
-        model: 'googleai/gemini-pro',
-        history: history.map(h => ({ role: h.role, content: [{ text: h.content }] })),
-        prompt: `You are a friendly and helpful AI problem solver. Your goal is to assist users with their questions and problems as accurately and concisely as possible.
-  
-        New user prompt: ${prompt}`,
-    });
-
-    const responseText = llmResponse.text;
+    const llmResponse = await solveProblemPrompt(
+        { history, prompt },
+        {
+            model: 'googleai/gemini-pro',
+            history: history.map(h => ({ role: h.role, content: [{ text: h.content }] })),
+        }
+    );
 
     return {
-        response: responseText,
+        response: llmResponse.output || "I'm sorry, I couldn't generate a response.",
     }
   }
 );
