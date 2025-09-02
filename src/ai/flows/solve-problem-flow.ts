@@ -43,13 +43,9 @@ const solveProblemFlow = ai.defineFlow(
     outputSchema: SolveProblemOutputSchema,
   },
   async ({ history, prompt }) => {
-     if (!process.env.GEMINI_API_KEY) {
-      throw new Error('GEMINI_API_KEY is not configured. Please add it to your .env file.');
-    }
-
     const llmResponse = await generate({
         model: 'googleai/gemini-pro',
-        history: history.map(h => ({role: h.role, content: [{text: h.content}]})),
+        history: history.map(h => ({ role: h.role, content: [{ text: h.content }] })),
         prompt: `You are a friendly and helpful AI problem solver. Your goal is to assist users with their questions and problems as accurately and concisely as possible.
   
         New user prompt: ${prompt}`,
