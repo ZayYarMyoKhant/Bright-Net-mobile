@@ -9,7 +9,8 @@
  */
 
 import {ai} from '@/ai/genkit';
-import {z} from 'genkit';
+import {generate} from 'genkit/ai';
+import {z} from 'zod';
 
 const MessageSchema = z.object({
   role: z.enum(['user', 'model']),
@@ -33,23 +34,6 @@ export async function solveProblem(
   return solveProblemFlow(input);
 }
 
-const prompt = ai.definePrompt(
-    {
-      name: 'solveProblemPrompt',
-      input: { schema: SolveProblemInputSchema },
-      output: { schema: SolveProblemOutputSchema },
-      prompt: `You are a friendly and helpful AI problem solver. Your goal is to assist users with their questions and problems as accurately and concisely as possible.
-  
-      Here is the conversation history:
-      {{#each history}}
-      {{role}}: {{{content}}}
-      {{/each}}
-      
-      New user prompt: {{{prompt}}}
-      
-      Your response:`,
-    },
-);
 
 const solveProblemFlow = ai.defineFlow(
   {
@@ -57,11 +41,19 @@ const solveProblemFlow = ai.defineFlow(
     inputSchema: SolveProblemInputSchema,
     outputSchema: SolveProblemOutputSchema,
   },
-  async (input) => {
-    const llmResponse = await prompt(input);
-    const output = llmResponse.output!;
+  async ({ history, prompt }) => {
+    const llmResponse = await generate({
+        model: 'googleai/gemini-pro',
+        history: history.map(h => ({role: h.role, content: [{text: h.content}]})),
+        prompt: `You are a friendly and helpful AI problem solver. Your goal is to assist users with their questions and problems as accurately and concisely as possible.
+  
+        New user prompt: ${prompt}`,
+    });
+
+    const responseText = llmResponse.text();
+
     return {
-        response: output.response,
+        response: responseText,
     }
   }
 );
