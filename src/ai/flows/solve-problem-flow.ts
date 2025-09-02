@@ -1,3 +1,4 @@
+
 'use server';
 
 /**
@@ -9,7 +10,7 @@
  */
 
 import {ai} from '@/ai/genkit';
-import {generate} from 'genkit/ai';
+import {generate} from 'genkit';
 import {z} from 'zod';
 
 const MessageSchema = z.object({
@@ -50,7 +51,7 @@ const solveProblemFlow = ai.defineFlow(
         New user prompt: ${prompt}`,
     });
 
-    const responseText = llmResponse.text();
+    const responseText = llmResponse.text;
 
     return {
         response: responseText,

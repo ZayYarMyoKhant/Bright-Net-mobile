@@ -1,3 +1,4 @@
+
 'use server';
 
 /**
@@ -9,7 +10,7 @@
  */
 
 import {ai} from '@/ai/genkit';
-import {generate} from 'genkit/ai';
+import {generate} from 'genkit';
 import {z} from 'zod';
 
 const TranslateTextInputSchema = z.object({
@@ -41,7 +42,7 @@ const translateTextFlow = ai.defineFlow(
       prompt: `Translate the following text to ${targetLanguage}. Do not add any extra explanations or introductory text, just provide the raw translated text.\n\nText to translate: "${text}"`,
     });
 
-    const translatedText = llmResponse.text();
+    const translatedText = llmResponse.text;
 
     return {
         translatedText,
