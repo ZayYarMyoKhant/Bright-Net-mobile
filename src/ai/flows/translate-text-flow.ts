@@ -19,7 +19,7 @@ const TranslateTextInputSchema = z.object({
 export type TranslateTextInput = z.infer<typeof TranslateTextInputSchema>;
 
 const TranslateTextOutputSchema = z.object({
-  translatedText: z.string().describe('The translated text.'),
+  translatedText: z.string().nullable().describe('The translated text.'),
 });
 export type TranslateTextOutput = z.infer<typeof TranslateTextOutputSchema>;
 
@@ -36,7 +36,7 @@ export async function translateText(
 const translateTextPrompt = ai.definePrompt({
     name: 'translateTextPrompt',
     input: { schema: TranslateTextInputSchema },
-    output: { schema: z.string() },
+    output: { schema: z.string().nullable() },
     prompt: `Translate the following text to {{{targetLanguage}}}. Do not add any extra explanations or introductory text, just provide the raw translated text.\n\nText to translate: "{{{text}}}"`,
     model: 'googleai/gemini-1.5-flash-latest'
 })

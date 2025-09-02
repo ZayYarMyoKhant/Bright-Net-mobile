@@ -23,7 +23,7 @@ export default function AiTranslatorPage() {
             startTransition(async () => {
                 try {
                     const result = await translateText({ text: inputText, targetLanguage });
-                    setOutputText(result.translatedText);
+                    setOutputText(result.translatedText || "Could not translate text.");
                 } catch(e: any) {
                     console.error(e);
                     toast({

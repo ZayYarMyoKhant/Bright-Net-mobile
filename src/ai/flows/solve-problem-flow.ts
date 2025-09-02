@@ -24,7 +24,7 @@ const SolveProblemInputSchema = z.object({
 export type SolveProblemInput = z.infer<typeof SolveProblemInputSchema>;
 
 const SolveProblemOutputSchema = z.object({
-  response: z.string().describe('The AI-generated response.'),
+  response: z.string().nullable().describe('The AI-generated response.'),
 });
 export type SolveProblemOutput = z.infer<typeof SolveProblemOutputSchema>;
 
@@ -41,12 +41,11 @@ const solveProblemPrompt = ai.definePrompt(
     {
         name: "solveProblemPrompt",
         input: { schema: SolveProblemInputSchema },
-        output: { schema: z.string() },
+        output: { schema: z.string().nullable() },
         prompt: `You are a friendly and helpful AI problem solver. Your goal is to assist users with their questions and problems as accurately and concisely as possible.
         
         New user prompt: {{{prompt}}}
         `,
-        // NOTE: History is handled by the model config, not directly in the prompt text.
         model: 'googleai/gemini-1.5-flash-latest',
     }
 )

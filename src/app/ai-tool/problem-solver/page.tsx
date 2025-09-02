@@ -62,7 +62,7 @@ export default function AiProblemSolverPage() {
           try {
               const history = newMessages.slice(0, -1).map(msg => ({ role: msg.role, content: msg.content }));
               const result = await solveProblem({ history, prompt: currentInput });
-              const aiResponse: Message = { role: 'model', content: result.response };
+              const aiResponse: Message = { role: 'model', content: result.response || "Sorry, I had trouble generating a response." };
               setMessages(prev => [...prev, aiResponse]);
           } catch(e: any) {
               console.error(e);
