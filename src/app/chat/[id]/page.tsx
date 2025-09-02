@@ -5,7 +5,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { ArrowLeft, Phone, Mic, Image as ImageIcon, Send, Smile, MoreVertical, MessageSquareReply, Trash2, X, Swords } from "lucide-react";
+import { ArrowLeft, Phone, Mic, Image as ImageIcon, Send, Smile, MoreVertical, MessageSquareReply, Trash2, X } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { use, useState, useRef, useEffect } from "react";
@@ -116,11 +116,6 @@ export default function IndividualChatPage({ params: paramsPromise }: { params: 
           <Link href={`/chat/${user.id}/voice-call`}>
             <Button variant="ghost" size="icon">
               <Phone className="h-5 w-5" />
-            </Button>
-          </Link>
-          <Link href={`/chat/${user.id}/typing-battle`}>
-            <Button variant="ghost" size="icon">
-              <Swords className="h-5 w-5" />
             </Button>
           </Link>
            <DropdownMenu>

@@ -6,9 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ArrowLeft, Send, Bot, User, Loader2 } from "lucide-react";
 import Link from "next/link";
-import { useState, useRef, useEffect, useTransition } from "react";
-import { solveProblem } from "@/ai/flows/solve-problem-flow";
-import { useToast } from "@/hooks/use-toast";
+import { useState, useRef, useEffect } from "react";
 
 interface Message {
   id: number;
@@ -43,42 +41,26 @@ export default function AiProblemSolverPage() {
     { id: 1, text: "Hello! How can I assist you today?", sender: 'model' },
   ]);
   const [inputValue, setInputValue] = useState("");
-  const [isPending, startTransition] = useTransition();
-  const { toast } = useToast();
+  const [isPending, setIsPending] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  const handleSendMessage = () => {
+  const handleSendMessage = async () => {
     if (inputValue.trim() && !isPending) {
       const newUserMessage: Message = { id: Date.now(), text: inputValue, sender: 'user' };
       setMessages(prev => [...prev, newUserMessage]);
       const currentInput = inputValue;
       setInputValue("");
+      setIsPending(true);
 
-      startTransition(async () => {
-        try {
-          // Format history for the flow
-          const history = messages.map(msg => ({
-            role: msg.sender,
-            content: msg.text,
-          }));
-
-          const result = await solveProblem({ history, prompt: currentInput });
-          const aiResponse: Message = { id: Date.now() + 1, text: result.response, sender: 'model' };
-          setMessages(prev => [...prev, aiResponse]);
-        } catch (error) {
-          toast({
-            variant: 'destructive',
-            title: 'An error occurred',
-            description: 'Failed to get a response from the AI. Please try again.',
-          });
-          // Optional: remove the user's message if the API call fails
-           setMessages(prev => prev.filter(msg => msg.id !== newUserMessage.id));
-        }
-      });
+      // Mock AI response
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      const aiResponse: Message = { id: Date.now() + 1, text: `This is a mocked response for: "${currentInput}"`, sender: 'model' };
+      setMessages(prev => [...prev, aiResponse]);
+      setIsPending(false);
     }
   };
 
