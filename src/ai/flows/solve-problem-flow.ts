@@ -43,6 +43,10 @@ const solveProblemFlow = ai.defineFlow(
     outputSchema: SolveProblemOutputSchema,
   },
   async ({ history, prompt }) => {
+    if (!process.env.GEMINI_API_KEY) {
+      throw new Error('GEMINI_API_KEY is not configured.');
+    }
+
     const llmResponse = await generate({
         model: 'googleai/gemini-pro',
         history: history.map(h => ({ role: h.role, content: [{ text: h.content }] })),
@@ -58,3 +62,4 @@ const solveProblemFlow = ai.defineFlow(
     }
   }
 );
+
