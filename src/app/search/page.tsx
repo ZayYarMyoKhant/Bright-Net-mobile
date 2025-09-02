@@ -226,7 +226,7 @@ export default function SearchPage() {
     <>
       <div className="flex h-full flex-col bg-background text-foreground pb-16">
         <header className="flex h-16 flex-shrink-0 items-center gap-4 border-b px-4">
-          <Link href="/ai-tool">
+          <Link href="/">
             <Button variant="ghost" size="icon" className="-ml-2">
                 <ArrowLeft className="h-5 w-5" />
             </Button>
