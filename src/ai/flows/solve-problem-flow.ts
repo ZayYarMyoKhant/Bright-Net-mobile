@@ -62,7 +62,6 @@ const solveProblemFlow = ai.defineFlow(
     const llmResponse = await solveProblemPrompt(
         { history, prompt },
         {
-            model: 'googleai/gemini-1.5-flash-latest',
             history: history.map(h => ({ role: h.role, content: [{ text: h.content }] })),
         }
     );

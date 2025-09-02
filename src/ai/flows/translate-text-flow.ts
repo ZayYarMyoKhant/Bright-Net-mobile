@@ -50,10 +50,10 @@ const translateTextFlow = ai.defineFlow(
   async (input) => {
     
     const llmResponse = await translateTextPrompt(input);
-    const translatedText = llmResponse.output || "";
+    const translatedText = llmResponse.output;
 
     return {
-        translatedText,
+        translatedText: translatedText || "Could not translate text.",
     };
   }
 );
