@@ -6,12 +6,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ArrowLeft, Send, Bot, User, Loader2 } from "lucide-react";
 import Link from "next/link";
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useTransition } from "react";
+import { solveProblem } from "@/ai/flows/solve-problem-flow";
+import { useToast } from "@/hooks/use-toast";
 
 interface Message {
-  id: number;
-  text: string;
-  sender: 'user' | 'model';
+  role: 'user' | 'model';
+  content: string;
 }
 
 const ChatMessage = ({ message, sender }: { message: string, sender: 'user' | 'model' }) => {
@@ -38,11 +39,12 @@ const ChatMessage = ({ message, sender }: { message: string, sender: 'user' | 'm
 
 export default function AiProblemSolverPage() {
   const [messages, setMessages] = useState<Message[]>([
-    { id: 1, text: "Hello! How can I assist you today?", sender: 'model' },
+    { role: "model", content: "Hello! How can I assist you today?" },
   ]);
   const [inputValue, setInputValue] = useState("");
-  const [isPending, setIsPending] = useState(false);
+  const [isPending, startTransition] = useTransition();
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const { toast } = useToast();
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -50,17 +52,29 @@ export default function AiProblemSolverPage() {
 
   const handleSendMessage = async () => {
     if (inputValue.trim() && !isPending) {
-      const newUserMessage: Message = { id: Date.now(), text: inputValue, sender: 'user' };
-      setMessages(prev => [...prev, newUserMessage]);
+      const newUserMessage: Message = { role: 'user', content: inputValue };
+      const newMessages = [...messages, newUserMessage];
+      setMessages(newMessages);
       const currentInput = inputValue;
       setInputValue("");
-      setIsPending(true);
 
-      // Mock AI response
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      const aiResponse: Message = { id: Date.now() + 1, text: `This is a mocked response for: "${currentInput}"`, sender: 'model' };
-      setMessages(prev => [...prev, aiResponse]);
-      setIsPending(false);
+      startTransition(async () => {
+          try {
+              const history = newMessages.slice(0, -1).map(msg => ({ role: msg.role, content: msg.content }));
+              const result = await solveProblem({ history, prompt: currentInput });
+              const aiResponse: Message = { role: 'model', content: result.response };
+              setMessages(prev => [...prev, aiResponse]);
+          } catch(e: any) {
+              console.error(e);
+              toast({
+                  variant: "destructive",
+                  title: "An error occurred.",
+                  description: e.message || "Please check the API key and try again.",
+              });
+              // Remove the user message if the call fails
+              setMessages(prev => prev.slice(0, -1));
+          }
+      });
     }
   };
 
@@ -75,8 +89,8 @@ export default function AiProblemSolverPage() {
       </header>
       
       <main className="flex-1 overflow-y-auto p-4 space-y-4">
-        {messages.map((msg) => (
-            <ChatMessage key={msg.id} message={msg.text} sender={msg.sender} />
+        {messages.map((msg, index) => (
+            <ChatMessage key={index} message={msg.content} sender={msg.role} />
         ))}
          {isPending && (
           <div className="flex items-start gap-3 justify-start">

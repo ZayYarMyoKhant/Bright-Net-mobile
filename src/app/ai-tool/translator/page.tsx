@@ -6,22 +6,33 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { ArrowLeft, Languages, Loader2 } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useTransition } from "react";
+import { translateText } from "@/ai/flows/translate-text-flow";
+import { useToast } from "@/hooks/use-toast";
 
 export default function AiTranslatorPage() {
     const [inputText, setInputText] = useState("");
     const [outputText, setOutputText] = useState("");
     const [targetLanguage, setTargetLanguage] = useState("myanmar");
-    const [isPending, setIsPending] = useState(false);
+    const [isPending, startTransition] = useTransition();
+    const { toast } = useToast();
 
     const handleTranslate = async () => {
         if (inputText.trim() && !isPending) {
-            setIsPending(true);
             setOutputText("");
-            // Mock translation
-            await new Promise(resolve => setTimeout(resolve, 1000));
-            setOutputText(`Translated "${inputText}" to ${targetLanguage} (mock).`);
-            setIsPending(false);
+            startTransition(async () => {
+                try {
+                    const result = await translateText({ text: inputText, targetLanguage });
+                    setOutputText(result.translatedText);
+                } catch(e: any) {
+                    console.error(e);
+                    toast({
+                        variant: "destructive",
+                        title: "An error occurred.",
+                        description: e.message || "Please check the API key and try again.",
+                    });
+                }
+            });
         }
     }
 
