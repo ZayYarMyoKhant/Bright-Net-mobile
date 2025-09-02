@@ -38,7 +38,7 @@ const translateTextPrompt = ai.definePrompt({
     input: { schema: TranslateTextInputSchema },
     output: { schema: z.string() },
     prompt: `Translate the following text to {{{targetLanguage}}}. Do not add any extra explanations or introductory text, just provide the raw translated text.\n\nText to translate: "{{{text}}}"`,
-    model: 'googleai/gemini-pro'
+    model: 'googleai/gemini-1.5-flash-latest'
 })
 
 const translateTextFlow = ai.defineFlow(

@@ -47,7 +47,7 @@ const solveProblemPrompt = ai.definePrompt(
         New user prompt: {{{prompt}}}
         `,
         // NOTE: History is handled by the model config, not directly in the prompt text.
-        model: 'googleai/gemini-pro',
+        model: 'googleai/gemini-1.5-flash-latest',
     }
 )
 
@@ -63,7 +63,7 @@ const solveProblemFlow = ai.defineFlow(
     const llmResponse = await solveProblemPrompt(
         { history, prompt },
         {
-            model: 'googleai/gemini-pro',
+            model: 'googleai/gemini-1.5-flash-latest',
             history: history.map(h => ({ role: h.role, content: [{ text: h.content }] })),
         }
     );
