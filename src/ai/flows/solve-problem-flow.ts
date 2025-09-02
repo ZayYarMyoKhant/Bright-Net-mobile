@@ -6,7 +6,7 @@
  *
  * - solveProblem - A function that takes conversation history and returns an AI response.
  * - SolveProblemInput - The input type for the solveProblem function.
- * - SolveProblemOutput - The return type for the solveProblem function.
+ * - SolveProblemOutput - The return type for the solveProblemOutput function.
  */
 
 import {ai} from '@/ai/genkit';
@@ -43,6 +43,10 @@ const solveProblemFlow = ai.defineFlow(
     outputSchema: SolveProblemOutputSchema,
   },
   async ({ history, prompt }) => {
+     if (!process.env.GEMINI_API_KEY) {
+      throw new Error('GEMINI_API_KEY is not configured. Please add it to your .env file.');
+    }
+
     const llmResponse = await generate({
         model: 'googleai/gemini-pro',
         history: history.map(h => ({role: h.role, content: [{text: h.content}]})),

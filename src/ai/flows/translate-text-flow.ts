@@ -37,6 +37,10 @@ const translateTextFlow = ai.defineFlow(
     outputSchema: TranslateTextOutputSchema,
   },
   async ({ text, targetLanguage }) => {
+     if (!process.env.GEMINI_API_KEY) {
+      throw new Error('GEMINI_API_KEY is not configured. Please add it to your .env file.');
+    }
+
     const llmResponse = await generate({
       model: 'googleai/gemini-pro',
       prompt: `Translate the following text to ${targetLanguage}. Do not add any extra explanations or introductory text, just provide the raw translated text.\n\nText to translate: "${text}"`,
