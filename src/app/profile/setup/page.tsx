@@ -33,7 +33,8 @@ export default function ProfileSetupPage() {
         if (user) {
             setUser(user);
         } else {
-            // Not logged in, redirect to signup
+            // This shouldn't happen if the splash screen logic is correct,
+            // but as a fallback, we'll redirect.
             router.replace('/signup');
         }
         setLoading(false);
