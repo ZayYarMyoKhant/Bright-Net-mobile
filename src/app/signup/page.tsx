@@ -1,24 +1,15 @@
 
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Eye, EyeOff, Loader2 } from "lucide-react";
-import Image from "next/image";
-import { countries, Country } from "@/lib/data";
+import { countries } from "@/lib/data";
 import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/ui/select"
-import { ScrollArea } from "@/components/ui/scroll-area";
 
 
 export default function SignUpPage() {
@@ -26,25 +17,29 @@ export default function SignUpPage() {
   const supabase = createClient();
   const { toast } = useToast();
 
-  const [countryCode, setCountryCode] = useState("+95");
+  const [countryCode, setCountryCode] = useState("95");
   const [phoneNumber, setPhoneNumber] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  const selectedCountry = countries.find(c => `+${c.code}` === countryCode);
+  const selectedCountry = useMemo(() => {
+    return countries.find(c => c.code === countryCode);
+  }, [countryCode]);
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
-    const fullPhoneNumber = `${countryCode}${phoneNumber}`;
+    const fullPhoneNumber = `+${countryCode}${phoneNumber}`;
 
+    // Since we are skipping OTP, we will create the user with a phone and password
+    // This is a simplified flow for prototype purposes.
     const { data, error } = await supabase.auth.signUp({
       phone: fullPhoneNumber,
       password: password,
     });
-
+    
     if (error) {
       toast({
         variant: "destructive",
@@ -54,7 +49,7 @@ export default function SignUpPage() {
     } else if (data.user) {
        toast({
         title: "Account created!",
-        description: "Please check your phone for a verification message.",
+        description: "Redirecting to profile setup...",
       });
       // In a real phone auth flow, you'd go to an OTP page.
       // For this prototype, we'll assume auto-verification and go to profile setup.
@@ -76,28 +71,20 @@ export default function SignUpPage() {
                 <div>
                     <Label htmlFor="phone">Phone number</Label>
                     <div className="flex items-center gap-2 mt-1">
-                        <Select value={countryCode} onValueChange={setCountryCode}>
-                            <SelectTrigger className="w-[120px]">
-                                <SelectValue>
-                                    <div className="flex items-center gap-2">
-                                        <span>{selectedCountry?.flag}</span>
-                                        <span>{countryCode}</span>
-                                    </div>
-                                </SelectValue>
-                            </SelectTrigger>
-                            <SelectContent>
-                                <ScrollArea className="h-64">
-                                {countries.map((country) => (
-                                    <SelectItem key={country.name} value={`+${country.code}`}>
-                                        <div className="flex items-center gap-2">
-                                            <span>{country.flag}</span>
-                                            <span>{country.name} (+{country.code})</span>
-                                        </div>
-                                    </SelectItem>
-                                ))}
-                                </ScrollArea>
-                            </SelectContent>
-                        </Select>
+                        <div className="relative w-[100px]">
+                            <span className="absolute inset-y-0 left-3 flex items-center text-muted-foreground">+</span>
+                             <span className="absolute inset-y-0 right-3 flex items-center text-xl">
+                                {selectedCountry?.flag || '🌍'}
+                            </span>
+                            <Input
+                                type="tel"
+                                value={countryCode}
+                                onChange={(e) => setCountryCode(e.target.value.replace(/\D/g, ''))}
+                                className="pl-7 text-center"
+                                required
+                                maxLength={4}
+                            />
+                        </div>
                         <Input
                             id="phone"
                             type="tel"
