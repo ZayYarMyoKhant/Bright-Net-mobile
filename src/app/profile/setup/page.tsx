@@ -1,19 +1,18 @@
 
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from 'next/navigation';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { ArrowLeft, Camera, Loader2 } from "lucide-react";
-import Link from "next/link";
 import { useToast } from "@/hooks/use-toast";
 import { createClient } from "@/lib/supabase/client";
 import { User } from "@supabase/supabase-js";
 
-export default function EditProfilePage() {
+export default function ProfileSetupPage() {
   const router = useRouter();
   const supabase = createClient();
   const { toast } = useToast();
@@ -28,32 +27,19 @@ export default function EditProfilePage() {
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
 
-   useEffect(() => {
-    const fetchProfile = async () => {
-        const { data: { user: authUser } } = await supabase.auth.getUser();
-        if (authUser) {
-            setUser(authUser);
-            const { data: profile, error } = await supabase
-                .from('profiles')
-                .select('*')
-                .eq('id', authUser.id)
-                .single();
-            
-            if (profile) {
-                setFullName(profile.full_name || '');
-                setUsername(profile.username || '');
-                setBio(profile.bio || '');
-                setAvatarUrl(profile.avatar_url || null);
-            } else if (error && error.code !== 'PGRST116') {
-                 toast({ variant: 'destructive', title: 'Error', description: 'Failed to load profile data.' });
-            }
+  useEffect(() => {
+    const fetchUser = async () => {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+            setUser(user);
         } else {
+            // Not logged in, redirect to signup
             router.replace('/signup');
         }
         setLoading(false);
     }
-    fetchProfile();
-  }, [router, supabase, toast]);
+    fetchUser();
+  }, [router, supabase]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -65,11 +51,20 @@ export default function EditProfilePage() {
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user) return;
+    if (!user) {
+      toast({ variant: "destructive", title: "Error", description: "You are not logged in." });
+      return;
+    }
+    if (!fullName || !username) {
+      toast({ variant: "destructive", title: "Missing Fields", description: "Please enter your name and a username." });
+      return;
+    }
+
     setSaving(true);
     
-    let publicAvatarUrl = avatarUrl;
+    let publicAvatarUrl = null;
 
+    // 1. Upload avatar if it exists
     if (avatarFile) {
         const filePath = `${user.id}/${Date.now()}_${avatarFile.name}`;
         const { error: uploadError } = await supabase.storage
@@ -86,26 +81,27 @@ export default function EditProfilePage() {
         publicAvatarUrl = urlData.publicUrl;
     }
 
+    // 2. Save profile data
     const { error: profileError } = await supabase.from('profiles').upsert({
         id: user.id,
-        username,
+        username: username,
         full_name: fullName,
-        bio,
+        bio: bio,
         avatar_url: publicAvatarUrl,
         updated_at: new Date().toISOString(),
     });
 
-    setSaving(false);
     if (profileError) {
         toast({ variant: "destructive", title: "Profile Error", description: profileError.message });
     } else {
-        toast({ title: 'Profile Updated!', description: 'Your changes have been saved.' });
-        router.push(`/profile/${username}`); // Go to the updated profile page
-        router.refresh(); // Refresh to show new data
+        toast({ title: 'Profile Created!', description: 'Welcome to Bright-Net!' });
+        router.push('/home');
     }
+
+    setSaving(false);
   }
 
-   if (loading) {
+  if (loading) {
     return (
         <div className="flex h-dvh w-full items-center justify-center">
             <Loader2 className="h-8 w-8 animate-spin" />
@@ -116,10 +112,7 @@ export default function EditProfilePage() {
   return (
     <div className="flex h-full flex-col bg-background text-foreground">
       <header className="flex h-16 flex-shrink-0 items-center border-b px-4">
-        <Link href={`/profile/${username}`} className="p-2 -ml-2">
-           <ArrowLeft className="h-5 w-5" />
-        </Link>
-        <h1 className="mx-auto font-bold text-xl">Edit your profile</h1>
+        <h1 className="mx-auto font-bold text-xl">Set up your profile</h1>
       </header>
 
       <main className="flex-1 overflow-y-auto p-4">
@@ -141,22 +134,22 @@ export default function EditProfilePage() {
             
             <div className="space-y-4">
                 <div>
-                    <label className="text-sm font-medium" htmlFor="full_name">Name</label>
-                    <Input id="full_name" name="full_name" value={fullName} onChange={(e) => setFullName(e.target.value)} className="mt-1"/>
+                    <label className="text-sm font-medium" htmlFor="full_name">Name *</label>
+                    <Input id="full_name" name="full_name" value={fullName} onChange={(e) => setFullName(e.target.value)} className="mt-1" required placeholder="Enter your full name"/>
                 </div>
                  <div>
-                    <label className="text-sm font-medium" htmlFor="username">Username</label>
-                    <Input id="username" name="username" value={username} onChange={(e) => setUsername(e.target.value)} className="mt-1"/>
+                    <label className="text-sm font-medium" htmlFor="username">Username *</label>
+                    <Input id="username" name="username" value={username} onChange={(e) => setUsername(e.target.value)} className="mt-1" required placeholder="Choose a username"/>
                 </div>
                  <div>
                     <label className="text-sm font-medium" htmlFor="bio">Bio</label>
-                    <Textarea id="bio" name="bio" value={bio} onChange={(e) => setBio(e.target.value)} className="mt-1"/>
+                    <Textarea id="bio" name="bio" value={bio} onChange={(e) => setBio(e.target.value)} className="mt-1" placeholder="Tell us about yourself"/>
                 </div>
             </div>
             
             <Button type="submit" className="w-full" disabled={saving}>
               {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Save Change
+              Save
             </Button>
         </form>
 

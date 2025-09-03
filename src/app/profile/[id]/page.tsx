@@ -5,7 +5,7 @@ import { use, useEffect, useState } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Grid3x3, Clapperboard, ArrowLeft, MessageCircle, CameraOff } from "lucide-react";
+import { Grid3x3, Clapperboard, ArrowLeft, MessageCircle, CameraOff, Loader2 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { BottomNav } from '@/components/bottom-nav';
@@ -16,7 +16,8 @@ import type { Post } from "@/lib/data";
 type ProfileData = {
   id: string;
   username: string;
-  avatar: string;
+  full_name: string;
+  avatar_url: string;
   following: number;
   followers: number;
   bio: string;
@@ -36,7 +37,7 @@ export default function UserProfilePage({ params: paramsPromise }: { params: Pro
       
       const { data: profileData, error: profileError } = await supabase
         .from('profiles')
-        .select('id, username, avatar_url, bio')
+        .select('id, username, full_name, avatar_url, bio')
         .eq('username', params.id)
         .single();
         
@@ -50,7 +51,8 @@ export default function UserProfilePage({ params: paramsPromise }: { params: Pro
       setUser({
         id: profileData.id,
         username: profileData.username,
-        avatar: profileData.avatar_url || `https://i.pravatar.cc/150?u=${profileData.id}`,
+        full_name: profileData.full_name || 'No Name',
+        avatar_url: profileData.avatar_url || `https://i.pravatar.cc/150?u=${profileData.id}`,
         bio: profileData.bio || "Another digital creator's bio.",
         following: 0, // Placeholder
         followers: 0, // Placeholder
@@ -70,7 +72,8 @@ export default function UserProfilePage({ params: paramsPromise }: { params: Pro
     return (
        <>
         <div className="flex h-full flex-col bg-background text-foreground pb-16 items-center justify-center">
-            <p>Loading profile...</p>
+            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            <p className="mt-2 text-sm text-muted-foreground">Loading profile...</p>
         </div>
         <BottomNav />
       </>
@@ -107,10 +110,10 @@ export default function UserProfilePage({ params: paramsPromise }: { params: Pro
         <main className="flex-1 overflow-y-auto p-4">
           <div className="flex flex-col items-center">
             <Avatar className="h-24 w-24 border-2 border-primary">
-              <AvatarImage src={user.avatar} alt={user.username} data-ai-hint="person portrait" />
+              <AvatarImage src={user.avatar_url} alt={user.username} data-ai-hint="person portrait" />
               <AvatarFallback>{user.username.charAt(0)}</AvatarFallback>
             </Avatar>
-            <h2 className="mt-3 text-xl font-bold">{user.username}</h2>
+            <h2 className="mt-3 text-xl font-bold">{user.full_name}</h2>
             <p className="text-sm text-muted-foreground">@{user.username}</p>
             <p className="mt-2 text-center text-sm">{user.bio}</p>
           </div>

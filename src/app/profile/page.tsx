@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -11,35 +11,68 @@ import Image from "next/image";
 import Link from "next/link";
 import { BottomNav } from '@/components/bottom-nav';
 import { useToast } from '@/hooks/use-toast';
+import { createClient } from '@/lib/supabase/client';
 import type { Post } from '@/lib/data';
 
 
 type ProfileData = {
   id: string;
-  fullName: string;
+  full_name: string;
   username: string;
-  avatarUrl: string;
+  avatar_url: string;
   bio: string;
   following: number;
   followers: number;
 };
 
-// Mock user data since auth is removed for now
-const mockUser: ProfileData = {
-    id: 'aungaung',
-    fullName: 'Aung Aung',
-    username: 'aungaung',
-    avatarUrl: 'https://i.pravatar.cc/150?u=aungaung',
-    bio: 'Digital Creator | Building cool stuff with code ✨',
-    following: 120,
-    followers: 450,
-}
-
 
 export default function ProfilePage() {
-  const [user, setUser] = useState<ProfileData | null>(mockUser);
+  const router = useRouter();
+  const supabase = createClient();
+  const { toast } = useToast();
+  
+  const [user, setUser] = useState<ProfileData | null>(null);
   const [posts, setPosts] = useState<Post[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchUserData = async () => {
+        setLoading(true);
+        const { data: { user: authUser } } = await supabase.auth.getUser();
+
+        if (authUser) {
+            const { data: profileData, error } = await supabase
+                .from('profiles')
+                .select('*')
+                .eq('id', authUser.id)
+                .single();
+
+            if (error && error.code !== 'PGRST116') {
+                toast({ variant: 'destructive', title: 'Error', description: error.message });
+                setLoading(false);
+                return;
+            }
+
+            if (profileData) {
+                 setUser({
+                    ...profileData,
+                    following: 0, // Placeholder
+                    followers: 0, // Placeholder
+                });
+            } else {
+                // This case shouldn't be hit often if the flow is correct, but as a fallback:
+                router.push('/profile/setup');
+            }
+
+        } else {
+            router.push('/signup');
+        }
+        setLoading(false);
+    };
+
+    fetchUserData();
+  }, [router, supabase, toast]);
+
 
   if (loading) {
     return (
@@ -57,6 +90,7 @@ export default function ProfilePage() {
          <>
             <div className="flex h-full flex-col bg-background text-foreground pb-16 items-center justify-center">
                 <p>Could not load profile. Please try again.</p>
+                 <Button onClick={() => router.push('/signup')} className="mt-4">Go to Sign Up</Button>
             </div>
             <BottomNav />
         </>
@@ -86,10 +120,10 @@ export default function ProfilePage() {
         <main className="flex-1 overflow-y-auto p-4">
           <div className="flex flex-col items-center">
             <Avatar className="h-24 w-24 border-2 border-primary">
-                <AvatarImage src={user.avatarUrl} alt={user.username} data-ai-hint="person portrait" />
+                <AvatarImage src={user.avatar_url} alt={user.username} data-ai-hint="person portrait" />
                 <AvatarFallback>{user.username.charAt(0).toUpperCase()}</AvatarFallback>
             </Avatar>
-            <h2 className="mt-3 text-xl font-bold">{user.fullName}</h2>
+            <h2 className="mt-3 text-xl font-bold">{user.full_name}</h2>
             <p className="text-sm text-muted-foreground">@{user.username}</p>
             <p className="mt-2 text-center text-sm">{user.bio}</p>
           </div>
