@@ -32,26 +32,17 @@ export default function SignUpPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  const selectedCountry = countries.find(c => c.code === countryCode.replace('+', ''));
+  const selectedCountry = countries.find(c => `+${c.code}` === countryCode);
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
     const fullPhoneNumber = `${countryCode}${phoneNumber}`;
-    
-    // In a real app, you'd use phone auth. For this mock, we'll use email with a dummy domain.
-    // This avoids the complexity of setting up SMS providers for the prototype.
-    const dummyEmail = `${fullPhoneNumber}@brightnet.app`;
 
     const { data, error } = await supabase.auth.signUp({
-      email: dummyEmail,
+      phone: fullPhoneNumber,
       password: password,
-      options: {
-        data: {
-          phone: fullPhoneNumber,
-        }
-      }
     });
 
     if (error) {
@@ -61,10 +52,12 @@ export default function SignUpPage() {
         description: error.message,
       });
     } else if (data.user) {
-      toast({
+       toast({
         title: "Account created!",
-        description: "Please set up your profile.",
+        description: "Please check your phone for a verification message.",
       });
+      // In a real phone auth flow, you'd go to an OTP page.
+      // For this prototype, we'll assume auto-verification and go to profile setup.
       router.push("/profile/setup");
     }
     setLoading(false);
@@ -84,7 +77,7 @@ export default function SignUpPage() {
                     <Label htmlFor="phone">Phone number</Label>
                     <div className="flex items-center gap-2 mt-1">
                         <Select value={countryCode} onValueChange={setCountryCode}>
-                            <SelectTrigger className="w-[100px]">
+                            <SelectTrigger className="w-[120px]">
                                 <SelectValue>
                                     <div className="flex items-center gap-2">
                                         <span>{selectedCountry?.flag}</span>
@@ -95,7 +88,7 @@ export default function SignUpPage() {
                             <SelectContent>
                                 <ScrollArea className="h-64">
                                 {countries.map((country) => (
-                                    <SelectItem key={country.code} value={`+${country.code}`}>
+                                    <SelectItem key={country.name} value={`+${country.code}`}>
                                         <div className="flex items-center gap-2">
                                             <span>{country.flag}</span>
                                             <span>{country.name} (+{country.code})</span>
