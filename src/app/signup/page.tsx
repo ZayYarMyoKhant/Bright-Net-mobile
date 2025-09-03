@@ -33,7 +33,6 @@ export default function SignUpPage() {
 
     const fullPhoneNumber = `+${countryCode}${phoneNumber}`;
 
-    // Since we are skipping OTP, we will create the user with a phone and password
     // This is a simplified flow for prototype purposes.
     const { data, error } = await supabase.auth.signUp({
       phone: fullPhoneNumber,
@@ -51,8 +50,6 @@ export default function SignUpPage() {
         title: "Account created!",
         description: "Redirecting to profile setup...",
       });
-      // In a real phone auth flow, you'd go to an OTP page.
-      // For this prototype, we'll assume auto-verification and go to profile setup.
       router.push("/profile/setup");
     }
     setLoading(false);
@@ -70,28 +67,29 @@ export default function SignUpPage() {
             <form onSubmit={handleSignUp} className="space-y-6">
                 <div>
                     <Label htmlFor="phone">Phone number</Label>
-                    <div className="flex items-center gap-2 mt-1">
-                        <div className="relative w-[100px]">
-                            <span className="absolute inset-y-0 left-3 flex items-center text-muted-foreground">+</span>
-                             <span className="absolute inset-y-0 right-3 flex items-center text-xl">
-                                {selectedCountry?.flag || '🌍'}
-                            </span>
+                    <div className="flex items-center mt-1 h-10 w-full rounded-md border border-input bg-background text-sm ring-offset-background focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2">
+                        <div className="flex items-center h-full pl-3 pr-2 border-r">
+                           <span className="text-muted-foreground text-base">+</span>
                             <Input
                                 type="tel"
                                 value={countryCode}
                                 onChange={(e) => setCountryCode(e.target.value.replace(/\D/g, ''))}
-                                className="pl-7 text-center"
+                                className="w-10 border-0 bg-transparent p-0 text-base h-auto focus-visible:ring-0 focus-visible:ring-offset-0"
                                 required
                                 maxLength={4}
                             />
+                            <span className="text-xl ml-1">
+                               {selectedCountry?.flag || '🌍'}
+                           </span>
                         </div>
                         <Input
                             id="phone"
                             type="tel"
                             placeholder="123456789"
                             value={phoneNumber}
-                            onChange={(e) => setPhoneNumber(e.target.value)}
+                            onChange={(e) => setPhoneNumber(e.target.value.replace(/\D/g, ''))}
                             required
+                            className="border-0 bg-transparent h-full focus-visible:ring-0 focus-visible:ring-offset-0"
                         />
                     </div>
                 </div>
