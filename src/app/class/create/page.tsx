@@ -6,15 +6,85 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Textarea } from "@/components/ui/textarea";
-import { ArrowLeft, ImagePlus } from "lucide-react";
+import { ArrowLeft, ImagePlus, Loader2 } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useRef, useTransition } from "react";
+import { createClient } from "@/lib/supabase/client";
+import { useToast } from "@/hooks/use-toast";
+import { useRouter } from "next/navigation";
+import Image from "next/image";
 
 
 export default function CreateClassPage() {
     const [className, setClassName] = useState("");
     const [description, setDescription] = useState("");
     const [privacy, setPrivacy] = useState("public");
+    const [coverPhotoFile, setCoverPhotoFile] = useState<File | null>(null);
+    const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+    const [isPending, startTransition] = useTransition();
+
+    const fileInputRef = useRef<HTMLInputElement>(null);
+    const supabase = createClient();
+    const { toast } = useToast();
+    const router = useRouter();
+
+
+    const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (file) {
+            setCoverPhotoFile(file);
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                setPreviewUrl(reader.result as string);
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+
+    const handleCreateClass = async () => {
+        startTransition(async () => {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) {
+                toast({ variant: "destructive", title: "Authentication Error", description: "You must be logged in to create a class." });
+                return;
+            }
+
+            let cover_photo_url = null;
+
+            if (coverPhotoFile) {
+                const filePath = `class-covers/${user.id}/${Date.now()}_${coverPhotoFile.name}`;
+                const { error: uploadError } = await supabase.storage
+                    .from('avatars') // Or a new bucket for class covers
+                    .upload(filePath, coverPhotoFile);
+
+                if (uploadError) {
+                    toast({ variant: "destructive", title: "Upload Error", description: uploadError.message });
+                    return;
+                }
+
+                const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(filePath);
+                cover_photo_url = urlData.publicUrl;
+            }
+
+            const { error } = await supabase
+                .from('classes')
+                .insert({
+                    name: className,
+                    description,
+                    privacy,
+                    created_by: user.id,
+                    cover_photo_url,
+                });
+
+            if (error) {
+                toast({ variant: "destructive", title: "Database Error", description: error.message });
+            } else {
+                toast({ title: "Class Created!", description: `The class "${className}" has been successfully created.` });
+                router.push('/class');
+                router.refresh();
+            }
+        });
+    };
 
     return (
         <div className="flex h-full flex-col bg-background text-foreground">
@@ -26,12 +96,26 @@ export default function CreateClassPage() {
             </header>
 
             <main className="flex-1 overflow-y-auto p-4 space-y-6">
-                 <div className="relative flex aspect-video w-full cursor-pointer flex-col items-center justify-center rounded-md border-2 border-dashed bg-muted/50">
-                    <div className="text-center text-muted-foreground">
-                        <ImagePlus className="mx-auto h-12 w-12" />
-                        <p className="mt-2 text-sm font-medium">Upload class cover photo</p>
-                    </div>
+                 <div 
+                    onClick={() => fileInputRef.current?.click()}
+                    className="relative flex aspect-video w-full cursor-pointer flex-col items-center justify-center rounded-md border-2 border-dashed bg-muted/50 overflow-hidden"
+                 >
+                    {previewUrl ? (
+                        <Image src={previewUrl} alt="Cover preview" layout="fill" objectFit="cover" data-ai-hint="class cover" />
+                    ) : (
+                        <div className="text-center text-muted-foreground">
+                            <ImagePlus className="mx-auto h-12 w-12" />
+                            <p className="mt-2 text-sm font-medium">Upload class cover photo</p>
+                        </div>
+                    )}
                 </div>
+                 <input
+                    type="file"
+                    ref={fileInputRef}
+                    onChange={handleFileChange}
+                    className="hidden"
+                    accept="image/*"
+                />
                 
                 <div className="space-y-4">
                     <div>
@@ -55,7 +139,10 @@ export default function CreateClassPage() {
                     </div>
                 </RadioGroup>
 
-                <Button className="w-full" disabled={!className || !description}>Create</Button>
+                <Button className="w-full" disabled={!className || isPending} onClick={handleCreateClass}>
+                    {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Create
+                </Button>
             </main>
         </div>
     )

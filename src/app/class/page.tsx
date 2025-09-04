@@ -1,72 +1,52 @@
 
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { ExternalLink, Video } from "lucide-react";
+import { ExternalLink, Video, Loader2, BookOpen } from "lucide-react";
 import { BottomNav } from "@/components/bottom-nav";
 import Link from "next/link";
-
-type ClassState = "joined" | "not_joined";
+import { createClient } from "@/lib/supabase/client";
+import { User } from "@supabase/supabase-js";
 
 type ClassItem = {
-  id: number;
+  id: string;
   name: string;
-  description: string;
-  link: string;
-  initialState: ClassState;
+  description: string | null;
+  link: string | null; // Assuming link might be added later
+  created_by: string;
 };
 
-const initialClasses: ClassItem[] = [
-  {
-    id: 1,
-    name: "Digital Marketing Masterclass",
-    description: "Learn the fundamentals of digital marketing.",
-    link: "https://example.com/class1",
-    initialState: "not_joined",
-  },
-  {
-    id: 2,
-    name: "Advanced Graphic Design",
-    description: "Take your design skills to the next level.",
-    link: "https://example.com/class2",
-    initialState: "joined",
-  },
-  {
-    id: 3,
-    name: "Mobile App Development with React Native",
-    description: "Build cross-platform mobile apps.",
-    link: "https://example.com/class3",
-    initialState: "not_joined",
-  },
-    {
-    id: 4,
-    name: "Content Creation & Strategy",
-    description: "Master the art of creating engaging content.",
-    link: "https://example.com/class4",
-    initialState: "not_joined",
-  },
-];
-
 export default function ClassPage() {
-  const [classes, setClasses] = useState(initialClasses);
+  const [classes, setClasses] = useState<ClassItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const supabase = createClient();
 
-  const handleJoinToggle = (id: number) => {
-    setClasses((prevClasses) =>
-      prevClasses.map((c) =>
-        c.id === id
-          ? {
-              ...c,
-              initialState:
-                c.initialState === "joined" ? "not_joined" : "joined",
-            }
-          : c
-      )
-    );
-  };
+  useEffect(() => {
+    const fetchUserAndClasses = async () => {
+      setLoading(true);
+      
+      const { data: { user } } = await supabase.auth.getUser();
+      setCurrentUser(user);
+
+      const { data: classData, error } = await supabase
+        .from('classes')
+        .select('*');
+
+      if (error) {
+        console.error("Error fetching classes:", error);
+      } else if (classData) {
+        setClasses(classData.map(c => ({...c, link: 'https://example.com/class1'})));
+      }
+      setLoading(false);
+    };
+
+    fetchUserAndClasses();
+  }, [supabase]);
+
 
   return (
     <>
@@ -76,7 +56,12 @@ export default function ClassPage() {
         </header>
 
         <main className="flex-1 overflow-y-auto p-4 space-y-4">
-          {classes.map((classItem) => (
+          {loading ? (
+            <div className="flex justify-center items-center h-full pt-20">
+              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            </div>
+          ) : classes.length > 0 ? (
+            classes.map((classItem) => (
             <Card key={classItem.id}>
               <CardHeader>
                   <div className="flex items-start gap-4">
@@ -85,17 +70,19 @@ export default function ClassPage() {
                       </Avatar>
                       <div className="flex-1">
                           <CardTitle>{classItem.name}</CardTitle>
-                          <p className="text-sm text-muted-foreground mt-1">{classItem.description}</p>
-                          <a href={classItem.link} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-sm text-primary hover:underline mt-2">
-                              <ExternalLink className="h-3 w-3" />
-                              {classItem.link}
-                          </a>
+                          {classItem.description && <p className="text-sm text-muted-foreground mt-1">{classItem.description}</p>}
+                          {classItem.link && (
+                            <a href={classItem.link} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-sm text-primary hover:underline mt-2">
+                                <ExternalLink className="h-3 w-3" />
+                                {classItem.link}
+                            </a>
+                          )}
                       </div>
                   </div>
               </CardHeader>
               <CardFooter>
-                   {classItem.initialState === "not_joined" ? (
-                      <Button className="w-full" onClick={() => handleJoinToggle(classItem.id)}>Join</Button>
+                   {classItem.created_by !== currentUser?.id ? (
+                      <Button className="w-full">Join</Button>
                   ) : (
                     <Link href={`/class/${classItem.id}`} className="w-full">
                       <Button variant="secondary" className="w-full">
@@ -106,7 +93,14 @@ export default function ClassPage() {
                   )}
               </CardFooter>
             </Card>
-          ))}
+            ))
+          ) : (
+             <div className="text-center p-10 text-muted-foreground flex flex-col items-center h-full justify-center">
+                <BookOpen className="h-12 w-12 mb-4" />
+                <p className="font-bold">There are no classes yet</p>
+                <p className="text-sm mt-1">Create a new class to get started.</p>
+            </div>
+          )}
         </main>
       </div>
       <BottomNav />
