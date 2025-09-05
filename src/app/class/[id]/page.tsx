@@ -1,43 +1,49 @@
 
 "use client";
 
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { ArrowLeft, Video, MoreVertical, Image as ImageIcon, Send, Smile, Mic, MessageSquareReply, Trash2, X } from "lucide-react";
+import { ArrowLeft, Video, MoreVertical, Image as ImageIcon, Send, Smile, Mic, Trash2, Loader2, User } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { use, useState, useRef, useEffect } from "react";
+import { createClient } from "@/lib/supabase/client";
+import { User as SupabaseUser } from "@supabase/supabase-js";
 
-const ChatMessage = ({ message, isSender, isImage, onReply }: { message: any, isSender: boolean, isImage?: boolean, onReply: (message: any) => void }) => {
+type Message = {
+    id: string;
+    content: string;
+    created_at: string;
+    user_id: string;
+    profiles: {
+        username: string;
+        avatar_url: string;
+    };
+};
+
+const ChatMessage = ({ message, isSender }: { message: Message, isSender: boolean }) => {
     return (
         <div className={`flex items-start gap-3 ${isSender ? 'justify-end' : 'justify-start'}`}>
              {!isSender && (
-                 <Avatar className="h-8 w-8">
-                    <AvatarFallback>{message.user.name.charAt(0)}</AvatarFallback>
-                </Avatar>
+                 <Link href={`/profile/${message.profiles.username}`}>
+                    <Avatar className="h-8 w-8">
+                        <AvatarImage src={message.profiles.avatar_url} alt={message.profiles.username} />
+                        <AvatarFallback>{message.profiles.username.charAt(0).toUpperCase()}</AvatarFallback>
+                    </Avatar>
+                 </Link>
             )}
             <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                     <div className="cursor-pointer">
-                        {isImage ? (
-                            <div className="relative h-48 w-48 rounded-lg overflow-hidden">
-                                <Image src={message.text} alt="sent image" layout="fill" objectFit="cover" data-ai-hint="photo message" />
-                            </div>
-                        ) : (
-                            <div className={`max-w-xs rounded-lg px-4 py-2 ${isSender ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}>
-                                <p className="font-semibold text-xs mb-1">{message.user.name}</p>
-                                {message.text}
-                            </div>
-                        )}
+                        <div className={`max-w-xs rounded-lg px-4 py-2 ${isSender ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}>
+                            {!isSender && <p className="font-semibold text-xs mb-1 text-primary">{message.profiles.username}</p>}
+                            {message.content}
+                        </div>
                     </div>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent>
-                    <DropdownMenuItem onClick={() => onReply(message)}>
-                        <MessageSquareReply className="mr-2 h-4 w-4" />
-                        <span>Reply</span>
-                    </DropdownMenuItem>
                     <DropdownMenuItem className="text-destructive">
                         <Trash2 className="mr-2 h-4 w-4" />
                         <span>Delete</span>
@@ -51,29 +57,105 @@ const ChatMessage = ({ message, isSender, isImage, onReply }: { message: any, is
 
 export default function ClassChannelPage({ params: paramsPromise }: { params: Promise<{ id: string }> }) {
   const params = use(paramsPromise);
-  const [replyingTo, setReplyingTo] = useState<any | null>(null);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [newMessage, setNewMessage] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [currentUser, setCurrentUser] = useState<SupabaseUser | null>(null);
+  const [classInfo, setClassInfo] = useState<{ id: string; name: string; avatarFallback: string } | null>(null);
+  
   const messagesEndRef = useRef<HTMLDivElement>(null);
-
-  const classInfo = {
-    id: params.id,
-    name: "Advanced Graphic Design",
-    avatarFallback: "A",
-  };
-
-  const messages = [
-    { id: 1, text: "Hello everyone!", sender: false, user: { name: 'Aung Aung' } },
-    { id: 2, text: "Hi! Glad to be here.", sender: true, user: { name: 'You' } },
-    { id: 3, text: "Here's the first design I'm working on.", sender: false, user: { name: 'Aung Aung' } },
-    { id: 4, text: "https://picsum.photos/400/400?random=30", sender: false, isImage: true, user: { name: 'Aung Aung' } },
-  ];
+  const supabase = createClient();
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "auto" });
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  const handleReply = (message: any) => {
-    setReplyingTo(message);
-  };
+  useEffect(() => {
+    const setupPage = async () => {
+      setLoading(true);
+
+      const { data: { user } } = await supabase.auth.getUser();
+      setCurrentUser(user);
+      
+      const { data: classData, error: classError } = await supabase
+        .from('classes')
+        .select('name')
+        .eq('id', params.id)
+        .single();
+      
+      if (classData) {
+        setClassInfo({
+          id: params.id,
+          name: classData.name,
+          avatarFallback: classData.name.charAt(0),
+        });
+      } else {
+         console.error(classError);
+      }
+
+      const { data: initialMessages, error: messagesError } = await supabase
+        .from('class_messages')
+        .select(`*, profiles (username, avatar_url)`)
+        .eq('class_id', params.id)
+        .order('created_at', { ascending: true });
+        
+      if (initialMessages) {
+        setMessages(initialMessages);
+      } else {
+        console.error(messagesError);
+      }
+      
+      setLoading(false);
+    };
+    setupPage();
+
+    const channel = supabase.channel(`class-chat-${params.id}`)
+        .on<Message>(
+            'postgres_changes',
+            { 
+                event: 'INSERT', 
+                schema: 'public', 
+                table: 'class_messages',
+                filter: `class_id=eq.${params.id}`
+            },
+            async (payload) => {
+                const { data: profile } = await supabase.from('profiles').select('username, avatar_url').eq('id', payload.new.user_id).single();
+                if(profile){
+                    const newMessageWithProfile = { ...payload.new, profiles: profile };
+                    setMessages((prevMessages) => [...prevMessages, newMessageWithProfile]);
+                }
+            }
+        )
+        .subscribe();
+
+    return () => {
+        supabase.removeChannel(channel);
+    };
+
+  }, [params.id, supabase]);
+
+  const handleSendMessage = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (newMessage.trim() === "" || !currentUser || !classInfo) return;
+
+    const content = newMessage;
+    setNewMessage("");
+
+    await supabase.from('class_messages').insert({
+        content: content,
+        class_id: classInfo.id,
+        user_id: currentUser.id
+    });
+  }
+
+  if (loading || !classInfo) {
+      return (
+        <div className="flex h-dvh flex-col bg-background text-foreground items-center justify-center">
+            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            <p className="mt-2 text-muted-foreground">Loading channel...</p>
+        </div>
+      )
+  }
 
   return (
     <div className="flex h-dvh flex-col bg-background text-foreground">
@@ -114,33 +196,26 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
       
       <main className="flex-1 overflow-y-auto p-4 space-y-4">
         {messages.map((msg) => (
-            <ChatMessage key={msg.id} message={msg} isSender={msg.sender} isImage={msg.isImage} onReply={handleReply} />
+            <ChatMessage key={msg.id} message={msg} isSender={msg.user_id === currentUser?.id} />
         ))}
         <div ref={messagesEndRef} />
       </main>
 
       <footer className="flex-shrink-0 border-t p-2">
-        {replyingTo && (
-            <div className="flex items-center justify-between bg-muted/50 px-3 py-1.5 text-xs">
-                <div className="truncate">
-                    <span className="text-muted-foreground">Replying to </span>
-                    <span className="font-semibold">{replyingTo.user.name}</span>: 
-                    <span className="text-muted-foreground ml-1">{replyingTo.isImage ? "an image" : replyingTo.text}</span>
-                </div>
-                <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => setReplyingTo(null)}>
-                    <X className="h-4 w-4" />
-                </Button>
-            </div>
-        )}
-        <div className="flex items-center gap-2 pt-1">
+        <form onSubmit={handleSendMessage} className="flex items-center gap-2 pt-1">
             <Button variant="ghost" size="icon"><ImageIcon className="h-5 w-5 text-muted-foreground" /></Button>
             <Button variant="ghost" size="icon"><Smile className="h-5 w-5 text-muted-foreground" /></Button>
-            <Input placeholder="Type a message..." className="flex-1"/>
+            <Input 
+              placeholder="Type a message..." 
+              className="flex-1"
+              value={newMessage}
+              onChange={(e) => setNewMessage(e.target.value)}
+            />
             <Button variant="ghost" size="icon"><Mic className="h-5 w-5 text-muted-foreground" /></Button>
-            <Button size="icon">
+            <Button size="icon" type="submit" disabled={!newMessage.trim()}>
                 <Send className="h-5 w-5" />
             </Button>
-        </div>
+        </form>
       </footer>
     </div>
   );

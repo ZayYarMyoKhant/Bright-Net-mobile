@@ -10,43 +10,79 @@ import { BottomNav } from "@/components/bottom-nav";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { User } from "@supabase/supabase-js";
+import { useToast } from "@/hooks/use-toast";
 
 type ClassItem = {
   id: string;
   name: string;
   description: string | null;
-  link: string | null; // Assuming link might be added later
   created_by: string;
+  is_member: boolean; // Added to track membership
 };
 
 export default function ClassPage() {
   const [classes, setClasses] = useState<ClassItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [joiningClass, setJoiningClass] = useState<string | null>(null);
   const supabase = createClient();
+  const { toast } = useToast();
+
+  const fetchUserAndClasses = async () => {
+    setLoading(true);
+    
+    const { data: { user } } = await supabase.auth.getUser();
+    setCurrentUser(user);
+
+    if (!user) {
+        setLoading(false);
+        return;
+    }
+
+    const { data: classData, error } = await supabase
+      .from('classes')
+      .select('*, class_members(user_id)');
+
+    if (error) {
+      console.error("Error fetching classes:", error);
+      toast({ variant: 'destructive', title: 'Error', description: 'Failed to fetch classes.' });
+    } else if (classData) {
+      const processedClasses = classData.map(c => ({
+        ...c,
+        is_member: c.class_members.some(m => m.user_id === user.id)
+      }));
+      setClasses(processedClasses);
+    }
+    setLoading(false);
+  };
 
   useEffect(() => {
-    const fetchUserAndClasses = async () => {
-      setLoading(true);
-      
-      const { data: { user } } = await supabase.auth.getUser();
-      setCurrentUser(user);
-
-      const { data: classData, error } = await supabase
-        .from('classes')
-        .select('*');
-
-      if (error) {
-        console.error("Error fetching classes:", error);
-      } else if (classData) {
-        setClasses(classData.map(c => ({...c, link: 'https://example.com/class1'})));
-      }
-      setLoading(false);
-    };
-
     fetchUserAndClasses();
   }, [supabase]);
 
+  const handleJoinClass = async (classId: string) => {
+    if (!currentUser) {
+      toast({ variant: 'destructive', title: 'Not logged in', description: 'You must be logged in to join a class.' });
+      return;
+    }
+
+    setJoiningClass(classId);
+
+    const { error } = await supabase.from('class_members').insert({
+        class_id: classId,
+        user_id: currentUser.id,
+    });
+
+    if (error) {
+      console.error("Error joining class:", error);
+      toast({ variant: 'destructive', title: 'Failed to Join', description: error.message });
+    } else {
+      toast({ title: 'Successfully Joined!', description: 'You are now a member of the class.' });
+      // Refresh class list to update UI
+      fetchUserAndClasses();
+    }
+    setJoiningClass(null);
+  }
 
   return (
     <>
@@ -71,25 +107,26 @@ export default function ClassPage() {
                       <div className="flex-1">
                           <CardTitle>{classItem.name}</CardTitle>
                           {classItem.description && <p className="text-sm text-muted-foreground mt-1">{classItem.description}</p>}
-                          {classItem.link && (
-                            <a href={classItem.link} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-sm text-primary hover:underline mt-2">
-                                <ExternalLink className="h-3 w-3" />
-                                {classItem.link}
-                            </a>
-                          )}
                       </div>
                   </div>
               </CardHeader>
               <CardFooter>
-                   {classItem.created_by !== currentUser?.id ? (
-                      <Button className="w-full">Join</Button>
+                   {classItem.created_by === currentUser?.id || classItem.is_member ? (
+                      <Link href={`/class/${classItem.id}`} className="w-full">
+                        <Button variant="secondary" className="w-full">
+                            <Video className="mr-2 h-4 w-4"/>
+                            View Channel
+                        </Button>
+                      </Link>
                   ) : (
-                    <Link href={`/class/${classItem.id}`} className="w-full">
-                      <Button variant="secondary" className="w-full">
-                          <Video className="mr-2 h-4 w-4"/>
-                          View Channel
-                      </Button>
-                    </Link>
+                    <Button 
+                      className="w-full" 
+                      onClick={() => handleJoinClass(classItem.id)}
+                      disabled={joiningClass === classItem.id}
+                    >
+                      {joiningClass === classItem.id && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                      Join
+                    </Button>
                   )}
               </CardFooter>
             </Card>
