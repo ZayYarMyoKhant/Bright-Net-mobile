@@ -25,7 +25,7 @@ type Message = {
     created_at: string;
     user_id: string;
     profiles: Profile;
-    is_read?: boolean; // New property to track read status
+    is_read?: boolean; 
 };
 
 const ChatMessage = ({ message, isSender }: { message: Message, isSender: boolean }) => {
@@ -69,7 +69,7 @@ const ChatMessage = ({ message, isSender }: { message: Message, isSender: boolea
 };
 
 
-export default function ClassChannelPage({ params: paramsPromise }: { params: Promise<{ id: string }> }) {
+export default function ClassChannelPage({ params: paramsPromise }: { params: Promise<{ id:string }> }) {
   const params = use(paramsPromise);
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState("");
@@ -81,12 +81,47 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const supabase = createClient();
 
-  // Scrolls to the bottom of the chat
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // Marks messages as read when the component mounts or when new messages arrive
+  const fetchInitialData = useCallback(async () => {
+    setLoading(true);
+
+    const { data: { user } } = await supabase.auth.getUser();
+    setCurrentUser(user);
+
+    if (user) {
+      const { data: profile } = await supabase.from('profiles').select('username, avatar_url').eq('id', user.id).single();
+      setCurrentUserProfile(profile);
+    }
+    
+    const { data: classData } = await supabase.from('classes').select('name').eq('id', params.id).single();
+    if (classData) {
+      setClassInfo({
+        id: params.id,
+        name: classData.name,
+        avatarFallback: classData.name.charAt(0),
+      });
+    }
+
+    const { data: initialMessages } = await supabase
+      .from('class_messages')
+      .select(`*, profiles (username, avatar_url), message_read_status(reader_id)`)
+      .eq('class_id', params.id)
+      .order('created_at', { ascending: true });
+      
+    if (initialMessages && user) {
+      const processedMessages = initialMessages.map((msg: any) => ({
+        ...msg,
+        is_read: msg.message_read_status.some((status: any) => status.reader_id !== msg.user_id),
+      }));
+      setMessages(processedMessages as Message[]);
+    }
+    
+    setLoading(false);
+  }, [params.id, supabase]);
+
   const markMessagesAsRead = useCallback(async (msgs: Message[], user: SupabaseUser) => {
     const unreadMessageIds = msgs
       .filter(m => m.user_id !== user.id && !m.is_read)
@@ -100,110 +135,63 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
     }));
     
     await supabase.from('message_read_status').upsert(readReceipts, {
-      onConflict: 'message_id,reader_id' // Ignore if the user has already read this message
+      onConflict: 'message_id,reader_id'
     });
-
   }, [supabase]);
 
+  useEffect(() => {
+    fetchInitialData();
+  }, [fetchInitialData]);
+
+  useEffect(() => {
+    if (messages.length > 0 && currentUser) {
+      markMessagesAsRead(messages, currentUser);
+    }
+  }, [messages, currentUser, markMessagesAsRead]);
 
   const handleNewMessage = useCallback((newMessagePayload: Message) => {
     setMessages((prevMessages) => {
       if (prevMessages.some(msg => msg.id === newMessagePayload.id)) {
         return prevMessages;
       }
-      const newMessages = [...prevMessages, newMessagePayload];
-      if (currentUser) {
-        markMessagesAsRead(newMessages, currentUser);
-      }
-      return newMessages;
+      return [...prevMessages, newMessagePayload];
     });
-  }, [currentUser, markMessagesAsRead]);
+  }, []);
 
-  // Handles real-time updates for read status
   const handleReadStatusUpdate = useCallback((payload: any) => {
-      setMessages(prevMessages => 
-        prevMessages.map(msg => 
-            msg.id === payload.new.message_id 
-            ? { ...msg, is_read: true } 
-            : msg
-        )
-      );
+    setMessages(prevMessages => 
+      prevMessages.map(msg => 
+          msg.id === payload.new.message_id 
+          ? { ...msg, is_read: true } 
+          : msg
+      )
+    );
   }, []);
 
   useEffect(() => {
-    const setupPage = async () => {
-      setLoading(true);
-
-      const { data: { user } } = await supabase.auth.getUser();
-      setCurrentUser(user);
-
-      if(user) {
-        const { data: profile } = await supabase.from('profiles').select('username, avatar_url').eq('id', user.id).single();
-        setCurrentUserProfile(profile);
-      }
-      
-      const { data: classData, error: classError } = await supabase
-        .from('classes')
-        .select('name')
-        .eq('id', params.id)
-        .single();
-      
-      if (classData) {
-        setClassInfo({
-          id: params.id,
-          name: classData.name,
-          avatarFallback: classData.name.charAt(0),
-        });
-      } else {
-         console.error(classError);
-      }
-
-      // Fetch messages and their read status
-      const { data: initialMessages, error: messagesError } = await supabase
-        .from('class_messages')
-        .select(`*, profiles (username, avatar_url), message_read_status(reader_id)`)
-        .eq('class_id', params.id)
-        .order('created_at', { ascending: true });
-        
-      if (initialMessages && user) {
-        const processedMessages = initialMessages.map((msg: any) => ({
-          ...msg,
-          is_read: msg.message_read_status.some((status: any) => status.reader_id !== msg.user_id),
-        }));
-        setMessages(processedMessages as Message[]);
-        markMessagesAsRead(processedMessages as Message[], user);
-      } else if(messagesError) {
-        console.error(messagesError);
-      }
-      
-      setLoading(false);
-    };
-    setupPage();
-
     const messagesChannel = supabase.channel(`class-chat-${params.id}`)
-        .on<Message>(
-            'postgres_changes',
-            { event: 'INSERT', schema: 'public', table: 'class_messages', filter: `class_id=eq.${params.id}` },
-            async (payload) => {
-                const { data: profile } = await supabase.from('profiles').select('username, avatar_url').eq('id', payload.new.user_id).single();
-                if(profile){
-                    const newMessageWithProfile = { ...payload.new, profiles: profile, is_read: false } as Message;
-                    handleNewMessage(newMessageWithProfile);
-                }
-            }
-        )
-        .on(
-            'postgres_changes',
-            { event: 'INSERT', schema: 'public', table: 'message_read_status' },
-            handleReadStatusUpdate
-        )
-        .subscribe();
+      .on<Message>(
+          'postgres_changes',
+          { event: 'INSERT', schema: 'public', table: 'class_messages', filter: `class_id=eq.${params.id}` },
+          async (payload) => {
+              const { data: profile } = await supabase.from('profiles').select('username, avatar_url').eq('id', payload.new.user_id).single();
+              if(profile){
+                  const newMessageWithProfile = { ...payload.new, profiles: profile, is_read: false } as Message;
+                  handleNewMessage(newMessageWithProfile);
+              }
+          }
+      )
+      .on(
+          'postgres_changes',
+          { event: 'INSERT', schema: 'public', table: 'message_read_status' },
+          (payload) => handleReadStatusUpdate(payload)
+      )
+      .subscribe();
 
     return () => {
-        supabase.removeChannel(messagesChannel);
+      supabase.removeChannel(messagesChannel);
     };
-
-  }, [params.id, supabase, currentUser?.id, handleNewMessage, handleReadStatusUpdate, markMessagesAsRead]);
+  }, [params.id, supabase, handleNewMessage, handleReadStatusUpdate]);
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -212,27 +200,13 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
     const content = newMessage;
     setNewMessage("");
 
-    // Optimistic UI update
-    const optimisticMessage: Message = {
-      id: `temp-${Date.now()}`,
-      content: content,
-      created_at: new Date().toISOString(),
-      user_id: currentUser.id,
-      profiles: currentUserProfile,
-      is_read: false
-    };
-    // Don't use handleNewMessage for optimistic updates to avoid duplicate read receipts
-    setMessages(prev => [...prev, optimisticMessage]);
-
-
     const { error } = await supabase.from('class_messages').insert({
         content: content,
         class_id: classInfo.id,
         user_id: currentUser.id
     });
 
-     if (error) {
-        setMessages(prev => prev.filter(m => m.id !== optimisticMessage.id)); // Revert on error
+    if (error) {
         console.error("Error sending message:", error);
     }
   }
