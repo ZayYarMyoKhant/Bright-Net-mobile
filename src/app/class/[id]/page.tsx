@@ -5,7 +5,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { ArrowLeft, Video, MoreVertical, Image as ImageIcon, Send, Smile, Mic, Trash2, Loader2, Check } from "lucide-react";
+import { ArrowLeft, Video, MoreVertical, Image as ImageIcon, Send, Smile, Mic, Trash2, Loader2, Check, CheckCheck } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { use, useState, useRef, useEffect, useCallback } from "react";
@@ -25,6 +25,7 @@ type Message = {
     created_at: string;
     user_id: string;
     profiles: Profile;
+    is_read?: boolean; // New property to track read status
 };
 
 const ChatMessage = ({ message, isSender }: { message: Message, isSender: boolean }) => {
@@ -58,7 +59,9 @@ const ChatMessage = ({ message, isSender }: { message: Message, isSender: boolea
                 </DropdownMenu>
                 <div className="flex items-center gap-1.5">
                     <p className="text-xs text-muted-foreground">{sentTime}</p>
-                    {isSender && <Check className="h-4 w-4 text-primary" />}
+                    {isSender && (
+                      message.is_read ? <CheckCheck className="h-4 w-4 text-primary" /> : <Check className="h-4 w-4 text-muted-foreground" />
+                    )}
                 </div>
             </div>
         </div>
@@ -78,18 +81,53 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const supabase = createClient();
 
+  // Scrolls to the bottom of the chat
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
+  // Marks messages as read when the component mounts or when new messages arrive
+  const markMessagesAsRead = useCallback(async (msgs: Message[], user: SupabaseUser) => {
+    const unreadMessageIds = msgs
+      .filter(m => m.user_id !== user.id && !m.is_read)
+      .map(m => m.id);
+
+    if (unreadMessageIds.length === 0) return;
+
+    const readReceipts = unreadMessageIds.map(message_id => ({
+        message_id,
+        reader_id: user.id,
+    }));
+    
+    await supabase.from('message_read_status').upsert(readReceipts, {
+      onConflict: 'message_id,reader_id' // Ignore if the user has already read this message
+    });
+
+  }, [supabase]);
+
+
   const handleNewMessage = useCallback((newMessagePayload: Message) => {
     setMessages((prevMessages) => {
-      // Avoid adding duplicate messages
       if (prevMessages.some(msg => msg.id === newMessagePayload.id)) {
         return prevMessages;
       }
-      return [...prevMessages, newMessagePayload];
+      const newMessages = [...prevMessages, newMessagePayload];
+      if (currentUser) {
+        markMessagesAsRead(newMessages, currentUser);
+      }
+      return newMessages;
     });
+  }, [currentUser, markMessagesAsRead]);
+
+  // Handles real-time updates for read status
+  const handleReadStatusUpdate = useCallback((payload: any) => {
+      setMessages(prevMessages => 
+        prevMessages.map(msg => 
+            msg.id === payload.new.message_id 
+            ? { ...msg, is_read: true } 
+            : msg
+        )
+      );
   }, []);
 
   useEffect(() => {
@@ -120,15 +158,21 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
          console.error(classError);
       }
 
+      // Fetch messages and their read status
       const { data: initialMessages, error: messagesError } = await supabase
         .from('class_messages')
-        .select(`*, profiles (username, avatar_url)`)
+        .select(`*, profiles (username, avatar_url), message_read_status(reader_id)`)
         .eq('class_id', params.id)
         .order('created_at', { ascending: true });
         
-      if (initialMessages) {
-        setMessages(initialMessages as Message[]);
-      } else {
+      if (initialMessages && user) {
+        const processedMessages = initialMessages.map((msg: any) => ({
+          ...msg,
+          is_read: msg.message_read_status.some((status: any) => status.reader_id !== msg.user_id),
+        }));
+        setMessages(processedMessages as Message[]);
+        markMessagesAsRead(processedMessages as Message[], user);
+      } else if(messagesError) {
         console.error(messagesError);
       }
       
@@ -136,33 +180,30 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
     };
     setupPage();
 
-    const channel = supabase.channel(`class-chat-${params.id}`)
+    const messagesChannel = supabase.channel(`class-chat-${params.id}`)
         .on<Message>(
             'postgres_changes',
-            { 
-                event: 'INSERT', 
-                schema: 'public', 
-                table: 'class_messages',
-                filter: `class_id=eq.${params.id}`
-            },
+            { event: 'INSERT', schema: 'public', table: 'class_messages', filter: `class_id=eq.${params.id}` },
             async (payload) => {
-                // Fetch profile for the new message if it's not from the current user
-                if (payload.new.user_id !== currentUser?.id) {
-                    const { data: profile } = await supabase.from('profiles').select('username, avatar_url').eq('id', payload.new.user_id).single();
-                    if(profile){
-                        const newMessageWithProfile = { ...payload.new, profiles: profile } as Message;
-                        handleNewMessage(newMessageWithProfile);
-                    }
+                const { data: profile } = await supabase.from('profiles').select('username, avatar_url').eq('id', payload.new.user_id).single();
+                if(profile){
+                    const newMessageWithProfile = { ...payload.new, profiles: profile, is_read: false } as Message;
+                    handleNewMessage(newMessageWithProfile);
                 }
             }
+        )
+        .on(
+            'postgres_changes',
+            { event: 'INSERT', schema: 'public', table: 'message_read_status' },
+            handleReadStatusUpdate
         )
         .subscribe();
 
     return () => {
-        supabase.removeChannel(channel);
+        supabase.removeChannel(messagesChannel);
     };
 
-  }, [params.id, supabase, currentUser?.id, handleNewMessage]);
+  }, [params.id, supabase, currentUser?.id, handleNewMessage, handleReadStatusUpdate, markMessagesAsRead]);
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -177,9 +218,11 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
       content: content,
       created_at: new Date().toISOString(),
       user_id: currentUser.id,
-      profiles: currentUserProfile
+      profiles: currentUserProfile,
+      is_read: false
     };
-    handleNewMessage(optimisticMessage);
+    // Don't use handleNewMessage for optimistic updates to avoid duplicate read receipts
+    setMessages(prev => [...prev, optimisticMessage]);
 
 
     const { error } = await supabase.from('class_messages').insert({
@@ -189,8 +232,7 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
     });
 
      if (error) {
-        // Revert optimistic update on error
-        setMessages(prev => prev.filter(m => m.id !== optimisticMessage.id));
+        setMessages(prev => prev.filter(m => m.id !== optimisticMessage.id)); // Revert on error
         console.error("Error sending message:", error);
     }
   }
