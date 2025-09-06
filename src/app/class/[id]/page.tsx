@@ -5,25 +5,30 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { ArrowLeft, Video, MoreVertical, Image as ImageIcon, Send, Smile, Mic, Trash2, Loader2, User } from "lucide-react";
+import { ArrowLeft, Video, MoreVertical, Image as ImageIcon, Send, Smile, Mic, Trash2, Loader2, Check } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { use, useState, useRef, useEffect } from "react";
+import { use, useState, useRef, useEffect, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { User as SupabaseUser } from "@supabase/supabase-js";
+import { format } from 'date-fns';
+
+
+type Profile = {
+    username: string;
+    avatar_url: string;
+};
 
 type Message = {
     id: string;
     content: string;
     created_at: string;
     user_id: string;
-    profiles: {
-        username: string;
-        avatar_url: string;
-    };
+    profiles: Profile;
 };
 
 const ChatMessage = ({ message, isSender }: { message: Message, isSender: boolean }) => {
+    const sentTime = format(new Date(message.created_at), 'h:mm a');
     return (
         <div className={`flex items-start gap-3 ${isSender ? 'justify-end' : 'justify-start'}`}>
              {!isSender && (
@@ -34,22 +39,28 @@ const ChatMessage = ({ message, isSender }: { message: Message, isSender: boolea
                     </Avatar>
                  </Link>
             )}
-            <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                    <div className="cursor-pointer">
-                        <div className={`max-w-xs rounded-lg px-4 py-2 ${isSender ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}>
-                            {!isSender && <p className="font-semibold text-xs mb-1 text-primary">{message.profiles.username}</p>}
-                            {message.content}
+            <div className="flex flex-col gap-1 items-end">
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                        <div className="cursor-pointer">
+                            <div className={`max-w-xs rounded-lg px-3 py-2 ${isSender ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}>
+                                {!isSender && <p className="font-semibold text-xs mb-1 text-primary">{message.profiles.username}</p>}
+                                <p className="text-sm">{message.content}</p>
+                            </div>
                         </div>
-                    </div>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent>
-                    <DropdownMenuItem className="text-destructive">
-                        <Trash2 className="mr-2 h-4 w-4" />
-                        <span>Delete</span>
-                    </DropdownMenuItem>
-                </DropdownMenuContent>
-            </DropdownMenu>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent>
+                        <DropdownMenuItem className="text-destructive">
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            <span>Delete</span>
+                        </DropdownMenuItem>
+                    </DropdownMenuContent>
+                </DropdownMenu>
+                <div className="flex items-center gap-1.5">
+                    <p className="text-xs text-muted-foreground">{sentTime}</p>
+                    {isSender && <Check className="h-4 w-4 text-primary" />}
+                </div>
+            </div>
         </div>
     )
 };
@@ -61,6 +72,7 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
   const [newMessage, setNewMessage] = useState("");
   const [loading, setLoading] = useState(true);
   const [currentUser, setCurrentUser] = useState<SupabaseUser | null>(null);
+  const [currentUserProfile, setCurrentUserProfile] = useState<Profile | null>(null);
   const [classInfo, setClassInfo] = useState<{ id: string; name: string; avatarFallback: string } | null>(null);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -70,12 +82,27 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
+  const handleNewMessage = useCallback((newMessagePayload: Message) => {
+    setMessages((prevMessages) => {
+      // Avoid adding duplicate messages
+      if (prevMessages.some(msg => msg.id === newMessagePayload.id)) {
+        return prevMessages;
+      }
+      return [...prevMessages, newMessagePayload];
+    });
+  }, []);
+
   useEffect(() => {
     const setupPage = async () => {
       setLoading(true);
 
       const { data: { user } } = await supabase.auth.getUser();
       setCurrentUser(user);
+
+      if(user) {
+        const { data: profile } = await supabase.from('profiles').select('username, avatar_url').eq('id', user.id).single();
+        setCurrentUserProfile(profile);
+      }
       
       const { data: classData, error: classError } = await supabase
         .from('classes')
@@ -100,7 +127,7 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
         .order('created_at', { ascending: true });
         
       if (initialMessages) {
-        setMessages(initialMessages);
+        setMessages(initialMessages as Message[]);
       } else {
         console.error(messagesError);
       }
@@ -119,10 +146,13 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
                 filter: `class_id=eq.${params.id}`
             },
             async (payload) => {
-                const { data: profile } = await supabase.from('profiles').select('username, avatar_url').eq('id', payload.new.user_id).single();
-                if(profile){
-                    const newMessageWithProfile = { ...payload.new, profiles: profile };
-                    setMessages((prevMessages) => [...prevMessages, newMessageWithProfile]);
+                // Fetch profile for the new message if it's not from the current user
+                if (payload.new.user_id !== currentUser?.id) {
+                    const { data: profile } = await supabase.from('profiles').select('username, avatar_url').eq('id', payload.new.user_id).single();
+                    if(profile){
+                        const newMessageWithProfile = { ...payload.new, profiles: profile } as Message;
+                        handleNewMessage(newMessageWithProfile);
+                    }
                 }
             }
         )
@@ -132,20 +162,37 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
         supabase.removeChannel(channel);
     };
 
-  }, [params.id, supabase]);
+  }, [params.id, supabase, currentUser?.id, handleNewMessage]);
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (newMessage.trim() === "" || !currentUser || !classInfo) return;
+    if (newMessage.trim() === "" || !currentUser || !classInfo || !currentUserProfile) return;
 
     const content = newMessage;
     setNewMessage("");
 
-    await supabase.from('class_messages').insert({
+    // Optimistic UI update
+    const optimisticMessage: Message = {
+      id: `temp-${Date.now()}`,
+      content: content,
+      created_at: new Date().toISOString(),
+      user_id: currentUser.id,
+      profiles: currentUserProfile
+    };
+    handleNewMessage(optimisticMessage);
+
+
+    const { error } = await supabase.from('class_messages').insert({
         content: content,
         class_id: classInfo.id,
         user_id: currentUser.id
     });
+
+     if (error) {
+        // Revert optimistic update on error
+        setMessages(prev => prev.filter(m => m.id !== optimisticMessage.id));
+        console.error("Error sending message:", error);
+    }
   }
 
   if (loading || !classInfo) {
