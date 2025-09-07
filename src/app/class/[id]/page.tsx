@@ -79,7 +79,6 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
   const [classInfo, setClassInfo] = useState<{ id: string; name: string; avatarFallback: string } | null>(null);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
   const supabase = createClient();
 
   useEffect(() => {
@@ -94,7 +93,7 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
 
     if (user) {
       const { data: profile } = await supabase.from('profiles').select('username, avatar_url').eq('id', user.id).single();
-      setCurrentUserProfile(profile);
+      setCurrentUserProfile(profile as Profile);
     }
     
     const { data: classData } = await supabase.from('classes').select('name').eq('id', params.id).single();
@@ -142,9 +141,6 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
 
   useEffect(() => {
     fetchInitialData();
-    if (typeof window !== 'undefined') {
-        audioRef.current = new Audio('/bubble-pop.mp3');
-    }
   }, [fetchInitialData]);
 
   useEffect(() => {
@@ -153,49 +149,47 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
     }
   }, [messages, currentUser, markMessagesAsRead]);
 
-  const handleNewMessage = useCallback((newMessagePayload: Message) => {
-    setMessages((prevMessages) => {
-      if (prevMessages.some(msg => msg.id === newMessagePayload.id)) {
-        return prevMessages;
-      }
-      return [...prevMessages, newMessagePayload];
-    });
-  }, []);
-
-  const handleReadStatusUpdate = useCallback((payload: any) => {
-    setMessages(prevMessages => 
-      prevMessages.map(msg => 
-          msg.id === payload.new.message_id 
-          ? { ...msg, is_read: true } 
-          : msg
-      )
-    );
-  }, []);
-
   useEffect(() => {
+    const handleNewMessage = async (payload: any) => {
+        const { data: profile } = await supabase.from('profiles').select('username, avatar_url').eq('id', payload.new.user_id).single();
+        if(profile){
+            const newMessageWithProfile = { ...payload.new, profiles: profile, is_read: false } as Message;
+             setMessages((prevMessages) => {
+                if (prevMessages.some(msg => msg.id === newMessageWithProfile.id)) {
+                    return prevMessages;
+                }
+                return [...prevMessages, newMessageWithProfile];
+            });
+        }
+    };
+    
+    const handleReadStatusUpdate = (payload: any) => {
+        setMessages(prevMessages => 
+          prevMessages.map(msg => 
+              msg.id === payload.new.message_id 
+              ? { ...msg, is_read: true } 
+              : msg
+          )
+        );
+    };
+
     const messagesChannel = supabase.channel(`class-chat-${params.id}`)
-      .on<Message>(
+      .on(
           'postgres_changes',
           { event: 'INSERT', schema: 'public', table: 'class_messages', filter: `class_id=eq.${params.id}` },
-          async (payload) => {
-              const { data: profile } = await supabase.from('profiles').select('username, avatar_url').eq('id', payload.new.user_id).single();
-              if(profile){
-                  const newMessageWithProfile = { ...payload.new, profiles: profile, is_read: false } as Message;
-                  handleNewMessage(newMessageWithProfile);
-              }
-          }
+          handleNewMessage
       )
       .on(
           'postgres_changes',
           { event: 'INSERT', schema: 'public', table: 'message_read_status' },
-          (payload) => handleReadStatusUpdate(payload)
+          handleReadStatusUpdate
       )
       .subscribe();
 
     return () => {
       supabase.removeChannel(messagesChannel);
     };
-  }, [params.id, supabase, handleNewMessage, handleReadStatusUpdate]);
+  }, [params.id, supabase]);
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -204,10 +198,14 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
     const content = newMessage;
     setNewMessage("");
 
-     // Play sound
-    if(audioRef.current) {
-        audioRef.current.play().catch(error => console.error("Audio play failed:", error));
+    // Play sound
+    try {
+        const audio = new Audio('/bubble-pop.mp3');
+        audio.play().catch(error => console.error("Audio play failed:", error));
+    } catch(e) {
+        console.error("Audio instantiation failed:", e);
     }
+
 
     const { error } = await supabase.from('class_messages').insert({
         content: content,
@@ -292,5 +290,3 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
     </div>
   );
 }
-
-    
