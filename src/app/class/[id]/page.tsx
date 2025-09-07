@@ -155,34 +155,43 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
   }, [supabase]);
 
   const handleReadStatusUpdate = useCallback((payload: any) => {
-      setMessages(prevMessages => 
-        prevMessages.map(msg => 
-            msg.id === payload.new.message_id && msg.user_id !== payload.new.reader_id
-            ? { ...msg, is_read: true } 
-            : msg
-        )
-      );
-      if (currentUser) {
-        markMessagesAsRead(messages, currentUser);
-      }
-  }, [currentUser, markMessagesAsRead, messages]);
+    setMessages(prevMessages => {
+        const updatedMessages = prevMessages.map(msg => {
+            if (msg.id === payload.new.message_id) {
+                // To be safe, check if reader_id is not the message sender before marking as read
+                const isOwnMessage = msg.user_id === payload.new.reader_id;
+                return { ...msg, is_read: !isOwnMessage ? true : msg.is_read };
+            }
+            return msg;
+        });
+
+        // Mark all relevant messages as read for the current user
+        if (currentUser) {
+            markMessagesAsRead(updatedMessages, currentUser);
+        }
+        return updatedMessages;
+    });
+}, [currentUser, markMessagesAsRead, supabase]);
 
   useEffect(() => {
-    const messagesChannel = supabase.channel(`class-chat-${params.id}`)
-      .on(
-          'postgres_changes',
-          { event: 'INSERT', schema: 'public', table: 'class_messages', filter: `class_id=eq.${params.id}` },
-          handleNewMessage
-      )
-      .on(
-          'postgres_changes',
-          { event: 'INSERT', schema: 'public', table: 'message_read_status' },
-          handleReadStatusUpdate
-      )
-      .subscribe();
+    const channel = supabase.channel(`class-chat-${params.id}`);
+
+    const messageSubscription = channel.on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'class_messages', filter: `class_id=eq.${params.id}` },
+        handleNewMessage
+    );
+
+    const readStatusSubscription = channel.on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'message_read_status' },
+        handleReadStatusUpdate
+    );
+    
+    channel.subscribe();
 
     return () => {
-      supabase.removeChannel(messagesChannel);
+      supabase.removeChannel(channel);
     };
   }, [params.id, supabase, handleNewMessage, handleReadStatusUpdate]);
 
@@ -196,13 +205,6 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
 
     const content = newMessage;
     setNewMessage("");
-
-    try {
-        const audio = new Audio('/bubble-pop.mp3');
-        await audio.play();
-    } catch(err) {
-        console.error("Audio play failed:", err);
-    }
 
     const { error } = await supabase.from('class_messages').insert({
         content: content,
