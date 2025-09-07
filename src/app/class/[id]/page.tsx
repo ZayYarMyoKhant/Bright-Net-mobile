@@ -36,22 +36,6 @@ type Message = {
 
 const ChatMessage = ({ message, isSender }: { message: Message, isSender: boolean }) => {
     const sentTime = format(new Date(message.created_at), 'h:mm a');
-    const pressTimer = useRef<NodeJS.Timeout>();
-    const [isMenuOpen, setIsMenuOpen] = useState(false);
-
-
-    const handleInteractionStart = () => {
-        pressTimer.current = setTimeout(() => {
-            setIsMenuOpen(true);
-        }, 2000);
-    };
-    
-    const handleInteractionEnd = () => {
-        if (pressTimer.current) {
-            clearTimeout(pressTimer.current);
-        }
-    };
-    
 
     const renderContent = () => {
         if (message.media_type === 'image' && message.media_url) {
@@ -92,50 +76,45 @@ const ChatMessage = ({ message, isSender }: { message: Message, isSender: boolea
     }
 
     return (
-        <div className={`flex items-start gap-3 ${isSender ? 'justify-end' : 'justify-start'}`}>
+        <div className={`flex items-end gap-2 ${isSender ? 'justify-end' : 'justify-start'}`}>
              {!isSender && (
                  <Link href={`/profile/${message.profiles.username}`}>
-                    <Avatar className="h-8 w-8">
+                    <Avatar className="h-8 w-8 self-start">
                         <AvatarImage src={message.profiles.avatar_url} alt={message.profiles.username} />
                         <AvatarFallback>{message.profiles.username.charAt(0).toUpperCase()}</AvatarFallback>
                     </Avatar>
                  </Link>
             )}
-            <div className="flex flex-col gap-1 items-end">
-                <DropdownMenu open={isMenuOpen} onOpenChange={setIsMenuOpen}>
-                    <DropdownMenuTrigger asChild>
-                         <div 
-                             onMouseDown={handleInteractionStart}
-                             onMouseUp={handleInteractionEnd}
-                             onTouchStart={handleInteractionStart}
-                             onTouchEnd={handleInteractionEnd}
-                             className="cursor-pointer"
-                         >
-                            <div className={cn(
-                                "max-w-xs rounded-lg",
-                                message.media_type === 'audio' ? '' : 'px-3 py-2',
-                                isSender ? 'bg-primary text-primary-foreground' : 'bg-muted'
-                            )}>
-                                {!isSender && <p className="font-semibold text-xs mb-1 text-primary">{message.profiles.username}</p>}
-                                {renderContent()}
-                                {message.media_url && message.content && message.media_type !== 'audio' && <p className="text-sm mt-1">{message.content}</p>}
-                            </div>
-                        </div>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent>
-                        <DropdownMenuItem className="text-destructive">
-                            <Trash2 className="mr-2 h-4 w-4" />
-                            <span>Delete</span>
-                        </DropdownMenuItem>
-                    </DropdownMenuContent>
-                </DropdownMenu>
-                <div className="flex items-center gap-1.5">
+             <div className="flex flex-col gap-1 items-start max-w-sm">
+                <div className={cn(
+                    "max-w-xs rounded-lg",
+                    message.media_type === 'audio' ? '' : 'px-3 py-2',
+                    isSender ? 'bg-primary text-primary-foreground' : 'bg-muted'
+                )}>
+                    {!isSender && <p className="font-semibold text-xs mb-1 text-primary">{message.profiles.username}</p>}
+                    {renderContent()}
+                    {message.media_url && message.content && message.media_type !== 'audio' && <p className="text-sm mt-1">{message.content}</p>}
+                </div>
+                <div className="flex items-center gap-1.5 px-1">
                     <p className="text-xs text-muted-foreground">{sentTime}</p>
                     {isSender && (
                       message.is_read ? <CheckCheck className="h-4 w-4 text-blue-500" /> : <Check className="h-4 w-4 text-muted-foreground" />
                     )}
                 </div>
             </div>
+            <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                     <Button variant="ghost" size="icon" className="h-8 w-8 self-center">
+                        <MoreVertical className="h-4 w-4" />
+                     </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent>
+                    <DropdownMenuItem className="text-destructive">
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        <span>Delete</span>
+                    </DropdownMenuItem>
+                </DropdownMenuContent>
+            </DropdownMenu>
         </div>
     )
 };
@@ -353,10 +332,21 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
         else if (mediaFile.type.startsWith('video')) media_type = 'video';
         else if (mediaFile.type.startsWith('audio')) {
             media_type = 'audio';
-            const audio = new Audio(media_url);
+            const audio = document.createElement('audio');
+            audio.src = URL.createObjectURL(mediaFile);
             audio.addEventListener('loadedmetadata', () => {
                 media_duration = audio.duration;
+                 supabase.from('class_messages').insert({
+                    content: newMessage || null,
+                    class_id: classInfo.id,
+                    user_id: currentUser.id,
+                    media_url,
+                    media_type,
+                    media_duration
+                });
             }, { once: true });
+            
+            // This part is now handled in the event listener
         }
     } else {
         media_type = 'text';
@@ -365,14 +355,17 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
 
     const content = newMessage;
     
-    await supabase.from('class_messages').insert({
-        content: content || null,
-        class_id: classInfo.id,
-        user_id: currentUser.id,
-        media_url,
-        media_type,
-        media_duration
-    });
+    // Only insert non-audio messages directly
+    if (media_type !== 'audio') {
+        await supabase.from('class_messages').insert({
+            content: content || null,
+            class_id: classInfo.id,
+            user_id: currentUser.id,
+            media_url,
+            media_type,
+            media_duration
+        });
+    }
 
     setNewMessage("");
     handleRemoveMedia();
@@ -402,12 +395,10 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
                     const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
                     const audioFile = new File([audioBlob], `voice-message-${Date.now()}.webm`, { type: 'audio/webm' });
                     audioChunksRef.current = [];
-                    setMediaFile(audioFile);
                     
+                    setMediaFile(audioFile);
                     // Ugly but we need to wait for state to update then send
-                    setTimeout(() => {
-                        handleSendMessage();
-                    }, 100);
+                    // We will trigger send from useEffect when mediaFile changes
                 };
 
             } catch (error) {
@@ -424,6 +415,13 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
             setIsRecording(true);
         }
     };
+    
+    // This effect will trigger the send message when an audio file is ready
+    useEffect(() => {
+        if (mediaFile && mediaFile.type.startsWith('audio/')) {
+            handleSendMessage();
+        }
+    }, [mediaFile]);
 
 
   if (loading || !classInfo) {
@@ -526,3 +524,4 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
     </div>
   );
 }
+
