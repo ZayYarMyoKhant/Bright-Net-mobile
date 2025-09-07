@@ -61,18 +61,20 @@ const ChatMessage = ({ message, isSender, currentUserId, onNewReaction }: { mess
             return (
                 <div className="relative h-48 w-48 rounded-lg overflow-hidden group">
                     <Image src={message.media_url} alt="Sent image" layout="fill" objectFit="cover" data-ai-hint="photo message" />
-                     <Link href={`/class/media/image/${encodeURIComponent(message.media_url)}`}>
-                        <div onClick={(e) => e.stopPropagation()} className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity">
+                     <Link href={`/class/media/image/${encodeURIComponent(message.media_url)}`} legacyBehavior passHref>
+                        <a onClick={(e) => e.stopPropagation()} target="_blank" rel="noopener noreferrer" className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity">
                             <Expand className="h-8 w-8 text-white" />
-                        </div>
+                        </a>
                     </Link>
                 </div>
             )
         }
         if (message.media_type === 'video' && message.media_url) {
              return (
-                <Link href={`/class/media/video/${encodeURIComponent(message.media_url)}`}>
+                <Link href={`/class/media/video/${encodeURIComponent(message.media_url)}`} legacyBehavior passHref>
+                  <a target="_blank" rel="noopener noreferrer">
                     <video src={message.media_url} controls className="max-w-60 rounded-lg" />
+                  </a>
                 </Link>
              )
         }
@@ -236,13 +238,11 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
     setMessages(prevMessages => {
         return prevMessages.map(msg => {
             if (msg.id === messageId) {
-                const existingReactionIndex = msg.reactions.findIndex(r => r.user_id === newReaction.user_id);
-                const newReactions = [...msg.reactions];
-                if (existingReactionIndex > -1) {
-                    newReactions.splice(existingReactionIndex, 1, newReaction);
-                } else {
-                    newReactions.push(newReaction);
-                }
+                // Remove existing reaction from the same user if any
+                const filteredReactions = msg.reactions.filter(r => r.user_id !== newReaction.user_id);
+                // Add the new reaction
+                const newReactions = [...filteredReactions, newReaction];
+
                 return { ...msg, reactions: newReactions };
             }
             return msg;
@@ -253,10 +253,7 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
 
    const handleNewMessage = useCallback(
     async (payload: any) => {
-        if (messages.some(msg => msg.id === payload.new.id)) {
-            return;
-        }
-
+        
       const { data: profileData } = await supabase
         .from('profiles')
         .select('username, avatar_url')
@@ -271,10 +268,15 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
           reactions: []
         };
         
-        setMessages((prevMessages) => [...prevMessages, newMessageWithProfile]);
+        setMessages((prevMessages) => {
+            if (prevMessages.some(msg => msg.id === newMessageWithProfile.id)) {
+                return prevMessages;
+            }
+            return [...prevMessages, newMessageWithProfile]
+        });
       }
     },
-    [supabase, messages]
+    [supabase]
   );
 
   const handleReadStatusUpdate = useCallback((payload: any) => {
@@ -286,6 +288,7 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
             return msg;
         });
 
+        // Avoid re-render if no change
         if (JSON.stringify(prevMessages) !== JSON.stringify(updatedMessages)) {
             return updatedMessages;
         }
@@ -295,20 +298,31 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
   
   const handleReactionUpdate = useCallback(async (payload: any) => {
      setMessages(prev => {
-        return prev.map(msg => {
-            if (msg.id === payload.new.message_id) {
-                // This is a simplified update. A more robust solution might need to refetch reactions.
-                const updatedReactions = [...msg.reactions];
-                const existingIndex = updatedReactions.findIndex(r => r.user_id === payload.new.user_id);
-                if (existingIndex !== -1) {
-                    updatedReactions[existingIndex] = { ...payload.new, profiles: { username: ''} };
-                } else {
-                    updatedReactions.push({ ...payload.new, profiles: { username: ''} });
-                }
-                 return { ...msg, reactions: updatedReactions };
-            }
-            return msg;
-        });
+        // Find the message to update
+        const messageIndex = prev.findIndex(msg => msg.id === payload.new.message_id);
+        if (messageIndex === -1) return prev;
+
+        const updatedMessages = [...prev];
+        const messageToUpdate = { ...updatedMessages[messageIndex] };
+        
+        // Find if the user already reacted
+        const reactionIndex = messageToUpdate.reactions.findIndex(r => r.user_id === payload.new.user_id);
+
+        if (reactionIndex > -1) {
+            // Update existing reaction
+            messageToUpdate.reactions[reactionIndex] = { ...messageToUpdate.reactions[reactionIndex], reaction: payload.new.reaction };
+        } else {
+             // Add new reaction (profile needs to be fetched or passed)
+             messageToUpdate.reactions.push({
+                reaction: payload.new.reaction,
+                user_id: payload.new.user_id,
+                profiles: { username: '...' } // Or fetch profile
+            });
+        }
+        
+        updatedMessages[messageIndex] = messageToUpdate;
+
+        return updatedMessages;
      });
   }, []);
 
@@ -398,9 +412,7 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
         'postgres_changes',
         { event: '*', schema: 'public', table: 'message_read_status' },
         (payload) => {
-            if (messages.some(m => m.id === payload.new.message_id)) {
-                handleReadStatusUpdate(payload);
-            }
+             handleReadStatusUpdate(payload);
         }
     );
 
@@ -415,7 +427,7 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [params.id, supabase, handleNewMessage, handleReadStatusUpdate, messages, handleReactionUpdate]);
+  }, [params.id, supabase, handleNewMessage, handleReadStatusUpdate, handleReactionUpdate]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -664,5 +676,3 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
     </div>
   );
 }
-
-    
