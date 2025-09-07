@@ -60,7 +60,7 @@ const ChatMessage = ({ message, isSender }: { message: Message, isSender: boolea
                 <div className="flex items-center gap-1.5">
                     <p className="text-xs text-muted-foreground">{sentTime}</p>
                     {isSender && (
-                      message.is_read ? <CheckCheck className="h-4 w-4 text-primary" /> : <Check className="h-4 w-4 text-muted-foreground" />
+                      message.is_read ? <CheckCheck className="h-4 w-4 text-blue-500" /> : <Check className="h-4 w-4 text-muted-foreground" />
                     )}
                 </div>
             </div>
@@ -75,7 +75,6 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
   const [newMessage, setNewMessage] = useState("");
   const [loading, setLoading] = useState(true);
   const [currentUser, setCurrentUser] = useState<SupabaseUser | null>(null);
-  const [currentUserProfile, setCurrentUserProfile] = useState<Profile | null>(null);
   const [classInfo, setClassInfo] = useState<{ id: string; name: string; avatarFallback: string } | null>(null);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -98,77 +97,90 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
     });
   }, [supabase]);
 
-  const fetchInitialData = useCallback(async () => {
-    setLoading(true);
+  useEffect(() => {
+    const fetchInitialData = async () => {
+      setLoading(true);
 
-    const { data: { user } } = await supabase.auth.getUser();
-    setCurrentUser(user);
-
-    if (user) {
-      const { data: profile } = await supabase.from('profiles').select('username, avatar_url').eq('id', user.id).single();
-      setCurrentUserProfile(profile as Profile);
-    }
-    
-    const { data: classData } = await supabase.from('classes').select('name').eq('id', params.id).single();
-    if (classData) {
-      setClassInfo({
-        id: params.id,
-        name: classData.name,
-        avatarFallback: classData.name.charAt(0),
-      });
-    }
-
-    const { data: initialMessages } = await supabase
-      .from('class_messages')
-      .select(`*, profiles (username, avatar_url), message_read_status(reader_id)`)
-      .eq('class_id', params.id)
-      .order('created_at', { ascending: true });
+      const { data: { user } } = await supabase.auth.getUser();
+      setCurrentUser(user);
       
-    if (initialMessages && user) {
-      const processedMessages = initialMessages.map((msg: any) => ({
-        ...msg,
-        is_read: msg.message_read_status.some((status: any) => status.reader_id !== msg.user_id),
-      }));
-      setMessages(processedMessages as Message[]);
-      markMessagesAsRead(processedMessages, user);
-    }
+      const { data: classData } = await supabase.from('classes').select('name').eq('id', params.id).single();
+      if (classData) {
+        setClassInfo({
+          id: params.id,
+          name: classData.name,
+          avatarFallback: classData.name.charAt(0),
+        });
+      }
+
+      if (user) {
+        const { data: initialMessages } = await supabase
+          .from('class_messages')
+          .select(`*, profiles (username, avatar_url), message_read_status(reader_id)`)
+          .eq('class_id', params.id)
+          .order('created_at', { ascending: true });
+          
+        if (initialMessages) {
+            const memberCountResult = await supabase
+              .from('class_members')
+              .select('user_id', { count: 'exact' })
+              .eq('class_id', params.id);
+            
+            const memberCount = memberCountResult.data?.length || 1;
+
+            const processedMessages = initialMessages.map((msg: any) => ({
+                ...msg,
+                is_read: msg.message_read_status.length >= (memberCount - 1),
+            }));
+            setMessages(processedMessages as Message[]);
+            markMessagesAsRead(processedMessages, user);
+        }
+      }
+      
+      setLoading(false);
+    };
     
-    setLoading(false);
+    fetchInitialData();
   }, [params.id, supabase, markMessagesAsRead]);
 
-  useEffect(() => {
-    fetchInitialData();
-  }, [fetchInitialData]);
-
   const handleNewMessage = useCallback(async (payload: any) => {
-    const { data } = await supabase.from('profiles').select('username, avatar_url').eq('id', payload.new.user_id).single();
-    if (data) {
-        const newMessageWithProfile = { ...payload.new, profiles: data, is_read: false } as Message;
-        setMessages((prevMessages) => {
-            if (prevMessages.some(msg => msg.id === newMessageWithProfile.id)) {
-                return prevMessages;
-            }
-            return [...prevMessages, newMessageWithProfile];
-        });
+    const { data: profileData } = await supabase
+      .from('profiles')
+      .select('username, avatar_url')
+      .eq('id', payload.new.user_id)
+      .single();
+
+    if (profileData) {
+      const newMessageWithProfile: Message = {
+        ...payload.new,
+        profiles: profileData,
+        is_read: false,
+      };
+      
+      setMessages((prevMessages) => {
+        if (prevMessages.some(msg => msg.id === newMessageWithProfile.id)) {
+          return prevMessages;
+        }
+        return [...prevMessages, newMessageWithProfile];
+      });
     }
   }, [supabase]);
 
-  const handleReadStatusUpdate = useCallback((payload: any) => {
+ const handleReadStatusUpdate = useCallback((payload: any) => {
     setMessages(prevMessages => {
         const updatedMessages = prevMessages.map(msg => {
             if (msg.id === payload.new.message_id) {
-                const isOwnMessage = msg.user_id === payload.new.reader_id;
-                return { ...msg, is_read: !isOwnMessage ? true : msg.is_read };
+                 return { ...msg, is_read: true };
             }
             return msg;
         });
 
-        if (currentUser) {
-            markMessagesAsRead(updatedMessages, currentUser);
+        if (JSON.stringify(prevMessages) !== JSON.stringify(updatedMessages)) {
+            return updatedMessages;
         }
-        return updatedMessages;
+        return prevMessages;
     });
-}, [currentUser, markMessagesAsRead]);
+}, []);
 
 
   useEffect(() => {
@@ -189,8 +201,8 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
     );
     
     channel.subscribe((status) => {
-        if (status !== 'SUBSCRIBED') {
-            return null;
+        if (status === 'SUBSCRIBED') {
+           // console.log('Subscribed to channel');
         }
     });
 
@@ -205,20 +217,16 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (newMessage.trim() === "" || !currentUser || !classInfo || !currentUserProfile) return;
+    if (newMessage.trim() === "" || !currentUser || !classInfo) return;
 
     const content = newMessage;
     setNewMessage("");
 
-    const { error } = await supabase.from('class_messages').insert({
+    await supabase.from('class_messages').insert({
         content: content,
         class_id: classInfo.id,
         user_id: currentUser.id
     });
-
-    if (error) {
-        console.error("Error sending message:", error);
-    }
   }
 
   if (loading || !classInfo) {
@@ -293,3 +301,5 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
     </div>
   );
 }
+
+    
