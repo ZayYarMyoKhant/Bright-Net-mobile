@@ -5,7 +5,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { ArrowLeft, Video, MoreVertical, Image as ImageIcon, Send, Smile, Mic, Trash2, Loader2, Check, CheckCheck } from "lucide-react";
+import { ArrowLeft, Video, MoreVertical, Image as ImageIcon, Send, Smile, Mic, Trash2, Loader2, Check, CheckCheck, X } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { use, useState, useRef, useEffect, useCallback } from "react";
@@ -21,15 +21,34 @@ type Profile = {
 
 type Message = {
     id: string;
-    content: string;
+    content: string | null;
     created_at: string;
     user_id: string;
     profiles: Profile;
-    is_read?: boolean; 
+    is_read?: boolean;
+    media_url?: string | null;
+    media_type?: 'image' | 'video' | 'text' | null;
 };
 
 const ChatMessage = ({ message, isSender }: { message: Message, isSender: boolean }) => {
     const sentTime = format(new Date(message.created_at), 'h:mm a');
+
+    const renderContent = () => {
+        if (message.media_type === 'image' && message.media_url) {
+            return (
+                <div className="relative h-48 w-48 rounded-lg overflow-hidden">
+                    <Image src={message.media_url} alt="Sent image" layout="fill" objectFit="cover" data-ai-hint="photo message" />
+                </div>
+            )
+        }
+        if (message.media_type === 'video' && message.media_url) {
+             return (
+                <video src={message.media_url} controls className="max-w-xs rounded-lg" />
+             )
+        }
+        return <p className="text-sm">{message.content}</p>;
+    }
+
     return (
         <div className={`flex items-start gap-3 ${isSender ? 'justify-end' : 'justify-start'}`}>
              {!isSender && (
@@ -46,7 +65,8 @@ const ChatMessage = ({ message, isSender }: { message: Message, isSender: boolea
                         <div className="cursor-pointer">
                             <div className={`max-w-xs rounded-lg px-3 py-2 ${isSender ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}>
                                 {!isSender && <p className="font-semibold text-xs mb-1 text-primary">{message.profiles.username}</p>}
-                                <p className="text-sm">{message.content}</p>
+                                {renderContent()}
+                                {message.media_url && message.content && <p className="text-sm mt-1">{message.content}</p>}
                             </div>
                         </div>
                     </DropdownMenuTrigger>
@@ -74,10 +94,14 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState("");
   const [loading, setLoading] = useState(true);
+  const [sending, setSending] = useState(false);
   const [currentUser, setCurrentUser] = useState<SupabaseUser | null>(null);
   const [classInfo, setClassInfo] = useState<{ id: string; name: string; avatarFallback: string } | null>(null);
+  const [mediaFile, setMediaFile] = useState<File | null>(null);
+  const [mediaPreview, setMediaPreview] = useState<string | null>(null);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const supabase = createClient();
 
   const markMessagesAsRead = useCallback(async (msgs: Message[], user: SupabaseUser) => {
@@ -96,6 +120,47 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
       onConflict: 'message_id,reader_id'
     });
   }, [supabase]);
+
+  const handleNewMessage = useCallback(async (payload: any) => {
+    const { data: profileData } = await supabase
+      .from('profiles')
+      .select('username, avatar_url')
+      .eq('id', payload.new.user_id)
+      .single();
+
+    if (profileData) {
+      const newMessageWithProfile: Message = {
+        ...payload.new,
+        profiles: profileData,
+        is_read: false,
+      };
+      
+      setMessages((prevMessages) => {
+        if (prevMessages.some(msg => msg.id === newMessageWithProfile.id)) {
+          return prevMessages;
+        }
+        return [...prevMessages, newMessageWithProfile];
+      });
+    }
+  }, [supabase]);
+
+ const handleReadStatusUpdate = useCallback((payload: any) => {
+    setMessages(prevMessages => {
+        const updatedMessages = prevMessages.map(msg => {
+            if (msg.id === payload.new.message_id) {
+                 return { ...msg, is_read: true };
+            }
+            return msg;
+        });
+
+        // Avoid re-render if nothing changed
+        if (JSON.stringify(prevMessages) !== JSON.stringify(updatedMessages)) {
+            return updatedMessages;
+        }
+        return prevMessages;
+    });
+}, []);
+
 
   useEffect(() => {
     const fetchInitialData = async () => {
@@ -143,46 +208,6 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
     fetchInitialData();
   }, [params.id, supabase, markMessagesAsRead]);
 
-  const handleNewMessage = useCallback(async (payload: any) => {
-    const { data: profileData } = await supabase
-      .from('profiles')
-      .select('username, avatar_url')
-      .eq('id', payload.new.user_id)
-      .single();
-
-    if (profileData) {
-      const newMessageWithProfile: Message = {
-        ...payload.new,
-        profiles: profileData,
-        is_read: false,
-      };
-      
-      setMessages((prevMessages) => {
-        if (prevMessages.some(msg => msg.id === newMessageWithProfile.id)) {
-          return prevMessages;
-        }
-        return [...prevMessages, newMessageWithProfile];
-      });
-    }
-  }, [supabase, messages]);
-
- const handleReadStatusUpdate = useCallback((payload: any) => {
-    setMessages(prevMessages => {
-        const updatedMessages = prevMessages.map(msg => {
-            if (msg.id === payload.new.message_id) {
-                 return { ...msg, is_read: true };
-            }
-            return msg;
-        });
-
-        if (JSON.stringify(prevMessages) !== JSON.stringify(updatedMessages)) {
-            return updatedMessages;
-        }
-        return prevMessages;
-    });
-}, []);
-
-
   useEffect(() => {
     if (!params.id || !supabase) return;
 
@@ -219,18 +244,70 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      if (file.type.startsWith("image/") || file.type.startsWith("video/")) {
+        setMediaFile(file);
+        setMediaPreview(URL.createObjectURL(file));
+      } else {
+        alert("Only images and videos are allowed.");
+        setMediaFile(null);
+        setMediaPreview(null);
+      }
+    }
+  };
+
+  const handleRemoveMedia = () => {
+    setMediaFile(null);
+    setMediaPreview(null);
+    if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+    }
+  };
+
+
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (newMessage.trim() === "" || !currentUser || !classInfo) return;
+    if ((!newMessage.trim() && !mediaFile) || !currentUser || !classInfo) return;
+    
+    setSending(true);
+    let media_url = null;
+    let media_type: 'image' | 'video' | 'text' = 'text';
+
+    if (mediaFile) {
+        const fileType = mediaFile.type.split('/')[0]; // 'image' or 'video'
+        media_type = fileType as 'image' | 'video';
+        const filePath = `class_media/${classInfo.id}/${currentUser.id}/${Date.now()}_${mediaFile.name}`;
+        
+        const { error: uploadError } = await supabase.storage
+            .from('avatars') // NOTE: Using 'avatars' bucket, consider a 'class_media' bucket
+            .upload(filePath, mediaFile);
+        
+        if (uploadError) {
+            console.error("Upload error:", uploadError);
+            alert("Failed to upload file.");
+            setSending(false);
+            return;
+        }
+
+        const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(filePath);
+        media_url = urlData.publicUrl;
+    }
 
     const content = newMessage;
-    setNewMessage("");
-
+    
     await supabase.from('class_messages').insert({
-        content: content,
+        content: content || null,
         class_id: classInfo.id,
-        user_id: currentUser.id
+        user_id: currentUser.id,
+        media_url,
+        media_type
     });
+
+    setNewMessage("");
+    handleRemoveMedia();
+    setSending(false);
   }
 
   if (loading || !classInfo) {
@@ -287,18 +364,44 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
       </main>
 
       <footer className="flex-shrink-0 border-t p-2">
+        {mediaPreview && (
+            <div className="p-2 relative">
+                <div className="relative w-24 h-24 rounded-md overflow-hidden">
+                    {mediaFile?.type.startsWith('image/') ? (
+                        <Image src={mediaPreview} alt="Media preview" layout="fill" objectFit="cover" />
+                    ) : (
+                        <video src={mediaPreview} className="w-full h-full object-cover" />
+                    )}
+                     <Button
+                        variant="destructive"
+                        size="icon"
+                        className="absolute top-1 right-1 h-6 w-6 rounded-full z-10"
+                        onClick={handleRemoveMedia}
+                     >
+                        <X className="h-4 w-4" />
+                    </Button>
+                </div>
+            </div>
+        )}
         <form onSubmit={handleSendMessage} className="flex items-center gap-2 pt-1">
-            <Button variant="ghost" size="icon"><ImageIcon className="h-5 w-5 text-muted-foreground" /></Button>
-            <Button variant="ghost" size="icon"><Smile className="h-5 w-5 text-muted-foreground" /></Button>
+            <input 
+                type="file" 
+                ref={fileInputRef} 
+                onChange={handleFileChange}
+                className="hidden" 
+                accept="image/*,video/*"
+            />
+            <Button variant="ghost" size="icon" type="button" onClick={() => fileInputRef.current?.click()}><ImageIcon className="h-5 w-5 text-muted-foreground" /></Button>
+            <Button variant="ghost" size="icon" type="button"><Smile className="h-5 w-5 text-muted-foreground" /></Button>
             <Input 
               placeholder="Type a message..." 
               className="flex-1"
               value={newMessage}
               onChange={(e) => setNewMessage(e.target.value)}
             />
-            <Button variant="ghost" size="icon"><Mic className="h-5 w-5 text-muted-foreground" /></Button>
-            <Button size="icon" type="submit" disabled={!newMessage.trim()}>
-                <Send className="h-5 w-5" />
+            <Button variant="ghost" size="icon" type="button"><Mic className="h-5 w-5 text-muted-foreground" /></Button>
+            <Button size="icon" type="submit" disabled={(!newMessage.trim() && !mediaFile) || sending}>
+                {sending ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
             </Button>
         </form>
       </footer>
