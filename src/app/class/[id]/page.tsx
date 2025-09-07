@@ -81,9 +81,22 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const supabase = createClient();
 
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  const markMessagesAsRead = useCallback(async (msgs: Message[], user: SupabaseUser) => {
+    const unreadMessageIds = msgs
+      .filter(m => m.user_id !== user.id && !m.is_read)
+      .map(m => m.id);
+
+    if (unreadMessageIds.length === 0) return;
+
+    const readReceipts = unreadMessageIds.map(message_id => ({
+        message_id,
+        reader_id: user.id,
+    }));
+    
+    await supabase.from('message_read_status').upsert(readReceipts, {
+      onConflict: 'message_id,reader_id'
+    });
+  }, [supabase]);
 
   const fetchInitialData = useCallback(async () => {
     setLoading(true);
@@ -117,62 +130,44 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
         is_read: msg.message_read_status.some((status: any) => status.reader_id !== msg.user_id),
       }));
       setMessages(processedMessages as Message[]);
+      markMessagesAsRead(processedMessages, user);
     }
     
     setLoading(false);
-  }, [params.id, supabase]);
-
-  const markMessagesAsRead = useCallback(async (msgs: Message[], user: SupabaseUser) => {
-    const unreadMessageIds = msgs
-      .filter(m => m.user_id !== user.id && !m.is_read)
-      .map(m => m.id);
-
-    if (unreadMessageIds.length === 0) return;
-
-    const readReceipts = unreadMessageIds.map(message_id => ({
-        message_id,
-        reader_id: user.id,
-    }));
-    
-    await supabase.from('message_read_status').upsert(readReceipts, {
-      onConflict: 'message_id,reader_id'
-    });
-  }, [supabase]);
+  }, [params.id, supabase, markMessagesAsRead]);
 
   useEffect(() => {
     fetchInitialData();
   }, [fetchInitialData]);
 
-  useEffect(() => {
-    if (messages.length > 0 && currentUser) {
-      markMessagesAsRead(messages, currentUser);
-    }
-  }, [messages, currentUser, markMessagesAsRead]);
+  const handleNewMessage = useCallback((payload: any) => {
+      const { data: profile } = supabase.from('profiles').select('username, avatar_url').eq('id', payload.new.user_id).single().then(({ data }) => {
+          if (data) {
+              const newMessageWithProfile = { ...payload.new, profiles: data, is_read: false } as Message;
+              setMessages((prevMessages) => {
+                  if (prevMessages.some(msg => msg.id === newMessageWithProfile.id)) {
+                      return prevMessages;
+                  }
+                  return [...prevMessages, newMessageWithProfile];
+              });
+          }
+      });
+  }, [supabase]);
+
+  const handleReadStatusUpdate = useCallback((payload: any) => {
+      setMessages(prevMessages => 
+        prevMessages.map(msg => 
+            msg.id === payload.new.message_id && msg.user_id !== payload.new.reader_id
+            ? { ...msg, is_read: true } 
+            : msg
+        )
+      );
+      if (currentUser) {
+        markMessagesAsRead(messages, currentUser);
+      }
+  }, [currentUser, markMessagesAsRead, messages]);
 
   useEffect(() => {
-    const handleNewMessage = async (payload: any) => {
-        const { data: profile } = await supabase.from('profiles').select('username, avatar_url').eq('id', payload.new.user_id).single();
-        if(profile){
-            const newMessageWithProfile = { ...payload.new, profiles: profile, is_read: false } as Message;
-             setMessages((prevMessages) => {
-                if (prevMessages.some(msg => msg.id === newMessageWithProfile.id)) {
-                    return prevMessages;
-                }
-                return [...prevMessages, newMessageWithProfile];
-            });
-        }
-    };
-    
-    const handleReadStatusUpdate = (payload: any) => {
-        setMessages(prevMessages => 
-          prevMessages.map(msg => 
-              msg.id === payload.new.message_id 
-              ? { ...msg, is_read: true } 
-              : msg
-          )
-        );
-    };
-
     const messagesChannel = supabase.channel(`class-chat-${params.id}`)
       .on(
           'postgres_changes',
@@ -189,7 +184,11 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
     return () => {
       supabase.removeChannel(messagesChannel);
     };
-  }, [params.id, supabase]);
+  }, [params.id, supabase, handleNewMessage, handleReadStatusUpdate]);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -198,14 +197,12 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
     const content = newMessage;
     setNewMessage("");
 
-    // Play sound
     try {
         const audio = new Audio('/bubble-pop.mp3');
-        audio.play().catch(error => console.error("Audio play failed:", error));
-    } catch(e) {
-        console.error("Audio instantiation failed:", e);
+        await audio.play();
+    } catch(err) {
+        console.error("Audio play failed:", err);
     }
-
 
     const { error } = await supabase.from('class_messages').insert({
         content: content,
