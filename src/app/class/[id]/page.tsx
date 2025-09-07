@@ -5,7 +5,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { ArrowLeft, Video, MoreVertical, Image as ImageIcon, Send, Smile, Mic, Trash2, Loader2, Check, CheckCheck, X, Expand } from "lucide-react";
+import { ArrowLeft, Video, MoreVertical, Image as ImageIcon, Send, Smile, Mic, Trash2, Loader2, Check, CheckCheck, X, Expand, MessageSquareReply, Heart,ThumbsUp, Laugh, Frown } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { use, useState, useRef, useEffect, useCallback } from "react";
@@ -15,11 +15,18 @@ import { format } from 'date-fns';
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import AudioPlayer from "@/components/audio-player";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 
 type Profile = {
     username: string;
     avatar_url: string;
+};
+
+type Reaction = {
+    reaction: string;
+    users: { id: string, username: string }[];
+    count: number;
 };
 
 type Message = {
@@ -32,27 +39,29 @@ type Message = {
     media_url?: string | null;
     media_type?: 'image' | 'video' | 'text' | 'audio' | null;
     media_duration?: number | null;
+    reactions?: Reaction[];
 };
 
-const ChatMessage = ({ message, isSender }: { message: Message, isSender: boolean }) => {
+const ReactionEmojis = {
+  '❤️': Heart,
+  '👍': ThumbsUp,
+  '😂': Laugh,
+  '😢': Frown
+};
+
+const ChatMessage = ({ message, isSender, currentUserId }: { message: Message, isSender: boolean, currentUserId: string | undefined }) => {
     const sentTime = format(new Date(message.created_at), 'h:mm a');
 
     const renderContent = () => {
         if (message.media_type === 'image' && message.media_url) {
             return (
-                <div className="relative h-48 w-48 rounded-lg overflow-hidden">
+                <div className="relative h-48 w-48 rounded-lg overflow-hidden group">
                     <Image src={message.media_url} alt="Sent image" layout="fill" objectFit="cover" data-ai-hint="photo message" />
-                    <Button 
-                        asChild
-                        variant="ghost" 
-                        size="icon" 
-                        className="absolute bottom-1 left-1 h-7 w-7 bg-black/50 hover:bg-black/70 text-white hover:text-white"
-                        onClick={(e) => e.stopPropagation()}
-                    >
-                        <Link href={`/class/media/image/${encodeURIComponent(message.media_url)}`}>
-                            <Expand className="h-4 w-4" />
-                        </Link>
-                    </Button>
+                     <Link href={`/class/media/image/${encodeURIComponent(message.media_url)}`} legacyBehavior passHref>
+                        <a target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <Expand className="h-8 w-8 text-white" />
+                        </a>
+                    </Link>
                 </div>
             )
         }
@@ -72,49 +81,92 @@ const ChatMessage = ({ message, isSender }: { message: Message, isSender: boolea
                 />
             )
         }
-        return <p className="text-sm">{message.content}</p>;
+        return <p className="text-sm pr-6">{message.content}</p>;
     }
+    
+    const handleReact = (reaction: string) => {
+        console.log(`Reacted with ${reaction} to message ${message.id}`);
+        // In a real app, you would call a server action to update the DB
+    };
 
     return (
-        <div className={`flex items-end gap-2 ${isSender ? 'justify-end' : 'justify-start'}`}>
+        <div className={`flex items-start gap-2 ${isSender ? 'justify-end' : ''}`}>
              {!isSender && (
                  <Link href={`/profile/${message.profiles.username}`}>
-                    <Avatar className="h-8 w-8 self-start">
+                    <Avatar className="h-8 w-8">
                         <AvatarImage src={message.profiles.avatar_url} alt={message.profiles.username} />
                         <AvatarFallback>{message.profiles.username.charAt(0).toUpperCase()}</AvatarFallback>
                     </Avatar>
                  </Link>
             )}
              <div className="flex flex-col gap-1 items-start max-w-sm">
-                <div className={cn(
-                    "max-w-xs rounded-lg",
+                 <div className={cn(
+                    "relative group max-w-xs rounded-lg",
                     message.media_type === 'audio' ? '' : 'px-3 py-2',
                     isSender ? 'bg-primary text-primary-foreground' : 'bg-muted'
                 )}>
+                    <div className="absolute top-1 right-1 z-10 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon" className={cn("h-6 w-6", isSender ? "text-primary-foreground/70 hover:text-primary-foreground hover:bg-white/20" : "text-muted-foreground hover:text-foreground hover:bg-black/10")}>
+                                    <MoreVertical className="h-4 w-4" />
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent>
+                                {isSender ? (
+                                    <DropdownMenuItem className="text-destructive">
+                                        <Trash2 className="mr-2 h-4 w-4" />
+                                        <span>Delete</span>
+                                    </DropdownMenuItem>
+                                ) : (
+                                    <DropdownMenuItem>
+                                        <MessageSquareReply className="mr-2 h-4 w-4"/>
+                                        <span>Reply</span>
+                                    </DropdownMenuItem>
+                                )}
+                                <Popover>
+                                    <PopoverTrigger asChild>
+                                        <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                                             <Smile className="mr-2 h-4 w-4" />
+                                            <span>React</span>
+                                        </DropdownMenuItem>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-auto p-1">
+                                        <div className="flex gap-1">
+                                            {Object.entries(ReactionEmojis).map(([emoji, Icon]) => (
+                                                 <Button key={emoji} variant="ghost" size="icon" className="h-8 w-8 rounded-full" onClick={() => handleReact(emoji)}>
+                                                    <Icon className="h-5 w-5" />
+                                                </Button>
+                                            ))}
+                                        </div>
+                                    </PopoverContent>
+                                </Popover>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+                    </div>
+
                     {!isSender && <p className="font-semibold text-xs mb-1 text-primary">{message.profiles.username}</p>}
                     {renderContent()}
                     {message.media_url && message.content && message.media_type !== 'audio' && <p className="text-sm mt-1">{message.content}</p>}
+
+                    {message.reactions && message.reactions.length > 0 && (
+                        <div className="absolute -bottom-3 right-2 flex items-center gap-1">
+                           {message.reactions.map(r => (
+                               <div key={r.reaction} className="flex items-center bg-background border rounded-full px-1.5 py-0.5 text-xs">
+                                   <span>{r.reaction}</span>
+                                   <span className="ml-1 font-semibold">{r.count}</span>
+                               </div>
+                           ))}
+                        </div>
+                    )}
                 </div>
-                <div className="flex items-center gap-1.5 px-1">
+                <div className="flex items-center gap-1.5 px-1 pt-1">
                     <p className="text-xs text-muted-foreground">{sentTime}</p>
                     {isSender && (
                       message.is_read ? <CheckCheck className="h-4 w-4 text-blue-500" /> : <Check className="h-4 w-4 text-muted-foreground" />
                     )}
                 </div>
             </div>
-            <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                     <Button variant="ghost" size="icon" className="h-8 w-8 self-center">
-                        <MoreVertical className="h-4 w-4" />
-                     </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent>
-                    <DropdownMenuItem className="text-destructive">
-                        <Trash2 className="mr-2 h-4 w-4" />
-                        <span>Delete</span>
-                    </DropdownMenuItem>
-                </DropdownMenuContent>
-            </DropdownMenu>
         </div>
     )
 };
@@ -235,6 +287,7 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
             const processedMessages = initialMessages.map((msg: any) => ({
                 ...msg,
                 is_read: msg.message_read_status.length >= (memberCount - 1),
+                reactions: [], // Placeholder for now
             }));
             setMessages(processedMessages as Message[]);
             markMessagesAsRead(processedMessages, user);
@@ -309,7 +362,7 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
     setSending(true);
     let media_url = null;
     let media_type: 'image' | 'video' | 'text' | 'audio' | null = null;
-    let media_duration = null;
+    let media_duration: number | null = null;
 
     if (mediaFile) {
         const filePath = `class_media/${classInfo.id}/${currentUser.id}/${Date.now()}_${mediaFile.name}`;
@@ -328,25 +381,25 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
         const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(filePath);
         media_url = urlData.publicUrl;
 
-        if (mediaFile.type.startsWith('image')) media_type = 'image';
-        else if (mediaFile.type.startsWith('video')) media_type = 'video';
-        else if (mediaFile.type.startsWith('audio')) {
+        if (mediaFile.type.startsWith('image')) {
+            media_type = 'image';
+        } else if (mediaFile.type.startsWith('video')) {
+            media_type = 'video';
+        } else if (mediaFile.type.startsWith('audio')) {
             media_type = 'audio';
-            const audio = document.createElement('audio');
-            audio.src = URL.createObjectURL(mediaFile);
-            audio.addEventListener('loadedmetadata', () => {
-                media_duration = audio.duration;
-                 supabase.from('class_messages').insert({
-                    content: newMessage || null,
-                    class_id: classInfo.id,
-                    user_id: currentUser.id,
-                    media_url,
-                    media_type,
-                    media_duration
-                });
-            }, { once: true });
+            // This is a simplified way to get duration. Might not be perfect.
+             const audio = document.createElement('audio');
+            const audioUrl = URL.createObjectURL(mediaFile);
             
-            // This part is now handled in the event listener
+            const durationPromise = new Promise<number>((resolve) => {
+                audio.addEventListener('loadedmetadata', () => {
+                    URL.revokeObjectURL(audioUrl);
+                    resolve(audio.duration);
+                }, { once: true });
+            });
+
+            audio.src = audioUrl;
+            media_duration = await durationPromise;
         }
     } else {
         media_type = 'text';
@@ -355,17 +408,15 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
 
     const content = newMessage;
     
-    // Only insert non-audio messages directly
-    if (media_type !== 'audio') {
-        await supabase.from('class_messages').insert({
-            content: content || null,
-            class_id: classInfo.id,
-            user_id: currentUser.id,
-            media_url,
-            media_type,
-            media_duration
-        });
-    }
+    await supabase.from('class_messages').insert({
+        content: content || null,
+        class_id: classInfo.id,
+        user_id: currentUser.id,
+        media_url,
+        media_type,
+        media_duration
+    });
+    
 
     setNewMessage("");
     handleRemoveMedia();
@@ -397,7 +448,6 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
                     audioChunksRef.current = [];
                     
                     setMediaFile(audioFile);
-                    // Ugly but we need to wait for state to update then send
                     // We will trigger send from useEffect when mediaFile changes
                 };
 
@@ -421,6 +471,7 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
         if (mediaFile && mediaFile.type.startsWith('audio/')) {
             handleSendMessage();
         }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [mediaFile]);
 
 
@@ -470,9 +521,9 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
         </div>
       </header>
       
-      <main className="flex-1 overflow-y-auto p-4 space-y-4">
+      <main className="flex-1 overflow-y-auto p-4 space-y-6">
         {messages.map((msg) => (
-            <ChatMessage key={msg.id} message={msg} isSender={msg.user_id === currentUser?.id} />
+            <ChatMessage key={msg.id} message={msg} isSender={msg.user_id === currentUser?.id} currentUserId={currentUser?.id} />
         ))}
         <div ref={messagesEndRef} />
       </main>
@@ -524,4 +575,3 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
     </div>
   );
 }
-
