@@ -25,8 +25,10 @@ type Profile = {
 
 type Reaction = {
     reaction: string;
-    users: { id: string, username: string }[];
-    count: number;
+    user_id: string;
+    profiles: {
+      username: string;
+    }
 };
 
 type Message = {
@@ -39,7 +41,7 @@ type Message = {
     media_url?: string | null;
     media_type?: 'image' | 'video' | 'text' | 'audio' | null;
     media_duration?: number | null;
-    reactions?: Reaction[];
+    reactions: Reaction[];
 };
 
 const ReactionEmojis = {
@@ -49,8 +51,10 @@ const ReactionEmojis = {
   '😢': Frown
 };
 
-const ChatMessage = ({ message, isSender, currentUserId }: { message: Message, isSender: boolean, currentUserId: string | undefined }) => {
+const ChatMessage = ({ message, isSender, currentUserId, onNewReaction }: { message: Message, isSender: boolean, currentUserId: string | undefined, onNewReaction: (messageId: string, reaction: Reaction) => void }) => {
     const sentTime = format(new Date(message.created_at), 'h:mm a');
+    const supabase = createClient();
+    const [isReacting, setIsReacting] = useState(false);
 
     const renderContent = () => {
         if (message.media_type === 'image' && message.media_url) {
@@ -84,10 +88,44 @@ const ChatMessage = ({ message, isSender, currentUserId }: { message: Message, i
         return <p className="text-sm pr-6">{message.content}</p>;
     }
     
-    const handleReact = (reaction: string) => {
-        console.log(`Reacted with ${reaction} to message ${message.id}`);
-        // In a real app, you would call a server action to update the DB
+    const handleReact = async (reaction: string) => {
+        if (!currentUserId) return;
+
+        // Optimistic UI update
+        onNewReaction(message.id, {
+            reaction,
+            user_id: currentUserId,
+            profiles: { username: 'You' } // Placeholder
+        });
+        
+        setIsReacting(false);
+
+        // DB operation
+        // First, remove any existing reaction from this user for this message
+        await supabase.from('message_reactions')
+            .delete()
+            .match({ message_id: message.id, user_id: currentUserId });
+
+        // Then, insert the new reaction
+        const { error } = await supabase.from('message_reactions').insert({
+            message_id: message.id,
+            user_id: currentUserId,
+            reaction,
+        });
+
+        if (error) {
+            console.error('Failed to react:', error);
+            // Here you might want to revert the optimistic update
+        }
     };
+    
+    const groupedReactions = message.reactions.reduce((acc, r) => {
+        if (!acc[r.reaction]) {
+            acc[r.reaction] = 0;
+        }
+        acc[r.reaction]++;
+        return acc;
+    }, {} as Record<string, number>);
 
     return (
         <div className={`flex items-start gap-2 ${isSender ? 'justify-end' : ''}`}>
@@ -124,7 +162,7 @@ const ChatMessage = ({ message, isSender, currentUserId }: { message: Message, i
                                         <span>Reply</span>
                                     </DropdownMenuItem>
                                 )}
-                                <Popover>
+                                <Popover open={isReacting} onOpenChange={setIsReacting}>
                                     <PopoverTrigger asChild>
                                         <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
                                              <Smile className="mr-2 h-4 w-4" />
@@ -149,12 +187,12 @@ const ChatMessage = ({ message, isSender, currentUserId }: { message: Message, i
                     {renderContent()}
                     {message.media_url && message.content && message.media_type !== 'audio' && <p className="text-sm mt-1">{message.content}</p>}
 
-                    {message.reactions && message.reactions.length > 0 && (
+                    {Object.keys(groupedReactions).length > 0 && (
                         <div className="absolute -bottom-3 right-2 flex items-center gap-1">
-                           {message.reactions.map(r => (
-                               <div key={r.reaction} className="flex items-center bg-background border rounded-full px-1.5 py-0.5 text-xs">
-                                   <span>{r.reaction}</span>
-                                   <span className="ml-1 font-semibold">{r.count}</span>
+                           {Object.entries(groupedReactions).map(([reaction, count]) => (
+                               <div key={reaction} className="flex items-center bg-background border rounded-full px-1.5 py-0.5 text-xs">
+                                   <span>{reaction}</span>
+                                   <span className="ml-1 font-semibold">{count}</span>
                                </div>
                            ))}
                         </div>
@@ -194,6 +232,25 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
   const fileInputRef = useRef<HTMLInputElement>(null);
   const supabase = createClient();
 
+  const handleNewReaction = useCallback((messageId: string, newReaction: Reaction) => {
+    setMessages(prevMessages => {
+        return prevMessages.map(msg => {
+            if (msg.id === messageId) {
+                const existingReactionIndex = msg.reactions.findIndex(r => r.user_id === newReaction.user_id);
+                const newReactions = [...msg.reactions];
+                if (existingReactionIndex > -1) {
+                    newReactions.splice(existingReactionIndex, 1, newReaction);
+                } else {
+                    newReactions.push(newReaction);
+                }
+                return { ...msg, reactions: newReactions };
+            }
+            return msg;
+        });
+    });
+   }, []);
+
+
    const handleNewMessage = useCallback(
     async (payload: any) => {
         if (messages.some(msg => msg.id === payload.new.id)) {
@@ -211,6 +268,7 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
           ...payload.new,
           profiles: profileData,
           is_read: false,
+          reactions: []
         };
         
         setMessages((prevMessages) => [...prevMessages, newMessageWithProfile]);
@@ -233,6 +291,25 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
         }
         return prevMessages;
     });
+  }, []);
+  
+  const handleReactionUpdate = useCallback(async (payload: any) => {
+     setMessages(prev => {
+        return prev.map(msg => {
+            if (msg.id === payload.new.message_id) {
+                // This is a simplified update. A more robust solution might need to refetch reactions.
+                const updatedReactions = [...msg.reactions];
+                const existingIndex = updatedReactions.findIndex(r => r.user_id === payload.new.user_id);
+                if (existingIndex !== -1) {
+                    updatedReactions[existingIndex] = { ...payload.new, profiles: { username: ''} };
+                } else {
+                    updatedReactions.push({ ...payload.new, profiles: { username: ''} });
+                }
+                 return { ...msg, reactions: updatedReactions };
+            }
+            return msg;
+        });
+     });
   }, []);
 
   const markMessagesAsRead = useCallback(async (msgs: Message[], user: SupabaseUser) => {
@@ -272,7 +349,12 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
       if (user) {
         const { data: initialMessages } = await supabase
           .from('class_messages')
-          .select(`*, profiles (username, avatar_url), message_read_status(reader_id)`)
+          .select(`
+            *,
+            profiles (username, avatar_url),
+            message_read_status (reader_id),
+            message_reactions (*, profiles(username))
+          `)
           .eq('class_id', params.id)
           .order('created_at', { ascending: true });
           
@@ -287,7 +369,8 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
             const processedMessages = initialMessages.map((msg: any) => ({
                 ...msg,
                 is_read: msg.message_read_status.length >= (memberCount - 1),
-                reactions: [], // Placeholder for now
+                // @ts-ignore
+                reactions: msg.message_reactions,
             }));
             setMessages(processedMessages as Message[]);
             markMessagesAsRead(processedMessages, user);
@@ -320,13 +403,19 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
             }
         }
     );
+
+     const reactionSubscription = channel.on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'message_reactions' },
+        handleReactionUpdate
+    );
     
     channel.subscribe();
 
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [params.id, supabase, handleNewMessage, handleReadStatusUpdate, messages]);
+  }, [params.id, supabase, handleNewMessage, handleReadStatusUpdate, messages, handleReactionUpdate]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -523,7 +612,7 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
       
       <main className="flex-1 overflow-y-auto p-4 space-y-6">
         {messages.map((msg) => (
-            <ChatMessage key={msg.id} message={msg} isSender={msg.user_id === currentUser?.id} currentUserId={currentUser?.id} />
+            <ChatMessage key={msg.id} message={msg} isSender={msg.user_id === currentUser?.id} currentUserId={currentUser?.id} onNewReaction={handleNewReaction} />
         ))}
         <div ref={messagesEndRef} />
       </main>
@@ -576,3 +665,4 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
   );
 }
 
+    
