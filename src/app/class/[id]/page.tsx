@@ -12,6 +12,9 @@ import { use, useState, useRef, useEffect, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { User as SupabaseUser } from "@supabase/supabase-js";
 import { format } from 'date-fns';
+import { useToast } from "@/hooks/use-toast";
+import { cn } from "@/lib/utils";
+import AudioPlayer from "@/components/audio-player";
 
 
 type Profile = {
@@ -27,7 +30,8 @@ type Message = {
     profiles: Profile;
     is_read?: boolean;
     media_url?: string | null;
-    media_type?: 'image' | 'video' | 'text' | null;
+    media_type?: 'image' | 'video' | 'text' | 'audio' | null;
+    media_duration?: number | null;
 };
 
 const ChatMessage = ({ message, isSender }: { message: Message, isSender: boolean }) => {
@@ -75,6 +79,15 @@ const ChatMessage = ({ message, isSender }: { message: Message, isSender: boolea
                 </Link>
              )
         }
+        if (message.media_type === 'audio' && message.media_url) {
+            return (
+                <AudioPlayer 
+                    audioUrl={message.media_url} 
+                    duration={message.media_duration || 0}
+                    isSender={isSender}
+                />
+            )
+        }
         return <p className="text-sm">{message.content}</p>;
     }
 
@@ -98,10 +111,14 @@ const ChatMessage = ({ message, isSender }: { message: Message, isSender: boolea
                              onTouchEnd={handleInteractionEnd}
                              className="cursor-pointer"
                          >
-                            <div className={`max-w-xs rounded-lg px-3 py-2 ${isSender ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}>
+                            <div className={cn(
+                                "max-w-xs rounded-lg",
+                                message.media_type === 'audio' ? '' : 'px-3 py-2',
+                                isSender ? 'bg-primary text-primary-foreground' : 'bg-muted'
+                            )}>
                                 {!isSender && <p className="font-semibold text-xs mb-1 text-primary">{message.profiles.username}</p>}
                                 {renderContent()}
-                                {message.media_url && message.content && <p className="text-sm mt-1">{message.content}</p>}
+                                {message.media_url && message.content && message.media_type !== 'audio' && <p className="text-sm mt-1">{message.content}</p>}
                             </div>
                         </div>
                     </DropdownMenuTrigger>
@@ -134,13 +151,24 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
   const [classInfo, setClassInfo] = useState<{ id: string; name: string; avatarFallback: string } | null>(null);
   const [mediaFile, setMediaFile] = useState<File | null>(null);
   const [mediaPreview, setMediaPreview] = useState<string | null>(null);
+
+  // Voice message states
+  const [isRecording, setIsRecording] = useState(false);
+  const [hasMicPermission, setHasMicPermission] = useState(false);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const { toast } = useToast();
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const supabase = createClient();
 
-  const handleNewMessage = useCallback(
+   const handleNewMessage = useCallback(
     async (payload: any) => {
+        if (messages.some(msg => msg.id === payload.new.id)) {
+            return;
+        }
+
       const { data: profileData } = await supabase
         .from('profiles')
         .select('username, avatar_url')
@@ -154,15 +182,10 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
           is_read: false,
         };
         
-        setMessages((prevMessages) => {
-          if (prevMessages.some(msg => msg.id === newMessageWithProfile.id)) {
-            return prevMessages;
-          }
-          return [...prevMessages, newMessageWithProfile];
-        });
+        setMessages((prevMessages) => [...prevMessages, newMessageWithProfile]);
       }
     },
-    [supabase]
+    [supabase, messages]
   );
 
   const handleReadStatusUpdate = useCallback((payload: any) => {
@@ -284,7 +307,7 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
         setMediaFile(file);
         setMediaPreview(URL.createObjectURL(file));
       } else {
-        alert("Only images and videos are allowed.");
+        toast({variant: "destructive", title: "Unsupported File Type", description: "Only images and videos are allowed."});
         setMediaFile(null);
         setMediaPreview(null);
       }
@@ -300,13 +323,14 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
   };
 
 
-  const handleSendMessage = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSendMessage = async (e?: React.FormEvent) => {
+    e?.preventDefault();
     if ((!newMessage.trim() && !mediaFile) || !currentUser || !classInfo) return;
     
     setSending(true);
     let media_url = null;
-    let media_type: 'image' | 'video' | 'text' | null = mediaFile ? (mediaFile.type.startsWith('image') ? 'image' : 'video') : 'text';
+    let media_type: 'image' | 'video' | 'text' | 'audio' | null = null;
+    let media_duration = null;
 
     if (mediaFile) {
         const filePath = `class_media/${classInfo.id}/${currentUser.id}/${Date.now()}_${mediaFile.name}`;
@@ -317,14 +341,27 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
         
         if (uploadError) {
             console.error("Upload error:", uploadError);
-            alert("Failed to upload file.");
+            toast({variant: "destructive", title: "Upload Failed", description: "Failed to upload file."});
             setSending(false);
             return;
         }
 
         const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(filePath);
         media_url = urlData.publicUrl;
+
+        if (mediaFile.type.startsWith('image')) media_type = 'image';
+        else if (mediaFile.type.startsWith('video')) media_type = 'video';
+        else if (mediaFile.type.startsWith('audio')) {
+            media_type = 'audio';
+            const audio = new Audio(media_url);
+            audio.addEventListener('loadedmetadata', () => {
+                media_duration = audio.duration;
+            }, { once: true });
+        }
+    } else {
+        media_type = 'text';
     }
+
 
     const content = newMessage;
     
@@ -333,13 +370,61 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
         class_id: classInfo.id,
         user_id: currentUser.id,
         media_url,
-        media_type
+        media_type,
+        media_duration
     });
 
     setNewMessage("");
     handleRemoveMedia();
     setSending(false);
   }
+
+  const handleMicClick = async () => {
+        if (isRecording) {
+            // Stop recording
+            mediaRecorderRef.current?.stop();
+            setIsRecording(false);
+            return;
+        }
+
+        // Start recording
+        if (!hasMicPermission) {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                setHasMicPermission(true);
+                mediaRecorderRef.current = new MediaRecorder(stream);
+                
+                mediaRecorderRef.current.ondataavailable = (event) => {
+                    audioChunksRef.current.push(event.data);
+                };
+
+                mediaRecorderRef.current.onstop = async () => {
+                    const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+                    const audioFile = new File([audioBlob], `voice-message-${Date.now()}.webm`, { type: 'audio/webm' });
+                    audioChunksRef.current = [];
+                    setMediaFile(audioFile);
+                    
+                    // Ugly but we need to wait for state to update then send
+                    setTimeout(() => {
+                        handleSendMessage();
+                    }, 100);
+                };
+
+            } catch (error) {
+                console.error("Mic permission denied", error);
+                toast({ variant: "destructive", title: "Microphone Access Denied", description: "Please enable microphone permissions in your browser settings." });
+                return;
+            }
+        }
+        
+        // This needs to be in a separate block to handle the case where permission was just granted
+        if (mediaRecorderRef.current) {
+            audioChunksRef.current = [];
+            mediaRecorderRef.current.start();
+            setIsRecording(true);
+        }
+    };
+
 
   if (loading || !classInfo) {
       return (
@@ -430,7 +515,9 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
               value={newMessage}
               onChange={(e) => setNewMessage(e.target.value)}
             />
-            <Button variant="ghost" size="icon" type="button"><Mic className="h-5 w-5 text-muted-foreground" /></Button>
+            <Button variant="ghost" size="icon" type="button" onClick={handleMicClick}>
+              <Mic className={cn("h-5 w-5 text-muted-foreground", isRecording && "text-red-500")} />
+            </Button>
             <Button size="icon" type="submit" disabled={(!newMessage.trim() && !mediaFile) || sending}>
                 {sending ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
             </Button>
