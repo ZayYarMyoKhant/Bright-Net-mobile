@@ -223,6 +223,7 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
   const [mediaFile, setMediaFile] = useState<File | null>(null);
   const [mediaPreview, setMediaPreview] = useState<string | null>(null);
   const [mediaDuration, setMediaDuration] = useState<number | null>(null);
+  const [isMember, setIsMember] = useState(false);
 
   // Voice message states
   const [isRecording, setIsRecording] = useState(false);
@@ -369,6 +370,23 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
       }
 
       if (user) {
+        // First, check if the user is a member of the class.
+        const { data: memberData, error: memberError } = await supabase
+            .from('class_members')
+            .select('user_id')
+            .eq('class_id', params.id)
+            .eq('user_id', user.id)
+            .single();
+
+        if (memberError || !memberData) {
+            setIsMember(false);
+            setLoading(false);
+            console.error("User is not a member of this class or error fetching membership.");
+            return;
+        }
+
+        setIsMember(true);
+
         const { data: initialMessages } = await supabase
           .from('class_messages')
           .select(`
@@ -406,7 +424,7 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
   }, [params.id, supabase, markMessagesAsRead]);
 
   useEffect(() => {
-    if (!params.id || !supabase) return;
+    if (!params.id || !supabase || !isMember) return;
 
     const channel = supabase.channel(`class-chat-${params.id}`);
 
@@ -439,7 +457,7 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [params.id, supabase, handleNewMessage, handleReadStatusUpdate, handleReactionUpdate, handleMessageDeleted]);
+  }, [params.id, supabase, isMember, handleNewMessage, handleReadStatusUpdate, handleReactionUpdate, handleMessageDeleted]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -627,6 +645,29 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
       )
   }
 
+  if (!isMember) {
+      return (
+        <div className="flex h-dvh flex-col bg-background text-foreground">
+            <header className="flex h-16 flex-shrink-0 items-center justify-between border-b px-4">
+                <div className="flex items-center gap-3">
+                    <Link href="/class">
+                        <Button variant="ghost" size="icon">
+                            <ArrowLeft className="h-5 w-5" />
+                        </Button>
+                    </Link>
+                </div>
+            </header>
+            <div className="flex-1 flex flex-col items-center justify-center text-center p-4">
+                 <h2 className="text-2xl font-bold">Access Denied</h2>
+                 <p className="text-muted-foreground mt-2">You are not a member of this class. Join the class to view and send messages.</p>
+                 <Link href="/class" className="mt-4">
+                    <Button>Back to Classes</Button>
+                 </Link>
+            </div>
+        </div>
+      )
+  }
+
   const formatRecordingTime = (time: number) => {
     const minutes = Math.floor(time / 60);
     const seconds = time % 60;
@@ -742,3 +783,4 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
     </div>
   );
 }
+
