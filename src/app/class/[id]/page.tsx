@@ -51,7 +51,7 @@ const ReactionEmojis = {
   '😢': Frown
 };
 
-const ChatMessage = ({ message, isSender, currentUserId, onNewReaction }: { message: Message, isSender: boolean, currentUserId: string | undefined, onNewReaction: (messageId: string, reaction: Reaction) => void }) => {
+const ChatMessage = ({ message, isSender, currentUserId, onNewReaction, onDelete }: { message: Message, isSender: boolean, currentUserId: string | undefined, onNewReaction: (messageId: string, reaction: Reaction) => void, onDelete: (messageId: string, mediaUrl: string | null) => void }) => {
     const sentTime = format(new Date(message.created_at), 'h:mm a');
     const supabase = createClient();
     const [isReacting, setIsReacting] = useState(false);
@@ -154,7 +154,7 @@ const ChatMessage = ({ message, isSender, currentUserId, onNewReaction }: { mess
                             </DropdownMenuTrigger>
                             <DropdownMenuContent>
                                 {isSender ? (
-                                    <DropdownMenuItem className="text-destructive">
+                                    <DropdownMenuItem className="text-destructive" onClick={() => onDelete(message.id, message.media_url || null)}>
                                         <Trash2 className="mr-2 h-4 w-4" />
                                         <span>Delete</span>
                                     </DropdownMenuItem>
@@ -282,6 +282,10 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
     },
     [supabase]
   );
+  
+  const handleMessageDeleted = useCallback((payload: any) => {
+    setMessages(prev => prev.filter(msg => msg.id !== payload.old.id));
+  }, []);
 
   const handleReadStatusUpdate = useCallback((payload: any) => {
     setMessages(prevMessages => {
@@ -410,6 +414,10 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'class_messages', filter: `class_id=eq.${params.id}` },
         handleNewMessage
+    ).on(
+        'postgres_changes',
+        { event: 'DELETE', schema: 'public', table: 'class_messages', filter: `class_id=eq.${params.id}` },
+        handleMessageDeleted
     );
 
     const readStatusSubscription = channel.on(
@@ -431,7 +439,7 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [params.id, supabase, handleNewMessage, handleReadStatusUpdate, handleReactionUpdate]);
+  }, [params.id, supabase, handleNewMessage, handleReadStatusUpdate, handleReactionUpdate, handleMessageDeleted]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -457,6 +465,36 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
     setMediaDuration(null);
     if (fileInputRef.current) {
         fileInputRef.current.value = "";
+    }
+  };
+  
+  const handleDeleteMessage = async (messageId: string, mediaUrl: string | null) => {
+    if (!currentUser) return;
+    
+    // Optimistic UI update
+    setMessages(prev => prev.filter(msg => msg.id !== messageId));
+
+    // Delete from storage if media exists
+    if (mediaUrl) {
+        const filePath = mediaUrl.split('/avatars/')[1];
+        if (filePath) {
+            const { error: storageError } = await supabase.storage.from('avatars').remove([filePath]);
+            if (storageError) {
+                console.error("Failed to delete media from storage:", storageError);
+                 toast({ variant: "destructive", title: "Deletion Failed", description: "Could not remove the media file." });
+                 // Note: You might want to re-fetch messages to revert optimistic update on failure
+                 return;
+            }
+        }
+    }
+
+    // Delete from database
+    const { error: dbError } = await supabase.from('class_messages').delete().eq('id', messageId);
+
+    if (dbError) {
+        console.error("Failed to delete message from DB:", dbError);
+        toast({ variant: "destructive", title: "Deletion Failed", description: dbError.message });
+        // Note: Re-fetch messages to revert optimistic update on failure
     }
   };
 
@@ -634,7 +672,7 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
       
       <main className="flex-1 overflow-y-auto p-4 space-y-6">
         {messages.map((msg) => (
-            <ChatMessage key={msg.id} message={msg} isSender={msg.user_id === currentUser?.id} currentUserId={currentUser?.id} onNewReaction={handleNewReaction} />
+            <ChatMessage key={msg.id} message={msg} isSender={msg.user_id === currentUser?.id} currentUserId={currentUser?.id} onNewReaction={handleNewReaction} onDelete={handleDeleteMessage} />
         ))}
         <div ref={messagesEndRef} />
       </main>
@@ -704,5 +742,3 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
     </div>
   );
 }
-
-    
