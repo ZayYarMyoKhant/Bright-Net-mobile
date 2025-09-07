@@ -140,40 +140,40 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
     fetchInitialData();
   }, [fetchInitialData]);
 
-  const handleNewMessage = useCallback((payload: any) => {
-      const { data: profile } = supabase.from('profiles').select('username, avatar_url').eq('id', payload.new.user_id).single().then(({ data }) => {
-          if (data) {
-              const newMessageWithProfile = { ...payload.new, profiles: data, is_read: false } as Message;
-              setMessages((prevMessages) => {
-                  if (prevMessages.some(msg => msg.id === newMessageWithProfile.id)) {
-                      return prevMessages;
-                  }
-                  return [...prevMessages, newMessageWithProfile];
-              });
-          }
-      });
+  const handleNewMessage = useCallback(async (payload: any) => {
+    const { data } = await supabase.from('profiles').select('username, avatar_url').eq('id', payload.new.user_id).single();
+    if (data) {
+        const newMessageWithProfile = { ...payload.new, profiles: data, is_read: false } as Message;
+        setMessages((prevMessages) => {
+            if (prevMessages.some(msg => msg.id === newMessageWithProfile.id)) {
+                return prevMessages;
+            }
+            return [...prevMessages, newMessageWithProfile];
+        });
+    }
   }, [supabase]);
 
   const handleReadStatusUpdate = useCallback((payload: any) => {
     setMessages(prevMessages => {
         const updatedMessages = prevMessages.map(msg => {
             if (msg.id === payload.new.message_id) {
-                // To be safe, check if reader_id is not the message sender before marking as read
                 const isOwnMessage = msg.user_id === payload.new.reader_id;
                 return { ...msg, is_read: !isOwnMessage ? true : msg.is_read };
             }
             return msg;
         });
 
-        // Mark all relevant messages as read for the current user
         if (currentUser) {
             markMessagesAsRead(updatedMessages, currentUser);
         }
         return updatedMessages;
     });
-}, [currentUser, markMessagesAsRead, supabase]);
+}, [currentUser, markMessagesAsRead]);
+
 
   useEffect(() => {
+    if (!params.id || !supabase) return;
+
     const channel = supabase.channel(`class-chat-${params.id}`);
 
     const messageSubscription = channel.on(
@@ -188,7 +188,11 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
         handleReadStatusUpdate
     );
     
-    channel.subscribe();
+    channel.subscribe((status) => {
+        if (status !== 'SUBSCRIBED') {
+            return null;
+        }
+    });
 
     return () => {
       supabase.removeChannel(channel);
