@@ -164,7 +164,7 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
         return [...prevMessages, newMessageWithProfile];
       });
     }
-  }, [supabase]);
+  }, [supabase, messages]);
 
  const handleReadStatusUpdate = useCallback((payload: any) => {
     setMessages(prevMessages => {
@@ -196,8 +196,12 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
 
     const readStatusSubscription = channel.on(
         'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'message_read_status' },
-        handleReadStatusUpdate
+        { event: '*', schema: 'public', table: 'message_read_status' },
+        (payload) => {
+            if (messages.some(m => m.id === payload.new.message_id)) {
+                handleReadStatusUpdate(payload);
+            }
+        }
     );
     
     channel.subscribe((status) => {
@@ -209,7 +213,7 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [params.id, supabase, handleNewMessage, handleReadStatusUpdate]);
+  }, [params.id, supabase, handleNewMessage, handleReadStatusUpdate, messages]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
