@@ -5,7 +5,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { ArrowLeft, Video, MoreVertical, Image as ImageIcon, Send, Smile, Mic, Trash2, Loader2, Check, CheckCheck, X, Expand, MessageSquareReply, Heart,ThumbsUp, Laugh, Frown } from "lucide-react";
+import { ArrowLeft, Video, MoreVertical, Image as ImageIcon, Send, Smile, Mic, Trash2, Loader2, Check, CheckCheck, X, Expand, MessageSquareReply, Heart,ThumbsUp, Laugh, Frown, Waveform } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { use, useState, useRef, useEffect, useCallback } from "react";
@@ -222,12 +222,16 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
   const [classInfo, setClassInfo] = useState<{ id: string; name: string; avatarFallback: string } | null>(null);
   const [mediaFile, setMediaFile] = useState<File | null>(null);
   const [mediaPreview, setMediaPreview] = useState<string | null>(null);
+  const [mediaDuration, setMediaDuration] = useState<number | null>(null);
 
   // Voice message states
   const [isRecording, setIsRecording] = useState(false);
+  const [recordingTime, setRecordingTime] = useState(0);
   const [hasMicPermission, setHasMicPermission] = useState(false);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
+  const recordingTimerRef = useRef<NodeJS.Timeout | null>(null);
+
   const { toast } = useToast();
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -439,10 +443,10 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
       if (file.type.startsWith("image/") || file.type.startsWith("video/")) {
         setMediaFile(file);
         setMediaPreview(URL.createObjectURL(file));
+        setMediaDuration(null); // Reset duration for non-audio
       } else {
         toast({variant: "destructive", title: "Unsupported File Type", description: "Only images and videos are allowed."});
-        setMediaFile(null);
-        setMediaPreview(null);
+        handleRemoveMedia();
       }
     }
   };
@@ -450,6 +454,7 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
   const handleRemoveMedia = () => {
     setMediaFile(null);
     setMediaPreview(null);
+    setMediaDuration(null);
     if (fileInputRef.current) {
         fileInputRef.current.value = "";
     }
@@ -461,9 +466,9 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
     if ((!newMessage.trim() && !mediaFile) || !currentUser || !classInfo) return;
     
     setSending(true);
-    let media_url = null;
-    let media_type: 'image' | 'video' | 'text' | 'audio' | null = null;
-    let media_duration: number | null = null;
+    let media_url: string | null = null;
+    let final_media_type: 'image' | 'video' | 'text' | 'audio' | null = null;
+    let final_media_duration: number | null = mediaDuration;
 
     if (mediaFile) {
         const filePath = `class_media/${classInfo.id}/${currentUser.id}/${Date.now()}_${mediaFile.name}`;
@@ -483,27 +488,26 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
         media_url = urlData.publicUrl;
 
         if (mediaFile.type.startsWith('image')) {
-            media_type = 'image';
+            final_media_type = 'image';
         } else if (mediaFile.type.startsWith('video')) {
-            media_type = 'video';
+            final_media_type = 'video';
         } else if (mediaFile.type.startsWith('audio')) {
-            media_type = 'audio';
-            // This is a simplified way to get duration. Might not be perfect.
-             const audio = document.createElement('audio');
-            const audioUrl = URL.createObjectURL(mediaFile);
-            
-            const durationPromise = new Promise<number>((resolve) => {
-                audio.addEventListener('loadedmetadata', () => {
-                    URL.revokeObjectURL(audioUrl);
-                    resolve(audio.duration);
-                }, { once: true });
-            });
-
-            audio.src = audioUrl;
-            media_duration = await durationPromise;
+            final_media_type = 'audio';
+            if (final_media_duration === null) {
+                // Fallback to calculate duration if not already set
+                const audio = document.createElement('audio');
+                const audioUrl = URL.createObjectURL(mediaFile);
+                final_media_duration = await new Promise<number>((resolve) => {
+                    audio.addEventListener('loadedmetadata', () => {
+                        URL.revokeObjectURL(audioUrl);
+                        resolve(audio.duration);
+                    }, { once: true });
+                    audio.src = audioUrl;
+                });
+            }
         }
     } else {
-        media_type = 'text';
+        final_media_type = 'text';
     }
 
 
@@ -514,8 +518,8 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
         class_id: classInfo.id,
         user_id: currentUser.id,
         media_url,
-        media_type,
-        media_duration
+        media_type: final_media_type,
+        media_duration: final_media_duration
     });
     
 
@@ -524,57 +528,57 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
     setSending(false);
   }
 
-  const handleMicClick = async () => {
-        if (isRecording) {
-            // Stop recording
-            mediaRecorderRef.current?.stop();
-            setIsRecording(false);
-            return;
-        }
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      setHasMicPermission(true);
+      mediaRecorderRef.current = new MediaRecorder(stream);
+      audioChunksRef.current = [];
 
-        // Start recording
-        if (!hasMicPermission) {
-            try {
-                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                setHasMicPermission(true);
-                mediaRecorderRef.current = new MediaRecorder(stream);
-                
-                mediaRecorderRef.current.ondataavailable = (event) => {
-                    audioChunksRef.current.push(event.data);
-                };
+      mediaRecorderRef.current.ondataavailable = (event) => {
+        audioChunksRef.current.push(event.data);
+      };
 
-                mediaRecorderRef.current.onstop = async () => {
-                    const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
-                    const audioFile = new File([audioBlob], `voice-message-${Date.now()}.webm`, { type: 'audio/webm' });
-                    audioChunksRef.current = [];
-                    
-                    setMediaFile(audioFile);
-                    // We will trigger send from useEffect when mediaFile changes
-                };
-
-            } catch (error) {
-                console.error("Mic permission denied", error);
-                toast({ variant: "destructive", title: "Microphone Access Denied", description: "Please enable microphone permissions in your browser settings." });
-                return;
-            }
-        }
+      mediaRecorderRef.current.onstop = () => {
+        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        const audioFile = new File([audioBlob], `voice-message-${Date.now()}.webm`, { type: 'audio/webm' });
         
-        // This needs to be in a separate block to handle the case where permission was just granted
-        if (mediaRecorderRef.current) {
-            audioChunksRef.current = [];
-            mediaRecorderRef.current.start();
-            setIsRecording(true);
-        }
-    };
-    
-    // This effect will trigger the send message when an audio file is ready
-    useEffect(() => {
-        if (mediaFile && mediaFile.type.startsWith('audio/')) {
-            handleSendMessage();
-        }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [mediaFile]);
+        // Stop the timer
+        if (recordingTimerRef.current) clearInterval(recordingTimerRef.current);
+        setMediaDuration(recordingTime);
+        setRecordingTime(0);
 
+        setMediaFile(audioFile);
+      };
+
+      mediaRecorderRef.current.start();
+      setIsRecording(true);
+      setRecordingTime(0);
+      recordingTimerRef.current = setInterval(() => {
+        setRecordingTime(prevTime => prevTime + 1);
+      }, 1000);
+
+    } catch (error) {
+      console.error("Mic permission denied", error);
+      toast({ variant: "destructive", title: "Microphone Access Denied", description: "Please enable microphone permissions in your browser settings." });
+      setHasMicPermission(false);
+    }
+  }
+
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+    }
+  }
+
+  const handleMicClick = () => {
+    if (isRecording) {
+      stopRecording();
+    } else {
+      startRecording();
+    }
+  };
 
   if (loading || !classInfo) {
       return (
@@ -584,6 +588,12 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
         </div>
       )
   }
+
+  const formatRecordingTime = (time: number) => {
+    const minutes = Math.floor(time / 60);
+    const seconds = time % 60;
+    return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+  };
 
   return (
     <div className="flex h-dvh flex-col bg-background text-foreground">
@@ -630,7 +640,7 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
       </main>
 
       <footer className="flex-shrink-0 border-t p-2">
-        {mediaPreview && (
+        {mediaPreview && !mediaFile?.type.startsWith('audio') && (
             <div className="p-2 relative">
                 <div className="relative w-24 h-24 rounded-md overflow-hidden">
                     {mediaFile?.type.startsWith('image/') ? (
@@ -650,21 +660,39 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
             </div>
         )}
         <form onSubmit={handleSendMessage} className="flex items-center gap-2 pt-1">
-            <input 
-                type="file" 
-                ref={fileInputRef} 
-                onChange={handleFileChange}
-                className="hidden" 
-                accept="image/*,video/*"
-            />
-            <Button variant="ghost" size="icon" type="button" onClick={() => fileInputRef.current?.click()}><ImageIcon className="h-5 w-5 text-muted-foreground" /></Button>
-            <Button variant="ghost" size="icon" type="button"><Smile className="h-5 w-5 text-muted-foreground" /></Button>
-            <Input 
-              placeholder="Type a message..." 
-              className="flex-1"
-              value={newMessage}
-              onChange={(e) => setNewMessage(e.target.value)}
-            />
+            { isRecording ? (
+                <div className="flex-1 flex items-center bg-muted h-10 rounded-md px-3 gap-2">
+                    <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></div>
+                    <p className="text-sm font-mono text-red-500">{formatRecordingTime(recordingTime)}</p>
+                </div>
+            ) : mediaFile && mediaFile.type.startsWith('audio/') ? (
+                <div className="flex-1 flex items-center bg-muted h-10 rounded-md px-3 gap-2">
+                    <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={handleRemoveMedia}>
+                        <Trash2 className="h-5 w-5 text-destructive" />
+                    </Button>
+                    <Waveform className="h-5 w-5 text-primary" />
+                    <p className="text-sm font-mono text-muted-foreground">{formatRecordingTime(Math.round(mediaDuration || 0))}</p>
+                </div>
+            ) : (
+                <>
+                    <input 
+                        type="file" 
+                        ref={fileInputRef} 
+                        onChange={handleFileChange}
+                        className="hidden" 
+                        accept="image/*,video/*"
+                    />
+                    <Button variant="ghost" size="icon" type="button" onClick={() => fileInputRef.current?.click()}><ImageIcon className="h-5 w-5 text-muted-foreground" /></Button>
+                    <Button variant="ghost" size="icon" type="button"><Smile className="h-5 w-5 text-muted-foreground" /></Button>
+                    <Input 
+                      placeholder="Type a message..." 
+                      className="flex-1"
+                      value={newMessage}
+                      onChange={(e) => setNewMessage(e.target.value)}
+                    />
+                </>
+            )}
+
             <Button variant="ghost" size="icon" type="button" onClick={handleMicClick}>
               <Mic className={cn("h-5 w-5 text-muted-foreground", isRecording && "text-red-500")} />
             </Button>
@@ -676,3 +704,5 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
     </div>
   );
 }
+
+    
