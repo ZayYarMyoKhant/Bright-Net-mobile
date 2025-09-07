@@ -61,20 +61,21 @@ const ChatMessage = ({ message, isSender, currentUserId, onNewReaction }: { mess
             return (
                 <div className="relative h-48 w-48 rounded-lg overflow-hidden group">
                     <Image src={message.media_url} alt="Sent image" layout="fill" objectFit="cover" data-ai-hint="photo message" />
-                     <Link href={`/class/media/image/${encodeURIComponent(message.media_url)}`} legacyBehavior passHref>
-                        <a onClick={(e) => e.stopPropagation()} target="_blank" rel="noopener noreferrer" className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <Expand className="h-8 w-8 text-white" />
-                        </a>
+                     <Link href={`/class/media/image/${encodeURIComponent(message.media_url)}`} 
+                        onClick={(e) => e.stopPropagation()}
+                        target="_blank" 
+                        rel="noopener noreferrer" 
+                        className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity"
+                     >
+                        <Expand className="h-8 w-8 text-white" />
                     </Link>
                 </div>
             )
         }
         if (message.media_type === 'video' && message.media_url) {
              return (
-                <Link href={`/class/media/video/${encodeURIComponent(message.media_url)}`} legacyBehavior passHref>
-                  <a target="_blank" rel="noopener noreferrer">
+                <Link href={`/class/media/video/${encodeURIComponent(message.media_url)}`} target="_blank" rel="noopener noreferrer">
                     <video src={message.media_url} controls className="max-w-60 rounded-lg" />
-                  </a>
                 </Link>
              )
         }
@@ -92,6 +93,7 @@ const ChatMessage = ({ message, isSender, currentUserId, onNewReaction }: { mess
     
     const handleReact = async (reaction: string) => {
         if (!currentUserId) return;
+        setIsReacting(false);
 
         // Optimistic UI update
         onNewReaction(message.id, {
@@ -99,8 +101,6 @@ const ChatMessage = ({ message, isSender, currentUserId, onNewReaction }: { mess
             user_id: currentUserId,
             profiles: { username: 'You' } // Placeholder
         });
-        
-        setIsReacting(false);
 
         // DB operation
         // First, remove any existing reaction from this user for this message
@@ -164,7 +164,7 @@ const ChatMessage = ({ message, isSender, currentUserId, onNewReaction }: { mess
                                         <span>Reply</span>
                                     </DropdownMenuItem>
                                 )}
-                                <Popover open={isReacting} onOpenChange={setIsReacting}>
+                                 <Popover open={isReacting} onOpenChange={setIsReacting}>
                                     <PopoverTrigger asChild>
                                         <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
                                              <Smile className="mr-2 h-4 w-4" />
