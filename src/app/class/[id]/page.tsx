@@ -32,14 +32,26 @@ type Message = {
 
 const ChatMessage = ({ message, isSender }: { message: Message, isSender: boolean }) => {
     const sentTime = format(new Date(message.created_at), 'h:mm a');
+    const pressTimer = useRef<NodeJS.Timeout>();
+
+    const handleMouseDown = (e: React.MouseEvent | React.TouchEvent) => {
+        const trigger = e.currentTarget.querySelector('[data-radix-dropdown-menu-trigger]');
+        pressTimer.current = setTimeout(() => {
+            trigger?.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true }));
+        }, 2000);
+    };
+    
+    const handleMouseUp = () => {
+        clearTimeout(pressTimer.current);
+    };
 
     const renderContent = () => {
         if (message.media_type === 'image' && message.media_url) {
             return (
                 <div className="relative h-48 w-48 rounded-lg overflow-hidden">
                     <Image src={message.media_url} alt="Sent image" layout="fill" objectFit="cover" data-ai-hint="photo message" />
-                    <Link href={`/class/media/image/${encodeURIComponent(message.media_url)}`} passHref>
-                         <Button asChild variant="ghost" size="icon" className="absolute bottom-1 left-1 h-7 w-7 bg-black/50 hover:bg-black/70 text-white hover:text-white">
+                     <Link href={`/class/media/image/${encodeURIComponent(message.media_url)}`} passHref legacyBehavior>
+                        <Button asChild variant="ghost" size="icon" className="absolute bottom-1 left-1 h-7 w-7 bg-black/50 hover:bg-black/70 text-white hover:text-white">
                            <a><Expand className="h-4 w-4" /></a>
                         </Button>
                     </Link>
@@ -68,15 +80,21 @@ const ChatMessage = ({ message, isSender }: { message: Message, isSender: boolea
             )}
             <div className="flex flex-col gap-1 items-end">
                 <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                        <div className="cursor-pointer">
+                    <div 
+                         onMouseDown={handleMouseDown}
+                         onMouseUp={handleMouseUp}
+                         onTouchStart={handleMouseDown}
+                         onTouchEnd={handleMouseUp}
+                         className="cursor-pointer"
+                    >
+                         <DropdownMenuTrigger asChild>
                             <div className={`max-w-xs rounded-lg px-3 py-2 ${isSender ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}>
                                 {!isSender && <p className="font-semibold text-xs mb-1 text-primary">{message.profiles.username}</p>}
                                 {renderContent()}
                                 {message.media_url && message.content && <p className="text-sm mt-1">{message.content}</p>}
                             </div>
-                        </div>
-                    </DropdownMenuTrigger>
+                        </DropdownMenuTrigger>
+                    </div>
                     <DropdownMenuContent>
                         <DropdownMenuItem className="text-destructive">
                             <Trash2 className="mr-2 h-4 w-4" />
@@ -278,15 +296,13 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
     
     setSending(true);
     let media_url = null;
-    let media_type: 'image' | 'video' | 'text' = 'text';
+    let media_type: 'image' | 'video' | 'text' | null = mediaFile ? (mediaFile.type.startsWith('image') ? 'image' : 'video') : 'text';
 
     if (mediaFile) {
-        const fileType = mediaFile.type.split('/')[0]; // 'image' or 'video'
-        media_type = fileType as 'image' | 'video';
         const filePath = `class_media/${classInfo.id}/${currentUser.id}/${Date.now()}_${mediaFile.name}`;
         
         const { error: uploadError } = await supabase.storage
-            .from('avatars') // NOTE: Using 'avatars' bucket, consider a 'class_media' bucket
+            .from('avatars') 
             .upload(filePath, mediaFile);
         
         if (uploadError) {
