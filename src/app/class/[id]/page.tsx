@@ -33,14 +33,12 @@ type Message = {
 const ChatMessage = ({ message, isSender }: { message: Message, isSender: boolean }) => {
     const sentTime = format(new Date(message.created_at), 'h:mm a');
     const pressTimer = useRef<NodeJS.Timeout>();
-    const dropdownTriggerRef = useRef<HTMLButtonElement>(null);
+    const [isMenuOpen, setIsMenuOpen] = useState(false);
 
 
     const handleInteractionStart = () => {
         pressTimer.current = setTimeout(() => {
-            if (dropdownTriggerRef.current) {
-                dropdownTriggerRef.current.click();
-            }
+            setIsMenuOpen(true);
         }, 2000);
     };
     
@@ -56,19 +54,17 @@ const ChatMessage = ({ message, isSender }: { message: Message, isSender: boolea
             return (
                 <div className="relative h-48 w-48 rounded-lg overflow-hidden">
                     <Image src={message.media_url} alt="Sent image" layout="fill" objectFit="cover" data-ai-hint="photo message" />
-                     <Link href={`/class/media/image/${encodeURIComponent(message.media_url)}`}>
-                        <Button 
-                            asChild 
-                            variant="ghost" 
-                            size="icon" 
-                            className="absolute bottom-1 left-1 h-7 w-7 bg-black/50 hover:bg-black/70 text-white hover:text-white"
-                            onClick={(e) => e.stopPropagation()}
-                        >
-                            <div>
-                                <Expand className="h-4 w-4" />
-                            </div>
-                        </Button>
-                    </Link>
+                    <Button 
+                        asChild
+                        variant="ghost" 
+                        size="icon" 
+                        className="absolute bottom-1 left-1 h-7 w-7 bg-black/50 hover:bg-black/70 text-white hover:text-white"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <Link href={`/class/media/image/${encodeURIComponent(message.media_url)}`}>
+                            <Expand className="h-4 w-4" />
+                        </Link>
+                    </Button>
                 </div>
             )
         }
@@ -93,7 +89,7 @@ const ChatMessage = ({ message, isSender }: { message: Message, isSender: boolea
                  </Link>
             )}
             <div className="flex flex-col gap-1 items-end">
-                <DropdownMenu>
+                <DropdownMenu open={isMenuOpen} onOpenChange={setIsMenuOpen}>
                     <DropdownMenuTrigger asChild>
                          <div 
                              onMouseDown={handleInteractionStart}
@@ -102,7 +98,6 @@ const ChatMessage = ({ message, isSender }: { message: Message, isSender: boolea
                              onTouchEnd={handleInteractionEnd}
                              className="cursor-pointer"
                          >
-                            <button ref={dropdownTriggerRef} className="hidden" />
                             <div className={`max-w-xs rounded-lg px-3 py-2 ${isSender ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}>
                                 {!isSender && <p className="font-semibold text-xs mb-1 text-primary">{message.profiles.username}</p>}
                                 {renderContent()}
@@ -167,7 +162,7 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
         });
       }
     },
-    [supabase, messages]
+    [supabase]
   );
 
   const handleReadStatusUpdate = useCallback((payload: any) => {
