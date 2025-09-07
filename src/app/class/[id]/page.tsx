@@ -50,9 +50,9 @@ const ChatMessage = ({ message, isSender }: { message: Message, isSender: boolea
             return (
                 <div className="relative h-48 w-48 rounded-lg overflow-hidden">
                     <Image src={message.media_url} alt="Sent image" layout="fill" objectFit="cover" data-ai-hint="photo message" />
-                     <Link href={`/class/media/image/${encodeURIComponent(message.media_url)}`} passHref legacyBehavior>
+                     <Link href={`/class/media/image/${encodeURIComponent(message.media_url)}`}>
                         <Button asChild variant="ghost" size="icon" className="absolute bottom-1 left-1 h-7 w-7 bg-black/50 hover:bg-black/70 text-white hover:text-white">
-                           <a><Expand className="h-4 w-4" /></a>
+                           <Expand className="h-4 w-4" />
                         </Button>
                     </Link>
                 </div>
