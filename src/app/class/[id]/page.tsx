@@ -36,14 +36,18 @@ const ChatMessage = ({ message, isSender }: { message: Message, isSender: boolea
     const renderContent = () => {
         if (message.media_type === 'image' && message.media_url) {
             return (
-                <div className="relative h-48 w-48 rounded-lg overflow-hidden">
-                    <Image src={message.media_url} alt="Sent image" layout="fill" objectFit="cover" data-ai-hint="photo message" />
-                </div>
+                <Link href={`/class/media/image/${encodeURIComponent(message.media_url)}`}>
+                    <div className="relative h-48 w-48 rounded-lg overflow-hidden">
+                        <Image src={message.media_url} alt="Sent image" layout="fill" objectFit="cover" data-ai-hint="photo message" />
+                    </div>
+                </Link>
             )
         }
         if (message.media_type === 'video' && message.media_url) {
              return (
-                <video src={message.media_url} controls className="max-w-xs rounded-lg" />
+                <Link href={`/class/media/video/${encodeURIComponent(message.media_url)}`}>
+                    <video src={message.media_url} controls className="max-w-60 rounded-lg" />
+                </Link>
              )
         }
         return <p className="text-sm">{message.content}</p>;
@@ -122,27 +126,28 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
   }, [supabase]);
 
   const handleNewMessage = useCallback(async (payload: any) => {
-    const { data: profileData } = await supabase
-      .from('profiles')
-      .select('username, avatar_url')
-      .eq('id', payload.new.user_id)
-      .single();
-
-    if (profileData) {
-      const newMessageWithProfile: Message = {
-        ...payload.new,
-        profiles: profileData,
-        is_read: false,
-      };
-      
-      setMessages((prevMessages) => {
-        if (prevMessages.some(msg => msg.id === newMessageWithProfile.id)) {
-          return prevMessages;
-        }
-        return [...prevMessages, newMessageWithProfile];
-      });
-    }
-  }, [supabase]);
+      const { data: profileData } = await supabase
+        .from('profiles')
+        .select('username, avatar_url')
+        .eq('id', payload.new.user_id)
+        .single();
+  
+      if (profileData) {
+        const newMessageWithProfile: Message = {
+          ...payload.new,
+          profiles: profileData,
+          is_read: false, // Default new messages to unread
+        };
+        
+        setMessages((prevMessages) => {
+          // Avoid duplicates
+          if (prevMessages.some(msg => msg.id === newMessageWithProfile.id)) {
+            return prevMessages;
+          }
+          return [...prevMessages, newMessageWithProfile];
+        });
+      }
+    }, [supabase]);
 
  const handleReadStatusUpdate = useCallback((payload: any) => {
     setMessages(prevMessages => {
@@ -408,5 +413,7 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
     </div>
   );
 }
+
+    
 
     
