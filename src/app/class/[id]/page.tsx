@@ -57,10 +57,10 @@ const ChatMessage = ({ message, isSender, currentUserId }: { message: Message, i
             return (
                 <div className="relative h-48 w-48 rounded-lg overflow-hidden group">
                     <Image src={message.media_url} alt="Sent image" layout="fill" objectFit="cover" data-ai-hint="photo message" />
-                     <Link href={`/class/media/image/${encodeURIComponent(message.media_url)}`} legacyBehavior passHref>
-                        <a target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity">
+                     <Link href={`/class/media/image/${encodeURIComponent(message.media_url)}`}>
+                        <div onClick={(e) => e.stopPropagation()} className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity">
                             <Expand className="h-8 w-8 text-white" />
-                        </a>
+                        </div>
                     </Link>
                 </div>
             )
@@ -575,3 +575,4 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
     </div>
   );
 }
+
