@@ -79,6 +79,7 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
   const [classInfo, setClassInfo] = useState<{ id: string; name: string; avatarFallback: string } | null>(null);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
   const supabase = createClient();
 
   useEffect(() => {
@@ -141,6 +142,9 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
 
   useEffect(() => {
     fetchInitialData();
+    if (typeof window !== 'undefined') {
+        audioRef.current = new Audio('/bubble-pop.mp3');
+    }
   }, [fetchInitialData]);
 
   useEffect(() => {
@@ -199,6 +203,11 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
 
     const content = newMessage;
     setNewMessage("");
+
+     // Play sound
+    if(audioRef.current) {
+        audioRef.current.play().catch(error => console.error("Audio play failed:", error));
+    }
 
     const { error } = await supabase.from('class_messages').insert({
         content: content,
@@ -283,3 +292,5 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
     </div>
   );
 }
+
+    
