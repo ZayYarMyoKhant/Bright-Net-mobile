@@ -33,17 +33,23 @@ type Message = {
 const ChatMessage = ({ message, isSender }: { message: Message, isSender: boolean }) => {
     const sentTime = format(new Date(message.created_at), 'h:mm a');
     const pressTimer = useRef<NodeJS.Timeout>();
+    const dropdownTriggerRef = useRef<HTMLButtonElement>(null);
 
-    const handleMouseDown = (e: React.MouseEvent | React.TouchEvent) => {
-        const trigger = e.currentTarget.querySelector('[data-radix-dropdown-menu-trigger]');
+
+    const handleInteractionStart = () => {
         pressTimer.current = setTimeout(() => {
-            trigger?.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true }));
+            if (dropdownTriggerRef.current) {
+                dropdownTriggerRef.current.click();
+            }
         }, 2000);
     };
     
-    const handleMouseUp = () => {
-        clearTimeout(pressTimer.current);
+    const handleInteractionEnd = () => {
+        if (pressTimer.current) {
+            clearTimeout(pressTimer.current);
+        }
     };
+    
 
     const renderContent = () => {
         if (message.media_type === 'image' && message.media_url) {
@@ -51,8 +57,16 @@ const ChatMessage = ({ message, isSender }: { message: Message, isSender: boolea
                 <div className="relative h-48 w-48 rounded-lg overflow-hidden">
                     <Image src={message.media_url} alt="Sent image" layout="fill" objectFit="cover" data-ai-hint="photo message" />
                      <Link href={`/class/media/image/${encodeURIComponent(message.media_url)}`}>
-                        <Button asChild variant="ghost" size="icon" className="absolute bottom-1 left-1 h-7 w-7 bg-black/50 hover:bg-black/70 text-white hover:text-white">
-                           <Expand className="h-4 w-4" />
+                        <Button 
+                            asChild 
+                            variant="ghost" 
+                            size="icon" 
+                            className="absolute bottom-1 left-1 h-7 w-7 bg-black/50 hover:bg-black/70 text-white hover:text-white"
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <div>
+                                <Expand className="h-4 w-4" />
+                            </div>
                         </Button>
                     </Link>
                 </div>
@@ -80,21 +94,22 @@ const ChatMessage = ({ message, isSender }: { message: Message, isSender: boolea
             )}
             <div className="flex flex-col gap-1 items-end">
                 <DropdownMenu>
-                    <div 
-                         onMouseDown={handleMouseDown}
-                         onMouseUp={handleMouseUp}
-                         onTouchStart={handleMouseDown}
-                         onTouchEnd={handleMouseUp}
-                         className="cursor-pointer"
-                    >
-                         <DropdownMenuTrigger asChild>
+                    <DropdownMenuTrigger asChild>
+                         <div 
+                             onMouseDown={handleInteractionStart}
+                             onMouseUp={handleInteractionEnd}
+                             onTouchStart={handleInteractionStart}
+                             onTouchEnd={handleInteractionEnd}
+                             className="cursor-pointer"
+                         >
+                            <button ref={dropdownTriggerRef} className="hidden" />
                             <div className={`max-w-xs rounded-lg px-3 py-2 ${isSender ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}>
                                 {!isSender && <p className="font-semibold text-xs mb-1 text-primary">{message.profiles.username}</p>}
                                 {renderContent()}
                                 {message.media_url && message.content && <p className="text-sm mt-1">{message.content}</p>}
                             </div>
-                        </DropdownMenuTrigger>
-                    </div>
+                        </div>
+                    </DropdownMenuTrigger>
                     <DropdownMenuContent>
                         <DropdownMenuItem className="text-destructive">
                             <Trash2 className="mr-2 h-4 w-4" />
@@ -152,7 +167,7 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
         });
       }
     },
-    [supabase]
+    [supabase, messages]
   );
 
   const handleReadStatusUpdate = useCallback((payload: any) => {
