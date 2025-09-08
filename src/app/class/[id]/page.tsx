@@ -45,6 +45,14 @@ type Message = {
     reactions: Reaction[];
 };
 
+type ClassInfo = {
+    id: string;
+    name: string;
+    avatarFallback: string;
+    created_by: string;
+    is_live: boolean;
+};
+
 const ReactionEmojis = {
   '❤️': Heart,
   '👍': ThumbsUp,
@@ -223,7 +231,7 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [currentUser, setCurrentUser] = useState<SupabaseUser | null>(null);
-  const [classInfo, setClassInfo] = useState<{ id: string; name: string; avatarFallback: string } | null>(null);
+  const [classInfo, setClassInfo] = useState<ClassInfo | null>(null);
   const [mediaFile, setMediaFile] = useState<File | null>(null);
   const [mediaPreview, setMediaPreview] = useState<string | null>(null);
   const [mediaDuration, setMediaDuration] = useState<number | null>(null);
@@ -233,7 +241,6 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
   // Voice message states
   const [isRecording, setIsRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
-  const [hasMicPermission, setHasMicPermission] = useState(false);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const recordingTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -243,6 +250,8 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const supabase = createClient();
+  
+  const isCreator = currentUser?.id === classInfo?.created_by;
 
   const handleNewReaction = useCallback((messageId: string, newReaction: Reaction) => {
     setMessages(prevMessages => {
@@ -357,6 +366,12 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
     });
   }, [supabase]);
 
+  const handleClassUpdate = useCallback((payload: any) => {
+    if (payload.new.id === params.id) {
+      setClassInfo(prev => prev ? { ...prev, is_live: payload.new.is_live } : null);
+    }
+  }, [params.id]);
+
 
   useEffect(() => {
     const fetchInitialData = async () => {
@@ -365,62 +380,67 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
       const { data: { user } } = await supabase.auth.getUser();
       setCurrentUser(user);
       
-      const { data: classData } = await supabase.from('classes').select('name').eq('id', params.id).single();
+      if (!user) {
+        setIsMember(false);
+        setLoading(false);
+        return;
+      }
+      
+      // Step 1: Check for membership first.
+      const { data: memberData, error: memberError } = await supabase
+        .from('class_members')
+        .select('user_id')
+        .eq('class_id', params.id)
+        .eq('user_id', user.id)
+        .single();
+      
+      if (memberError || !memberData) {
+        setIsMember(false);
+        setLoading(false);
+        if (memberError && memberError.code !== 'PGRST116') {
+          console.error("Error fetching membership:", memberError);
+        }
+        return;
+      }
+
+      setIsMember(true);
+      
+      // Step 2: Fetch class info.
+      const { data: classData } = await supabase.from('classes').select('id, name, created_by, is_live').eq('id', params.id).single();
       if (classData) {
         setClassInfo({
-          id: params.id,
-          name: classData.name,
+          ...classData,
           avatarFallback: classData.name.charAt(0),
         });
       }
 
-      if (user) {
-        const { data: memberData, error: memberError } = await supabase
-            .from('class_members')
-            .select('user_id')
-            .eq('class_id', params.id)
-            .eq('user_id', user.id)
-            .single();
-        
-        if (!memberData) {
-            console.error("User is not a member of this class or error fetching membership.");
-            setIsMember(false);
-            setLoading(false);
-            if (memberError && memberError.code !== 'PGRST116') {
-                console.error("Error fetching membership:", memberError);
-            }
-            return;
-        }
-
-        setIsMember(true);
-
-        const { data: initialMessages } = await supabase
-          .from('class_messages')
-          .select(`
-            *,
-            profiles (username, avatar_url),
-            message_read_status (reader_id),
-            message_reactions (*, profiles(username))
-          `)
-          .eq('class_id', params.id)
-          .order('created_at', { ascending: true });
+      // Step 3: Fetch messages (now that we know we are a member)
+      const { data: initialMessages } = await supabase
+        .from('class_messages')
+        .select(`
+          *,
+          profiles (username, avatar_url),
+          message_read_status (reader_id),
+          message_reactions (*, profiles(username))
+        `)
+        .eq('class_id', params.id)
+        .order('created_at', { ascending: true });
           
-        if (initialMessages) {
-            const memberCountResult = await supabase
-              .from('class_members')
-              .select('user_id', { count: 'exact' })
-              .eq('class_id', params.id);
-            
-            const memberCount = memberCountResult.data?.length || 1;
+      if (initialMessages) {
+          const memberCountResult = await supabase
+            .from('class_members')
+            .select('user_id', { count: 'exact' })
+            .eq('class_id', params.id);
+          
+          const memberCount = memberCountResult.data?.length || 1;
 
-            const processedMessages = initialMessages.map((msg: any) => ({
-                ...msg,
-                is_read: msg.message_read_status.length >= (memberCount - 1),
-                reactions: msg.message_reactions || [],
-            }));
-            setMessages(processedMessages as Message[]);
-            markMessagesAsRead(processedMessages, user);
-        }
+          const processedMessages = initialMessages.map((msg: any) => ({
+              ...msg,
+              is_read: msg.message_read_status.length >= (memberCount - 1),
+              reactions: msg.message_reactions || [],
+          }));
+          setMessages(processedMessages as Message[]);
+          markMessagesAsRead(processedMessages, user);
       }
       
       setLoading(false);
@@ -443,6 +463,12 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
         { event: 'DELETE', schema: 'public', table: 'class_messages', filter: `class_id=eq.${params.id}` },
         handleMessageDeleted
     );
+    
+    const classSubscription = channel.on(
+      'postgres_changes',
+      { event: 'UPDATE', schema: 'public', table: 'classes', filter: `id=eq.${params.id}` },
+      handleClassUpdate
+    )
 
     const readStatusSubscription = channel.on(
         'postgres_changes',
@@ -463,7 +489,7 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [params.id, supabase, isMember, handleNewMessage, handleReadStatusUpdate, handleReactionUpdate, handleMessageDeleted]);
+  }, [params.id, supabase, isMember, handleNewMessage, handleReadStatusUpdate, handleReactionUpdate, handleMessageDeleted, handleClassUpdate]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -506,7 +532,6 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
             if (storageError) {
                 console.error("Failed to delete media from storage:", storageError);
                  toast({ variant: "destructive", title: "Deletion Failed", description: "Could not remove the media file." });
-                 // Note: You might want to re-fetch messages to revert optimistic update on failure
                  return;
             }
         }
@@ -518,7 +543,6 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
     if (dbError) {
         console.error("Failed to delete message from DB:", dbError);
         toast({ variant: "destructive", title: "Deletion Failed", description: dbError.message });
-        // Note: Re-fetch messages to revert optimistic update on failure
     }
   };
 
@@ -608,7 +632,6 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
   const startRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      setHasMicPermission(true);
       mediaRecorderRef.current = new MediaRecorder(stream);
       audioChunksRef.current = [];
 
@@ -637,7 +660,6 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
     } catch (error) {
       console.error("Mic permission denied", error);
       toast({ variant: "destructive", title: "Microphone Access Denied", description: "Please enable microphone permissions in your browser settings." });
-      setHasMicPermission(false);
     }
   }
 
@@ -655,6 +677,33 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
       startRecording();
     }
   };
+
+  const handleVideoCallClick = async () => {
+    if (!classInfo || !currentUser) return;
+  
+    // Creator starts the call
+    if (isCreator) {
+      if (!classInfo.is_live) {
+        const { error } = await supabase
+          .from('classes')
+          .update({ is_live: true })
+          .eq('id', classInfo.id);
+        
+        if (error) {
+          toast({ variant: "destructive", title: "Error", description: "Could not start the call." });
+          return;
+        }
+      }
+    }
+    
+    // Anyone can join a live call
+    if (isCreator || classInfo.is_live) {
+      window.location.href = `/class/${classInfo.id}/video-call`;
+    } else {
+      toast({ title: "Call Not Started", description: "The class creator has not started the video call yet." });
+    }
+  };
+
 
   if (loading) {
       return (
@@ -713,11 +762,19 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
             </div>
         </div>
         <div className="flex items-center gap-2">
-          <Link href={`/class/${classInfo?.id}/video-call`}>
-            <Button variant="ghost" size="icon">
-              <Video className="h-5 w-5" />
-            </Button>
-          </Link>
+           <Button variant="ghost" size="icon" onClick={handleVideoCallClick} disabled={!isCreator && !classInfo?.is_live}>
+             {classInfo?.is_live ? (
+                <div className="relative">
+                  <Video className="h-5 w-5 text-red-500" />
+                  <span className="absolute -top-1 -right-2 flex h-3 w-3">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
+                  </span>
+                </div>
+              ) : (
+                <Video className="h-5 w-5" />
+              )}
+          </Button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="icon">
@@ -809,7 +866,10 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
                 onEmojiSelect={(emoji) => {
                     setNewMessage(prev => prev + emoji);
                 }}
-                onStickerSelect={handleSendSticker}
+                onStickerSelect={(sticker) => {
+                  setNewMessage(prev => prev + sticker);
+                  setShowEmojiPicker(false);
+                }}
             />
         )}
       </footer>
