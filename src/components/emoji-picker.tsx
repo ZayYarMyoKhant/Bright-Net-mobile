@@ -99,7 +99,15 @@ export function EmojiPicker({ onEmojiSelect, onStickerSelect }: EmojiPickerProps
                                         className="rounded-md hover:bg-muted aspect-square flex items-center justify-center p-1"
                                     >
                                        <div className="relative w-full h-full">
-                                            <Image src={sticker} alt={`${name} sticker ${index + 1}`} layout="fill" objectFit="contain" data-ai-hint={`${name} sticker`} />
+                                            <Image 
+                                                src={sticker} 
+                                                alt={`${name} sticker ${index + 1}`} 
+                                                width={64}
+                                                height={64}
+                                                unoptimized={true}
+                                                className="w-full h-full object-contain"
+                                                data-ai-hint={`${name} sticker`} 
+                                            />
                                        </div>
                                     </button>
                                 ))}
