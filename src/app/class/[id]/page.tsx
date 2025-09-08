@@ -370,7 +370,7 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
       }
 
       if (user) {
-        // First, check if the user is a member of the class.
+        // Step 1: Check if the user is a member of the class.
         const { data: memberData, error: memberError } = await supabase
             .from('class_members')
             .select('user_id')
@@ -381,12 +381,15 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
         if (memberError || !memberData) {
             setIsMember(false);
             setLoading(false);
-            console.error("User is not a member of this class or error fetching membership.");
+            // This is not necessarily an error, just means the user isn't a member.
+            // The UI will show the "Access Denied" message.
             return;
         }
 
+        // If we are here, the user is a member.
         setIsMember(true);
 
+        // Step 2: Fetch messages now that we know the user has access.
         const { data: initialMessages } = await supabase
           .from('class_messages')
           .select(`
@@ -636,7 +639,7 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
     }
   };
 
-  if (loading || !classInfo) {
+  if (loading) {
       return (
         <div className="flex h-dvh flex-col bg-background text-foreground items-center justify-center">
             <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -683,17 +686,17 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
                     <ArrowLeft className="h-5 w-5" />
                 </Button>
             </Link>
-            <Link href={`/class/${classInfo.id}/info`}>
+            <Link href={`/class/${classInfo?.id}/info`}>
               <Avatar className="h-10 w-10">
-                  <AvatarFallback>{classInfo.avatarFallback}</AvatarFallback>
+                  <AvatarFallback>{classInfo?.avatarFallback}</AvatarFallback>
               </Avatar>
             </Link>
             <div>
-                <p className="font-bold">{classInfo.name}</p>
+                <p className="font-bold">{classInfo?.name}</p>
             </div>
         </div>
         <div className="flex items-center gap-2">
-          <Link href={`/class/${classInfo.id}/video-call`}>
+          <Link href={`/class/${classInfo?.id}/video-call`}>
             <Button variant="ghost" size="icon">
               <Video className="h-5 w-5" />
             </Button>
@@ -783,4 +786,3 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
     </div>
   );
 }
-
