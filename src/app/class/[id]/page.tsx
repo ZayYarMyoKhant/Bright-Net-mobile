@@ -16,6 +16,7 @@ import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import AudioPlayer from "@/components/audio-player";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { EmojiPicker } from "@/components/emoji-picker";
 
 
 type Profile = {
@@ -39,7 +40,7 @@ type Message = {
     profiles: Profile;
     is_read?: boolean;
     media_url?: string | null;
-    media_type?: 'image' | 'video' | 'text' | 'audio' | null;
+    media_type?: 'image' | 'video' | 'text' | 'audio' | 'sticker' | null;
     media_duration?: number | null;
     reactions: Reaction[];
 };
@@ -57,18 +58,21 @@ const ChatMessage = ({ message, isSender, currentUserId, onNewReaction, onDelete
     const [isReacting, setIsReacting] = useState(false);
 
     const renderContent = () => {
-        if (message.media_type === 'image' && message.media_url) {
+        if ((message.media_type === 'image' || message.media_type === 'sticker') && message.media_url) {
+            const isSticker = message.media_type === 'sticker';
             return (
-                <div className="relative h-48 w-48 rounded-lg overflow-hidden group">
-                    <Image src={message.media_url} alt="Sent image" layout="fill" objectFit="cover" data-ai-hint="photo message" />
-                     <Link href={`/class/media/image/${encodeURIComponent(message.media_url)}`} 
-                        onClick={(e) => e.stopPropagation()}
-                        target="_blank" 
-                        rel="noopener noreferrer" 
-                        className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity"
-                     >
-                        <Expand className="h-8 w-8 text-white" />
-                    </Link>
+                <div className={cn("relative rounded-lg overflow-hidden group", isSticker ? "h-32 w-32 bg-transparent" : "h-48 w-48")}>
+                    <Image src={message.media_url} alt={isSticker ? "Sticker" : "Sent image"} layout="fill" objectFit={isSticker ? "contain" : "cover"} data-ai-hint="photo message" />
+                     {!isSticker && (
+                        <Link href={`/class/media/image/${encodeURIComponent(message.media_url)}`} 
+                            onClick={(e) => e.stopPropagation()}
+                            target="_blank" 
+                            rel="noopener noreferrer" 
+                            className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                            <Expand className="h-8 w-8 text-white" />
+                        </Link>
+                     )}
                 </div>
             )
         }
@@ -142,8 +146,8 @@ const ChatMessage = ({ message, isSender, currentUserId, onNewReaction, onDelete
              <div className="flex flex-col gap-1 items-start max-w-sm">
                  <div className={cn(
                     "relative group max-w-xs rounded-lg",
-                    message.media_type === 'audio' ? '' : 'px-3 py-2',
-                    isSender ? 'bg-primary text-primary-foreground' : 'bg-muted'
+                    message.media_type === 'audio' || message.media_type === 'sticker' ? '' : 'px-3 py-2',
+                    isSender ? (message.media_type === 'sticker' ? 'bg-transparent' : 'bg-primary text-primary-foreground') : (message.media_type === 'sticker' ? 'bg-transparent' : 'bg-muted')
                 )}>
                     <div className="absolute top-1 right-1 z-10 opacity-0 group-hover:opacity-100 transition-opacity">
                         <DropdownMenu>
@@ -224,6 +228,7 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
   const [mediaPreview, setMediaPreview] = useState<string | null>(null);
   const [mediaDuration, setMediaDuration] = useState<number | null>(null);
   const [isMember, setIsMember] = useState(false);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
 
   // Voice message states
   const [isRecording, setIsRecording] = useState(false);
@@ -370,7 +375,6 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
       }
 
       if (user) {
-        // Step 1: Check if the user is a member of the class.
         const { data: memberData, error: memberError } = await supabase
             .from('class_members')
             .select('user_id')
@@ -378,18 +382,19 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
             .eq('user_id', user.id)
             .single();
 
-        if (memberError || !memberData) {
+        if (memberError && memberError.code !== 'PGRST116') {
+             console.error("Error fetching membership:", memberError);
+        }
+        
+        if (!memberData) {
+            console.error("User is not a member of this class or error fetching membership.");
             setIsMember(false);
             setLoading(false);
-            // This is not necessarily an error, just means the user isn't a member.
-            // The UI will show the "Access Denied" message.
             return;
         }
 
-        // If we are here, the user is a member.
         setIsMember(true);
 
-        // Step 2: Fetch messages now that we know the user has access.
         const { data: initialMessages } = await supabase
           .from('class_messages')
           .select(`
@@ -412,8 +417,7 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
             const processedMessages = initialMessages.map((msg: any) => ({
                 ...msg,
                 is_read: msg.message_read_status.length >= (memberCount - 1),
-                // @ts-ignore
-                reactions: msg.message_reactions,
+                reactions: msg.message_reactions || [],
             }));
             setMessages(processedMessages as Message[]);
             markMessagesAsRead(processedMessages, user);
@@ -497,7 +501,7 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
 
     // Delete from storage if media exists
     if (mediaUrl) {
-        const filePath = mediaUrl.split('/avatars/')[1];
+        const filePath = mediaUrl.split('/public/')[1];
         if (filePath) {
             const { error: storageError } = await supabase.storage.from('avatars').remove([filePath]);
             if (storageError) {
@@ -526,7 +530,7 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
     
     setSending(true);
     let media_url: string | null = null;
-    let final_media_type: 'image' | 'video' | 'text' | 'audio' | null = null;
+    let final_media_type: Message['media_type'] = null;
     let final_media_duration: number | null = mediaDuration;
 
     if (mediaFile) {
@@ -553,7 +557,6 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
         } else if (mediaFile.type.startsWith('audio')) {
             final_media_type = 'audio';
             if (final_media_duration === null) {
-                // Fallback to calculate duration if not already set
                 const audio = document.createElement('audio');
                 const audioUrl = URL.createObjectURL(mediaFile);
                 final_media_duration = await new Promise<number>((resolve) => {
@@ -587,6 +590,21 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
     setSending(false);
   }
 
+  const handleSendSticker = async (stickerUrl: string) => {
+    if (!currentUser || !classInfo) return;
+    setShowEmojiPicker(false);
+    setSending(true);
+
+    await supabase.from('class_messages').insert({
+        class_id: classInfo.id,
+        user_id: currentUser.id,
+        media_url: stickerUrl,
+        media_type: 'sticker',
+    });
+
+    setSending(false);
+  }
+
   const startRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -602,7 +620,6 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
         const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
         const audioFile = new File([audioBlob], `voice-message-${Date.now()}.webm`, { type: 'audio/webm' });
         
-        // Stop the timer
         if (recordingTimerRef.current) clearInterval(recordingTimerRef.current);
         setMediaDuration(recordingTime);
         setRecordingTime(0);
@@ -721,67 +738,78 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
         <div ref={messagesEndRef} />
       </main>
 
-      <footer className="flex-shrink-0 border-t p-2">
-        {mediaPreview && !mediaFile?.type.startsWith('audio') && (
-            <div className="p-2 relative">
-                <div className="relative w-24 h-24 rounded-md overflow-hidden">
-                    {mediaFile?.type.startsWith('image/') ? (
-                        <Image src={mediaPreview} alt="Media preview" layout="fill" objectFit="cover" />
-                    ) : (
-                        <video src={mediaPreview} className="w-full h-full object-cover" />
-                    )}
-                     <Button
-                        variant="destructive"
-                        size="icon"
-                        className="absolute top-1 right-1 h-6 w-6 rounded-full z-10"
-                        onClick={handleRemoveMedia}
-                     >
-                        <X className="h-4 w-4" />
-                    </Button>
+      <footer className="flex-shrink-0 border-t">
+        <div className="p-2">
+            {mediaPreview && !mediaFile?.type.startsWith('audio') && (
+                <div className="p-2 relative">
+                    <div className="relative w-24 h-24 rounded-md overflow-hidden">
+                        {mediaFile?.type.startsWith('image/') ? (
+                            <Image src={mediaPreview} alt="Media preview" layout="fill" objectFit="cover" />
+                        ) : (
+                            <video src={mediaPreview} className="w-full h-full object-cover" />
+                        )}
+                         <Button
+                            variant="destructive"
+                            size="icon"
+                            className="absolute top-1 right-1 h-6 w-6 rounded-full z-10"
+                            onClick={handleRemoveMedia}
+                         >
+                            <X className="h-4 w-4" />
+                        </Button>
+                    </div>
                 </div>
-            </div>
-        )}
-        <form onSubmit={handleSendMessage} className="flex items-center gap-2 pt-1">
-            { isRecording ? (
-                <div className="flex-1 flex items-center bg-muted h-10 rounded-md px-3 gap-2">
-                    <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></div>
-                    <p className="text-sm font-mono text-red-500">{formatRecordingTime(recordingTime)}</p>
-                </div>
-            ) : mediaFile && mediaFile.type.startsWith('audio/') ? (
-                <div className="flex-1 flex items-center bg-muted h-10 rounded-md px-3 gap-2">
-                    <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={handleRemoveMedia}>
-                        <Trash2 className="h-5 w-5 text-destructive" />
-                    </Button>
-                    <Waves className="h-5 w-5 text-primary" />
-                    <p className="text-sm font-mono text-muted-foreground">{formatRecordingTime(Math.round(mediaDuration || 0))}</p>
-                </div>
-            ) : (
-                <>
-                    <input 
-                        type="file" 
-                        ref={fileInputRef} 
-                        onChange={handleFileChange}
-                        className="hidden" 
-                        accept="image/*,video/*"
-                    />
-                    <Button variant="ghost" size="icon" type="button" onClick={() => fileInputRef.current?.click()}><ImageIcon className="h-5 w-5 text-muted-foreground" /></Button>
-                    <Button variant="ghost" size="icon" type="button"><Smile className="h-5 w-5 text-muted-foreground" /></Button>
-                    <Input 
-                      placeholder="Type a message..." 
-                      className="flex-1"
-                      value={newMessage}
-                      onChange={(e) => setNewMessage(e.target.value)}
-                    />
-                </>
             )}
+            <form onSubmit={handleSendMessage} className="flex items-center gap-2 pt-1">
+                { isRecording ? (
+                    <div className="flex-1 flex items-center bg-muted h-10 rounded-md px-3 gap-2">
+                        <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></div>
+                        <p className="text-sm font-mono text-red-500">{formatRecordingTime(recordingTime)}</p>
+                    </div>
+                ) : mediaFile && mediaFile.type.startsWith('audio/') ? (
+                    <div className="flex-1 flex items-center bg-muted h-10 rounded-md px-3 gap-2">
+                        <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={handleRemoveMedia}>
+                            <Trash2 className="h-5 w-5 text-destructive" />
+                        </Button>
+                        <Waves className="h-5 w-5 text-primary" />
+                        <p className="text-sm font-mono text-muted-foreground">{formatRecordingTime(Math.round(mediaDuration || 0))}</p>
+                    </div>
+                ) : (
+                    <>
+                        <input 
+                            type="file" 
+                            ref={fileInputRef} 
+                            onChange={handleFileChange}
+                            className="hidden" 
+                            accept="image/*,video/*"
+                        />
+                        <Button variant="ghost" size="icon" type="button" onClick={() => fileInputRef.current?.click()}><ImageIcon className="h-5 w-5 text-muted-foreground" /></Button>
+                        <Button variant="ghost" size="icon" type="button" onClick={() => setShowEmojiPicker(!showEmojiPicker)}>
+                            <Smile className={cn("h-5 w-5 text-muted-foreground", showEmojiPicker && "text-primary")} />
+                        </Button>
+                        <Input 
+                          placeholder="Type a message..." 
+                          className="flex-1"
+                          value={newMessage}
+                          onChange={(e) => setNewMessage(e.target.value)}
+                          onFocus={() => setShowEmojiPicker(false)}
+                        />
+                    </>
+                )}
 
-            <Button variant="ghost" size="icon" type="button" onClick={handleMicClick}>
-              <Mic className={cn("h-5 w-5 text-muted-foreground", isRecording && "text-red-500")} />
-            </Button>
-            <Button size="icon" type="submit" disabled={(!newMessage.trim() && !mediaFile) || sending}>
-                {sending ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
-            </Button>
-        </form>
+                <Button variant="ghost" size="icon" type="button" onClick={handleMicClick}>
+                  <Mic className={cn("h-5 w-5 text-muted-foreground", isRecording && "text-red-500")} />
+                </Button>
+                <Button size="icon" type="submit" disabled={(!newMessage.trim() && !mediaFile) || sending}>
+                    {sending ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
+                </Button>
+            </form>
+        </div>
+        {showEmojiPicker && (
+            <EmojiPicker 
+                onEmojiSelect={(emoji) => setNewMessage(prev => prev + emoji)}
+                onStickerSelect={handleSendSticker}
+            />
+        )}
       </footer>
     </div>
   );
