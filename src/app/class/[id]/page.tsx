@@ -588,6 +588,7 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
     setNewMessage("");
     handleRemoveMedia();
     setSending(false);
+    setShowEmojiPicker(false);
   }
 
   const handleSendSticker = async (stickerUrl: string) => {
@@ -806,11 +807,14 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
         </div>
         {showEmojiPicker && (
             <EmojiPicker 
-                onEmojiSelect={(emoji) => setNewMessage(prev => prev + emoji)}
-                onStickerSelect={handleSendSticker}
+                onEmojiSelect={(emoji) => {
+                    setNewMessage(prev => prev + emoji);
+                }}
             />
         )}
       </footer>
     </div>
   );
 }
+
+    
