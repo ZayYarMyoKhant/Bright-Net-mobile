@@ -58,21 +58,18 @@ const ChatMessage = ({ message, isSender, currentUserId, onNewReaction, onDelete
     const [isReacting, setIsReacting] = useState(false);
 
     const renderContent = () => {
-        if ((message.media_type === 'image' || message.media_type === 'sticker') && message.media_url) {
-            const isSticker = message.media_type === 'sticker';
+        if ((message.media_type === 'image') && message.media_url) {
             return (
-                <div className={cn("relative rounded-lg overflow-hidden group", isSticker ? "h-32 w-32 bg-transparent" : "h-48 w-48")}>
-                    <Image src={message.media_url} alt={isSticker ? "Sticker" : "Sent image"} layout="fill" objectFit={isSticker ? "contain" : "cover"} data-ai-hint="photo message" />
-                     {!isSticker && (
-                        <Link href={`/class/media/image/${encodeURIComponent(message.media_url)}`} 
-                            onClick={(e) => e.stopPropagation()}
-                            target="_blank" 
-                            rel="noopener noreferrer" 
-                            className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity"
-                        >
-                            <Expand className="h-8 w-8 text-white" />
-                        </Link>
-                     )}
+                <div className={cn("relative rounded-lg overflow-hidden group h-48 w-48")}>
+                    <Image src={message.media_url} alt={"Sent image"} layout="fill" objectFit={"cover"} data-ai-hint="photo message" />
+                     <Link href={`/class/media/image/${encodeURIComponent(message.media_url)}`} 
+                        onClick={(e) => e.stopPropagation()}
+                        target="_blank" 
+                        rel="noopener noreferrer" 
+                        className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                        <Expand className="h-8 w-8 text-white" />
+                    </Link>
                 </div>
             )
         }
@@ -91,6 +88,9 @@ const ChatMessage = ({ message, isSender, currentUserId, onNewReaction, onDelete
                     isSender={isSender}
                 />
             )
+        }
+        if (message.media_type === 'sticker') {
+            return <p className="text-5xl p-2">{message.content}</p>
         }
         return <p className="text-sm pr-6">{message.content}</p>;
     }
@@ -381,15 +381,14 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
             .eq('class_id', params.id)
             .eq('user_id', user.id)
             .single();
-
-        if (memberError && memberError.code !== 'PGRST116') {
-             console.error("Error fetching membership:", memberError);
-        }
         
         if (!memberData) {
             console.error("User is not a member of this class or error fetching membership.");
             setIsMember(false);
             setLoading(false);
+            if (memberError && memberError.code !== 'PGRST116') {
+                console.error("Error fetching membership:", memberError);
+            }
             return;
         }
 
@@ -591,7 +590,7 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
     setShowEmojiPicker(false);
   }
 
-  const handleSendSticker = async (stickerUrl: string) => {
+  const handleSendSticker = async (stickerText: string) => {
     if (!currentUser || !classInfo) return;
     setShowEmojiPicker(false);
     setSending(true);
@@ -599,7 +598,7 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
     await supabase.from('class_messages').insert({
         class_id: classInfo.id,
         user_id: currentUser.id,
-        media_url: stickerUrl,
+        content: stickerText,
         media_type: 'sticker',
     });
 
