@@ -9,16 +9,18 @@ import Link from "next/link";
 import { use, useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 
+type ProfileInfo = {
+    full_name: string;
+    avatar_url: string;
+};
+
 type ClassInfo = {
     id: string;
     name: string;
     description: string;
     cover_photo_url: string;
     memberCount: number;
-    createdBy: {
-      full_name: string;
-      avatar_url: string;
-    };
+    createdBy: ProfileInfo;
 };
 
 export default function ClassInfoPage({ params: paramsPromise }: { params: Promise<{ id: string }> }) {
@@ -33,16 +35,7 @@ export default function ClassInfoPage({ params: paramsPromise }: { params: Promi
 
         const { data: classData, error: classError } = await supabase
             .from('classes')
-            .select(`
-                id,
-                name,
-                description,
-                cover_photo_url,
-                profiles (
-                    full_name,
-                    avatar_url
-                )
-            `)
+            .select('id, name, description, cover_photo_url, created_by')
             .eq('id', params.id)
             .single();
 
@@ -52,9 +45,21 @@ export default function ClassInfoPage({ params: paramsPromise }: { params: Promi
             return;
         }
 
-        const { data: membersData, error: membersError } = await supabase
+        const { data: profileData, error: profileError } = await supabase
+            .from('profiles')
+            .select('full_name, avatar_url')
+            .eq('id', classData.created_by)
+            .single();
+
+        if (profileError || !profileData) {
+            console.error("Error fetching creator profile:", profileError);
+            setLoading(false);
+            return;
+        }
+
+        const { count: memberCount, error: membersError } = await supabase
             .from('class_members')
-            .select('user_id', { count: 'exact' })
+            .select('*', { count: 'exact', head: true })
             .eq('class_id', params.id);
         
         if (membersError) {
@@ -66,9 +71,8 @@ export default function ClassInfoPage({ params: paramsPromise }: { params: Promi
             name: classData.name,
             description: classData.description || "No description provided.",
             cover_photo_url: classData.cover_photo_url || "https://picsum.photos/800/400?random=50",
-            // @ts-ignore
-            createdBy: classData.profiles,
-            memberCount: membersData?.length || 0,
+            createdBy: profileData,
+            memberCount: memberCount || 0,
         });
 
         setLoading(false);
