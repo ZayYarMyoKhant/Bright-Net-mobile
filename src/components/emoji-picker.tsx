@@ -11,11 +11,49 @@ const emojiCategories = [
   { name: 'People & Body', emojis: ['👋', '🤚', '🖐️', '✋', '🖖', '👌', '🤏', '✌️', '🤞', '🤟', '🤘', '🤙', '👈', '👉', '👆', '🖕', '👇', '☝️', '👍', '👎', '✊', '👊', '🤛', '🤜', '👏', '🙌', '👐', '🤲', '🤝', '🙏', '✍️', '💅', '🤳', '💪', '🦾', '🦵', '🦿', '🦶', '👣', '👂', '🦻', '👃', '🧠', '🦷', '🦴', '👀', '👁️', '👅', '👄', '💋', '🩸'] },
 ];
 
+const stickerUrlBase = "https://blbqaojfppwybkjqiyeb.supabase.co/storage/v1/object/public/stickers";
+
 const stickerCategories = {
-    love: Array.from({ length: 8 }, (_, i) => `https://picsum.photos/100/100?random=love${i}`),
-    laugh: Array.from({ length: 8 }, (_, i) => `https://picsum.photos/100/100?random=laugh${i}`),
-    cry: Array.from({ length: 8 }, (_, i) => `https://picsum.photos/100/100?random=cry${i}`),
-    angry: Array.from({ length: 8 }, (_, i) => `https://picsum.photos/100/100?random=angry${i}`),
+    love: [
+        `${stickerUrlBase}/love/love-1.webp`,
+        `${stickerUrlBase}/love/love-2.webp`,
+        `${stickerUrlBase}/love/love-3.webp`,
+        `${stickerUrlBase}/love/love-4.webp`,
+        `${stickerUrlBase}/love/love-5.webp`,
+        `${stickerUrlBase}/love/love-6.webp`,
+        `${stickerUrlBase}/love/love-7.webp`,
+        `${stickerUrlBase}/love/love-8.webp`,
+    ],
+    laugh: [
+        `${stickerUrlBase}/laugh/laugh-1.webp`,
+        `${stickerUrlBase}/laugh/laugh-2.webp`,
+        `${stickerUrlBase}/laugh/laugh-3.webp`,
+        `${stickerUrlBase}/laugh/laugh-4.webp`,
+        `${stickerUrlBase}/laugh/laugh-5.webp`,
+        `${stickerUrlBase}/laugh/laugh-6.webp`,
+        `${stickerUrlBase}/laugh/laugh-7.webp`,
+        `${stickerUrlBase}/laugh/laugh-8.webp`,
+    ],
+    cry: [
+        `${stickerUrlBase}/cry/cry-1.webp`,
+        `${stickerUrlBase}/cry/cry-2.webp`,
+        `${stickerUrlBase}/cry/cry-3.webp`,
+        `${stickerUrlBase}/cry/cry-4.webp`,
+        `${stickerUrlBase}/cry/cry-5.webp`,
+        `${stickerUrlBase}/cry/cry-6.webp`,
+        `${stickerUrlBase}/cry/cry-7.webp`,
+        `${stickerUrlBase}/cry/cry-8.webp`,
+    ],
+    angry: [
+        `${stickerUrlBase}/angry/angry-1.webp`,
+        `${stickerUrlBase}/angry/angry-2.webp`,
+        `${stickerUrlBase}/angry/angry-3.webp`,
+        `${stickerUrlBase}/angry/angry-4.webp`,
+        `${stickerUrlBase}/angry/angry-5.webp`,
+        `${stickerUrlBase}/angry/angry-6.webp`,
+        `${stickerUrlBase}/angry/angry-7.webp`,
+        `${stickerUrlBase}/angry/angry-8.webp`,
+    ],
 };
 
 
