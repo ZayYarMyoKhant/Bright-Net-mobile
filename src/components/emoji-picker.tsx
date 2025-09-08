@@ -11,7 +11,7 @@ const emojiCategories = [
   { name: 'People & Body', emojis: ['👋', '🤚', '🖐️', '✋', '🖖', '👌', '🤏', '✌️', '🤞', '🤟', '🤘', '🤙', '👈', '👉', '👆', '🖕', '👇', '☝️', '👍', '👎', '✊', '👊', '🤛', '🤜', '👏', '🙌', '👐', '🤲', '🤝', '🙏', '✍️', '💅', '🤳', '💪', '🦾', '🦵', '🦿', '🦶', '👣', '👂', '🦻', '👃', '🧠', '🦷', '🦴', '👀', '👁️', '👅', '👄', '💋', '🩸'] },
 ];
 
-const stickerUrlBase = "https://blbqaojfppwybkjqiyeb.supabase.co/storage/v1/object/public/stickers";
+const stickerUrlBase = "https://blbqaojfppwybkjqiyeb.supabase.co/storage/v1/object/public/avatars/stickers";
 
 const stickerCategories = {
     love: [
@@ -73,8 +73,8 @@ export function EmojiPicker({ onEmojiSelect, onStickerSelect }: EmojiPickerProps
                             <p className="text-sm font-semibold text-muted-foreground px-2 mb-2">{category.name}</p>
                             <div className="grid grid-cols-8 gap-2">
                                 {category.emojis.map(emoji => (
-                                    <button 
-                                        key={emoji} 
+                                    <button
+                                        key={emoji}
                                         onClick={() => onEmojiSelect(emoji)}
                                         className="text-2xl rounded-md hover:bg-muted aspect-square flex items-center justify-center"
                                     >
@@ -93,8 +93,8 @@ export function EmojiPicker({ onEmojiSelect, onStickerSelect }: EmojiPickerProps
                             <p className="text-sm font-semibold text-muted-foreground px-2 mb-2 capitalize">{name}</p>
                             <div className="grid grid-cols-4 gap-2">
                                 {stickers.map((sticker, index) => (
-                                    <button 
-                                        key={index} 
+                                    <button
+                                        key={index}
                                         onClick={() => onStickerSelect(sticker)}
                                         className="rounded-md hover:bg-muted aspect-square flex items-center justify-center p-1"
                                     >
