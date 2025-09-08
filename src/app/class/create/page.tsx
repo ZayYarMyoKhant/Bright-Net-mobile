@@ -66,7 +66,8 @@ export default function CreateClassPage() {
                 cover_photo_url = urlData.publicUrl;
             }
 
-            const { error } = await supabase
+            // Step 1: Insert the new class and get its ID
+            const { data: newClass, error: classError } = await supabase
                 .from('classes')
                 .insert({
                     name: className,
@@ -74,10 +75,26 @@ export default function CreateClassPage() {
                     privacy,
                     created_by: user.id,
                     cover_photo_url,
-                });
+                })
+                .select('id')
+                .single();
 
-            if (error) {
-                toast({ variant: "destructive", title: "Database Error", description: error.message });
+            if (classError || !newClass) {
+                toast({ variant: "destructive", title: "Database Error", description: classError?.message || "Failed to create class." });
+                return;
+            }
+
+            // Step 2: Add the creator as a member of the new class
+            const { error: memberError } = await supabase
+                .from('class_members')
+                .insert({
+                    class_id: newClass.id,
+                    user_id: user.id,
+                });
+            
+            if (memberError) {
+                 toast({ variant: "destructive", title: "Membership Error", description: "Failed to add you as a member to the new class." });
+                 // Note: You might want to handle cleanup here, e.g., delete the created class
             } else {
                 toast({ title: "Class Created!", description: `The class "${className}" has been successfully created.` });
                 router.push('/class');
