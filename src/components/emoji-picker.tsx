@@ -1,6 +1,7 @@
 
 "use client";
 
+import Image from "next/image";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
@@ -10,19 +11,22 @@ const emojiCategories = [
   { name: 'People & Body', emojis: ['👋', '🤚', '🖐️', '✋', '🖖', '👌', '🤏', '✌️', '🤞', '🤟', '🤘', '🤙', '👈', '👉', '👆', '🖕', '👇', '☝️', '👍', '👎', '✊', '👊', '🤛', '🤜', '👏', '🙌', '👐', '🤲', '🤝', '🙏', '✍️', '💅', '🤳', '💪', '🦾', '🦵', '🦿', '🦶', '👣', '👂', '🦻', '👃', '🧠', '🦷', '🦴', '👀', '👁️', '👅', '👄', '💋', '🩸'] },
 ];
 
+const stickerUrlBase = "https://blbqaojfppwybkjqiyeb.supabase.co/storage/v1/object/public/avatars/stickers";
+
 const stickerCategories = {
-    love: ['😍', '🥰', '😘', '❤️', '💕', '💞', '💓', '💌'],
-    laugh: ['😂', '🤣', '😆', '😄', '😹', '껄껄', '🤭', '😁'],
-    cry: ['😭', '😢', '🥺', '😥', '😿', '💔', '😩', '😫'],
-    angry: ['😠', '😡', '😤', '🤬', '💢', '👿', '🔥', '💥'],
+    love: Array.from({ length: 8 }, (_, i) => `${stickerUrlBase}/love/${i + 1}.webp`),
+    laugh: Array.from({ length: 8 }, (_, i) => `${stickerUrlBase}/laugh/${i + 1}.webp`),
+    cry: Array.from({ length: 8 }, (_, i) => `${stickerUrlBase}/cry/${i + 1}.webp`),
+    angry: Array.from({ length: 8 }, (_, i) => `${stickerUrlBase}/angry/${i + 1}.webp`),
 };
 
 
 type EmojiPickerProps = {
     onEmojiSelect: (emoji: string) => void;
+    onStickerSelect: (stickerUrl: string) => void;
 }
 
-export function EmojiPicker({ onEmojiSelect }: EmojiPickerProps) {
+export function EmojiPicker({ onEmojiSelect, onStickerSelect }: EmojiPickerProps) {
   return (
     <div className="h-64 w-full bg-background border-t">
         <Tabs defaultValue="emoji" className="flex flex-col h-full">
@@ -51,14 +55,24 @@ export function EmojiPicker({ onEmojiSelect }: EmojiPickerProps) {
                     {Object.entries(stickerCategories).map(([name, stickers]) => (
                         <div key={name} className="mb-4">
                             <p className="text-sm font-semibold text-muted-foreground px-2 mb-2 capitalize">{name}</p>
-                            <div className="grid grid-cols-8 gap-2">
-                                {stickers.map((sticker, index) => (
+                            <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-8 gap-2">
+                                {stickers.map((stickerUrl, index) => (
                                     <button
                                         key={index}
-                                        onClick={() => onEmojiSelect(sticker)}
-                                        className="text-2xl rounded-md hover:bg-muted aspect-square flex items-center justify-center"
+                                        onClick={() => onStickerSelect(stickerUrl)}
+                                        className="rounded-md hover:bg-muted aspect-square flex items-center justify-center p-1"
                                     >
-                                       {sticker}
+                                       <div className="relative w-full h-full">
+                                            <Image 
+                                                src={stickerUrl} 
+                                                alt={`${name} sticker ${index + 1}`} 
+                                                width={64}
+                                                height={64}
+                                                className="w-full h-full object-contain"
+                                                unoptimized={true}
+                                                data-ai-hint="sticker image"
+                                            />
+                                       </div>
                                     </button>
                                 ))}
                             </div>
@@ -74,5 +88,3 @@ export function EmojiPicker({ onEmojiSelect }: EmojiPickerProps) {
     </div>
   );
 }
-
-    

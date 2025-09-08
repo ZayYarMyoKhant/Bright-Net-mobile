@@ -810,11 +810,10 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
                 onEmojiSelect={(emoji) => {
                     setNewMessage(prev => prev + emoji);
                 }}
+                onStickerSelect={handleSendSticker}
             />
         )}
       </footer>
     </div>
   );
 }
-
-    
