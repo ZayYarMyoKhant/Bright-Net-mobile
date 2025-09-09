@@ -7,7 +7,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 
 
-const stickerUrlBase = `https://blbqaojfppwybkjqiyeb.supabase.co/storage/v1/object/public/avatars`;
+const stickerUrlBase = `https://blbqaojfppwybkjqiyeb.supabase.co/storage/v1/object/public/avatars/stickers`;
 
 const stickerCategories = {
     love: Array.from({ length: 4 }, (_, i) => `${stickerUrlBase}/love/${i + 1}.webp`),
@@ -66,8 +66,8 @@ export function EmojiPicker({ onEmojiSelect, onStickerSelect }: EmojiPickerProps
                                             <Image 
                                                 src={sticker} 
                                                 alt={`${name} sticker`} 
-                                                layout="fill"
-                                                objectFit="contain"
+                                                fill
+                                                className="w-full h-full object-contain"
                                                 unoptimized={true}
                                             />
                                         </div>
