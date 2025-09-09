@@ -386,7 +386,7 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
         return;
       }
       
-      // Step 1: Check for membership first.
+      // Step 1: Check for membership first. This is crucial for RLS.
       const { data: memberData, error: memberError } = await supabase
         .from('class_members')
         .select('user_id')
@@ -394,10 +394,11 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
         .eq('user_id', user.id)
         .single();
       
+      // If not a member, stop here.
       if (memberError || !memberData) {
         setIsMember(false);
         setLoading(false);
-        if (memberError && memberError.code !== 'PGRST116') {
+        if (memberError && memberError.code !== 'PGRST116') { // PGRST116 is "No rows found"
           console.error("Error fetching membership:", memberError);
         }
         return;
@@ -405,28 +406,23 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
 
       setIsMember(true);
       
-      // Step 2: Fetch class info.
-      const { data: classData } = await supabase.from('classes').select('id, name, created_by, is_live').eq('id', params.id).single();
-      if (classData) {
+      // Step 2: Now that we are confirmed as a member, fetch other data.
+      // This pattern is safer for RLS policies.
+      const [classResult, messagesResult] = await Promise.all([
+        supabase.from('classes').select('id, name, created_by, is_live').eq('id', params.id).single(),
+        supabase.from('class_messages').select('*, profiles (username, avatar_url), message_read_status (reader_id), message_reactions (*, profiles(username))').eq('class_id', params.id).order('created_at', { ascending: true })
+      ]);
+      
+      if (classResult.data) {
         setClassInfo({
-          ...classData,
-          avatarFallback: classData.name.charAt(0),
+          ...classResult.data,
+          avatarFallback: classResult.data.name.charAt(0),
         });
+      } else if (classResult.error) {
+        console.error("Error fetching class info:", classResult.error);
       }
 
-      // Step 3: Fetch messages (now that we know we are a member)
-      const { data: initialMessages } = await supabase
-        .from('class_messages')
-        .select(`
-          *,
-          profiles (username, avatar_url),
-          message_read_status (reader_id),
-          message_reactions (*, profiles(username))
-        `)
-        .eq('class_id', params.id)
-        .order('created_at', { ascending: true });
-          
-      if (initialMessages) {
+      if (messagesResult.data) {
           const memberCountResult = await supabase
             .from('class_members')
             .select('user_id', { count: 'exact' })
@@ -434,13 +430,15 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
           
           const memberCount = memberCountResult.data?.length || 1;
 
-          const processedMessages = initialMessages.map((msg: any) => ({
+          const processedMessages = messagesResult.data.map((msg: any) => ({
               ...msg,
               is_read: msg.message_read_status.length >= (memberCount - 1),
               reactions: msg.message_reactions || [],
           }));
           setMessages(processedMessages as Message[]);
           markMessagesAsRead(processedMessages, user);
+      } else if (messagesResult.error) {
+         console.error("Error fetching messages:", messagesResult.error);
       }
       
       setLoading(false);
@@ -867,8 +865,7 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
                     setNewMessage(prev => prev + emoji);
                 }}
                 onStickerSelect={(sticker) => {
-                  setNewMessage(prev => prev + sticker);
-                  setShowEmojiPicker(false);
+                  handleSendSticker(sticker)
                 }}
             />
         )}
