@@ -3,11 +3,12 @@
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Users, User, Loader2 } from "lucide-react";
+import { ArrowLeft, Users, User, Loader2, AlertTriangle } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { use, useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { User as SupabaseUser } from "@supabase/supabase-js";
 
 type ProfileInfo = {
     full_name: string;
@@ -27,11 +28,41 @@ export default function ClassInfoPage({ params: paramsPromise }: { params: Promi
   const params = use(paramsPromise);
   const [classInfo, setClassInfo] = useState<ClassInfo | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isMember, setIsMember] = useState(false);
   const supabase = createClient();
+  const [currentUser, setCurrentUser] = useState<SupabaseUser | null>(null);
+
 
   useEffect(() => {
     const fetchClassInfo = async () => {
         setLoading(true);
+
+        const { data: { user } } = await supabase.auth.getUser();
+        setCurrentUser(user);
+
+        if (!user) {
+            setIsMember(false);
+            setLoading(false);
+            return;
+        }
+
+        const { data: memberData, error: memberError } = await supabase
+            .from('class_members')
+            .select('user_id')
+            .eq('class_id', params.id)
+            .eq('user_id', user.id)
+            .single();
+
+        if (memberError || !memberData) {
+            setIsMember(false);
+            if (memberError && memberError.code !== 'PGRST116') {
+              console.error("Error checking membership:", memberError);
+            }
+            setLoading(false);
+            return;
+        }
+        
+        setIsMember(true);
 
         const { data: classData, error: classError } = await supabase
             .from('classes')
@@ -81,11 +112,35 @@ export default function ClassInfoPage({ params: paramsPromise }: { params: Promi
     fetchClassInfo();
   }, [params.id, supabase]);
 
-  if (loading || !classInfo) {
+  if (loading) {
       return (
         <div className="flex h-dvh flex-col bg-background text-foreground items-center justify-center">
             <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
             <p className="mt-2 text-muted-foreground">Loading class details...</p>
+        </div>
+      )
+  }
+
+  if (!isMember || !classInfo) {
+      return (
+        <div className="flex h-dvh flex-col bg-background text-foreground">
+            <header className="flex h-16 flex-shrink-0 items-center justify-between border-b px-4">
+                <div className="flex items-center gap-3">
+                    <Link href="/class">
+                        <Button variant="ghost" size="icon">
+                            <ArrowLeft className="h-5 w-5" />
+                        </Button>
+                    </Link>
+                </div>
+            </header>
+            <div className="flex-1 flex flex-col items-center justify-center text-center p-4">
+                 <AlertTriangle className="h-12 w-12 text-destructive mb-4" />
+                 <h2 className="text-2xl font-bold">Access Denied</h2>
+                 <p className="text-muted-foreground mt-2">You cannot view this information because you are not a member of this class.</p>
+                 <Link href="/class" className="mt-4">
+                    <Button>Back to Classes</Button>
+                 </Link>
+            </div>
         </div>
       )
   }

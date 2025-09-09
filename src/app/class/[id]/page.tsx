@@ -5,7 +5,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { ArrowLeft, Video, MoreVertical, Image as ImageIcon, Send, Smile, Mic, Trash2, Loader2, Check, CheckCheck, X, Expand, MessageSquareReply, Heart,ThumbsUp, Laugh, Frown, Waves } from "lucide-react";
+import { ArrowLeft, Video, MoreVertical, Image as ImageIcon, Send, Smile, Mic, Trash2, Loader2, Check, CheckCheck, X, Expand, MessageSquareReply, Heart,ThumbsUp, Laugh, Frown, Waves, AlertTriangle } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { use, useState, useRef, useEffect, useCallback } from "react";
@@ -397,10 +397,10 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
       // If not a member, stop here.
       if (memberError || !memberData) {
         setIsMember(false);
-        setLoading(false);
         if (memberError && memberError.code !== 'PGRST116') { // PGRST116 is "No rows found"
-          console.error("Error fetching membership:", memberError);
+          console.error("Error checking membership:", memberError);
         }
+        setLoading(false);
         return;
       }
 
@@ -725,6 +725,7 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
                 </div>
             </header>
             <div className="flex-1 flex flex-col items-center justify-center text-center p-4">
+                 <AlertTriangle className="h-12 w-12 text-destructive mb-4" />
                  <h2 className="text-2xl font-bold">Access Denied</h2>
                  <p className="text-muted-foreground mt-2">You are not a member of this class. Join the class to view and send messages.</p>
                  <Link href="/class" className="mt-4">
