@@ -89,7 +89,7 @@ export default function UploadPostPage() {
         user_id: user.id,
         caption,
         media_url,
-        media_type,
+        media_type: mediaType,
       });
 
       if (insertError) {
@@ -133,6 +133,7 @@ export default function UploadPostPage() {
                     <video
                       src={previewUrl}
                       className="h-full w-full object-contain"
+                      controls
                       autoPlay
                       muted
                       loop

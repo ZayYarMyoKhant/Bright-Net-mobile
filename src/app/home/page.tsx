@@ -35,9 +35,7 @@ export default function HomePage() {
           media_url,
           media_type,
           created_at,
-          likes: post_likes(count),
-          comments: comments(count),
-          user: profiles (
+          profiles (
             id,
             username,
             avatar_url
@@ -50,10 +48,10 @@ export default function HomePage() {
       } else if (data) {
         const allPosts = data.map((p: any) => ({
           ...p,
-          user: Array.isArray(p.user) ? p.user[0] : p.user,
-          likes: p.likes[0]?.count || 0,
-          shares: 0, // Placeholder
-          comments: [], // Placeholder for now
+          user: Array.isArray(p.profiles) ? p.profiles[0] : p.profiles,
+          likes: 0, 
+          shares: 0, 
+          comments: [], 
         }));
         
         setImagePosts(allPosts.filter((p: Post) => p.media_type === 'image'));

@@ -34,6 +34,7 @@ const VideoPost = ({ post, index }: { post: Post; index: number }) => {
                 autoPlay
                 muted
                 playsInline
+                controls
                 className="w-full h-full object-cover"
             />
             <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
