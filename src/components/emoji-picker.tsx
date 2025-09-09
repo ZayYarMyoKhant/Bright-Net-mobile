@@ -4,6 +4,7 @@
 import Image from "next/image";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { cn } from "@/lib/utils";
 
 const emojiCategories = [
   { name: 'Special', emojis: ['🫰'] },
@@ -11,11 +12,13 @@ const emojiCategories = [
   { name: 'People & Body', emojis: ['👋', '🤚', '🖐️', '✋', '🖖', '👌', '🤏', '✌️', '🤞', '🤟', '🤘', '🤙', '👈', '👉', '👆', '🖕', '👇', '☝️', '👍', '👎', '✊', '👊', '🤛', '🤜', '👏', '🙌', '👐', '🤲', '🤝', '🙏', '✍️', '💅', '🤳', '💪', '🦾', '🦵', '🦿', '🦶', '👣', '👂', '🦻', '👃', '🧠', '🦷', '🦴', '👀', '👁️', '👅', '👄', '💋', '🩸'] },
 ];
 
-const textStickerCategories = {
-    love: ['(─‿‿─)♡', '♥(ˆ⌣ˆԅ)', '(´｡• ᵕ •｡`) ♡', 'σ(≧ε≦σ) ♡', '(´♡‿♡`)', '(❤ω❤)', '(´• ω •`) ♡', '♡( ´ ▽ ` ).｡ｏ♡'],
-    laugh: ['(≧▽≦)', '（＾∀＾）', 'o(>▽<)o', '٩(ˊᗜˋ*)و', '(⌒▽⌒)☆', '(*^▽^*)', '(/≧▽≦)/', 'ヽ(o^ ^o)ﾉ'],
-    cry: ['(╥_╥)', '(T_T)', '(ಥ﹏ಥ)', '(ノ_<。)', '｡･ﾟﾟ*(>д<)*ﾟﾟ･｡', '(╯_╰)', '(´;︵;`)', 'o(TヘTo)'],
-    angry: ['(`皿´)', '٩(ఠ益ఠ)۶', '(凸ಠ益ಠ)凸', 'ヽ( `д´*)ノ', '(ﾒ` ﾛ ´)', '(╬`益´)q', '٩(╬ʘ益ʘ╬)۶', '(ノಠ益ಠ)ノ彡┻━┻'],
+const stickerUrlBase = `https://blbqaojfppwybkjqiyeb.supabase.co/storage/v1/object/public/avatars/stickers`;
+
+const stickerCategories = {
+    love: Array.from({ length: 4 }, (_, i) => `${stickerUrlBase}/love/${i + 1}.webp`),
+    laugh: Array.from({ length: 4 }, (_, i) => `${stickerUrlBase}/laugh/${i + 1}.webp`),
+    cry: Array.from({ length: 4 }, (_, i) => `${stickerUrlBase}/cry/${i + 1}.webp`),
+    angry: Array.from({ length: 4 }, (_, i) => `${stickerUrlBase}/angry/${i + 1}.webp`),
 };
 
 
@@ -50,17 +53,26 @@ export function EmojiPicker({ onEmojiSelect, onStickerSelect }: EmojiPickerProps
             </TabsContent>
             <TabsContent value="stickers" className="flex-1 overflow-y-hidden mt-0">
                  <ScrollArea className="h-full p-2">
-                    {Object.entries(textStickerCategories).map(([name, stickers]) => (
+                    {Object.entries(stickerCategories).map(([name, stickers]) => (
                         <div key={name} className="mb-4">
                             <p className="text-sm font-semibold text-muted-foreground px-2 mb-2 capitalize">{name}</p>
                             <div className="grid grid-cols-4 gap-2">
-                                {stickers.map((sticker, index) => (
+                                {stickers.map((sticker) => (
                                     <button
-                                        key={index}
+                                        key={sticker}
                                         onClick={() => onStickerSelect(sticker)}
-                                        className="rounded-md hover:bg-muted aspect-square flex items-center justify-center p-1 text-2xl"
+                                        className="rounded-md hover:bg-muted aspect-square flex items-center justify-center p-1"
                                     >
-                                       {sticker}
+                                       <div className="w-full h-full relative">
+                                            <Image 
+                                                src={sticker} 
+                                                alt={`${name} sticker`} 
+                                                layout="fill"
+                                                objectFit="contain"
+                                                unoptimized={true}
+                                                className="w-full h-full object-contain"
+                                            />
+                                        </div>
                                     </button>
                                 ))}
                             </div>

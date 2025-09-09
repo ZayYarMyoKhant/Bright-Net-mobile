@@ -17,6 +17,18 @@ import { cn } from "@/lib/utils";
 import AudioPlayer from "@/components/audio-player";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { EmojiPicker } from "@/components/emoji-picker";
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+    AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { useRouter } from "next/navigation";
 
 
 type Profile = {
@@ -66,18 +78,19 @@ const ChatMessage = ({ message, isSender, currentUserId, onNewReaction, onDelete
     const [isReacting, setIsReacting] = useState(false);
 
     const renderContent = () => {
-        if ((message.media_type === 'image') && message.media_url) {
+        if ((message.media_type === 'image' || message.media_type === 'sticker') && message.media_url) {
+            const isSticker = message.media_type === 'sticker';
             return (
-                <div className={cn("relative rounded-lg overflow-hidden group h-48 w-48")}>
-                    <Image src={message.media_url} alt={"Sent image"} layout="fill" objectFit={"cover"} data-ai-hint="photo message" />
-                     <Link href={`/class/media/image/${encodeURIComponent(message.media_url)}`} 
+                 <div className={cn("relative rounded-lg overflow-hidden group", isSticker ? "h-24 w-24" : "h-48 w-48")}>
+                    <Image src={message.media_url} alt={isSticker ? "Sent sticker" : "Sent image"} layout="fill" objectFit={isSticker ? "contain" : "cover"} data-ai-hint="photo message" unoptimized={isSticker}/>
+                     {!isSticker && <Link href={`/class/media/image/${encodeURIComponent(message.media_url)}`} 
                         onClick={(e) => e.stopPropagation()}
                         target="_blank" 
                         rel="noopener noreferrer" 
                         className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity"
                     >
                         <Expand className="h-8 w-8 text-white" />
-                    </Link>
+                    </Link>}
                 </div>
             )
         }
@@ -96,9 +109,6 @@ const ChatMessage = ({ message, isSender, currentUserId, onNewReaction, onDelete
                     isSender={isSender}
                 />
             )
-        }
-        if (message.media_type === 'sticker') {
-            return <p className="text-5xl p-2">{message.content}</p>
         }
         return <p className="text-sm pr-6">{message.content}</p>;
     }
@@ -154,8 +164,8 @@ const ChatMessage = ({ message, isSender, currentUserId, onNewReaction, onDelete
              <div className="flex flex-col gap-1 items-start max-w-sm">
                  <div className={cn(
                     "relative group max-w-xs rounded-lg",
-                    message.media_type === 'audio' || message.media_type === 'sticker' ? '' : 'px-3 py-2',
-                    isSender ? (message.media_type === 'sticker' ? 'bg-transparent' : 'bg-primary text-primary-foreground') : (message.media_type === 'sticker' ? 'bg-transparent' : 'bg-muted')
+                    message.media_type === 'audio' ? '' : (message.media_type === 'sticker' ? 'bg-transparent p-0' : 'px-3 py-2'),
+                    isSender ? 'bg-primary text-primary-foreground' : 'bg-muted'
                 )}>
                     <div className="absolute top-1 right-1 z-10 opacity-0 group-hover:opacity-100 transition-opacity">
                         <DropdownMenu>
@@ -246,12 +256,40 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
   const recordingTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const { toast } = useToast();
+  const router = useRouter();
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const supabase = createClient();
   
   const isCreator = currentUser?.id === classInfo?.created_by;
+
+  const handleLeaveOrDeleteClass = async () => {
+    if (!currentUser || !classInfo) return;
+
+    if (isCreator) {
+        // Creator deletes the class
+        const { error } = await supabase.from('classes').delete().eq('id', classInfo.id);
+        if (error) {
+            toast({ variant: 'destructive', title: 'Error', description: 'Failed to delete the class.' });
+            console.error("Error deleting class:", error);
+        } else {
+            toast({ title: 'Class Deleted', description: 'The class has been successfully deleted.' });
+            router.push('/class');
+            router.refresh();
+        }
+    } else {
+        // Member leaves the class
+        const { error } = await supabase.from('class_members').delete().match({ class_id: classInfo.id, user_id: currentUser.id });
+        if (error) {
+            toast({ variant: 'destructive', title: 'Error', description: 'Failed to leave the class.' });
+        } else {
+            toast({ title: 'Left Class', description: 'You have left the class.' });
+            router.push('/class');
+            router.refresh();
+        }
+    }
+  };
 
   const handleNewReaction = useCallback((messageId: string, newReaction: Reaction) => {
     setMessages(prevMessages => {
@@ -386,7 +424,6 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
         return;
       }
       
-      // Step 1: Check for membership first. This is crucial for RLS.
       const { data: memberData, error: memberError } = await supabase
         .from('class_members')
         .select('user_id')
@@ -394,10 +431,9 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
         .eq('user_id', user.id)
         .single();
       
-      // If not a member, stop here.
       if (memberError || !memberData) {
         setIsMember(false);
-        if (memberError && memberError.code !== 'PGRST116') { // PGRST116 is "No rows found"
+        if (memberError && memberError.code !== 'PGRST116') {
           console.error("Error checking membership:", memberError);
         }
         setLoading(false);
@@ -406,8 +442,6 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
 
       setIsMember(true);
       
-      // Step 2: Now that we are confirmed as a member, fetch other data.
-      // This pattern is safer for RLS policies.
       const [classResult, messagesResult] = await Promise.all([
         supabase.from('classes').select('id, name, created_by, is_live').eq('id', params.id).single(),
         supabase.from('class_messages').select('*, profiles (username, avatar_url), message_read_status (reader_id), message_reactions (*, profiles(username))').eq('class_id', params.id).order('created_at', { ascending: true })
@@ -519,10 +553,8 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
   const handleDeleteMessage = async (messageId: string, mediaUrl: string | null) => {
     if (!currentUser) return;
     
-    // Optimistic UI update
     setMessages(prev => prev.filter(msg => msg.id !== messageId));
 
-    // Delete from storage if media exists
     if (mediaUrl) {
         const filePath = mediaUrl.split('/public/')[1];
         if (filePath) {
@@ -535,7 +567,6 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
         }
     }
 
-    // Delete from database
     const { error: dbError } = await supabase.from('class_messages').delete().eq('id', messageId);
 
     if (dbError) {
@@ -612,7 +643,7 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
     setShowEmojiPicker(false);
   }
 
-  const handleSendSticker = async (stickerText: string) => {
+  const handleSendSticker = async (stickerUrl: string) => {
     if (!currentUser || !classInfo) return;
     setShowEmojiPicker(false);
     setSending(true);
@@ -620,7 +651,7 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
     await supabase.from('class_messages').insert({
         class_id: classInfo.id,
         user_id: currentUser.id,
-        content: stickerText,
+        media_url: stickerUrl,
         media_type: 'sticker',
     });
 
@@ -679,7 +710,6 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
   const handleVideoCallClick = async () => {
     if (!classInfo || !currentUser) return;
   
-    // Creator starts the call
     if (isCreator) {
       if (!classInfo.is_live) {
         const { error } = await supabase
@@ -694,7 +724,6 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
       }
     }
     
-    // Anyone can join a live call
     if (isCreator || classInfo.is_live) {
       window.location.href = `/class/${classInfo.id}/video-call`;
     } else {
@@ -781,7 +810,27 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent>
-              <DropdownMenuItem className="text-destructive">Leave class</DropdownMenuItem>
+              {isCreator ? (
+                  <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                          <DropdownMenuItem className="text-destructive" onSelect={(e) => e.preventDefault()}>Delete class</DropdownMenuItem>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                          <AlertDialogHeader>
+                              <AlertDialogTitle>Are you sure you want to delete this class?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                  This action cannot be undone. This will permanently delete the class and all of its messages.
+                              </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction onClick={handleLeaveOrDeleteClass} className="bg-destructive hover:bg-destructive/90">Yes, delete</AlertDialogAction>
+                          </AlertDialogFooter>
+                      </AlertDialogContent>
+                  </AlertDialog>
+              ) : (
+                  <DropdownMenuItem className="text-destructive" onClick={handleLeaveOrDeleteClass}>Leave class</DropdownMenuItem>
+              )}
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
@@ -865,9 +914,7 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
                 onEmojiSelect={(emoji) => {
                     setNewMessage(prev => prev + emoji);
                 }}
-                onStickerSelect={(sticker) => {
-                  handleSendSticker(sticker)
-                }}
+                onStickerSelect={handleSendSticker}
             />
         )}
       </footer>
