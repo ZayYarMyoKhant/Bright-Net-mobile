@@ -63,15 +63,14 @@ export default function UploadPostPage() {
     }
 
     startTransition(async () => {
-      setUploadProgress(10); // Start progress
+      setUploadProgress(10); 
       const mediaType = mediaFile.type.startsWith("image") ? "image" : "video";
       const filePath = `posts/${user.id}/${Date.now()}_${mediaFile.name}`;
 
-      // Simulate upload progress
       setUploadProgress(30);
       
       const { error: uploadError } = await supabase.storage
-        .from('avatars')
+        .from('posts')
         .upload(filePath, mediaFile);
 
       if (uploadError) {
@@ -82,7 +81,7 @@ export default function UploadPostPage() {
       
       setUploadProgress(70);
 
-      const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(filePath);
+      const { data: urlData } = supabase.storage.from('posts').getPublicUrl(filePath);
       const media_url = urlData.publicUrl;
 
       const { error: insertError } = await supabase.from('posts').insert({
@@ -95,13 +94,14 @@ export default function UploadPostPage() {
       if (insertError) {
         toast({ variant: "destructive", title: "Database Error", description: insertError.message });
         setUploadProgress(0);
+        // Attempt to delete the orphaned file from storage
+        await supabase.storage.from('posts').remove([filePath]);
         return;
       }
       
       setUploadProgress(100);
       toast({ title: "Post created successfully!" });
       
-      // Wait a bit to show 100% progress
       await new Promise(resolve => setTimeout(resolve, 500));
       
       router.push("/home");
@@ -133,6 +133,7 @@ export default function UploadPostPage() {
                     <video
                       src={previewUrl}
                       className="h-full w-full object-contain"
+                      controls
                       autoPlay
                       muted
                       loop
@@ -163,7 +164,7 @@ export default function UploadPostPage() {
                 </>
               ) : (
                 <div className="text-center text-muted-foreground">
-                  {isVideo ? <Video className="mx-auto h-12 w-12" /> : <ImagePlus className="mx-auto h-12 w-12" />}
+                  <ImagePlus className="mx-auto h-12 w-12" />
                   <p className="mt-2 text-sm font-medium">Click to upload a photo or video</p>
                 </div>
               )}
