@@ -17,23 +17,9 @@ import {
 } from "@/components/ui/sheet"
 import { CommentSheet } from "./comment-sheet";
 import { ShareSheet } from "./share-sheet";
+import type { Post } from "@/lib/data";
 
-// A simplified Post type for the client component
-type PostCardProps = {
-    id: string;
-    user: {
-      username: string;
-      avatar: string;
-    };
-    media_url: string;
-    caption: string;
-    likes: number;
-    comments: any[]; // Using any for now
-    shares: number;
-    created_at: string;
-}
-
-export function PostCard({ post }: { post: PostCardProps }) {
+export function PostCard({ post }: { post: Post }) {
   const [isLiked, setIsLiked] = useState(false);
   const [likes, setLikes] = useState(post.likes || 0);
 
@@ -49,7 +35,7 @@ export function PostCard({ post }: { post: PostCardProps }) {
       <CardHeader className="p-4 flex-row items-center gap-3">
         <Link href={`/profile/${post.user.username}`}>
             <Avatar>
-              <AvatarImage src={post.user.avatar} data-ai-hint="person portrait" />
+              <AvatarImage src={post.user.avatar_url} data-ai-hint="person portrait" />
               <AvatarFallback>{post.user.username.charAt(0).toUpperCase()}</AvatarFallback>
             </Avatar>
         </Link>

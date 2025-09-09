@@ -1,10 +1,10 @@
 
 export type Post = {
-  id: number;
+  id: string;
   user: {
     id: string;
     username: string;
-    avatar: string;
+    avatar_url: string;
   };
   media_url: string;
   media_type: 'image' | 'video';
@@ -167,73 +167,12 @@ const sampleComments: Comment[] = [
     }
 ];
 
+// These are now just for type reference and are not used to supply data directly.
 export function getNewsPosts(): Post[] {
-    return [
-        {
-            id: 1,
-            user: {
-                id: 'aungaung',
-                username: 'aungaung',
-                avatar: 'https://i.pravatar.cc/150?u=aungaung',
-            },
-            media_url: 'https://picsum.photos/600/400?random=1',
-            media_type: 'image',
-            caption: 'ဒီနေ့ हवामान खूप छान आहे',
-            likes: 152,
-            comments: sampleComments,
-            shares: 12,
-            created_at: '2024-07-31T10:00:00Z',
-        },
-        {
-            id: 2,
-            user: {
-                id: 'susu',
-                username: 'susu',
-                avatar: 'https://i.pravatar.cc/150?u=susu',
-            },
-            media_url: 'https://picsum.photos/600/400?random=2',
-            media_type: 'image',
-            caption: 'ဒါက ဒုတိယ post ပါ။ This is the second post.',
-            likes: 345,
-            comments: [],
-            shares: 31,
-            created_at: '2024-07-31T12:30:00Z',
-        }
-    ]
+    return []
 }
 
 
 export function getVideoPosts(): Post[] {
-  return [
-    {
-        id: 101,
-        user: {
-            id: 'aungaung',
-            username: 'aungaung',
-            avatar: 'https://i.pravatar.cc/150?u=aungaung',
-        },
-        media_url: 'https://picsum.photos/400/800?random=10',
-        media_type: 'video',
-        caption: 'ဒါက ဗီဒီယို caption ပါ။',
-        likes: 1052,
-        comments: sampleComments,
-        shares: 112,
-        created_at: '2024-07-31T10:00:00Z',
-    },
-    {
-        id: 102,
-        user: {
-            id: 'susu',
-            username: 'susu',
-            avatar: 'https://i.pravatar.cc/150?u=susu',
-        },
-        media_url: 'https://picsum.photos/400/800?random=11',
-        media_type: 'video',
-        caption: 'ဒီနေ့ हवामान खूप छान आहे',
-        likes: 2345,
-        comments: [],
-        shares: 301,
-        created_at: '2024-07-31T12:30:00Z',
-    }
-  ];
+  return [];
 }

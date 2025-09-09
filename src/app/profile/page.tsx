@@ -59,6 +59,18 @@ export default function ProfilePage() {
                     following: 0, // Placeholder
                     followers: 0, // Placeholder
                 });
+
+                const { data: postsData, error: postsError } = await supabase
+                    .from('posts')
+                    .select('*')
+                    .eq('user_id', authUser.id)
+                    .order('created_at', { ascending: false });
+
+                if (postsError) {
+                    console.error("Error fetching posts:", postsError);
+                } else {
+                    setPosts(postsData as Post[]);
+                }
             } else {
                 // This case shouldn't be hit often if the flow is correct, but as a fallback:
                 router.push('/profile/setup');

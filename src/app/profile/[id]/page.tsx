@@ -57,8 +57,18 @@ export default function UserProfilePage({ params: paramsPromise }: { params: Pro
         following: 0, // Placeholder
         followers: 0, // Placeholder
       });
-      
-      setPosts([]); // No posts for now
+
+      const { data: postsData, error: postsError } = await supabase
+        .from('posts')
+        .select('*')
+        .eq('user_id', profileData.id)
+        .order('created_at', { ascending: false });
+
+      if (postsError) {
+        console.error("Error fetching posts:", postsError);
+      } else {
+        setPosts(postsData as Post[]);
+      }
 
       setLoading(false);
     };
