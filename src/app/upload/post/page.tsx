@@ -133,7 +133,6 @@ export default function UploadPostPage() {
                     <video
                       src={previewUrl}
                       className="h-full w-full object-contain"
-                      controls
                       autoPlay
                       muted
                       loop
