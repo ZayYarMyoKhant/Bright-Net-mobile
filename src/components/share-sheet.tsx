@@ -1,44 +1,56 @@
 
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { Button } from "./ui/button";
 import { Checkbox } from "./ui/checkbox";
 import { ScrollArea } from "./ui/scroll-area";
 import { SheetHeader, SheetTitle } from "./ui/sheet";
-import { Send } from "lucide-react";
+import { Send, Loader2 } from "lucide-react";
+import { Post, Profile } from "@/lib/data";
+import { User } from "@supabase/supabase-js";
+import { createClient } from "@/lib/supabase/client";
+import { useToast } from "@/hooks/use-toast";
+import { useRouter } from "next/navigation";
 
-const friends = [
-  {
-    id: 'susu',
-    username: "Su Su",
-    avatar: "https://i.pravatar.cc/150?u=susu",
-  },
-  {
-    id: 'myomyint',
-    username: "Myo Myint",
-    avatar: "https://i.pravatar.cc/150?u=myomyint",
-  },
-  {
-    id: 'thuzar',
-    username: "Thuzar",
-    avatar: "https://i.pravatar.cc/150?u=thuzar",
-  },
-   {
-    id: 'kyawkyaw',
-    username: "Kyaw Kyaw",
-    avatar: "https://i.pravatar.cc/150?u=kyawkyaw",
-  },
-   {
-    id: 'aungaung',
-    username: "Aung Aung",
-    avatar: "https://i.pravatar.cc/150?u=aungaung",
-  },
-];
+type ShareSheetProps = {
+  post: Post;
+  currentUser: User | null;
+}
 
-export function ShareSheet() {
+export function ShareSheet({ post, currentUser }: ShareSheetProps) {
+  const [friends, setFriends] = useState<Profile[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [sending, setSending] = useState(false);
   const [selectedFriends, setSelectedFriends] = useState<string[]>([]);
+  const supabase = createClient();
+  const { toast } = useToast();
+  const router = useRouter();
+
+  useEffect(() => {
+    const fetchFriends = async () => {
+      if (!currentUser) {
+        setLoading(false);
+        return;
+      };
+      // This is a placeholder for actual friend logic.
+      // Fetching all profiles for now.
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, username, avatar_url')
+        .not('id', 'eq', currentUser.id); // Exclude self
+      
+      if (error) {
+        console.error("Error fetching friends:", error);
+      } else {
+        setFriends(data);
+      }
+      setLoading(false);
+    }
+    fetchFriends();
+  }, [currentUser, supabase]);
+
 
   const handleSelectFriend = (id: string) => {
     setSelectedFriends(prev => 
@@ -46,9 +58,30 @@ export function ShareSheet() {
     );
   };
 
-  const handleShare = () => {
+  const handleShare = async () => {
+    if (!currentUser) return;
+    setSending(true);
+
+    const postUrl = `${window.location.origin}/post/${post.id}`; // Assuming a post page exists
+    const messageContent = `Check out this post: ${postUrl}`;
+
+    // This is a simplified share logic. In a real app, you'd create
+    // new chat messages for each selected friend.
     console.log("Sharing with:", selectedFriends);
-    // Add sharing logic here
+    console.log("Message:", messageContent);
+    
+    // Simulate API call
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    toast({
+      title: "Shared Successfully!",
+      description: `Your post has been shared with ${selectedFriends.length} friend(s).`
+    });
+
+    setSending(false);
+    setSelectedFriends([]);
+    // Optionally close the sheet after sharing
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
   };
 
   return (
@@ -57,30 +90,36 @@ export function ShareSheet() {
         <SheetTitle>Share to</SheetTitle>
       </SheetHeader>
       <ScrollArea className="flex-1">
-        <div className="p-4 space-y-4">
-          {friends.map((friend) => (
-             <div key={friend.id} className="flex items-center gap-4">
-                <Avatar className="h-10 w-10">
-                    <AvatarImage src={friend.avatar} data-ai-hint="person portrait" />
-                    <AvatarFallback>{friend.username.charAt(0).toUpperCase()}</AvatarFallback>
-                </Avatar>
-                <div className="flex-1">
-                    <p className="font-semibold">{friend.username}</p>
-                </div>
-                <Checkbox 
-                    id={`friend-${friend.id}`}
-                    checked={selectedFriends.includes(friend.id)}
-                    onCheckedChange={() => handleSelectFriend(friend.id)}
-                    className="h-6 w-6"
-                />
-            </div>
-          ))}
-        </div>
+        {loading ? (
+           <div className="flex justify-center items-center h-full pt-10">
+            <Loader2 className="h-6 w-6 animate-spin" />
+          </div>
+        ) : (
+          <div className="p-4 space-y-4">
+            {friends.map((friend) => (
+              <div key={friend.id} className="flex items-center gap-4">
+                  <Avatar className="h-10 w-10">
+                      <AvatarImage src={friend.avatar_url} data-ai-hint="person portrait" />
+                      <AvatarFallback>{friend.username.charAt(0).toUpperCase()}</AvatarFallback>
+                  </Avatar>
+                  <div className="flex-1">
+                      <p className="font-semibold">{friend.username}</p>
+                  </div>
+                  <Checkbox 
+                      id={`friend-${friend.id}`}
+                      checked={selectedFriends.includes(friend.id)}
+                      onCheckedChange={() => handleSelectFriend(friend.id)}
+                      className="h-6 w-6"
+                  />
+              </div>
+            ))}
+          </div>
+        )}
       </ScrollArea>
       <footer className="flex-shrink-0 border-t p-4">
-        <Button className="w-full" disabled={selectedFriends.length === 0} onClick={handleShare}>
+        <Button className="w-full" disabled={selectedFriends.length === 0 || sending} onClick={handleShare}>
+            {sending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
             Share
-            <Send className="ml-2 h-4 w-4" />
         </Button>
       </footer>
     </>

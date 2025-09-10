@@ -1,7 +1,7 @@
 
 'use client';
 
-import { Suspense, useEffect, useState } from 'react';
+import { Suspense, useEffect, useState, useCallback } from 'react';
 import { BottomNav } from "@/components/bottom-nav";
 import { Loader2 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -24,44 +24,64 @@ export default function HomePage() {
   const [loading, setLoading] = useState(true);
   const supabase = createClient();
 
-  useEffect(() => {
-    const fetchPosts = async () => {
-      setLoading(true);
-      const { data, error } = await supabase
-        .from('posts')
-        .select(`
+  const fetchPosts = useCallback(async () => {
+    setLoading(true);
+    const { data: { user: currentUser } } = await supabase.auth.getUser();
+
+    const { data, error } = await supabase
+      .from('posts')
+      .select(`
+        id,
+        caption,
+        media_url,
+        media_type,
+        created_at,
+        user:profiles (
           id,
-          caption,
-          media_url,
-          media_type,
-          created_at,
-          profiles (
-            id,
-            username,
-            avatar_url
-          )
-        `)
-        .order('created_at', { ascending: false });
+          username,
+          avatar_url
+        ),
+        likes:post_likes(count),
+        comments:post_comments(count)
+      `)
+      .order('created_at', { ascending: false });
 
-      if (error) {
-        console.error("Error fetching posts:", error);
-      } else if (data) {
-        const allPosts = data.map((p: any) => ({
-          ...p,
-          user: Array.isArray(p.profiles) ? p.profiles[0] : p.profiles,
-          likes: 0, 
-          shares: 0, 
-          comments: [], 
-        }));
-        
-        setImagePosts(allPosts.filter((p: Post) => p.media_type === 'image'));
-        setVideoPosts(allPosts.filter((p: Post) => p.media_type === 'video'));
+    if (error) {
+      console.error("Error fetching posts:", error);
+    } else if (data) {
+      const allPosts = data.map((p: any) => ({
+        ...p,
+        user: Array.isArray(p.profiles) ? p.profiles[0] : p.profiles,
+        likes: p.likes[0] || { count: 0 },
+        comments: p.comments[0] || { count: 0 },
+      }));
+      
+      // Check which posts the current user has liked
+      if (currentUser) {
+        const postIds = allPosts.map(p => p.id);
+        const { data: likedPosts, error: likedError } = await supabase
+          .from('post_likes')
+          .select('post_id')
+          .eq('user_id', currentUser.id)
+          .in('post_id', postIds);
+
+        if (!likedError && likedPosts) {
+          const likedPostIds = new Set(likedPosts.map(lp => lp.post_id));
+          allPosts.forEach(p => {
+            p.isLiked = likedPostIds.has(p.id);
+          });
+        }
       }
-      setLoading(false);
-    };
-
-    fetchPosts();
+      
+      setImagePosts(allPosts.filter((p: Post) => p.media_type === 'image'));
+      setVideoPosts(allPosts.filter((p: Post) => p.media_type === 'video'));
+    }
+    setLoading(false);
   }, [supabase]);
+
+  useEffect(() => {
+    fetchPosts();
+  }, [fetchPosts]);
 
   return (
     <>

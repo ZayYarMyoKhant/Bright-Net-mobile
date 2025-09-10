@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
@@ -18,14 +18,60 @@ import {
 import { CommentSheet } from "./comment-sheet";
 import { ShareSheet } from "./share-sheet";
 import type { Post } from "@/lib/data";
+import { createClient } from "@/lib/supabase/client";
+import { useToast } from "@/hooks/use-toast";
+import { User } from "@supabase/supabase-js";
 
-export function PostCard({ post }: { post: Post }) {
-  const [isLiked, setIsLiked] = useState(false);
-  const [likes, setLikes] = useState(post.likes || 0);
+export function PostCard({ post: initialPost }: { post: Post }) {
+  const [post, setPost] = useState(initialPost);
+  const [isLiked, setIsLiked] = useState(initialPost.isLiked);
+  const [likes, setLikes] = useState(initialPost.likes.count);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const supabase = createClient();
+  const { toast } = useToast();
+  
+  useEffect(() => {
+    const fetchUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      setCurrentUser(user);
+    }
+    fetchUser();
+  }, [supabase]);
+  
+  const handleLike = async () => {
+    if (!currentUser) {
+      toast({ variant: "destructive", title: "You must be logged in to like a post." });
+      return;
+    }
+    
+    const newLikedState = !isLiked;
+    setIsLiked(newLikedState);
+    setLikes(newLikedState ? likes + 1 : likes - 1);
 
-  const handleLike = () => {
-    setIsLiked(!isLiked);
-    setLikes(isLiked ? likes - 1 : likes + 1);
+    if (newLikedState) {
+      // Add like to the database
+      const { error } = await supabase
+        .from('post_likes')
+        .insert({ post_id: post.id, user_id: currentUser.id });
+      if (error) {
+        // Revert UI on error
+        setIsLiked(false);
+        setLikes(likes);
+        console.error("Error liking post:", error);
+      }
+    } else {
+      // Remove like from the database
+      const { error } = await supabase
+        .from('post_likes')
+        .delete()
+        .match({ post_id: post.id, user_id: currentUser.id });
+      if (error) {
+        // Revert UI on error
+        setIsLiked(true);
+        setLikes(likes);
+        console.error("Error unliking post:", error);
+      }
+    }
   };
   
   const timeAgo = formatDistanceToNow(new Date(post.created_at), { addSuffix: true });
@@ -74,11 +120,11 @@ export function PostCard({ post }: { post: Post }) {
               <SheetTrigger asChild>
                 <Button variant="ghost" className="flex items-center gap-2">
                     <MessageCircle className="h-6 w-6" />
-                    <span className="text-sm">{post.comments?.length || 0}</span>
+                    <span className="text-sm">{post.comments.count}</span>
                 </Button>
               </SheetTrigger>
               <SheetContent side="bottom" className="h-[75dvh] flex flex-col p-0">
-                  <CommentSheet post={post as any} />
+                  <CommentSheet post={post} currentUser={currentUser} />
               </SheetContent>
             </Sheet>
          </div>
@@ -89,7 +135,7 @@ export function PostCard({ post }: { post: Post }) {
                 </Button>
             </SheetTrigger>
             <SheetContent side="bottom" className="h-[75dvh] flex flex-col p-0">
-                <ShareSheet />
+                <ShareSheet post={post} currentUser={currentUser} />
             </SheetContent>
          </Sheet>
       </CardFooter>

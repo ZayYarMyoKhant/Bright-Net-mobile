@@ -1,30 +1,33 @@
 
+export type Profile = {
+  id: string;
+  username: string;
+  avatar_url: string;
+}
+
+export type Comment = {
+    id: string;
+    user: Profile;
+    content: string;
+    created_at: string;
+    parent_comment_id: string | null;
+    // Client-side properties
+    replies?: Comment[];
+}
+
 export type Post = {
   id: string;
-  user: {
-    id: string;
-    username: string;
-    avatar_url: string;
-  };
+  user: Profile;
   media_url: string;
   media_type: 'image' | 'video';
   caption: string;
-  likes: number;
-  comments: Comment[];
-  shares: number;
   created_at: string;
+  // Joined properties
+  likes: { count: number };
+  comments: { count: number };
+  // Client-side properties
+  isLiked?: boolean;
 };
-
-export type Comment = {
-    id: number;
-    user: {
-        username: string;
-        avatar: string;
-    };
-    text: string;
-    likes: number;
-    replies: Comment[];
-}
 
 
 export type Country = {
@@ -139,32 +142,6 @@ export const countries: Country[] = [
     { name: "Finland", code: "358", flag: "🇫🇮" },
     { name: "Slovakia", code: "421", flag: "🇸🇰" },
     { name: "Norway", code: "47", flag: "🇳🇴" },
-];
-
-
-const sampleComments: Comment[] = [
-    {
-        id: 1,
-        user: { username: 'susu', avatar: 'https://i.pravatar.cc/150?u=susu' },
-        text: 'This is a great post!',
-        likes: 5,
-        replies: [
-            {
-                id: 2,
-                user: { username: 'aungaung', avatar: 'https://i.pravatar.cc/150?u=aungaung' },
-                text: 'Thank you!',
-                likes: 2,
-                replies: []
-            }
-        ]
-    },
-    {
-        id: 3,
-        user: { username: 'myomyint', avatar: 'https://i.pravatar.cc/150?u=myomyint' },
-        text: 'Love this!',
-        likes: 10,
-        replies: []
-    }
 ];
 
 // These are now just for type reference and are not used to supply data directly.
