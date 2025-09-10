@@ -62,7 +62,7 @@ function PostViewerContent({ params }: { params: { id: string } }) {
     // @ts-ignore
     const formattedPost: Post = {
         ...data,
-        user: Array.isArray(data.profiles) ? data.profiles[0] : data.profiles,
+        user: data.profiles,
         likes: data.post_likes[0] || { count: 0 },
         comments: data.post_comments[0] || { count: 0 },
     };

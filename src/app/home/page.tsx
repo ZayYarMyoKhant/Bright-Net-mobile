@@ -51,7 +51,7 @@ export default function HomePage() {
     } else if (data) {
       const allPosts = data.map((p: any) => ({
         ...p,
-        user: Array.isArray(p.profiles) ? p.profiles[0] : p.profiles,
+        user: p.profiles,
         likes: p.post_likes[0] || { count: 0 },
         comments: p.post_comments[0] || { count: 0 },
       }));
