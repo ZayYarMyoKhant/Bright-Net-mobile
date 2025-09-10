@@ -12,8 +12,6 @@ import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Progress } from "@/components/ui/progress";
 
-const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
-
 export default function UploadPostPage() {
   const [caption, setCaption] = useState("");
   const [mediaFile, setMediaFile] = useState<File | null>(null);
@@ -29,16 +27,6 @@ export default function UploadPostPage() {
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
-      if (file.size > MAX_FILE_SIZE) {
-        toast({
-          variant: "destructive",
-          title: "File is too large",
-          description: "Please select a file smaller than 50MB.",
-        });
-        handleRemoveMedia();
-        return;
-      }
-        
       if (file.type.startsWith("image/") || file.type.startsWith("video/")) {
         setMediaFile(file);
         setPreviewUrl(URL.createObjectURL(file));
@@ -77,7 +65,9 @@ export default function UploadPostPage() {
     startTransition(async () => {
       setUploadProgress(10); 
       const mediaType = mediaFile.type.startsWith("image") ? "image" : "video";
-      const filePath = `posts/${user.id}/${Date.now()}_${mediaFile.name}`;
+      const fileExtension = mediaFile.name.split('.').pop();
+      const fileName = `${Date.now()}.${fileExtension}`;
+      const filePath = `posts/${user.id}/${fileName}`;
 
       setUploadProgress(30);
       
