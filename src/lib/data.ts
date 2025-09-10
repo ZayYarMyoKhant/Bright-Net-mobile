@@ -3,6 +3,7 @@ export type Profile = {
   id: string;
   username: string;
   avatar_url: string;
+  full_name?: string;
 }
 
 export type Comment = {
@@ -16,7 +17,7 @@ export type Comment = {
 }
 
 export type Post = {
-  id: string;
+  id: string | number; // Changed to support both bigint and string IDs
   user: Profile;
   media_url: string;
   media_type: 'image' | 'video';

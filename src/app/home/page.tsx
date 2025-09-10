@@ -36,13 +36,13 @@ export default function HomePage() {
         media_url,
         media_type,
         created_at,
-        user:profiles (
+        profiles (
           id,
           username,
           avatar_url
         ),
-        likes:post_likes(count),
-        comments:post_comments(count)
+        post_likes(count),
+        post_comments(count)
       `)
       .order('created_at', { ascending: false });
 
@@ -52,8 +52,8 @@ export default function HomePage() {
       const allPosts = data.map((p: any) => ({
         ...p,
         user: Array.isArray(p.profiles) ? p.profiles[0] : p.profiles,
-        likes: p.likes[0] || { count: 0 },
-        comments: p.comments[0] || { count: 0 },
+        likes: p.post_likes[0] || { count: 0 },
+        comments: p.post_comments[0] || { count: 0 },
       }));
       
       // Check which posts the current user has liked

@@ -1,17 +1,29 @@
 
 "use client";
 
-import { use, useEffect, useState } from "react";
+import { use, useEffect, useState, useCallback } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Grid3x3, Clapperboard, ArrowLeft, MessageCircle, CameraOff, Loader2 } from "lucide-react";
+import { Grid3x3, Clapperboard, ArrowLeft, MessageCircle, CameraOff, Loader2, Eye, Trash2 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { BottomNav } from '@/components/bottom-nav';
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import type { Post } from "@/lib/data";
+import { User } from "@supabase/supabase-js";
+import { useToast } from "@/hooks/use-toast";
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 
 type ProfileData = {
   id: string;
@@ -23,60 +35,106 @@ type ProfileData = {
   bio: string;
 };
 
+type PostWithViews = Post & {
+    views: number;
+};
+
 export default function UserProfilePage({ params: paramsPromise }: { params: Promise<{ id: string }> }) {
   const params = use(paramsPromise);
   const router = useRouter();
   const supabase = createClient();
-  const [user, setUser] = useState<ProfileData | null>(null);
-  const [posts, setPosts] = useState<Post[]>([]);
+  const { toast } = useToast();
+  
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [profile, setProfile] = useState<ProfileData | null>(null);
+  const [posts, setPosts] = useState<PostWithViews[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const fetchUserData = async () => {
-      setLoading(true);
-      
-      const { data: profileData, error: profileError } = await supabase
-        .from('profiles')
-        .select('id, username, full_name, avatar_url, bio')
-        .eq('username', params.id)
-        .single();
-        
-      if (profileError || !profileData) {
-        console.error("Error fetching user profile:", profileError);
-        setUser(null);
-        setLoading(false);
-        return;
-      }
-      
-      setUser({
-        id: profileData.id,
-        username: profileData.username,
-        full_name: profileData.full_name || 'No Name',
-        avatar_url: profileData.avatar_url || `https://i.pravatar.cc/150?u=${profileData.id}`,
-        bio: profileData.bio || "Another digital creator's bio.",
-        following: 0, // Placeholder
-        followers: 0, // Placeholder
-      });
+  const isOwnProfile = currentUser?.id === profile?.id;
 
-      const { data: postsData, error: postsError } = await supabase
-        .from('posts')
-        .select('*')
-        .eq('user_id', profileData.id)
-        .order('created_at', { ascending: false });
+  const fetchProfileData = useCallback(async () => {
+    setLoading(true);
 
-      if (postsError) {
-        console.error("Error fetching posts:", postsError);
-      } else {
-        setPosts(postsData as Post[]);
-      }
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+    setCurrentUser(authUser);
 
+    const { data: profileData, error: profileError } = await supabase
+      .from('profiles')
+      .select('id, username, full_name, avatar_url, bio')
+      .eq('username', params.id)
+      .single();
+
+    if (profileError || !profileData) {
+      console.error("Error fetching user profile:", profileError);
+      setProfile(null);
       setLoading(false);
-    };
-
-    if (params.id) {
-      fetchUserData();
+      return;
     }
+
+    // TODO: Fetch real follower/following counts
+    setProfile({
+      id: profileData.id,
+      username: profileData.username,
+      full_name: profileData.full_name || 'No Name',
+      avatar_url: profileData.avatar_url || `https://i.pravatar.cc/150?u=${profileData.id}`,
+      bio: profileData.bio || "Another digital creator's bio.",
+      following: 0,
+      followers: 0,
+    });
+
+    const { data: postsData, error: postsError } = await supabase
+      .from('posts')
+      .select('*, post_views(view_count)')
+      .eq('user_id', profileData.id)
+      .order('created_at', { ascending: false });
+
+    if (postsError) {
+      console.error("Error fetching posts:", postsError);
+    } else {
+      const postsWithViews = postsData.map((p: any) => ({
+          ...p,
+          views: p.post_views?.view_count || 0
+      }));
+      setPosts(postsWithViews);
+    }
+
+    setLoading(false);
   }, [params.id, supabase]);
+
+  useEffect(() => {
+    if (params.id) {
+      fetchProfileData();
+    }
+  }, [params.id, fetchProfileData]);
+
+  const handleDeletePost = async (postId: string | number, mediaUrl: string) => {
+    // Optimistic UI update
+    setPosts(prev => prev.filter(p => p.id !== postId));
+    
+    // Delete from storage
+    const filePath = mediaUrl.split('/public/posts/')[1];
+    if (filePath) {
+        const { error: storageError } = await supabase.storage.from('posts').remove([filePath]);
+        if (storageError) {
+            console.error("Failed to delete from storage:", storageError);
+            toast({ variant: "destructive", title: "Storage Error", description: "Could not delete the post media." });
+            // Re-fetch to revert UI change
+            fetchProfileData();
+            return;
+        }
+    }
+    
+    // Delete from database
+    const { error: dbError } = await supabase.from('posts').delete().eq('id', postId);
+    if (dbError) {
+      console.error("Error deleting post from db:", dbError);
+      toast({ variant: "destructive", title: "Database Error", description: "Could not delete the post." });
+      fetchProfileData(); // Revert
+    } else {
+      toast({ title: "Post Deleted", description: "Your post has been successfully removed." });
+    }
+  };
+
 
   if (loading) {
     return (
@@ -90,7 +148,7 @@ export default function UserProfilePage({ params: paramsPromise }: { params: Pro
     )
   }
 
-  if (!user) {
+  if (!profile) {
     return (
       <>
         <div className="flex h-full flex-col bg-background text-foreground pb-16 items-center justify-center">
@@ -108,8 +166,8 @@ export default function UserProfilePage({ params: paramsPromise }: { params: Pro
           <Button variant="ghost" size="icon" onClick={() => router.back()}>
             <ArrowLeft className="h-5 w-5" />
           </Button>
-          <h1 className="font-bold">{user.username}</h1>
-          <Link href={`/chat/${user.username}`}>
+          <h1 className="font-bold">{profile.username}</h1>
+          <Link href={`/chat/${profile.username}`}>
             <Button variant="ghost" size="icon">
               <MessageCircle className="h-5 w-5" />
               <span className="sr-only">Message user</span>
@@ -120,24 +178,24 @@ export default function UserProfilePage({ params: paramsPromise }: { params: Pro
         <main className="flex-1 overflow-y-auto p-4">
           <div className="flex flex-col items-center">
             <Avatar className="h-24 w-24 border-2 border-primary">
-              <AvatarImage src={user.avatar_url} alt={user.username} data-ai-hint="person portrait" />
-              <AvatarFallback>{user.username.charAt(0)}</AvatarFallback>
+              <AvatarImage src={profile.avatar_url} alt={profile.username} data-ai-hint="person portrait" />
+              <AvatarFallback>{profile.username.charAt(0)}</AvatarFallback>
             </Avatar>
-            <h2 className="mt-3 text-xl font-bold">{user.full_name}</h2>
-            <p className="text-sm text-muted-foreground">@{user.username}</p>
-            <p className="mt-2 text-center text-sm">{user.bio}</p>
+            <h2 className="mt-3 text-xl font-bold">{profile.full_name}</h2>
+            <p className="text-sm text-muted-foreground">@{profile.username}</p>
+            <p className="mt-2 text-center text-sm">{profile.bio}</p>
           </div>
 
           <div className="mt-6 grid grid-cols-3 gap-4 text-center">
-            <Link href={`/profile/${user.id}/following`}>
+            <Link href={`/profile/${profile.id}/following`}>
               <div>
-                <p className="font-bold">{user.following}</p>
+                <p className="font-bold">{profile.following}</p>
                 <p className="text-sm text-muted-foreground">Following</p>
               </div>
             </Link>
-             <Link href={`/profile/${user.id}/followers`}>
+             <Link href={`/profile/${profile.id}/followers`}>
               <div>
-                <p className="font-bold">{user.followers}</p>
+                <p className="font-bold">{profile.followers}</p>
                 <p className="text-sm text-muted-foreground">Followers</p>
               </div>
             </Link>
@@ -148,7 +206,7 @@ export default function UserProfilePage({ params: paramsPromise }: { params: Pro
           </div>
 
           <div className="mt-4 flex items-center gap-2">
-            <Button className="w-full">Follow</Button>
+            {!isOwnProfile && <Button className="w-full">Follow</Button>}
           </div>
 
 
@@ -167,26 +225,55 @@ export default function UserProfilePage({ params: paramsPromise }: { params: Pro
              {posts.length > 0 ? (
                 <div className="grid grid-cols-3 gap-1">
                     {posts.map((post) => (
-                    <div key={post.id} className="aspect-square w-full relative">
+                    <Link key={post.id} href={`/post/${post.id}`} className="group relative aspect-square w-full">
+                       <div className="aspect-square w-full relative">
                         {post.media_type === 'video' ? (
                              <video src={post.media_url} className="h-full w-full object-cover" />
                         ) : (
                              <Image
                                 src={post.media_url}
-                                alt={`Post by ${user.username}`}
+                                alt={`Post by ${profile.username}`}
                                 layout="fill"
                                 objectFit="cover"
                                 className="h-full w-full"
                                 data-ai-hint="lifestyle content"
                             />
                         )}
-                    </div>
+                        </div>
+                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white">
+                           <div className="flex items-center gap-2">
+                               <Eye className="h-4 w-4" />
+                               <span className="text-sm font-bold">{post.views}</span>
+                           </div>
+                           {isOwnProfile && (
+                                <AlertDialog>
+                                    <AlertDialogTrigger asChild>
+                                       <Button variant="destructive" size="icon" className="absolute top-1 right-1 h-7 w-7" onClick={(e) => e.preventDefault()}>
+                                            <Trash2 className="h-4 w-4" />
+                                        </Button>
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent onClick={(e) => e.preventDefault()}>
+                                        <AlertDialogHeader>
+                                            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                            <AlertDialogDescription>
+                                                This action cannot be undone. This will permanently delete your post.
+                                            </AlertDialogDescription>
+                                        </AlertDialogHeader>
+                                        <AlertDialogFooter>
+                                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                            <AlertDialogAction onClick={() => handleDeletePost(post.id, post.media_url)} className="bg-destructive hover:bg-destructive/80">Delete</AlertDialogAction>
+                                        </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                </AlertDialog>
+                           )}
+                        </div>
+                    </Link>
                     ))}
                 </div>
              ) : (
                 <div className="flex flex-col items-center justify-center pt-10 text-center text-muted-foreground">
                   <CameraOff className="h-12 w-12" />
-                  <p className="mt-4 text-sm">This user has no posts yet.</p>
+                  <p className="mt-4 text-sm">{isOwnProfile ? "You have no posts yet." : "This user has no posts yet."}</p>
                 </div>
              )}
             </TabsContent>
