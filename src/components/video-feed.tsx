@@ -1,11 +1,11 @@
 
 "use client";
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { VideoDescription } from '@/components/video-description';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { Heart, MessageCircle, Send, Loader2, VideoOff } from 'lucide-react';
+import { Heart, MessageCircle, Send, Loader2, VideoOff, VolumeOff } from 'lucide-react';
 import Image from 'next/image';
 import {
   Sheet,
@@ -20,25 +20,41 @@ import type { Post } from '@/lib/data';
 const VideoPost = ({ post, index }: { post: Post; index: number }) => {
     const [isLiked, setIsLiked] = useState(false);
     const [likes, setLikes] = useState(post.likes || 0);
+    const [isMuted, setIsMuted] = useState(true);
+    const videoRef = useRef<HTMLVideoElement>(null);
 
     const handleLike = () => {
         setIsLiked(!isLiked);
         setLikes(isLiked ? likes - 1 : likes + 1);
     };
 
+    const toggleMute = () => {
+        if (videoRef.current) {
+            const newMutedState = !videoRef.current.muted;
+            videoRef.current.muted = newMutedState;
+            setIsMuted(newMutedState);
+        }
+    };
+
+
     return (
-        <div key={post.id} className="relative h-full w-full snap-start flex-shrink-0" id={`post-${post.id}`}>
+        <div key={post.id} className="relative h-full w-full snap-start flex-shrink-0" id={`post-${post.id}`} onClick={toggleMute}>
             <video
+                ref={videoRef}
                 src={post.media_url}
                 loop
                 autoPlay
                 muted
                 playsInline
-                controls
                 className="w-full h-full object-cover"
             />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
-            <div className="absolute bottom-20 left-4 right-16">
+             {isMuted && (
+                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-black/50 p-4 rounded-full">
+                    <VolumeOff className="h-8 w-8 text-white" />
+                </div>
+            )}
+            <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent pointer-events-none" />
+            <div className="absolute bottom-20 left-4 right-16 pointer-events-none">
                 <VideoDescription
                     username={post.user.username}
                     descriptionMyanmar={post.caption}
@@ -50,7 +66,7 @@ const VideoPost = ({ post, index }: { post: Post; index: number }) => {
                     <AvatarFallback>{post.user.username.charAt(0).toUpperCase()}</AvatarFallback>
                 </Avatar>
                 <div className="flex flex-col items-center gap-1 text-white">
-                    <Button variant="ghost" size="icon" className="h-12 w-12 rounded-full hover:bg-white/20" onClick={handleLike}>
+                    <Button variant="ghost" size="icon" className="h-12 w-12 rounded-full hover:bg-white/20" onClick={(e) => { e.stopPropagation(); handleLike(); }}>
                         <Heart className={cn("h-8 w-8", isLiked && "fill-red-500 text-red-500")} />
                     </Button>
                     <span className="text-sm">{likes}</span>
@@ -58,7 +74,7 @@ const VideoPost = ({ post, index }: { post: Post; index: number }) => {
                  <div className="flex flex-col items-center gap-1 text-white">
                     <Sheet>
                         <SheetTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-12 w-12 rounded-full hover:bg-white/20">
+                            <Button variant="ghost" size="icon" className="h-12 w-12 rounded-full hover:bg-white/20" onClick={(e) => e.stopPropagation()}>
                                 <MessageCircle className="h-8 w-8" />
                             </Button>
                         </SheetTrigger>
@@ -71,7 +87,7 @@ const VideoPost = ({ post, index }: { post: Post; index: number }) => {
                  <div className="flex flex-col items-center gap-1 text-white">
                     <Sheet>
                         <SheetTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-12 w-12 rounded-full hover:bg-white/20">
+                            <Button variant="ghost" size="icon" className="h-12 w-12 rounded-full hover:bg-white/20" onClick={(e) => e.stopPropagation()}>
                                 <Send className="h-8 w-8" />
                             </Button>
                         </SheetTrigger>
