@@ -5,7 +5,7 @@ import { use, useEffect, useState, useCallback } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Grid3x3, Clapperboard, ArrowLeft, MessageCircle, CameraOff, Loader2, Eye, Trash2 } from "lucide-react";
+import { Grid3x3, Clapperboard, ArrowLeft, MessageCircle, CameraOff, Loader2, Eye, Trash2, MoreVertical } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { BottomNav } from '@/components/bottom-nav';
@@ -23,7 +23,9 @@ import {
     AlertDialogFooter,
     AlertDialogHeader,
     AlertDialogTitle,
+    AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
 type ProfileData = {
   id: string;
@@ -225,49 +227,63 @@ export default function UserProfilePage({ params: paramsPromise }: { params: Pro
              {posts.length > 0 ? (
                 <div className="grid grid-cols-3 gap-1">
                     {posts.map((post) => (
-                    <Link key={post.id} href={`/post/${post.id}`} className="group relative aspect-square w-full bg-muted">
-                       <div className="aspect-square w-full relative">
-                        {post.media_type === 'video' ? (
-                             <video src={post.media_url} className="h-full w-full object-cover" />
-                        ) : (
-                             <Image
-                                src={post.media_url}
-                                alt={`Post by ${profile.username}`}
-                                layout="fill"
-                                objectFit="cover"
-                                className="h-full w-full"
-                                data-ai-hint="lifestyle content"
-                            />
-                        )}
+                    <div key={post.id} className="group relative aspect-square w-full bg-muted">
+                        <Link href={`/post/${post.id}`} className="block h-full w-full">
+                            <div className="aspect-square w-full relative h-full">
+                                {post.media_type === 'video' ? (
+                                    <video src={post.media_url} className="h-full w-full object-cover" />
+                                ) : (
+                                    <Image
+                                        src={post.media_url}
+                                        alt={`Post by ${profile.username}`}
+                                        fill
+                                        objectFit="cover"
+                                        className="h-full w-full"
+                                        data-ai-hint="lifestyle content"
+                                    />
+                                )}
+                            </div>
+                        </Link>
+                        
+                        <div className="absolute bottom-1 right-1 flex items-center gap-1 rounded bg-black/50 px-1 py-0.5 text-white text-xs">
+                           <Eye className="h-3 w-3" />
+                           <span className="font-bold">{post.views}</span>
                         </div>
-                        <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-1.5 text-white">
-                           <div className="flex items-center gap-1">
-                               <Eye className="h-4 w-4" />
-                               <span className="text-xs font-bold">{post.views}</span>
-                           </div>
-                           {isOwnProfile && (
-                                <AlertDialog>
-                                    <AlertDialogTrigger asChild>
-                                       <Button variant="destructive" size="icon" className="absolute top-1 right-1 h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => e.preventDefault()}>
-                                            <Trash2 className="h-4 w-4" />
+                        
+                        {isOwnProfile && (
+                            <div className="absolute top-1 right-1">
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                        <Button variant="ghost" size="icon" className="h-7 w-7 text-white bg-black/30 hover:bg-black/50 hover:text-white">
+                                            <MoreVertical className="h-4 w-4" />
                                         </Button>
-                                    </AlertDialogTrigger>
-                                    <AlertDialogContent onClick={(e) => e.preventDefault()}>
-                                        <AlertDialogHeader>
-                                            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                                            <AlertDialogDescription>
-                                                This action cannot be undone. This will permanently delete your post.
-                                            </AlertDialogDescription>
-                                        </AlertDialogHeader>
-                                        <AlertDialogFooter>
-                                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                            <AlertDialogAction onClick={() => handleDeletePost(post.id, post.media_url)} className="bg-destructive hover:bg-destructive/80">Delete</AlertDialogAction>
-                                        </AlertDialogFooter>
-                                    </AlertDialogContent>
-                                </AlertDialog>
-                           )}
-                        </div>
-                    </Link>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent>
+                                        <AlertDialog>
+                                            <AlertDialogTrigger asChild>
+                                                <DropdownMenuItem className="text-destructive" onSelect={(e) => e.preventDefault()}>
+                                                    <Trash2 className="mr-2 h-4 w-4" />
+                                                    <span>Delete</span>
+                                                </DropdownMenuItem>
+                                            </AlertDialogTrigger>
+                                            <AlertDialogContent>
+                                                <AlertDialogHeader>
+                                                    <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                                    <AlertDialogDescription>
+                                                        This action cannot be undone. This will permanently delete your post.
+                                                    </AlertDialogDescription>
+                                                </AlertDialogHeader>
+                                                <AlertDialogFooter>
+                                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                    <AlertDialogAction onClick={() => handleDeletePost(post.id, post.media_url)} className="bg-destructive hover:bg-destructive/80">Delete</AlertDialogAction>
+                                                </AlertDialogFooter>
+                                            </AlertDialogContent>
+                                        </AlertDialog>
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
+                            </div>
+                        )}
+                    </div>
                     ))}
                 </div>
              ) : (
@@ -290,5 +306,3 @@ export default function UserProfilePage({ params: paramsPromise }: { params: Pro
     </>
   );
 }
-
-    
