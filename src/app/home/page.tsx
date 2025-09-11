@@ -52,7 +52,7 @@ export default function HomePage() {
       if (data) {
         const allPosts = data.map((p: any) => ({
           ...p,
-          user: p.profiles,
+          user: p.profiles, // Correctly assign the profile object
           likes: p.post_likes[0] || { count: 0 },
           comments: p.post_comments[0] || { count: 0 },
           profiles: undefined, // remove the original profiles property
