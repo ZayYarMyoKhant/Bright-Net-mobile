@@ -95,7 +95,7 @@ export default function UserProfilePage({ params: paramsPromise }: { params: Pro
     } else {
       const postsWithViews = postsData.map((p: any) => ({
           ...p,
-          views: p.post_views?.view_count || 0
+          views: p.post_views?.[0]?.view_count || 0
       }));
       setPosts(postsWithViews);
     }
@@ -245,7 +245,7 @@ export default function UserProfilePage({ params: paramsPromise }: { params: Pro
                             </div>
                         </Link>
                         
-                        <div className="absolute bottom-1 right-1 flex items-center gap-1 rounded bg-black/50 px-1 py-0.5 text-white text-xs">
+                        <div className="absolute bottom-1 left-1 flex items-center gap-1 rounded bg-black/50 px-1 py-0.5 text-white text-xs pointer-events-none">
                            <Eye className="h-3 w-3" />
                            <span className="font-bold">{post.views}</span>
                         </div>
