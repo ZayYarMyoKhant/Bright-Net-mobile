@@ -50,6 +50,7 @@ export default function HomePage() {
         user: p.profiles,
         likes: p.post_likes[0] || { count: 0 },
         comments: p.post_comments[0] || { count: 0 },
+        profiles: undefined, // remove the original profiles property
       }));
       
       // Check which posts the current user has liked
