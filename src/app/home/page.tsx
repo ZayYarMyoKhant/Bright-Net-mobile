@@ -36,11 +36,7 @@ export default function HomePage() {
         media_url,
         media_type,
         created_at,
-        profiles (
-          id,
-          username,
-          avatar_url
-        ),
+        profiles ( * ),
         post_likes(count),
         post_comments(count)
       `)
