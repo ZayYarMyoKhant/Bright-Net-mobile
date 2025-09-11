@@ -7,13 +7,31 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 
 
-const stickerUrlBase = `https://blbqaojfppwybkjqiyeb.supabase.co/storage/v1/object/public/avatars/stickers`;
-
 const stickerCategories = {
-    love: Array.from({ length: 4 }, (_, i) => `${stickerUrlBase}/love/${i + 1}.webp`),
-    laugh: Array.from({ length: 4 }, (_, i) => `${stickerUrlBase}/laugh/${i + 1}.webp`),
-    cry: Array.from({ length: 4 }, (_, i) => `${stickerUrlBase}/cry/${i + 1}.webp`),
-    angry: Array.from({ length: 4 }, (_, i) => `${stickerUrlBase}/angry/${i + 1}.webp`),
+    love: [
+      'https://blbqaojfppwybkjqiyeb.supabase.co/storage/v1/object/public/avatars/stickers/love/Screenshot_2025-09-08-22-23-55-73.jpg',
+      'https://blbqaojfppwybkjqiyeb.supabase.co/storage/v1/object/public/avatars/stickers/love/Screenshot_2025-09-08-22-24-44-05.jpg',
+      'https://blbqaojfppwybkjqiyeb.supabase.co/storage/v1/object/public/avatars/stickers/love/Screenshot_2025-09-08-22-25-53-93.jpg',
+      'https://blbqaojfppwybkjqiyeb.supabase.co/storage/v1/object/public/avatars/stickers/love/Screenshot_2025-09-08-22-26-09-58.jpg'
+    ],
+    laugh: [
+      'https://blbqaojfppwybkjqiyeb.supabase.co/storage/v1/object/public/avatars/stickers/laugh/Screenshot_2025-09-08-22-27-56-24.jpg',
+      'https://blbqaojfppwybkjqiyeb.supabase.co/storage/v1/object/public/avatars/stickers/laugh/Screenshot_2025-09-08-22-28-10-61.jpg',
+      'https://blbqaojfppwybkjqiyeb.supabase.co/storage/v1/object/public/avatars/stickers/laugh/Screenshot_2025-09-08-22-28-26-72.jpg',
+      'https://blbqaojfppwybkjqiyeb.supabase.co/storage/v1/object/public/avatars/stickers/laugh/Screenshot_2025-09-08-22-28-41-13.jpg'
+    ],
+    cry: [
+      'https://blbqaojfppwybkjqiyeb.supabase.co/storage/v1/object/public/avatars/stickers/cry/Screenshot_2025-09-08-22-32-03-18.jpg',
+      'https://blbqaojfppwybkjqiyeb.supabase.co/storage/v1/object/public/avatars/stickers/cry/Screenshot_2025-09-08-22-32-21-29.jpg',
+      'https://blbqaojfppwybkjqiyeb.supabase.co/storage/v1/object/public/avatars/stickers/cry/Screenshot_2025-09-08-22-32-41-59.jpg',
+      'https://blbqaojfppwybkjqiyeb.supabase.co/storage/v1/object/public/avatars/stickers/cry/Screenshot_2025-09-08-22-32-55-95.jpg'
+    ],
+    angry: [
+      'https://blbqaojfppwybkjqiyeb.supabase.co/storage/v1/object/public/avatars/stickers/angry/IMG_20250908_221753.jpg',
+      'https://blbqaojfppwybkjqiyeb.supabase.co/storage/v1/object/public/avatars/stickers/angry/IMG_20250908_221810.jpg',
+      'https://blbqaojfppwybkjqiyeb.supabase.co/storage/v1/object/public/avatars/stickers/angry/IMG_20250908_222157.jpg',
+      'https://blbqaojfppwybkjqiyeb.supabase.co/storage/v1/object/public/avatars/stickers/angry/Screenshot_2025-08-31-07-06-18-50.jpg'
+    ],
 };
 
 const emojiCategories = [
