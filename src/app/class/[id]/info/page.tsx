@@ -40,30 +40,6 @@ export default function ClassInfoPage({ params: paramsPromise }: { params: Promi
         const { data: { user } } = await supabase.auth.getUser();
         setCurrentUser(user);
 
-        if (!user) {
-            setIsMember(false);
-            setLoading(false);
-            return;
-        }
-
-        const { data: memberData, error: memberError } = await supabase
-            .from('class_members')
-            .select('user_id')
-            .eq('class_id', params.id)
-            .eq('user_id', user.id)
-            .single();
-
-        if (memberError || !memberData) {
-            setIsMember(false);
-            if (memberError && memberError.code !== 'PGRST116') {
-              console.error("Error checking membership:", memberError);
-            }
-            setLoading(false);
-            return;
-        }
-        
-        setIsMember(true);
-
         const { data: classData, error: classError } = await supabase
             .from('classes')
             .select('id, name, description, cover_photo_url, created_by')
@@ -74,6 +50,25 @@ export default function ClassInfoPage({ params: paramsPromise }: { params: Promi
             console.error("Error fetching class info:", classError);
             setLoading(false);
             return;
+        }
+
+        if (user) {
+          const { data: memberData, error: memberError } = await supabase
+              .from('class_members')
+              .select('user_id', { count: 'exact' })
+              .eq('class_id', params.id)
+              .eq('user_id', user.id)
+
+          if (!memberError && (memberData?.length || 0) > 0) {
+            setIsMember(true);
+          } else {
+             if (memberError) {
+              console.error("Error checking membership:", memberError);
+            }
+             setIsMember(false);
+          }
+        } else {
+           setIsMember(false);
         }
 
         const { data: profileData, error: profileError } = await supabase
