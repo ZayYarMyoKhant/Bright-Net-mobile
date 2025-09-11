@@ -39,7 +39,7 @@ export default function HomePage() {
           media_url,
           media_type,
           created_at,
-          profiles ( * ),
+          profiles!posts_user_id_fkey ( * ),
           post_likes(count),
           post_comments(count)
         `)
@@ -56,7 +56,7 @@ export default function HomePage() {
           media_url: p.media_url,
           media_type: p.media_type,
           created_at: p.created_at,
-          user: p.profiles, // profiles is an object, not an array
+          user: p.profiles,
           likes: p.post_likes[0] || { count: 0 },
           comments: p.post_comments[0] || { count: 0 },
         }));
