@@ -7,7 +7,7 @@ import { Button } from "./ui/button";
 import { Checkbox } from "./ui/checkbox";
 import { ScrollArea } from "./ui/scroll-area";
 import { SheetHeader, SheetTitle } from "./ui/sheet";
-import { Send, Loader2 } from "lucide-react";
+import { Send, Loader2, Users } from "lucide-react";
 import { Post, Profile } from "@/lib/data";
 import { User } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
@@ -94,7 +94,7 @@ export function ShareSheet({ post, currentUser }: ShareSheetProps) {
            <div className="flex justify-center items-center h-full pt-10">
             <Loader2 className="h-6 w-6 animate-spin" />
           </div>
-        ) : (
+        ) : friends.length > 0 ? (
           <div className="p-4 space-y-4">
             {friends.map((friend) => (
               <div key={friend.id} className="flex items-center gap-4">
@@ -114,6 +114,12 @@ export function ShareSheet({ post, currentUser }: ShareSheetProps) {
               </div>
             ))}
           </div>
+        ) : (
+            <div className="text-center p-10 text-muted-foreground flex flex-col items-center">
+                <Users className="h-12 w-12 mb-4" />
+                <p className="font-bold">No friends to share with</p>
+                <p className="text-sm mt-1">When you have friends, they'll appear here.</p>
+            </div>
         )}
       </ScrollArea>
       <footer className="flex-shrink-0 border-t p-4">
