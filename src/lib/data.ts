@@ -30,6 +30,10 @@ export type Post = {
   isLiked?: boolean;
 };
 
+export type PostWithViews = Post & {
+    views: number;
+};
+
 
 export type Country = {
   name: string;
