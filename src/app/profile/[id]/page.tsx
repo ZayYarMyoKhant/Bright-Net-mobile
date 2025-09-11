@@ -112,9 +112,9 @@ export default function UserProfilePage({ params: paramsPromise }: { params: Pro
     setPosts(prev => prev.filter(p => p.id !== postId));
     
     // Delete from storage
-    const filePath = mediaUrl.split('/public/posts/')[1];
+    const filePath = mediaUrl.split('/public/')[1];
     if (filePath) {
-        const { error: storageError } = await supabase.storage.from('posts').remove([filePath]);
+        const { error: storageError } = await supabase.storage.from('posts').remove([filePath.replace('posts/','')]);
         if (storageError) {
             console.error("Failed to delete from storage:", storageError);
             toast({ variant: "destructive", title: "Storage Error", description: "Could not delete the post media." });
@@ -225,7 +225,7 @@ export default function UserProfilePage({ params: paramsPromise }: { params: Pro
              {posts.length > 0 ? (
                 <div className="grid grid-cols-3 gap-1">
                     {posts.map((post) => (
-                    <Link key={post.id} href={`/post/${post.id}`} className="group relative aspect-square w-full">
+                    <Link key={post.id} href={`/post/${post.id}`} className="group relative aspect-square w-full bg-muted">
                        <div className="aspect-square w-full relative">
                         {post.media_type === 'video' ? (
                              <video src={post.media_url} className="h-full w-full object-cover" />
@@ -240,15 +240,15 @@ export default function UserProfilePage({ params: paramsPromise }: { params: Pro
                             />
                         )}
                         </div>
-                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white">
-                           <div className="flex items-center gap-2">
+                        <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-1.5 text-white">
+                           <div className="flex items-center gap-1">
                                <Eye className="h-4 w-4" />
-                               <span className="text-sm font-bold">{post.views}</span>
+                               <span className="text-xs font-bold">{post.views}</span>
                            </div>
                            {isOwnProfile && (
                                 <AlertDialog>
                                     <AlertDialogTrigger asChild>
-                                       <Button variant="destructive" size="icon" className="absolute top-1 right-1 h-7 w-7" onClick={(e) => e.preventDefault()}>
+                                       <Button variant="destructive" size="icon" className="absolute top-1 right-1 h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => e.preventDefault()}>
                                             <Trash2 className="h-4 w-4" />
                                         </Button>
                                     </AlertDialogTrigger>
@@ -290,3 +290,5 @@ export default function UserProfilePage({ params: paramsPromise }: { params: Pro
     </>
   );
 }
+
+    
