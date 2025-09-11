@@ -4,8 +4,9 @@
 import { use, useEffect, useState, useCallback } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { Card, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Grid3x3, Clapperboard, ArrowLeft, MessageCircle, CameraOff, Loader2, Eye, Trash2, MoreVertical } from "lucide-react";
+import { Grid3x3, Clapperboard, ArrowLeft, MessageCircle, CameraOff, Loader2, Eye, Trash2, MoreVertical, BookOpen } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { BottomNav } from '@/components/bottom-nav';
@@ -37,6 +38,13 @@ type ProfileData = {
   bio: string;
 };
 
+type CreatedClass = {
+  id: string;
+  name: string;
+  description: string | null;
+  is_member: boolean;
+};
+
 export default function UserProfilePage({ params: paramsPromise }: { params: Promise<{ id: string }> }) {
   const params = use(paramsPromise);
   const router = useRouter();
@@ -46,7 +54,10 @@ export default function UserProfilePage({ params: paramsPromise }: { params: Pro
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [posts, setPosts] = useState<PostWithViews[]>([]);
+  const [createdClasses, setCreatedClasses] = useState<CreatedClass[]>([]);
   const [loading, setLoading] = useState(true);
+  const [joiningClassId, setJoiningClassId] = useState<string | null>(null);
+
 
   const isOwnProfile = currentUser?.id === profile?.id;
 
@@ -79,21 +90,40 @@ export default function UserProfilePage({ params: paramsPromise }: { params: Pro
       following: 0,
       followers: 0,
     });
+    
+    const [postsResult, classesResult] = await Promise.all([
+        supabase
+            .from('posts')
+            .select('*, post_views(view_count)')
+            .eq('user_id', profileData.id)
+            .order('created_at', { ascending: false }),
+        supabase
+            .from('classes')
+            .select('*, class_members!left(user_id)')
+            .eq('created_by', profileData.id)
+    ]);
 
-    const { data: postsData, error: postsError } = await supabase
-      .from('posts')
-      .select('*, post_views(view_count)')
-      .eq('user_id', profileData.id)
-      .order('created_at', { ascending: false });
 
-    if (postsError) {
-      console.error("Error fetching posts:", postsError);
+    if (postsResult.error) {
+      console.error("Error fetching posts:", postsResult.error);
     } else {
-      const postsWithViews = postsData.map((p: any) => ({
+      const postsWithViews = postsResult.data.map((p: any) => ({
           ...p,
           views: p.post_views?.[0]?.view_count || 0
       }));
       setPosts(postsWithViews);
+    }
+
+    if (classesResult.error) {
+        console.error("Error fetching created classes:", classesResult.error);
+    } else if (classesResult.data) {
+        const processedClasses = classesResult.data.map((c: any) => ({
+            id: c.id,
+            name: c.name,
+            description: c.description,
+            is_member: authUser ? c.class_members.some((m: any) => m.user_id === authUser.id) : false
+        }));
+        setCreatedClasses(processedClasses);
     }
 
     setLoading(false);
@@ -104,6 +134,29 @@ export default function UserProfilePage({ params: paramsPromise }: { params: Pro
       fetchProfileData();
     }
   }, [params.id, fetchProfileData]);
+  
+  const handleJoinClass = async (classId: string) => {
+    if (!currentUser) {
+      toast({ variant: 'destructive', title: 'Not logged in', description: 'You must be logged in to join a class.' });
+      return;
+    }
+
+    setJoiningClassId(classId);
+
+    const { error } = await supabase.from('class_members').insert({
+        class_id: classId,
+        user_id: currentUser.id,
+    });
+
+    if (error) {
+      console.error("Error joining class:", error);
+      toast({ variant: 'destructive', title: 'Failed to Join', description: error.message });
+    } else {
+      toast({ title: 'Successfully Joined!', description: 'You are now a member of the class.' });
+      setCreatedClasses(prev => prev.map(c => c.id === classId ? { ...c, is_member: true } : c));
+    }
+    setJoiningClassId(null);
+  }
 
   const handleDeletePost = async (postId: string | number, mediaUrl: string) => {
     // Optimistic UI update
@@ -241,7 +294,7 @@ export default function UserProfilePage({ params: paramsPromise }: { params: Pro
                             </div>
                         </Link>
                         
-                        <div className="absolute bottom-1 right-1 flex items-center gap-1 rounded bg-black/50 px-1 py-0.5 text-white text-xs pointer-events-none">
+                        <div className="absolute bottom-1 left-1 flex items-center gap-1 rounded bg-black/50 px-1 py-0.5 text-white text-xs pointer-events-none">
                            <Eye className="h-3 w-3" />
                            <span className="font-bold">{post.views}</span>
                         </div>
@@ -290,10 +343,40 @@ export default function UserProfilePage({ params: paramsPromise }: { params: Pro
              )}
             </TabsContent>
             <TabsContent value="class">
-              <div className="flex flex-col items-center justify-center pt-10">
-                <Clapperboard className="h-12 w-12 text-muted-foreground" />
-                <p className="mt-4 text-sm text-muted-foreground">No classes yet.</p>
-              </div>
+              {createdClasses.length > 0 ? (
+                 <div className="space-y-4 pt-4">
+                    {createdClasses.map(classItem => (
+                         <Card key={classItem.id}>
+                              <CardHeader>
+                                  <CardTitle>{classItem.name}</CardTitle>
+                                  {classItem.description && <p className="text-sm text-muted-foreground pt-2">{classItem.description}</p>}
+                              </CardHeader>
+                              <CardFooter>
+                                  {isOwnProfile || classItem.is_member ? (
+                                      <Link href={`/class/${classItem.id}`} className="w-full">
+                                        <Button variant="secondary" className="w-full">
+                                            View Channel
+                                        </Button>
+                                      </Link>
+                                  ) : (
+                                    <Button 
+                                      className="w-full" 
+                                      onClick={() => handleJoinClass(classItem.id)}
+                                      disabled={joiningClassId === classItem.id}
+                                    >
+                                      {joiningClassId === classItem.id ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Join"}
+                                    </Button>
+                                  )}
+                              </CardFooter>
+                         </Card>
+                    ))}
+                 </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center pt-10 text-center text-muted-foreground">
+                    <BookOpen className="h-12 w-12" />
+                    <p className="mt-4 text-sm">{isOwnProfile ? "You haven't created any classes." : "This user hasn't created any classes."}</p>
+                </div>
+              )}
             </TabsContent>
           </Tabs>
         </main>
@@ -302,3 +385,5 @@ export default function UserProfilePage({ params: paramsPromise }: { params: Pro
     </>
   );
 }
+
+    

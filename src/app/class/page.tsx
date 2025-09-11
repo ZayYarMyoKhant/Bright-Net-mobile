@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -28,20 +28,15 @@ export default function ClassPage() {
   const supabase = createClient();
   const { toast } = useToast();
 
-  const fetchUserAndClasses = async () => {
+  const fetchUserAndClasses = useCallback(async () => {
     setLoading(true);
     
     const { data: { user } } = await supabase.auth.getUser();
     setCurrentUser(user);
 
-    if (!user) {
-        setLoading(false);
-        return;
-    }
-
     const { data: classData, error } = await supabase
       .from('classes')
-      .select('*, class_members(user_id)');
+      .select('*, class_members!left(user_id)');
 
     if (error) {
       console.error("Error fetching classes:", error);
@@ -49,16 +44,16 @@ export default function ClassPage() {
     } else if (classData) {
       const processedClasses = classData.map(c => ({
         ...c,
-        is_member: c.class_members.some(m => m.user_id === user.id)
+        is_member: user ? c.class_members.some((m: any) => m.user_id === user.id) : false,
       }));
       setClasses(processedClasses);
     }
     setLoading(false);
-  };
+  }, [supabase, toast]);
 
   useEffect(() => {
     fetchUserAndClasses();
-  }, [supabase]);
+  }, [fetchUserAndClasses]);
 
   const handleJoinClass = async (classId: string) => {
     if (!currentUser) {
@@ -78,8 +73,10 @@ export default function ClassPage() {
       toast({ variant: 'destructive', title: 'Failed to Join', description: error.message });
     } else {
       toast({ title: 'Successfully Joined!', description: 'You are now a member of the class.' });
-      // Refresh class list to update UI
-      fetchUserAndClasses();
+      // Update state locally to reflect the change immediately
+      setClasses(prevClasses => 
+        prevClasses.map(c => c.id === classId ? { ...c, is_member: true } : c)
+      );
     }
     setJoiningClass(null);
   }
@@ -111,7 +108,7 @@ export default function ClassPage() {
                   </div>
               </CardHeader>
               <CardFooter>
-                   {classItem.created_by === currentUser?.id || classItem.is_member ? (
+                   {classItem.is_member ? (
                       <Link href={`/class/${classItem.id}`} className="w-full">
                         <Button variant="secondary" className="w-full">
                             <Video className="mr-2 h-4 w-4"/>
@@ -124,8 +121,7 @@ export default function ClassPage() {
                       onClick={() => handleJoinClass(classItem.id)}
                       disabled={joiningClass === classItem.id}
                     >
-                      {joiningClass === classItem.id && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                      Join
+                      {joiningClass === classItem.id ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Join"}
                     </Button>
                   )}
               </CardFooter>
@@ -144,3 +140,5 @@ export default function ClassPage() {
     </>
   );
 }
+
+    
