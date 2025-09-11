@@ -59,14 +59,14 @@ export default function ClassInfoPage({ params: paramsPromise }: { params: Promi
               .eq('class_id', params.id)
               .eq('user_id', user.id)
 
-          if (!memberError && (memberData?.length || 0) > 0) {
-            setIsMember(true);
-          } else {
-             if (memberError) {
+            if (memberError && memberError.code !== 'PGRST116') { // PGRST116 is 'No rows found', which is not an error here
               console.error("Error checking membership:", memberError);
+              setIsMember(false);
+            } else if (memberData && memberData.length > 0) {
+              setIsMember(true);
+            } else {
+              setIsMember(false);
             }
-             setIsMember(false);
-          }
         } else {
            setIsMember(false);
         }
