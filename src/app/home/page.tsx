@@ -82,12 +82,12 @@ export default function HomePage() {
         setImagePosts(allPosts.filter((p: Post) => p.media_type === 'image'));
         setVideoPosts(allPosts.filter((p: Post) => p.media_type === 'video'));
       }
-    } catch (error) {
+    } catch (error: any) {
         console.error("Error fetching posts:", error);
         toast({
             variant: "destructive",
             title: "Failed to fetch posts",
-            description: "There was a problem loading the feed. Please try again.",
+            description: error.message || "There was a problem loading the feed. Please try again.",
         });
     } finally {
         setLoading(false);

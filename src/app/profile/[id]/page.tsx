@@ -11,7 +11,7 @@ import Link from "next/link";
 import { BottomNav } from '@/components/bottom-nav';
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import type { Post } from "@/lib/data";
+import type { Post, PostWithViews } from "@/lib/data";
 import { User } from "@supabase/supabase-js";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -35,10 +35,6 @@ type ProfileData = {
   following: number;
   followers: number;
   bio: string;
-};
-
-type PostWithViews = Post & {
-    views: number;
 };
 
 export default function UserProfilePage({ params: paramsPromise }: { params: Promise<{ id: string }> }) {
@@ -245,7 +241,7 @@ export default function UserProfilePage({ params: paramsPromise }: { params: Pro
                             </div>
                         </Link>
                         
-                        <div className="absolute bottom-1 left-1 flex items-center gap-1 rounded bg-black/50 px-1 py-0.5 text-white text-xs pointer-events-none">
+                        <div className="absolute bottom-1 right-1 flex items-center gap-1 rounded bg-black/50 px-1 py-0.5 text-white text-xs pointer-events-none">
                            <Eye className="h-3 w-3" />
                            <span className="font-bold">{post.views}</span>
                         </div>
