@@ -48,7 +48,7 @@ export default function ProfilePage() {
                 .single();
 
             if (error && error.code !== 'PGRST116') {
-                toast({ variant: 'destructive', title: 'Error', description: error.message });
+                toast({ variant: 'destructive', title: 'Error loading profile', description: error.message });
                 setLoading(false);
                 return;
             }
@@ -72,12 +72,16 @@ export default function ProfilePage() {
                     setPosts(postsData as Post[]);
                 }
             } else {
-                // This case shouldn't be hit often if the flow is correct, but as a fallback:
+                // User is authenticated but has no profile, redirect to setup
                 router.push('/profile/setup');
+                // We don't set loading to false here because the redirect will happen.
+                return; 
             }
 
         } else {
+            // No authenticated user, redirect to signup
             router.push('/signup');
+            return;
         }
         setLoading(false);
     };
@@ -98,10 +102,12 @@ export default function ProfilePage() {
   }
 
   if (!user) {
+    // This case should ideally not be reached due to the redirects above,
+    // but it's good practice as a fallback.
     return (
          <>
             <div className="flex h-full flex-col bg-background text-foreground pb-16 items-center justify-center">
-                <p>Could not load profile. Please try again.</p>
+                <p>Could not load profile. Please try logging in again.</p>
                  <Button onClick={() => router.push('/signup')} className="mt-4">Go to Sign Up</Button>
             </div>
             <BottomNav />
@@ -181,7 +187,7 @@ export default function ProfilePage() {
               {posts.length > 0 ? (
                 <div className="grid grid-cols-3 gap-1">
                   {posts.map((post) => (
-                    <div key={post.id} className="aspect-square w-full relative">
+                    <Link href={`/post/${post.id}`} key={post.id} className="aspect-square w-full relative">
                        {post.media_type === 'video' ? (
                            <video src={post.media_url} className="h-full w-full object-cover" />
                        ) : (
@@ -194,7 +200,7 @@ export default function ProfilePage() {
                                 data-ai-hint="lifestyle content"
                             />
                        )}
-                    </div>
+                    </Link>
                   ))}
                 </div>
               ) : (
