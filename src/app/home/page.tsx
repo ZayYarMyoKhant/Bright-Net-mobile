@@ -50,12 +50,15 @@ export default function HomePage() {
       }
 
       if (data) {
-        const allPosts = data.map((p: any) => ({
-          ...p,
-          user: p.profiles, // Correctly assign the profile object
+        const allPosts: Post[] = data.map((p: any) => ({
+          id: p.id,
+          caption: p.caption,
+          media_url: p.media_url,
+          media_type: p.media_type,
+          created_at: p.created_at,
+          user: p.profiles, // profiles is an object, not an array
           likes: p.post_likes[0] || { count: 0 },
           comments: p.post_comments[0] || { count: 0 },
-          profiles: undefined, // remove the original profiles property
         }));
         
         if (currentUser) {
