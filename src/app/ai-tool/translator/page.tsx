@@ -1,15 +1,63 @@
 
 "use client";
 
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { ArrowLeft, Languages, ArrowRightLeft } from "lucide-react";
+import { ArrowLeft, Languages, ArrowRightLeft, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useToast } from "@/hooks/use-toast";
+import { translateText } from "@/ai/flows/translate-flow";
 
+const languages = [
+    { value: 'en', label: 'English' },
+    { value: 'my', label: 'Burmese' },
+    { value: 'es', label: 'Spanish' },
+    { value: 'fr', label: 'French' },
+    { value: 'zh-CN', label: 'Chinese (Simplified)' },
+    { value: 'hi', label: 'Hindi' },
+    { value: 'ar', label: 'Arabic' },
+    { value: 'ru', label: 'Russian' },
+];
 
 export default function TranslatorPage() {
+    const [inputText, setInputText] = useState("");
+    const [translatedText, setTranslatedText] = useState("");
+    const [sourceLang, setSourceLang] = useState("en");
+    const [targetLang, setTargetLang] = useState("my");
+    const [isLoading, setIsLoading] = useState(false);
+    const { toast } = useToast();
+
+    const handleTranslate = async () => {
+        if (!inputText.trim()) {
+            toast({ variant: "destructive", title: "Input is empty", description: "Please enter some text to translate." });
+            return;
+        }
+        setIsLoading(true);
+        setTranslatedText("");
+
+        try {
+            const result = await translateText({
+                text: inputText,
+                sourceLang: languages.find(l => l.value === sourceLang)?.label || 'English',
+                targetLang: languages.find(l => l.value === targetLang)?.label || 'Burmese',
+            });
+            setTranslatedText(result);
+        } catch (error) {
+            console.error("Translation failed:", error);
+            toast({ variant: "destructive", title: "Translation Failed", description: "Could not translate the text. Please try again." });
+        } finally {
+            setIsLoading(false);
+        }
+    };
+    
+    const handleSwapLanguages = () => {
+        const currentSource = sourceLang;
+        setSourceLang(targetLang);
+        setTargetLang(currentSource);
+    };
 
     return (
         <div className="flex h-dvh flex-col bg-background text-foreground">
@@ -21,7 +69,7 @@ export default function TranslatorPage() {
             </header>
 
             <main className="flex-1 overflow-y-auto p-4 flex flex-col gap-4">
-                 <Card className="bg-green-100/10">
+                 <Card className="bg-green-100/10 border-green-500/20">
                     <CardHeader className="flex-row items-center gap-4 space-y-0">
                         <Languages className="h-10 w-10 text-green-500" />
                         <CardTitle>Translate anything</CardTitle>
@@ -37,47 +85,49 @@ export default function TranslatorPage() {
                     <Textarea
                         placeholder="Enter text to translate..."
                         className="flex-1 min-h-[120px] text-base"
+                        value={inputText}
+                        onChange={(e) => setInputText(e.target.value)}
+                        disabled={isLoading}
                     />
 
                     <div className="flex items-center gap-2">
-                        <Select defaultValue="en">
+                        <Select value={sourceLang} onValueChange={setSourceLang} disabled={isLoading}>
                             <SelectTrigger className="flex-1">
                                 <SelectValue placeholder="From" />
                             </SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="auto">Auto-detect</SelectItem>
-                                <SelectItem value="en">English</SelectItem>
-                                <SelectItem value="my">Burmese</SelectItem>
-                                <SelectItem value="es">Spanish</SelectItem>
+                                {languages.map(lang => (
+                                    <SelectItem key={lang.value} value={lang.value}>{lang.label}</SelectItem>
+                                ))}
                             </SelectContent>
                         </Select>
 
-                        <Button variant="ghost" size="icon">
+                        <Button variant="ghost" size="icon" onClick={handleSwapLanguages} disabled={isLoading}>
                             <ArrowRightLeft className="h-5 w-5" />
                         </Button>
                         
-                        <Select defaultValue="my">
+                        <Select value={targetLang} onValueChange={setTargetLang} disabled={isLoading}>
                             <SelectTrigger className="flex-1">
                                 <SelectValue placeholder="To" />
                             </SelectTrigger>
                              <SelectContent>
-                                <SelectItem value="en">English</SelectItem>
-                                <SelectItem value="my">Burmese</SelectItem>
-                                <SelectItem value="es">Spanish</SelectItem>
-                                <SelectItem value="fr">French</SelectItem>
+                                {languages.map(lang => (
+                                    <SelectItem key={lang.value} value={lang.value}>{lang.label}</SelectItem>
+                                ))}
                             </SelectContent>
                         </Select>
                     </div>
 
                      <Textarea
-                        placeholder="Translation will appear here..."
+                        placeholder={isLoading ? "Translating..." : "Translation will appear here..."}
                         className="flex-1 min-h-[120px] bg-muted text-base"
                         readOnly
+                        value={translatedText}
                     />
                 </div>
 
-
-                <Button size="lg" className="w-full">
+                <Button size="lg" className="w-full" onClick={handleTranslate} disabled={isLoading}>
+                    {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                     Translate
                 </Button>
             </main>
