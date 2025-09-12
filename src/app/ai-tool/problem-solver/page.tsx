@@ -2,10 +2,12 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-import { ArrowLeft, BrainCircuit } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { ArrowLeft, BrainCircuit, Send, User } from "lucide-react";
 import Link from "next/link";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 export default function ProblemSolverPage() {
 
@@ -15,31 +17,56 @@ export default function ProblemSolverPage() {
                 <Link href="/ai-tool" className="p-2 -ml-2 absolute left-4">
                     <ArrowLeft className="h-5 w-5" />
                 </Link>
-                <h1 className="text-xl font-bold mx-auto">AI Problem Solver</h1>
+                <div className="flex items-center gap-3 mx-auto">
+                    <BrainCircuit className="h-6 w-6 text-primary" />
+                    <h1 className="text-xl font-bold">AI Problem Solver</h1>
+                </div>
             </header>
 
-            <main className="flex-1 overflow-y-auto p-4 flex flex-col gap-4">
-                <Card className="bg-blue-100/10">
-                    <CardHeader className="flex-row items-center gap-4 space-y-0">
-                        <BrainCircuit className="h-10 w-10 text-primary" />
-                        <CardTitle>Describe your problem</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <p className="text-muted-foreground">
-                            Provide a detailed description of the problem you're facing, and our AI will generate a step-by-step solution for you.
-                        </p>
-                    </CardContent>
-                </Card>
+            <ScrollArea className="flex-1">
+                <main className="p-4 flex flex-col gap-4">
+                    <Card className="bg-blue-100/10 border-blue-500/20">
+                        <CardContent className="p-4">
+                            <div className="flex items-start gap-3">
+                                <Avatar className="h-8 w-8 border-2 border-primary">
+                                    <AvatarFallback>
+                                        <BrainCircuit className="h-4 w-4" />
+                                    </AvatarFallback>
+                                </Avatar>
+                                <div>
+                                    <p className="font-semibold text-primary">AI Assistant</p>
+                                    <p className="text-sm">
+                                        Hello! I'm here to help. Describe the problem you're facing, and I'll provide a step-by-step solution. For example: "How do I fix a leaky faucet?"
+                                    </p>
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
 
-                <Textarea
-                    placeholder="For example: How do I fix a leaky faucet?"
-                    className="flex-1 min-h-[150px] text-base"
-                />
+                    {/* Example User Message */}
+                    <div className="flex items-start gap-3 justify-end">
+                        <div className="bg-muted rounded-lg p-3 max-w-sm">
+                            <p className="font-semibold">You</p>
+                            <p className="text-sm">How do I change a flat tire?</p>
+                        </div>
+                        <Avatar className="h-8 w-8">
+                           <AvatarFallback>
+                                <User className="h-4 w-4" />
+                            </AvatarFallback>
+                        </Avatar>
+                    </div>
 
-                <Button size="lg" className="w-full">
-                    Get Solution
-                </Button>
-            </main>
+                </main>
+            </ScrollArea>
+
+             <footer className="flex-shrink-0 border-t p-2">
+                <div className="flex items-center gap-2 pt-1">
+                    <Input placeholder="Describe your problem..." className="flex-1"/>
+                    <Button size="icon">
+                        <Send className="h-5 w-5" />
+                    </Button>
+                </div>
+            </footer>
         </div>
     );
 }
