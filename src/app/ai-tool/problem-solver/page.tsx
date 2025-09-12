@@ -35,11 +35,12 @@ export default function ProblemSolverPage() {
 
         const newMessages: Message[] = [...messages, { role: 'user', content: input }];
         setMessages(newMessages);
+        const currentInput = input;
         setInput("");
         setIsLoading(true);
 
         try {
-            const result = await solveProblem(input);
+            const result = await solveProblem(currentInput);
             setMessages(prev => [...prev, { role: 'assistant', content: result }]);
         } catch (error) {
             console.error("Problem solving failed:", error);

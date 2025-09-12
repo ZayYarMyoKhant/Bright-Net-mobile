@@ -22,6 +22,10 @@ export type TranslateTextInput = z.infer<typeof TranslateTextInputSchema>;
 const TranslateTextOutputSchema = z.string().describe("The translated text.");
 export type TranslateTextOutput = z.infer<typeof TranslateTextOutputSchema>;
 
+export async function translateText(input: TranslateTextInput): Promise<TranslateTextOutput> {
+    return translateTextFlow(input);
+}
+
 const translateTextFlow = ai.defineFlow(
   {
     name: 'translateTextFlow',
@@ -39,5 +43,3 @@ const translateTextFlow = ai.defineFlow(
     return llmResponse.text;
   }
 );
-
-export const translateText = translateTextFlow;
