@@ -47,7 +47,8 @@ export default function TranslatorPage() {
             setTranslatedText(result);
         } catch (error) {
             console.error("Translation failed:", error);
-            toast({ variant: "destructive", title: "Translation Failed", description: "Could not translate the text. Please try again." });
+            const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
+            toast({ variant: "destructive", title: "Translation Failed", description: errorMessage });
         } finally {
             setIsLoading(false);
         }

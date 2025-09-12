@@ -43,7 +43,8 @@ export default function ProblemSolverPage() {
             setMessages(prev => [...prev, { role: 'assistant', content: result }]);
         } catch (error) {
             console.error("Problem solving failed:", error);
-            toast({ variant: "destructive", title: "An Error Occurred", description: "Could not get a solution. Please try again." });
+            const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
+            toast({ variant: "destructive", title: "An Error Occurred", description: errorMessage });
         } finally {
             setIsLoading(false);
         }
