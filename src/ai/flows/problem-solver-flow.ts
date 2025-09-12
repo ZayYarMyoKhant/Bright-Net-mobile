@@ -31,8 +31,9 @@ const problemSolverFlow = ai.defineFlow(
   },
   async (problem) => {
     
-    const llmResponse = await ai.generate({
-      model: 'googleai/gemini-pro',
+    const model = ai.model('googleai/gemini-pro');
+
+    const llmResponse = await model.generate({
       prompt: `You are an expert problem solver. A user is asking for help with the following problem. Provide a clear, step-by-step solution. Format the solution with headings and bullet points for readability.
 
 Problem: "${problem}"`,
