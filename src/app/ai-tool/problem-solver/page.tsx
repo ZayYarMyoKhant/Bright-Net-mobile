@@ -1,15 +1,62 @@
 
 "use client";
 
+import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ArrowLeft, BrainCircuit, Send, User } from "lucide-react";
+import { ArrowLeft, BrainCircuit, Send, User, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { useToast } from "@/hooks/use-toast";
+import { solveProblem } from "@/ai/flows/problem-solver-flow";
+
+type Message = {
+    role: 'user' | 'assistant';
+    content: string;
+}
 
 export default function ProblemSolverPage() {
+    const [messages, setMessages] = useState<Message[]>([
+        {
+            role: 'assistant',
+            content: "Hello! I'm here to help. Describe the problem you're facing, and I'll provide a step-by-step solution. For example: \"How do I fix a leaky faucet?\""
+        }
+    ]);
+    const [input, setInput] = useState("");
+    const [isLoading, setIsLoading] = useState(false);
+    const { toast } = useToast();
+    const scrollAreaRef = useRef<HTMLDivElement>(null);
+
+    const handleSendMessage = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!input.trim() || isLoading) return;
+
+        const newMessages: Message[] = [...messages, { role: 'user', content: input }];
+        setMessages(newMessages);
+        setInput("");
+        setIsLoading(true);
+
+        try {
+            const result = await solveProblem(input);
+            setMessages(prev => [...prev, { role: 'assistant', content: result }]);
+        } catch (error) {
+            console.error("Problem solving failed:", error);
+            toast({ variant: "destructive", title: "An Error Occurred", description: "Could not get a solution. Please try again." });
+        } finally {
+            setIsLoading(false);
+        }
+    }
+
+    useEffect(() => {
+        if (scrollAreaRef.current) {
+            scrollAreaRef.current.scrollTo({
+                top: scrollAreaRef.current.scrollHeight,
+                behavior: 'smooth'
+            });
+        }
+    }, [messages]);
 
     return (
         <div className="flex h-dvh flex-col bg-background text-foreground">
@@ -23,49 +70,68 @@ export default function ProblemSolverPage() {
                 </div>
             </header>
 
-            <ScrollArea className="flex-1">
+            <ScrollArea className="flex-1" ref={scrollAreaRef}>
                 <main className="p-4 flex flex-col gap-4">
-                    <Card className="bg-blue-100/10 border-blue-500/20">
-                        <CardContent className="p-4">
-                            <div className="flex items-start gap-3">
-                                <Avatar className="h-8 w-8 border-2 border-primary">
-                                    <AvatarFallback>
-                                        <BrainCircuit className="h-4 w-4" />
+                    {messages.map((msg, index) => (
+                        msg.role === 'assistant' ? (
+                             <Card key={index} className="bg-blue-100/10 border-blue-500/20">
+                                <CardContent className="p-4">
+                                    <div className="flex items-start gap-3">
+                                        <Avatar className="h-8 w-8 border-2 border-primary">
+                                            <AvatarFallback>
+                                                <BrainCircuit className="h-4 w-4" />
+                                            </AvatarFallback>
+                                        </Avatar>
+                                        <div>
+                                            <p className="font-semibold text-primary">AI Assistant</p>
+                                            <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+                                        </div>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        ) : (
+                             <div key={index} className="flex items-start gap-3 justify-end">
+                                <div className="bg-muted rounded-lg p-3 max-w-sm">
+                                    <p className="font-semibold">You</p>
+                                    <p className="text-sm">{msg.content}</p>
+                                </div>
+                                <Avatar className="h-8 w-8">
+                                   <AvatarFallback>
+                                        <User className="h-4 w-4" />
                                     </AvatarFallback>
                                 </Avatar>
-                                <div>
-                                    <p className="font-semibold text-primary">AI Assistant</p>
-                                    <p className="text-sm">
-                                        Hello! I'm here to help. Describe the problem you're facing, and I'll provide a step-by-step solution. For example: "How do I fix a leaky faucet?"
-                                    </p>
-                                </div>
                             </div>
-                        </CardContent>
-                    </Card>
-
-                    {/* Example User Message */}
-                    <div className="flex items-start gap-3 justify-end">
-                        <div className="bg-muted rounded-lg p-3 max-w-sm">
-                            <p className="font-semibold">You</p>
-                            <p className="text-sm">How do I change a flat tire?</p>
+                        )
+                    ))}
+                     {isLoading && (
+                        <div className="flex items-start gap-3">
+                             <Avatar className="h-8 w-8 border-2 border-primary">
+                                <AvatarFallback>
+                                    <BrainCircuit className="h-4 w-4" />
+                                </AvatarFallback>
+                            </Avatar>
+                            <div className="flex items-center gap-2">
+                                <Loader2 className="h-5 w-5 text-primary animate-spin" />
+                                <p className="text-sm text-muted-foreground">AI is thinking...</p>
+                            </div>
                         </div>
-                        <Avatar className="h-8 w-8">
-                           <AvatarFallback>
-                                <User className="h-4 w-4" />
-                            </AvatarFallback>
-                        </Avatar>
-                    </div>
-
+                    )}
                 </main>
             </ScrollArea>
 
              <footer className="flex-shrink-0 border-t p-2">
-                <div className="flex items-center gap-2 pt-1">
-                    <Input placeholder="Describe your problem..." className="flex-1"/>
-                    <Button size="icon">
+                <form onSubmit={handleSendMessage} className="flex items-center gap-2 pt-1">
+                    <Input 
+                        placeholder="Describe your problem..." 
+                        className="flex-1"
+                        value={input}
+                        onChange={(e) => setInput(e.target.value)}
+                        disabled={isLoading}
+                    />
+                    <Button size="icon" type="submit" disabled={!input.trim() || isLoading}>
                         <Send className="h-5 w-5" />
                     </Button>
-                </div>
+                </form>
             </footer>
         </div>
     );
