@@ -3,7 +3,7 @@
 
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { ArrowLeft, Languages, ArrowRightArrowLeft } from "lucide-react";
+import { ArrowLeft, Languages, ArrowRightLeft } from "lucide-react";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -53,7 +53,7 @@ export default function TranslatorPage() {
                         </Select>
 
                         <Button variant="ghost" size="icon">
-                            <ArrowRightArrowLeft className="h-5 w-5" />
+                            <ArrowRightLeft className="h-5 w-5" />
                         </Button>
                         
                         <Select defaultValue="my">
@@ -84,4 +84,3 @@ export default function TranslatorPage() {
         </div>
     );
 }
-
