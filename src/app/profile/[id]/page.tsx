@@ -109,7 +109,7 @@ export default function UserProfilePage({ params: paramsPromise }: { params: Pro
     } else {
       const postsWithViews = postsResult.data.map((p: any) => ({
           ...p,
-          views: p.post_views?.[0]?.view_count || 0
+          views: p.post_views[0]?.view_count || 0
       }));
       setPosts(postsWithViews);
     }
@@ -385,5 +385,3 @@ export default function UserProfilePage({ params: paramsPromise }: { params: Pro
     </>
   );
 }
-
-    

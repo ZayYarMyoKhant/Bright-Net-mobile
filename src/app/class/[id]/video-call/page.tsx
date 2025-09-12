@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
 import { User } from "@supabase/supabase-js";
 import { useToast } from "@/hooks/use-toast";
+import { useRouter } from "next/navigation";
 
 type Profile = {
     id: string;
@@ -31,6 +32,7 @@ export default function ClassVideoCallPage({ params: paramsPromise }: { params: 
   const params = use(paramsPromise);
   const supabase = createClient();
   const { toast } = useToast();
+  const router = useRouter();
 
   const [classInfo, setClassInfo] = useState<ClassInfo | null>(null);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -114,9 +116,13 @@ export default function ClassVideoCallPage({ params: paramsPromise }: { params: 
   };
   
   const handleEndCall = async () => {
-    if (!classInfo) return;
-    await supabase.from('classes').update({ is_live: false }).eq('id', classInfo.id);
-    // The router push will navigate away and trigger cleanup
+    if (!classInfo || !isCreator) return;
+    const { error } = await supabase.from('classes').update({ is_live: false }).eq('id', classInfo.id);
+    if (error) {
+      toast({ variant: "destructive", title: "Error", description: "Could not end the call." });
+    } else {
+      router.push(`/class/${classInfo.id}`);
+    }
   };
 
   useEffect(() => {

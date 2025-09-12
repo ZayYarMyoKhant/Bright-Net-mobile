@@ -39,9 +39,9 @@ export default function HomePage() {
           media_url,
           media_type,
           created_at,
-          user:profiles!posts_user_id_fkey(*),
-          post_likes(count),
-          post_comments(count)
+          user:profiles!posts_user_id_fkey(id, username, avatar_url),
+          post_likes(user_id),
+          post_comments(id)
         `)
         .order('created_at', { ascending: false });
 
@@ -50,34 +50,28 @@ export default function HomePage() {
       }
 
       if (data) {
+        const likedPostIds = new Set();
+        if (currentUser) {
+            const { data: likedPostsData } = await supabase
+                .from('post_likes')
+                .select('post_id')
+                .eq('user_id', currentUser.id);
+            if (likedPostsData) {
+                likedPostsData.forEach(lp => likedPostIds.add(lp.post_id));
+            }
+        }
+
         const allPosts: Post[] = data.map((p: any) => ({
           id: p.id,
           caption: p.caption,
           media_url: p.media_url,
           media_type: p.media_type,
           created_at: p.created_at,
-          user: p.user, // Directly use the aliased user object
-          likes: p.post_likes[0] || { count: 0 },
-          comments: p.post_comments[0] || { count: 0 },
+          user: p.user, 
+          likes: { count: p.post_likes.length },
+          comments: { count: p.post_comments.length },
+          isLiked: likedPostIds.has(p.id),
         }));
-        
-        if (currentUser) {
-          const postIds = allPosts.map(p => p.id);
-          const { data: likedPosts, error: likedError } = await supabase
-            .from('post_likes')
-            .select('post_id')
-            .eq('user_id', currentUser.id)
-            .in('post_id', postIds);
-
-          if (likedError) {
-             console.error("Error fetching liked posts:", likedError);
-          } else if (likedPosts) {
-            const likedPostIds = new Set(likedPosts.map(lp => lp.post_id));
-            allPosts.forEach(p => {
-              p.isLiked = likedPostIds.has(p.id);
-            });
-          }
-        }
         
         setImagePosts(allPosts.filter((p: Post) => p.media_type === 'image'));
         setVideoPosts(allPosts.filter((p: Post) => p.media_type === 'video'));

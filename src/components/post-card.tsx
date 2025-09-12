@@ -25,7 +25,8 @@ import { User } from "@supabase/supabase-js";
 export function PostCard({ post: initialPost }: { post: Post }) {
   const [post, setPost] = useState(initialPost);
   const [isLiked, setIsLiked] = useState(initialPost.isLiked);
-  const [likes, setLikes] = useState(initialPost.likes.count);
+  const [likesCount, setLikesCount] = useState(initialPost.likes.count);
+  const [commentsCount, setCommentsCount] = useState(initialPost.comments.count);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const supabase = createClient();
   const { toast } = useToast();
@@ -46,7 +47,7 @@ export function PostCard({ post: initialPost }: { post: Post }) {
     
     const newLikedState = !isLiked;
     setIsLiked(newLikedState);
-    setLikes(newLikedState ? likes + 1 : likes - 1);
+    setLikesCount(newLikedState ? likesCount + 1 : likesCount - 1);
 
     if (newLikedState) {
       // Add like to the database
@@ -56,7 +57,7 @@ export function PostCard({ post: initialPost }: { post: Post }) {
       if (error) {
         // Revert UI on error
         setIsLiked(false);
-        setLikes(likes);
+        setLikesCount(likesCount);
         console.error("Error liking post:", error);
       }
     } else {
@@ -68,7 +69,7 @@ export function PostCard({ post: initialPost }: { post: Post }) {
       if (error) {
         // Revert UI on error
         setIsLiked(true);
-        setLikes(likes);
+        setLikesCount(likesCount);
         console.error("Error unliking post:", error);
       }
     }
@@ -98,29 +99,31 @@ export function PostCard({ post: initialPost }: { post: Post }) {
       
       <CardContent className="p-0">
         <p className="px-4 pb-3 text-sm">{post.caption}</p>
-        <div className="relative w-full aspect-[4/3] bg-muted">
-             <Image 
-                src={post.media_url}
-                alt={`Post by ${post.user.username}`}
-                fill
-                className="object-cover"
-                data-ai-hint="user content"
-                priority
-             />
-        </div>
+        <Link href={`/post/${post.id}`}>
+            <div className="relative w-full aspect-[4/3] bg-muted">
+                <Image 
+                    src={post.media_url}
+                    alt={`Post by ${post.user.username}`}
+                    fill
+                    className="object-cover"
+                    data-ai-hint="user content"
+                    priority
+                />
+            </div>
+        </Link>
       </CardContent>
 
       <CardFooter className="p-2 flex justify-between">
          <div className="flex items-center gap-2">
             <Button variant="ghost" className="flex items-center gap-2" onClick={handleLike}>
                 <Heart className={cn("h-6 w-6", isLiked && "fill-red-500 text-red-500")} />
-                <span className="text-sm">{likes}</span>
+                <span className="text-sm">{likesCount}</span>
             </Button>
             <Sheet>
               <SheetTrigger asChild>
                 <Button variant="ghost" className="flex items-center gap-2">
                     <MessageCircle className="h-6 w-6" />
-                    <span className="text-sm">{post.comments.count}</span>
+                    <span className="text-sm">{commentsCount}</span>
                 </Button>
               </SheetTrigger>
               <SheetContent side="bottom" className="h-[75dvh] flex flex-col p-0">

@@ -722,10 +722,9 @@ export default function ClassChannelPage({ params: paramsPromise }: { params: Pr
           return;
         }
       }
-    }
-    
-    if (isCreator || classInfo.is_live) {
-      window.location.href = `/class/${classInfo.id}/video-call`;
+       router.push(`/class/${classInfo.id}/video-call`);
+    } else if (classInfo.is_live) {
+       router.push(`/class/${classInfo.id}/video-call`);
     } else {
       toast({ title: "Call Not Started", description: "The class creator has not started the video call yet." });
     }
