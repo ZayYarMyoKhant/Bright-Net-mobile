@@ -18,11 +18,6 @@ export type ProblemInput = z.infer<typeof ProblemInputSchema>;
 const ProblemOutputSchema = z.string().describe("The step-by-step solution to the problem.");
 export type ProblemOutput = z.infer<typeof ProblemOutputSchema>;
 
-
-export async function solveProblem(input: ProblemInput): Promise<ProblemOutput> {
-  return problemSolverFlow(input);
-}
-
 const problemSolverFlow = ai.defineFlow(
   {
     name: 'problemSolverFlow',
@@ -42,3 +37,5 @@ Problem: "${problem}"`,
     return llmResponse.text;
   }
 );
+
+export const solveProblem = problemSolverFlow;
