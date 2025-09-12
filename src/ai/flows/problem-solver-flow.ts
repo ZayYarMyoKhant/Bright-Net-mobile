@@ -5,8 +5,8 @@
  * @fileOverview A Genkit flow for solving user-described problems.
  *
  * - solveProblem - A function that takes a problem description and returns a step-by-step solution.
- * - ProblemInputSchema - The input type for the solveProblem function.
- * - ProblemOutputSchema - The return type for the solveProblem function.
+ * - ProblemInput - The input type for the solveProblem function.
+ * - ProblemOutput - The return type for the solveProblem function.
  */
 
 import { ai } from '@/ai/genkit';
