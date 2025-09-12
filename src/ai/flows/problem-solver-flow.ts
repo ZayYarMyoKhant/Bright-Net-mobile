@@ -26,7 +26,7 @@ export async function solveProblem(input: ProblemInput): Promise<ProblemOutput> 
 
 const prompt = ai.definePrompt({
   name: 'problemSolverPrompt',
-  model: 'gemini-1.5-flash',
+  model: 'gemini-pro',
   input: { schema: ProblemInputSchema },
   output: { schema: ProblemOutputSchema },
   prompt: `You are an expert problem solver. A user is asking for help with the following problem. Provide a clear, step-by-step solution. Format the solution with headings and bullet points for readability.
