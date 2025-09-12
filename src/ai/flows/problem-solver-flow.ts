@@ -24,24 +24,23 @@ export async function solveProblem(input: ProblemInput): Promise<ProblemOutput> 
 }
 
 
+const prompt = ai.definePrompt({
+  name: 'problemSolverPrompt',
+  input: { schema: ProblemInputSchema },
+  output: { schema: ProblemOutputSchema },
+  prompt: `You are an expert problem solver. A user is asking for help with the following problem. Provide a clear, step-by-step solution. Format the solution with headings and bullet points for readability.
+
+Problem: "{{prompt}}"`,
+});
+
 const problemSolverFlow = ai.defineFlow(
   {
     name: 'problemSolverFlow',
-    inputSchema: ProblemInputSchema,
-    outputSchema: ProblemOutputSchema,
   },
   async (problem) => {
     
-    const llmResponse = await ai.generate({
-      prompt: `You are an expert problem solver. A user is asking for help with the following problem. Provide a clear, step-by-step solution. Format the solution with headings and bullet points for readability.
+    const llmResponse = await prompt(problem);
 
-Problem: "${problem}"`,
-      model: 'googleai/gemini-1.5-flash-preview',
-      config: {
-        temperature: 0.7,
-      },
-    });
-
-    return llmResponse.text;
+    return llmResponse;
   }
 );
