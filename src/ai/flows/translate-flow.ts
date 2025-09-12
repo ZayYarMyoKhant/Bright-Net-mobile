@@ -27,23 +27,20 @@ export async function translateText(input: TranslateTextInput): Promise<Translat
   return translateTextFlow(input);
 }
 
-const prompt = ai.definePrompt({
-  name: 'translateTextPrompt',
-  model: 'googleai/gemini-pro',
-  input: { schema: TranslateTextInputSchema },
-  output: { schema: TranslateTextOutputSchema },
-  prompt: `Translate the following text from {{sourceLang}} to {{targetLang}}. Provide only the translated text, with no extra explanation or introductory phrases.\n\nText to translate: "{{text}}"`,
-});
-
 
 const translateTextFlow = ai.defineFlow(
   {
     name: 'translateTextFlow',
+    inputSchema: TranslateTextInputSchema,
+    outputSchema: TranslateTextOutputSchema,
   },
-  async (input) => {
+  async ({ text, sourceLang, targetLang }) => {
     
-    const llmResponse = await prompt(input);
+    const llmResponse = await ai.generate({
+      model: 'googleai/gemini-pro',
+      prompt: `Translate the following text from ${sourceLang} to ${targetLang}. Provide only the translated text, with no extra explanation or introductory phrases.\n\nText to translate: "${text}"`,
+    });
 
-    return llmResponse;
+    return llmResponse.text;
   }
 );
