@@ -1,7 +1,5 @@
 
 
-import {faker} from '@faker-js/faker';
-
 export type Profile = {
   id: string;
   username: string;
@@ -22,15 +20,14 @@ export type Comment = {
 };
 
 export type Post = {
-  id: string; // Changed to support both bigint and string IDs
+  id: string; 
   user: Profile;
   media_url: string;
   media_type: 'image' | 'video';
   caption: string;
   created_at: string;
-  // Joined properties
-  likes: { count: number };
-  comments: { count: number };
+  likes: { count: number }; // Kept for UI compatibility, but not fetched initially
+  comments: { count: number }; // Kept for UI compatibility, but not fetched initially
   // Client-side properties
   isLiked?: boolean;
 };

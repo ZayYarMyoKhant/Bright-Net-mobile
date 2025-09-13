@@ -35,9 +35,7 @@ export default function HomePage() {
         media_url,
         media_type,
         created_at,
-        user:profiles(id, username, avatar_url, full_name),
-        likes:post_likes(count),
-        comments:post_comments(count)
+        user:profiles(id, username, avatar_url, full_name)
       `)
       .order('created_at', { ascending: false });
 
@@ -46,9 +44,10 @@ export default function HomePage() {
     } else {
       const allPosts = data.map((p: any) => ({
         ...p,
-        user: Array.isArray(p.user) ? p.user[0] : p.user, // Handle potential array from join
-        likes: { count: p.likes[0]?.count || 0 },
-        comments: { count: p.comments[0]?.count || 0 },
+        user: Array.isArray(p.user) ? p.user[0] : p.user,
+        // Add dummy counts for now, will be implemented later
+        likes: { count: 0 },
+        comments: { count: 0 },
       }));
       setImagePosts(allPosts.filter(p => p.media_type === 'image'));
       setVideoPosts(allPosts.filter(p => p.media_type === 'video'));
