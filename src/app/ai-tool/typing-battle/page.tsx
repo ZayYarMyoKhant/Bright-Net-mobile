@@ -47,8 +47,10 @@ export default function TypingBattleSetupPage() {
             if (error) {
                 console.error("Error fetching friends:", error);
                 toast({ variant: 'destructive', title: 'Error fetching friends' });
-            } else {
-                setFriends(profiles as Profile[]);
+            } else if (profiles) {
+                // Filter out profiles that don't have a username to prevent errors.
+                const validFriends = profiles.filter(p => p.username);
+                setFriends(validFriends as Profile[]);
             }
 
             setLoading(false);
