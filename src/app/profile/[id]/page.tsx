@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { use, useEffect, useState, useCallback } from "react";
@@ -6,7 +7,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Grid3x3, Clapperboard, ArrowLeft, MessageCircle, CameraOff, Loader2, Eye, Trash2, MoreVertical, BookOpen } from "lucide-react";
+import { Grid3x3, Clapperboard, ArrowLeft, MessageCircle, CameraOff, Loader2, Eye, Trash2, MoreVertical, BookOpen, Swords } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { BottomNav } from '@/components/bottom-nav';
@@ -27,6 +28,7 @@ import {
     AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { cn } from "@/lib/utils";
 
 type ProfileData = {
   id: string;
@@ -36,6 +38,8 @@ type ProfileData = {
   following: number;
   followers: number;
   bio: string;
+  win_streak_3?: boolean;
+  win_streak_10?: boolean;
 };
 
 type CreatedClass = {
@@ -69,7 +73,7 @@ export default function UserProfilePage({ params: paramsPromise }: { params: Pro
 
     const { data: profileData, error: profileError } = await supabase
       .from('profiles')
-      .select('id, username, full_name, avatar_url, bio')
+      .select('id, username, full_name, avatar_url, bio, win_streak_3, win_streak_10')
       .eq('username', params.id)
       .single();
 
@@ -89,6 +93,8 @@ export default function UserProfilePage({ params: paramsPromise }: { params: Pro
       bio: profileData.bio || "Another digital creator's bio.",
       following: 0,
       followers: 0,
+      win_streak_3: profileData.win_streak_3,
+      win_streak_10: profileData.win_streak_10,
     });
     
     const [postsResult, classesResult] = await Promise.all([
@@ -209,6 +215,11 @@ export default function UserProfilePage({ params: paramsPromise }: { params: Pro
       </>
     )
   }
+  
+  const frameClass = cn(
+    "h-24 w-24 border-2 rounded-full p-0.5",
+    profile.win_streak_10 ? "border-yellow-400" : (profile.win_streak_3 ? "border-sky-400" : "border-primary")
+  );
 
   return (
     <>
@@ -228,10 +239,19 @@ export default function UserProfilePage({ params: paramsPromise }: { params: Pro
 
         <main className="flex-1 overflow-y-auto p-4">
           <div className="flex flex-col items-center">
-            <Avatar className="h-24 w-24 border-2 border-primary">
-              <AvatarImage src={profile.avatar_url} alt={profile.username} data-ai-hint="person portrait" />
-              <AvatarFallback>{profile.username.charAt(0)}</AvatarFallback>
-            </Avatar>
+             <div className={frameClass}>
+                <div className="relative w-full h-full">
+                  <Avatar className="h-full w-full rounded-full">
+                    <AvatarImage src={profile.avatar_url} alt={profile.username} data-ai-hint="person portrait" />
+                    <AvatarFallback>{profile.username.charAt(0)}</AvatarFallback>
+                  </Avatar>
+                  {(profile.win_streak_3 || profile.win_streak_10) && (
+                    <div className="absolute -top-2 left-1/2 -translate-x-1/2 bg-gray-800 p-1 rounded-full">
+                      <Swords className={cn("h-4 w-4", profile.win_streak_10 ? "text-yellow-400" : "text-sky-400")} />
+                    </div>
+                  )}
+                </div>
+            </div>
             <h2 className="mt-3 text-xl font-bold">{profile.full_name}</h2>
             <p className="text-sm text-muted-foreground">@{profile.username}</p>
             <p className="mt-2 text-center text-sm">{profile.bio}</p>

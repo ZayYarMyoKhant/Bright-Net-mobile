@@ -1,9 +1,12 @@
 
+
 export type Profile = {
   id: string;
   username: string;
   avatar_url: string;
   full_name?: string;
+  win_streak_3?: boolean;
+  win_streak_10?: boolean;
 }
 
 export type Comment = {
@@ -32,6 +35,20 @@ export type Post = {
 
 export type PostWithViews = Post & {
     views: number;
+};
+
+export type TypingBattle = {
+    id: string;
+    player1_id: string;
+    player2_id: string;
+    player1_score: number;
+    player2_score: number;
+    current_text: string;
+    player1_progress: string;
+    player2_progress: string;
+    winner_id: string | null;
+    status: 'requesting' | 'accepted' | 'declined' | 'in-progress' | 'completed' | 'cancelled';
+    updated_at: string;
 };
 
 
