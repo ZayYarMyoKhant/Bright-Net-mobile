@@ -18,28 +18,21 @@ import { cn } from '@/lib/utils';
 import type { Post } from '@/lib/data';
 import { useToast } from '@/hooks/use-toast';
 import { User } from '@supabase/supabase-js';
-import { createClient } from '@/lib/supabase/client';
 
 const VideoPost = ({ post, index }: { post: Post; index: number }) => {
-    const [isLiked, setIsLiked] = useState(false);
+    const [isLiked, setIsLiked] = useState(post.isLiked || false);
     const [likesCount, setLikesCount] = useState(post.likes.count || 0);
-    const [isMuted, setIsMuted] = useState(index !== 0); // Mute all videos except the first one
+    const [isMuted, setIsMuted] = useState(index !== 0); 
     const videoRef = useRef<HTMLVideoElement>(null);
     const [currentUser, setCurrentUser] = useState<User | null>(null);
     const { toast } = useToast();
-    const supabase = createClient();
 
     useEffect(() => {
-        const init = async () => {
-            const { data: { user } } = await supabase.auth.getUser();
-            setCurrentUser(user);
-            if (user) {
-                const { data } = await supabase.from('post_likes').select('id').eq('post_id', post.id).eq('user_id', user.id).single();
-                if (data) setIsLiked(true);
-            }
-        };
-        init();
-    }, [supabase, post.id]);
+        // Mock current user
+        const mockUser = { id: 'mock-user-id', user_metadata: { name: 'Aung Aung', avatar_url: `https://i.pravatar.cc/150?u=aungaung` } };
+        // @ts-ignore
+        setCurrentUser(mockUser);
+    }, []);
 
      useEffect(() => {
         const video = videoRef.current;
@@ -48,7 +41,7 @@ const VideoPost = ({ post, index }: { post: Post; index: number }) => {
         const options = {
             root: null,
             rootMargin: '0px',
-            threshold: 0.5 // 50% of the video is visible
+            threshold: 0.5 
         };
 
         const callback = (entries: IntersectionObserverEntry[]) => {
@@ -83,12 +76,7 @@ const VideoPost = ({ post, index }: { post: Post; index: number }) => {
         const newLikedState = !isLiked;
         setIsLiked(newLikedState);
         setLikesCount(newLikedState ? likesCount + 1 : likesCount - 1);
-        
-        if (newLikedState) {
-            await supabase.from('post_likes').insert({ post_id: post.id, user_id: currentUser.id });
-        } else {
-            await supabase.from('post_likes').delete().match({ post_id: post.id, user_id: currentUser.id });
-        }
+        toast({ title: `Post ${newLikedState ? 'liked' : 'unliked'} (mock)` });
     };
 
     const toggleMute = (e: React.MouseEvent) => {

@@ -8,7 +8,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { ImagePlus, X, ArrowLeft, Loader2 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Progress } from "@/components/ui/progress";
 
@@ -21,7 +20,6 @@ export default function UploadPostPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
   const { toast } = useToast();
-  const supabase = createClient();
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -56,43 +54,10 @@ export default function UploadPostPage() {
     }
 
     startTransition(async () => {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) {
-            toast({ variant: "destructive", title: "Not authenticated" });
-            return;
-        }
-
-        const filePath = `${user.id}/${Date.now()}_${mediaFile.name}`;
-        
-        const { error: uploadError } = await supabase.storage
-            .from('avatars') // Using 'avatars' bucket as placeholder
-            .upload(filePath, mediaFile);
-
-        if (uploadError) {
-            toast({ variant: "destructive", title: "Upload Failed", description: uploadError.message });
-            return;
-        }
-
-        const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(filePath);
-        const media_url = urlData.publicUrl;
-        const media_type = mediaFile.type.startsWith("video") ? "video" : "image";
-        
-        const { error: insertError } = await supabase.from('posts').insert({
-            user_id: user.id,
-            caption,
-            media_url,
-            media_type,
-        });
-
-        if (insertError) {
-            toast({ variant: "destructive", title: "Post Creation Failed", description: insertError.message });
-            // Clean up uploaded file if DB insert fails
-            await supabase.storage.from('avatars').remove([filePath]);
-        } else {
-            toast({ title: "Post created successfully!" });
-            router.push("/home");
-            router.refresh();
-        }
+        // Mock upload logic
+        toast({ title: "Post created (mock)!" });
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        router.push("/home");
     });
   };
 

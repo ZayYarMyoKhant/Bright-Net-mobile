@@ -13,6 +13,7 @@ import { BottomNav } from '@/components/bottom-nav';
 import { useToast } from '@/hooks/use-toast';
 import { createClient } from '@/lib/supabase/client';
 import type { Post } from '@/lib/data';
+import { getImagePosts } from '@/lib/data';
 
 
 type ProfileData = {
@@ -56,30 +57,20 @@ export default function ProfilePage() {
             if (profileData) {
                  setUser({
                     ...profileData,
-                    following: 0, // Placeholder
-                    followers: 0, // Placeholder
+                    following: Math.floor(Math.random() * 500),
+                    followers: Math.floor(Math.random() * 5000),
                 });
+                
+                // Mock fetching posts
+                const mockPosts = getImagePosts(12);
+                setPosts(mockPosts);
 
-                const { data: postsData, error: postsError } = await supabase
-                    .from('posts')
-                    .select('*')
-                    .eq('user_id', authUser.id)
-                    .order('created_at', { ascending: false });
-
-                if (postsError) {
-                    console.error("Error fetching posts:", postsError);
-                } else {
-                    setPosts(postsData as Post[]);
-                }
             } else {
-                // User is authenticated but has no profile, redirect to setup
                 router.push('/profile/setup');
-                // We don't set loading to false here because the redirect will happen.
                 return; 
             }
 
         } else {
-            // No authenticated user, redirect to signup
             router.push('/signup');
             return;
         }
@@ -102,8 +93,6 @@ export default function ProfilePage() {
   }
 
   if (!user) {
-    // This case should ideally not be reached due to the redirects above,
-    // but it's good practice as a fallback.
     return (
          <>
             <div className="flex h-full flex-col bg-background text-foreground pb-16 items-center justify-center">

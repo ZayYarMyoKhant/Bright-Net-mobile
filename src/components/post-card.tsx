@@ -18,28 +18,22 @@ import {
 import { CommentSheet } from "./comment-sheet";
 import { ShareSheet } from "./share-sheet";
 import type { Post } from "@/lib/data";
-import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { User } from "@supabase/supabase-js";
 
 export function PostCard({ post }: { post: Post }) {
-  const [isLiked, setIsLiked] = useState(false);
+  const [isLiked, setIsLiked] = useState(post.isLiked || false);
   const [likesCount, setLikesCount] = useState(post.likes.count || 0);
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const supabase = createClient();
+  const [currentUser, setCurrentUser] = useState<User | null>(null); // Mock user state
   const { toast } = useToast();
   
   useEffect(() => {
-    const init = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      setCurrentUser(user);
-      if (user) {
-         const { data, error } = await supabase.from('post_likes').select('id').eq('post_id', post.id).eq('user_id', user.id).single();
-         if (data) setIsLiked(true);
-      }
-    }
-    init();
-  }, [supabase, post.id]);
+    // Mock current user
+    // In a real app, this would come from `supabase.auth.getUser()`
+    const mockUser = { id: 'mock-user-id', user_metadata: { name: 'Aung Aung', avatar_url: `https://i.pravatar.cc/150?u=aungaung` } };
+    // @ts-ignore
+    setCurrentUser(mockUser);
+  }, []);
   
   const handleLike = async () => {
     if (!currentUser) {
@@ -50,12 +44,7 @@ export function PostCard({ post }: { post: Post }) {
     const newLikedState = !isLiked;
     setIsLiked(newLikedState);
     setLikesCount(newLikedState ? likesCount + 1 : likesCount - 1);
-
-    if (newLikedState) {
-        await supabase.from('post_likes').insert({ post_id: post.id, user_id: currentUser.id });
-    } else {
-        await supabase.from('post_likes').delete().match({ post_id: post.id, user_id: currentUser.id });
-    }
+    toast({ title: `Post ${newLikedState ? 'liked' : 'unliked'} (mock)` });
   };
   
   const timeAgo = formatDistanceToNow(new Date(post.created_at), { addSuffix: true });

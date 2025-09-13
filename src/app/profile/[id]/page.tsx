@@ -13,7 +13,7 @@ import Link from "next/link";
 import { BottomNav } from '@/components/bottom-nav';
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import type { PostWithViews } from "@/lib/data";
+import type { PostWithViews, Profile } from "@/lib/data";
 import { User } from "@supabase/supabase-js";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -29,17 +29,13 @@ import {
 } from "@/components/ui/alert-dialog"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
+import { getImagePosts } from "@/lib/data";
 
-type ProfileData = {
-  id: string;
-  username: string;
-  full_name: string;
-  avatar_url: string;
+
+type ProfileData = Profile & {
   following: number;
   followers: number;
   bio: string;
-  win_streak_3?: boolean;
-  win_streak_10?: boolean;
 };
 
 type CreatedClass = {
@@ -68,11 +64,10 @@ export default function UserProfilePage({ params: paramsPromise }: { params: Pro
   const fetchProfileData = useCallback(async () => {
     setLoading(true);
 
-    // Get current user first
     const { data: { user: authUser } } = await supabase.auth.getUser();
     setCurrentUser(authUser);
 
-    // 1. Fetch the main profile data
+    // Mock fetching profile data
     const { data: profileData, error: profileError } = await supabase
       .from('profiles')
       .select('id, username, full_name, avatar_url, bio, win_streak_3, win_streak_10')
@@ -81,58 +76,27 @@ export default function UserProfilePage({ params: paramsPromise }: { params: Pro
 
     if (profileError || !profileData) {
       console.error("Error fetching user profile:", profileError);
-      setProfile(null); // Explicitly set profile to null on error
+      setProfile(null); 
       setLoading(false);
       return;
     }
-
-    // Set profile state immediately after fetching
+    
     setProfile({
-      id: profileData.id,
-      username: profileData.username,
-      full_name: profileData.full_name || 'No Name',
-      avatar_url: profileData.avatar_url || `https://i.pravatar.cc/150?u=${profileData.id}`,
+      ...profileData,
       bio: profileData.bio || "Another digital creator's bio.",
-      following: 0, // Placeholder
-      followers: 0, // Placeholder
-      win_streak_3: profileData.win_streak_3,
-      win_streak_10: profileData.win_streak_10,
+      following: Math.floor(Math.random() * 500),
+      followers: Math.floor(Math.random() * 5000),
     });
     
-    // 2. Fetch posts for this profile
-    const { data: postsData, error: postsError } = await supabase
-        .from('posts')
-        .select('*, post_views(view_count)')
-        .eq('user_id', profileData.id)
-        .order('created_at', { ascending: false });
-
-    if (postsError) {
-      console.error("Error fetching posts:", postsError);
-    } else if (postsData) {
-      const postsWithViews = postsData.map((p: any) => ({
-          ...p,
-          views: p.post_views?.[0]?.view_count || 0
-      }));
-      setPosts(postsWithViews);
-    }
+    // Mock fetching posts
+    const mockPosts = getImagePosts(12).map(p => ({
+        ...p,
+        views: Math.floor(Math.random() * 10000)
+    }));
+    setPosts(mockPosts);
     
-    // 3. Fetch classes created by this profile
-    const { data: classesData, error: classesError } = await supabase
-        .from('classes')
-        .select('*, class_members!left(user_id)')
-        .eq('created_by', profileData.id);
-
-    if (classesError) {
-        console.error("Error fetching created classes:", classesError);
-    } else if (classesData) {
-        const processedClasses = classesData.map((c: any) => ({
-            id: c.id,
-            name: c.name,
-            description: c.description,
-            is_member: authUser ? c.class_members.some((m: any) => m.user_id === authUser.id) : false
-        }));
-        setCreatedClasses(processedClasses);
-    }
+    // Mock fetching classes
+    setCreatedClasses([]);
 
     setLoading(false);
   }, [params.id, supabase]);
@@ -150,39 +114,15 @@ export default function UserProfilePage({ params: paramsPromise }: { params: Pro
     }
 
     setJoiningClassId(classId);
-
-    const { error } = await supabase.from('class_members').insert({
-        class_id: classId,
-        user_id: currentUser.id,
-    });
-
-    if (error) {
-      console.error("Error joining class:", error);
-      toast({ variant: 'destructive', title: 'Failed to Join', description: error.message });
-    } else {
-      toast({ title: 'Successfully Joined!', description: 'You are now a member of the class.' });
-      setCreatedClasses(prev => prev.map(c => c.id === classId ? { ...c, is_member: true } : c));
-    }
+    toast({ title: "Joining class (mock)..." });
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    setCreatedClasses(prev => prev.map(c => c.id === classId ? { ...c, is_member: true } : c));
     setJoiningClassId(null);
   }
 
   const handleDeletePost = async (postId: string, mediaUrl: string) => {
     setPosts(prev => prev.filter(p => p.id !== postId));
-    
-    const { error } = await supabase.from('posts').delete().eq('id', postId);
-
-    if (error) {
-        toast({ variant: 'destructive', title: 'Error', description: 'Could not delete the post.' });
-        fetchProfileData(); // Re-fetch to revert optimistic update
-        return;
-    }
-
-    const filePath = new URL(mediaUrl).pathname.split('/public/avatars/')[1];
-    if (filePath) {
-        await supabase.storage.from('avatars').remove([filePath]);
-    }
-    
-    toast({ title: "Post Deleted", description: "Your post has been removed." });
+    toast({ title: "Post Deleted (mock)", description: "Your post has been removed." });
   };
 
 
@@ -399,5 +339,3 @@ export default function UserProfilePage({ params: paramsPromise }: { params: Pro
     </>
   );
 }
-
-    

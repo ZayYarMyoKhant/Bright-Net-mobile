@@ -9,6 +9,7 @@ import { PostFeed } from '@/components/post-feed';
 import { VideoFeed } from '@/components/video-feed';
 import { createClient } from '@/lib/supabase/client';
 import type { Post } from '@/lib/data';
+import { getImagePosts, getVideoPosts } from '@/lib/data';
 
 function FeedFallback() {
   return (
@@ -22,42 +23,16 @@ export default function HomePage() {
   const [imagePosts, setImagePosts] = useState<Post[]>([]);
   const [videoPosts, setVideoPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
-  const supabase = createClient();
-
-  const fetchPosts = useCallback(async () => {
-    setLoading(true);
-    
-    const { data, error } = await supabase
-      .from('posts')
-      .select(`
-        id,
-        caption,
-        media_url,
-        media_type,
-        created_at,
-        user:profiles(id, username, avatar_url, full_name)
-      `)
-      .order('created_at', { ascending: false });
-
-    if (error) {
-      console.error("Error fetching posts:", error);
-    } else {
-      const allPosts = data.map((p: any) => ({
-        ...p,
-        user: Array.isArray(p.user) ? p.user[0] : p.user,
-        // Add dummy counts for now, will be implemented later
-        likes: { count: 0 },
-        comments: { count: 0 },
-      }));
-      setImagePosts(allPosts.filter(p => p.media_type === 'image'));
-      setVideoPosts(allPosts.filter(p => p.media_type === 'video'));
-    }
-    setLoading(false);
-  }, [supabase]);
 
   useEffect(() => {
-    fetchPosts();
-  }, [fetchPosts]);
+    setLoading(true);
+    // Using mock data for now
+    const imgPosts = getImagePosts(10);
+    const vidPosts = getVideoPosts(5);
+    setImagePosts(imgPosts);
+    setVideoPosts(vidPosts);
+    setLoading(false);
+  }, []);
 
   return (
     <>

@@ -1,4 +1,5 @@
 
+import {faker} from '@faker-js/faker';
 
 export type Profile = {
   id: string;
@@ -15,7 +16,6 @@ export type Comment = {
     content: string;
     created_at: string;
     parent_comment_id: string | null;
-    // Client-side properties
     replies?: Comment[];
 };
 
@@ -26,9 +26,8 @@ export type Post = {
   media_type: 'image' | 'video';
   caption: string;
   created_at: string;
-  likes: { count: number }; // Kept for UI compatibility, but not fetched initially
-  comments: { count: number }; // Kept for UI compatibility, but not fetched initially
-  // Client-side properties
+  likes: { count: number };
+  comments: { count: number };
   isLiked?: boolean;
 };
 
@@ -56,6 +55,45 @@ export type Country = {
   code: string;
   flag: string;
 };
+
+
+// Mock Data Generation
+const createMockUser = (): Profile => {
+    const firstName = faker.person.firstName();
+    const lastName = faker.person.lastName();
+    const username = faker.internet.userName({ firstName, lastName }).toLowerCase();
+    return {
+        id: faker.string.uuid(),
+        username: username,
+        full_name: `${firstName} ${lastName}`,
+        avatar_url: `https://i.pravatar.cc/150?u=${username}`,
+    };
+};
+
+const createMockPost = (type: 'image' | 'video'): Post => {
+    return {
+        id: faker.string.uuid(),
+        user: createMockUser(),
+        media_url: type === 'image' 
+            ? faker.image.urlLoremFlickr({ category: 'nature', width: 640, height: 480 })
+            : 'https://test-videos.co.uk/vids/bigbuckbunny/mp4/h264/360/Big_Buck_Bunny_360_10s_1MB.mp4',
+        media_type: type,
+        caption: faker.lorem.sentence(),
+        created_at: faker.date.recent().toISOString(),
+        likes: { count: faker.number.int({ min: 0, max: 5000 }) },
+        comments: { count: faker.number.int({ min: 0, max: 500 }) },
+        isLiked: faker.datatype.boolean(),
+    };
+}
+
+export const getImagePosts = (count: number): Post[] => {
+    return Array.from({ length: count }, () => createMockPost('image'));
+};
+
+export const getVideoPosts = (count: number): Post[] => {
+    return Array.from({ length: count }, () => createMockPost('video'));
+};
+
 
 export const countries: Country[] = [
     { name: "United States", code: "1", flag: "🇺🇸" },

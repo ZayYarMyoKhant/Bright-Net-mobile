@@ -14,68 +14,36 @@ import { CommentSheet } from "@/components/comment-sheet";
 import { ShareSheet } from "@/components/share-sheet";
 import { createClient } from "@/lib/supabase/client";
 import { User } from "@supabase/supabase-js";
-import { Post } from "@/lib/data";
+import { Post, getImagePosts } from "@/lib/data";
 import { formatDistanceToNow } from 'date-fns';
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 
 function PostViewerContent({ params }: { params: { id: string } }) {
   const router = useRouter();
-  const supabase = createClient();
   const { toast } = useToast();
 
   const [post, setPost] = useState<Post | null>(null);
   const [loading, setLoading] = useState(true);
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [currentUser, setCurrentUser] = useState<User | null>(null); // Mock user state
   const [isLiked, setIsLiked] = useState(false);
   const [likes, setLikes] = useState(0);
 
   useEffect(() => {
-    const init = async () => {
-        const { data: { user } } = await supabase.auth.getUser();
-        setCurrentUser(user);
-        
-        const { data: postData, error } = await supabase
-            .from('posts')
-            .select(`
-                *,
-                user:profiles(*),
-                likes:post_likes(count),
-                comments:post_comments(count)
-            `)
-            .eq('id', params.id)
-            .single();
-
-        if (error || !postData) {
-            toast({ variant: 'destructive', title: 'Error', description: 'Could not load the post.' });
-            setLoading(false);
-            return;
-        }
-
-        const formattedPost = {
-            ...postData,
-            user: Array.isArray(postData.user) ? postData.user[0] : postData.user,
-            likes: { count: postData.likes[0]?.count || 0 },
-            comments: { count: postData.comments[0]?.count || 0 },
-        } as Post;
-        
-        setPost(formattedPost);
-        setLikes(formattedPost.likes.count);
-        
-        if (user) {
-            const { data: likeData, error: likeError } = await supabase
-                .from('post_likes')
-                .select('id')
-                .eq('post_id', params.id)
-                .eq('user_id', user.id)
-                .single();
-            if (likeData) setIsLiked(true);
-        }
-
-        setLoading(false);
-    }
-    init();
-  }, [params.id, supabase, toast]);
+    setLoading(true);
+    // Mock fetching a single post. In a real app, you'd fetch this from Supabase.
+    const mockPost = getImagePosts(1)[0];
+    mockPost.id = params.id; // Assign the id from params
+    setPost(mockPost);
+    setLikes(mockPost.likes.count);
+    
+    // Mock current user
+    // In a real app, this would come from `supabase.auth.getUser()`
+    const mockUser = { id: 'mock-user-id', user_metadata: { name: 'Aung Aung', avatar_url: `https://i.pravatar.cc/150?u=aungaung` } };
+    // @ts-ignore
+    setCurrentUser(mockUser);
+    setLoading(false);
+  }, [params.id]);
 
   const handleLike = async () => {
     if (!currentUser) {
@@ -86,12 +54,7 @@ function PostViewerContent({ params }: { params: { id: string } }) {
     const newLikedState = !isLiked;
     setIsLiked(newLikedState);
     setLikes(newLikedState ? likes + 1 : likes - 1);
-    
-    if (newLikedState) {
-        await supabase.from('post_likes').insert({ post_id: post!.id, user_id: currentUser.id });
-    } else {
-        await supabase.from('post_likes').delete().match({ post_id: post!.id, user_id: currentUser.id });
-    }
+    toast({ title: `Post ${newLikedState ? 'liked' : 'unliked'} (mock)` });
   };
 
 
