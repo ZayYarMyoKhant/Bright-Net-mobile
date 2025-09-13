@@ -30,12 +30,16 @@ const VideoPost = ({ post, index }: { post: Post; index: number }) => {
     const supabase = createClient();
 
     useEffect(() => {
-        const fetchUser = async () => {
+        const init = async () => {
             const { data: { user } } = await supabase.auth.getUser();
             setCurrentUser(user);
+            if (user) {
+                const { data } = await supabase.from('post_likes').select('id').eq('post_id', post.id).eq('user_id', user.id).single();
+                if (data) setIsLiked(true);
+            }
         };
-        fetchUser();
-    }, [supabase]);
+        init();
+    }, [supabase, post.id]);
 
      useEffect(() => {
         const video = videoRef.current;
@@ -51,8 +55,9 @@ const VideoPost = ({ post, index }: { post: Post; index: number }) => {
             entries.forEach(entry => {
                 if (entry.isIntersecting) {
                     entry.target.play().catch(e => console.error("Autoplay failed", e));
-                    setIsMuted(false);
-                    (entry.target as HTMLVideoElement).muted = false;
+                    if (!isMuted) {
+                      (entry.target as HTMLVideoElement).muted = false;
+                    }
                 } else {
                     entry.target.pause();
                 }
@@ -63,17 +68,27 @@ const VideoPost = ({ post, index }: { post: Post; index: number }) => {
         observer.observe(video);
 
         return () => {
-            observer.unobserve(video);
+            if (video) {
+              observer.unobserve(video);
+            }
         };
-    }, []);
+    }, [isMuted]);
 
-    const handleLike = () => {
+    const handleLike = async (e: React.MouseEvent) => {
+        e.stopPropagation();
         if (!currentUser) {
             toast({ variant: "destructive", title: "You must be logged in to like a post." });
             return;
         }
-        setIsLiked(!isLiked);
-        setLikesCount(isLiked ? likesCount - 1 : likesCount + 1);
+        const newLikedState = !isLiked;
+        setIsLiked(newLikedState);
+        setLikesCount(newLikedState ? likesCount + 1 : likesCount - 1);
+        
+        if (newLikedState) {
+            await supabase.from('post_likes').insert({ post_id: post.id, user_id: currentUser.id });
+        } else {
+            await supabase.from('post_likes').delete().match({ post_id: post.id, user_id: currentUser.id });
+        }
     };
 
     const toggleMute = (e: React.MouseEvent) => {
@@ -93,6 +108,7 @@ const VideoPost = ({ post, index }: { post: Post; index: number }) => {
                 src={post.media_url}
                 loop
                 playsInline
+                muted={isMuted}
                 className="w-full h-full object-cover"
             />
              {isMuted && (
@@ -117,7 +133,7 @@ const VideoPost = ({ post, index }: { post: Post; index: number }) => {
                     <AvatarFallback>{post.user.username.charAt(0).toUpperCase()}</AvatarFallback>
                 </Avatar>
                 <div className="flex flex-col items-center gap-1 text-white">
-                    <Button variant="ghost" size="icon" className="h-12 w-12 rounded-full hover:bg-white/20" onClick={(e) => { e.stopPropagation(); handleLike(); }}>
+                    <Button variant="ghost" size="icon" className="h-12 w-12 rounded-full hover:bg-white/20" onClick={handleLike}>
                         <Heart className={cn("h-8 w-8", isLiked && "fill-red-500 text-red-500")} />
                     </Button>
                     <span className="text-sm font-semibold shadow-black [text-shadow:0_1px_2px_var(--tw-shadow-color)]">{likesCount}</span>

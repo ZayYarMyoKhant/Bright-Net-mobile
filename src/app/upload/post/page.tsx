@@ -5,7 +5,7 @@ import { useState, useRef, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { ImagePlus, X, ArrowLeft, Loader2, Video } from "lucide-react";
+import { ImagePlus, X, ArrowLeft, Loader2 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
@@ -21,6 +21,7 @@ export default function UploadPostPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
   const { toast } = useToast();
+  const supabase = createClient();
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -55,13 +56,43 @@ export default function UploadPostPage() {
     }
 
     startTransition(async () => {
-      // In a real app, this would upload to Supabase and create a post record.
-      toast({ title: "Posting... (Mock)" });
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      toast({ title: "Post created successfully!" });
-      
-      router.push("/home");
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+            toast({ variant: "destructive", title: "Not authenticated" });
+            return;
+        }
+
+        const filePath = `${user.id}/${Date.now()}_${mediaFile.name}`;
+        
+        const { error: uploadError } = await supabase.storage
+            .from('avatars') // Using 'avatars' bucket as placeholder
+            .upload(filePath, mediaFile);
+
+        if (uploadError) {
+            toast({ variant: "destructive", title: "Upload Failed", description: uploadError.message });
+            return;
+        }
+
+        const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(filePath);
+        const media_url = urlData.publicUrl;
+        const media_type = mediaFile.type.startsWith("video") ? "video" : "image";
+        
+        const { error: insertError } = await supabase.from('posts').insert({
+            user_id: user.id,
+            caption,
+            media_url,
+            media_type,
+        });
+
+        if (insertError) {
+            toast({ variant: "destructive", title: "Post Creation Failed", description: insertError.message });
+            // Clean up uploaded file if DB insert fails
+            await supabase.storage.from('avatars').remove([filePath]);
+        } else {
+            toast({ title: "Post created successfully!" });
+            router.push("/home");
+            router.refresh();
+        }
     });
   };
 
@@ -89,7 +120,7 @@ export default function UploadPostPage() {
                     <video
                       src={previewUrl}
                       className="h-full w-full object-contain"
-                      controls
+                      controls={false}
                       autoPlay
                       muted
                       loop

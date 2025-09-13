@@ -164,13 +164,23 @@ export default function UserProfilePage({ params: paramsPromise }: { params: Pro
     setJoiningClassId(null);
   }
 
-  const handleDeletePost = async (postId: string | number, mediaUrl: string) => {
-    // Optimistic UI update
+  const handleDeletePost = async (postId: string, mediaUrl: string) => {
     setPosts(prev => prev.filter(p => p.id !== postId));
     
-    // In a real app, delete from storage and database
-    toast({ title: "Post Deleted (Mock)", description: "This is a UI-only deletion." });
+    const { error } = await supabase.from('posts').delete().eq('id', postId);
 
+    if (error) {
+        toast({ variant: 'destructive', title: 'Error', description: 'Could not delete the post.' });
+        fetchProfileData(); // Re-fetch to revert optimistic update
+        return;
+    }
+
+    const filePath = new URL(mediaUrl).pathname.split('/public/avatars/')[1];
+    if (filePath) {
+        await supabase.storage.from('avatars').remove([filePath]);
+    }
+    
+    toast({ title: "Post Deleted", description: "Your post has been removed." });
   };
 
 
@@ -287,8 +297,7 @@ export default function UserProfilePage({ params: paramsPromise }: { params: Pro
                                         src={post.media_url}
                                         alt={`Post by ${profile.username}`}
                                         fill
-                                        objectFit="cover"
-                                        className="h-full w-full"
+                                        className="object-cover h-full w-full"
                                         data-ai-hint="lifestyle content"
                                     />
                                 )}

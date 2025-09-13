@@ -7,7 +7,7 @@ import { Loader2 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PostFeed } from '@/components/post-feed';
 import { VideoFeed } from '@/components/video-feed';
-import { getNewsPosts, getVideoPosts } from '@/lib/data';
+import { createClient } from '@/lib/supabase/client';
 import type { Post } from '@/lib/data';
 
 function FeedFallback() {
@@ -22,15 +22,43 @@ export default function HomePage() {
   const [imagePosts, setImagePosts] = useState<Post[]>([]);
   const [videoPosts, setVideoPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
+  const supabase = createClient();
+
+  const fetchPosts = useCallback(async () => {
+    setLoading(true);
+    
+    const { data, error } = await supabase
+      .from('posts')
+      .select(`
+        id,
+        caption,
+        media_url,
+        media_type,
+        created_at,
+        user:profiles(id, username, avatar_url, full_name),
+        likes:post_likes(count),
+        comments:post_comments(count)
+      `)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error("Error fetching posts:", error);
+    } else {
+      const allPosts = data.map((p: any) => ({
+        ...p,
+        user: Array.isArray(p.user) ? p.user[0] : p.user, // Handle potential array from join
+        likes: { count: p.likes[0]?.count || 0 },
+        comments: { count: p.comments[0]?.count || 0 },
+      }));
+      setImagePosts(allPosts.filter(p => p.media_type === 'image'));
+      setVideoPosts(allPosts.filter(p => p.media_type === 'video'));
+    }
+    setLoading(false);
+  }, [supabase]);
 
   useEffect(() => {
-    // Simulate fetching data
-    setTimeout(() => {
-      setImagePosts(getNewsPosts());
-      setVideoPosts(getVideoPosts());
-      setLoading(false);
-    }, 1000);
-  }, []);
+    fetchPosts();
+  }, [fetchPosts]);
 
   return (
     <>

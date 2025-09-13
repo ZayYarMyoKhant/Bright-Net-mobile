@@ -7,7 +7,7 @@ import Link from "next/link";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { Card, CardHeader, CardContent, CardFooter } from "./ui/card";
 import { Button } from "./ui/button";
-import { Heart, MessageCircle, Send, MoreHorizontal } from "lucide-react";
+import { Heart, MessageCircle, Send } from "lucide-react";
 import { formatDistanceToNow } from 'date-fns';
 import { cn } from "@/lib/utils";
 import {
@@ -23,19 +23,23 @@ import { useToast } from "@/hooks/use-toast";
 import { User } from "@supabase/supabase-js";
 
 export function PostCard({ post }: { post: Post }) {
-  const [isLiked, setIsLiked] = useState(post.isLiked);
-  const [likesCount, setLikesCount] = useState(post.likes.count);
+  const [isLiked, setIsLiked] = useState(false);
+  const [likesCount, setLikesCount] = useState(post.likes.count || 0);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const supabase = createClient();
   const { toast } = useToast();
   
   useEffect(() => {
-    const fetchUser = async () => {
+    const init = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       setCurrentUser(user);
+      if (user) {
+         const { data, error } = await supabase.from('post_likes').select('id').eq('post_id', post.id).eq('user_id', user.id).single();
+         if (data) setIsLiked(true);
+      }
     }
-    fetchUser();
-  }, [supabase]);
+    init();
+  }, [supabase, post.id]);
   
   const handleLike = async () => {
     if (!currentUser) {
@@ -47,8 +51,11 @@ export function PostCard({ post }: { post: Post }) {
     setIsLiked(newLikedState);
     setLikesCount(newLikedState ? likesCount + 1 : likesCount - 1);
 
-    // In a real app, you would handle database updates here.
-    console.log("Like status changed.");
+    if (newLikedState) {
+        await supabase.from('post_likes').insert({ post_id: post.id, user_id: currentUser.id });
+    } else {
+        await supabase.from('post_likes').delete().match({ post_id: post.id, user_id: currentUser.id });
+    }
   };
   
   const timeAgo = formatDistanceToNow(new Date(post.created_at), { addSuffix: true });
@@ -68,9 +75,6 @@ export function PostCard({ post }: { post: Post }) {
             </Link>
             <p className="text-xs text-muted-foreground">{timeAgo}</p>
         </div>
-        <Button variant="ghost" size="icon">
-            <MoreHorizontal />
-        </Button>
       </CardHeader>
       
       <CardContent className="p-0">

@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Loader2, Heart, MessageCircle, Send, MoreHorizontal } from "lucide-react";
+import { ArrowLeft, Loader2, Heart, MessageCircle, Send } from "lucide-react";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Card, CardHeader, CardContent, CardFooter } from "@/components/ui/card";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -14,7 +14,7 @@ import { CommentSheet } from "@/components/comment-sheet";
 import { ShareSheet } from "@/components/share-sheet";
 import { createClient } from "@/lib/supabase/client";
 import { User } from "@supabase/supabase-js";
-import { Post, getNewsPosts, getVideoPosts } from "@/lib/data";
+import { Post } from "@/lib/data";
 import { formatDistanceToNow } from 'date-fns';
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
@@ -35,17 +35,43 @@ function PostViewerContent({ params }: { params: { id: string } }) {
         const { data: { user } } = await supabase.auth.getUser();
         setCurrentUser(user);
         
-        // Mock finding the post
-        const allPosts = [...getNewsPosts(), ...getVideoPosts()];
-        const foundPost = allPosts.find(p => p.id.toString() === params.id);
-        
-        if (foundPost) {
-            setPost(foundPost);
-            setLikes(foundPost.likes.count);
-        } else {
+        const { data: postData, error } = await supabase
+            .from('posts')
+            .select(`
+                *,
+                user:profiles(*),
+                likes:post_likes(count),
+                comments:post_comments(count)
+            `)
+            .eq('id', params.id)
+            .single();
+
+        if (error || !postData) {
             toast({ variant: 'destructive', title: 'Error', description: 'Could not load the post.' });
+            setLoading(false);
+            return;
         }
+
+        const formattedPost = {
+            ...postData,
+            user: Array.isArray(postData.user) ? postData.user[0] : postData.user,
+            likes: { count: postData.likes[0]?.count || 0 },
+            comments: { count: postData.comments[0]?.count || 0 },
+        } as Post;
         
+        setPost(formattedPost);
+        setLikes(formattedPost.likes.count);
+        
+        if (user) {
+            const { data: likeData, error: likeError } = await supabase
+                .from('post_likes')
+                .select('id')
+                .eq('post_id', params.id)
+                .eq('user_id', user.id)
+                .single();
+            if (likeData) setIsLiked(true);
+        }
+
         setLoading(false);
     }
     init();
@@ -60,8 +86,12 @@ function PostViewerContent({ params }: { params: { id: string } }) {
     const newLikedState = !isLiked;
     setIsLiked(newLikedState);
     setLikes(newLikedState ? likes + 1 : likes - 1);
-
-    // In a real app, you would update the database here.
+    
+    if (newLikedState) {
+        await supabase.from('post_likes').insert({ post_id: post!.id, user_id: currentUser.id });
+    } else {
+        await supabase.from('post_likes').delete().match({ post_id: post!.id, user_id: currentUser.id });
+    }
   };
 
 

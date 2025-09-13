@@ -194,9 +194,8 @@ export default function ProfilePage() {
                            <Image
                                 src={post.media_url}
                                 alt={`Post by ${user.username}`}
-                                layout="fill"
-                                objectFit="cover"
-                                className="h-full w-full"
+                                fill
+                                className="object-cover h-full w-full"
                                 data-ai-hint="lifestyle content"
                             />
                        )}
