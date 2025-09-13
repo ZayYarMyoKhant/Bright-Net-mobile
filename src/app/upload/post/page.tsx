@@ -10,12 +10,15 @@ import Image from "next/image";
 import Link from "next/link";
 import { useToast } from "@/hooks/use-toast";
 import { createClient } from "@/lib/supabase/client";
+import { Progress } from "@/components/ui/progress";
 
 export default function UploadPostPage() {
   const [caption, setCaption] = useState("");
   const [mediaFile, setMediaFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
+
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
@@ -55,9 +58,11 @@ export default function UploadPostPage() {
     }
 
     startTransition(async () => {
+      setUploadProgress(0);
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
         toast({ variant: "destructive", title: "Not authenticated", description: "You must be logged in to post." });
+        setUploadProgress(null);
         return;
       }
       
@@ -65,10 +70,21 @@ export default function UploadPostPage() {
       const fileName = `${user.id}-${Date.now()}.${fileExtension}`;
       const filePath = `public/${fileName}`;
 
-      const { error: uploadError } = await supabase.storage.from('posts').upload(filePath, mediaFile);
+      const { error: uploadError } = await supabase.storage.from('posts').upload(filePath, mediaFile, {
+        cacheControl: '3600',
+        upsert: false
+      });
+      // The onProgress callback is not directly available in the upload method in v2 the same way.
+      // For a real progress bar, a more complex setup using XMLHttpRequest might be needed,
+      // but for this prototype, we'll simulate the progress. For a better UX in a real app,
+      // we would use a library that supports upload progress.
+      // Here, we'll just set it to 100 after upload completes.
+      setUploadProgress(100);
+
 
       if (uploadError) {
         toast({ variant: "destructive", title: "Upload failed", description: uploadError.message });
+        setUploadProgress(null);
         return;
       }
 
@@ -83,12 +99,14 @@ export default function UploadPostPage() {
 
       if (insertError) {
         toast({ variant: "destructive", title: "Failed to create post", description: insertError.message });
+        setUploadProgress(null);
         return;
       }
 
       toast({ title: "Post created successfully!" });
       router.push("/home");
       router.refresh();
+      setUploadProgress(null);
     });
   };
 
@@ -175,16 +193,25 @@ export default function UploadPostPage() {
             </div>
             
             <div className="pt-4">
-              <Button className="w-full" type="submit" disabled={isPending || !mediaFile}>
-                {isPending ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Posting...
-                  </>
+               {isPending && uploadProgress !== null ? (
+                  <div className="space-y-2">
+                    <Progress value={uploadProgress} />
+                    <p className="text-center text-sm text-muted-foreground">
+                      Uploading... {uploadProgress.toFixed(0)}%
+                    </p>
+                  </div>
                 ) : (
-                  "Post"
+                  <Button className="w-full" type="submit" disabled={isPending || !mediaFile}>
+                    {isPending ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Processing...
+                      </>
+                    ) : (
+                      "Post"
+                    )}
+                  </Button>
                 )}
-              </Button>
             </div>
           </form>
         </main>
