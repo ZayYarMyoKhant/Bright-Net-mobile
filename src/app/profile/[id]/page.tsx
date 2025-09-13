@@ -74,7 +74,7 @@ export default function UserProfilePage({ params: paramsPromise }: { params: Pro
     const { data: profileData, error: profileError } = await supabase
       .from('profiles')
       .select('id, username, full_name, avatar_url, bio, win_streak_3, win_streak_10')
-      .eq('username', params.id)
+      .eq('id', params.id)
       .single();
 
     if (profileError || !profileData) {
@@ -199,8 +199,10 @@ export default function UserProfilePage({ params: paramsPromise }: { params: Pro
   if (!profile) {
     return (
       <>
-        <div className="flex h-full flex-col bg-background text-foreground pb-16 items-center justify-center">
-          <p>User not found</p>
+        <div className="flex h-full flex-col bg-background text-foreground pb-16 items-center justify-center text-center">
+          <p className="text-lg font-semibold">User not found</p>
+           <p className="text-sm text-muted-foreground mt-1">The profile you are looking for does not exist.</p>
+           <Button onClick={() => router.back()} className="mt-4">Go Back</Button>
         </div>
         <BottomNav />
       </>

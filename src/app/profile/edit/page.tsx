@@ -100,7 +100,7 @@ export default function EditProfilePage() {
         toast({ variant: "destructive", title: "Profile Error", description: profileError.message });
     } else {
         toast({ title: 'Profile Updated!', description: 'Your changes have been saved.' });
-        router.push(`/profile/${username}`); // Go to the updated profile page
+        router.push(`/profile/${user.id}`); // Go to the updated profile page by ID
         router.refresh(); // Refresh to show new data
     }
   }
@@ -116,7 +116,7 @@ export default function EditProfilePage() {
   return (
     <div className="flex h-full flex-col bg-background text-foreground">
       <header className="flex h-16 flex-shrink-0 items-center border-b px-4">
-        <Link href={`/profile/${username}`} className="p-2 -ml-2">
+        <Link href={`/profile/${user?.id}`} className="p-2 -ml-2">
            <ArrowLeft className="h-5 w-5" />
         </Link>
         <h1 className="mx-auto font-bold text-xl">Edit your profile</h1>
