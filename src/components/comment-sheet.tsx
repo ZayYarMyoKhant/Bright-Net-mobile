@@ -1,13 +1,13 @@
 
 "use client";
 
-import type { Post, Comment } from "@/lib/data";
+import type { Post, Comment, Profile } from "@/lib/data";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { Button } from "./ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "./ui/dropdown-menu";
 import { Input } from "./ui/input";
 import { ScrollArea } from "./ui/scroll-area";
-import { Heart, MessageSquareReply, MoreVertical, Send, Trash2, X, Loader2 } from "lucide-react";
+import { MessageSquareReply, MoreVertical, Send, Trash2, X, Loader2, Users } from "lucide-react";
 import { useState, useEffect, useCallback } from "react";
 import { cn } from "@/lib/utils";
 import { SheetHeader, SheetTitle } from "./ui/sheet";
@@ -22,7 +22,9 @@ type CommentSheetProps = {
   currentUser: User | null;
 };
 
-const CommentItem = ({ comment, isReply = false, onReply, onDelete, currentUser }: { comment: Comment, isReply?: boolean, onReply: (comment: Comment) => void, onDelete: (commentId: string) => void, currentUser: User | null }) => {
+type CommentWithProfile = Comment & { profiles: Profile };
+
+const CommentItem = ({ comment, isReply = false, onReply, onDelete, currentUser }: { comment: CommentWithProfile, isReply?: boolean, onReply: (comment: CommentWithProfile) => void, onDelete: (commentId: string) => void, currentUser: User | null }) => {
   const timeAgo = formatDistanceToNow(new Date(comment.created_at), { addSuffix: true });
 
   const handleReplyClick = () => {
@@ -31,14 +33,14 @@ const CommentItem = ({ comment, isReply = false, onReply, onDelete, currentUser 
 
   return (
     <div className={cn("flex items-start gap-3", isReply && "ml-8")}>
-        <Link href={`/profile/${comment.user.username}`}>
+        <Link href={`/profile/${comment.profiles.id}`}>
             <Avatar className="h-8 w-8">
-                <AvatarImage src={comment.user.avatar_url} data-ai-hint="person portrait" />
-                <AvatarFallback>{comment.user.username.charAt(0).toUpperCase()}</AvatarFallback>
+                <AvatarImage src={comment.profiles.avatar_url} data-ai-hint="person portrait" />
+                <AvatarFallback>{comment.profiles.username.charAt(0).toUpperCase()}</AvatarFallback>
             </Avatar>
         </Link>
         <div className="flex-1">
-            <Link href={`/profile/${comment.user.username}`} className="text-xs font-semibold hover:underline">{comment.user.username}</Link>
+            <Link href={`/profile/${comment.profiles.id}`} className="text-xs font-semibold hover:underline">{comment.profiles.username}</Link>
             <p className="text-sm">{comment.content}</p>
             <div className="flex items-center gap-4 mt-1 text-xs text-muted-foreground">
                 <span>{timeAgo}</span>
@@ -47,7 +49,7 @@ const CommentItem = ({ comment, isReply = false, onReply, onDelete, currentUser 
              {comment.replies && comment.replies.length > 0 && (
                 <div className="mt-3 space-y-4">
                     {comment.replies.map(reply => (
-                        <CommentItem key={reply.id} comment={reply} isReply onReply={onReply} onDelete={onDelete} currentUser={currentUser}/>
+                        <CommentItem key={reply.id} comment={reply as CommentWithProfile} isReply onReply={onReply} onDelete={onDelete} currentUser={currentUser}/>
                     ))}
                 </div>
             )}
@@ -60,7 +62,7 @@ const CommentItem = ({ comment, isReply = false, onReply, onDelete, currentUser 
                     </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent>
-                    {currentUser?.id === comment.user.id ? (
+                    {currentUser?.id === comment.user_id ? (
                          <DropdownMenuItem className="text-destructive" onClick={() => onDelete(comment.id)}>
                              <Trash2 className="mr-2 h-4 w-4" />
                              <span>Delete</span>
@@ -79,20 +81,31 @@ const CommentItem = ({ comment, isReply = false, onReply, onDelete, currentUser 
 }
 
 export function CommentSheet({ post, currentUser }: CommentSheetProps) {
-  const [comments, setComments] = useState<Comment[]>([]);
+  const [comments, setComments] = useState<CommentWithProfile[]>([]);
   const [newComment, setNewComment] = useState("");
-  const [replyingTo, setReplyingTo] = useState<Comment | null>(null);
+  const [replyingTo, setReplyingTo] = useState<CommentWithProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const { toast } = useToast();
+  const supabase = createClient();
 
   const fetchComments = useCallback(async () => {
     setLoading(true);
-    // Mocking comments for now
-    await new Promise(resolve => setTimeout(resolve, 500));
-    setComments([]); // Start with no comments
+    const { data, error } = await supabase
+      .from('post_comments')
+      .select('*, profiles(*), replies:post_comments(*, profiles(*))')
+      .eq('post_id', post.id)
+      .is('parent_comment_id', null) // Fetch only top-level comments
+      .order('created_at', { ascending: true });
+
+    if (error) {
+      toast({ variant: 'destructive', title: 'Error fetching comments', description: error.message });
+      setComments([]);
+    } else {
+      setComments(data as CommentWithProfile[]);
+    }
     setLoading(false);
-  }, [post.id]);
+  }, [post.id, supabase, toast]);
 
   useEffect(() => {
     fetchComments();
@@ -102,21 +115,49 @@ export function CommentSheet({ post, currentUser }: CommentSheetProps) {
     if (newComment.trim() === "" || !currentUser) return;
     setSending(true);
 
-    // In a real app, this would be a Supabase insert
-    await new Promise(resolve => setTimeout(resolve, 500));
+    const { data, error } = await supabase.from('post_comments').insert({
+      post_id: post.id,
+      user_id: currentUser.id,
+      content: newComment,
+      parent_comment_id: replyingTo?.id || null
+    }).select('*, profiles(*)').single();
 
-    toast({ title: "Comment posted (mock)" });
+    if (error) {
+        toast({ variant: 'destructive', title: 'Failed to post comment', description: error.message });
+    } else {
+        // Optimistically update UI
+        if (replyingTo) {
+             setComments(prev => prev.map(c => {
+                if (c.id === replyingTo.parent_comment_id || c.id === replyingTo.id) {
+                    const newReplies = [...(c.replies || []), data];
+                    return {...c, replies: newReplies};
+                }
+                return c;
+             }));
+        } else {
+            setComments(prev => [...prev, data as CommentWithProfile]);
+        }
+        setNewComment("");
+        setReplyingTo(null);
+    }
     
-    setNewComment("");
-    setReplyingTo(null);
     setSending(false);
   };
   
   const handleDeleteComment = async (commentId: string) => {
-    toast({ title: "Comment deleted (mock)" });
+    setComments(prev => prev.filter(c => c.id !== commentId).map(c => ({
+        ...c,
+        replies: c.replies?.filter(r => r.id !== commentId)
+    })));
+
+    const { error } = await supabase.from('post_comments').delete().eq('id', commentId);
+    if (error) {
+        toast({ variant: 'destructive', title: 'Failed to delete comment', description: error.message });
+        fetchComments(); // Re-fetch to correct state
+    }
   };
 
-  const handleReply = (comment: Comment) => {
+  const handleReply = (comment: CommentWithProfile) => {
     setReplyingTo(comment);
   }
 
@@ -130,6 +171,12 @@ export function CommentSheet({ post, currentUser }: CommentSheetProps) {
           <div className="flex justify-center items-center h-full pt-10">
             <Loader2 className="h-6 w-6 animate-spin" />
           </div>
+        ) : comments.length === 0 ? (
+          <div className="text-center p-10 text-muted-foreground flex flex-col items-center">
+            <Users className="h-12 w-12 mb-4" />
+            <p className="font-bold">No comments yet</p>
+            <p className="text-sm mt-1">Be the first to share your thoughts!</p>
+          </div>
         ) : (
           <div className="p-4 space-y-6">
             {comments.map((comment) => (
@@ -142,7 +189,7 @@ export function CommentSheet({ post, currentUser }: CommentSheetProps) {
         {replyingTo && (
             <div className="flex items-center justify-between bg-muted/50 px-3 py-1.5 text-xs">
                 <p className="truncate text-muted-foreground">
-                    Replying to <span className="font-semibold text-foreground">@{replyingTo.user.username}</span>
+                    Replying to <span className="font-semibold text-foreground">@{replyingTo.profiles.username}</span>
                 </p>
                 <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => setReplyingTo(null)}>
                     <X className="h-4 w-4" />
@@ -153,13 +200,13 @@ export function CommentSheet({ post, currentUser }: CommentSheetProps) {
             {currentUser ? (
               <Avatar className="h-8 w-8">
                   <AvatarImage src={currentUser.user_metadata.avatar_url} data-ai-hint="person portrait" />
-                  <AvatarFallback>{currentUser.user_metadata.name?.charAt(0).toUpperCase() || 'U'}</AvatarFallback>
+                  <AvatarFallback>{currentUser.user_metadata.full_name?.charAt(0).toUpperCase() || 'U'}</AvatarFallback>
               </Avatar>
             ) : (
                <Avatar className="h-8 w-8 bg-muted" />
             )}
             <Input 
-                placeholder={replyingTo ? `Reply to @${replyingTo.user.username}` : "Add a comment..."} 
+                placeholder={replyingTo ? `Reply to @${replyingTo.profiles.username}` : "Add a comment..."} 
                 className="flex-1 bg-muted border-none"
                 value={newComment}
                 onChange={(e) => setNewComment(e.target.value)}

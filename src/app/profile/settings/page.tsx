@@ -18,12 +18,14 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "@/context/language-context";
+import { createClient } from "@/lib/supabase/client";
 
 
 export default function SettingsPage() {
     const router = useRouter();
     const { toast } = useToast();
     const { t } = useTranslation();
+    const supabase = createClient();
 
     const settingsItems = [
         { icon: User, label: t('settings.account'), href: "/profile/settings/account" },
@@ -33,11 +35,22 @@ export default function SettingsPage() {
     ];
 
 
-    const handleLogout = () => {
-       toast({
-            title: "Logout Clicked",
-            description: "Authentication has been removed, so this is a mock action.",
-       });
+    const handleLogout = async () => {
+       const { error } = await supabase.auth.signOut();
+       if (error) {
+           toast({
+                variant: "destructive",
+                title: "Logout Failed",
+                description: error.message,
+           });
+       } else {
+           toast({
+                title: "Logged Out",
+                description: "You have been successfully logged out.",
+           });
+           router.push('/signup');
+           router.refresh();
+       }
     };
 
 

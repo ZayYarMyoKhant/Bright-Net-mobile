@@ -14,7 +14,7 @@ import { CommentSheet } from "@/components/comment-sheet";
 import { ShareSheet } from "@/components/share-sheet";
 import { createClient } from "@/lib/supabase/client";
 import { User } from "@supabase/supabase-js";
-import { Post, getImagePosts } from "@/lib/data";
+import { Post } from "@/lib/data";
 import { formatDistanceToNow } from 'date-fns';
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
@@ -22,28 +22,60 @@ import { useToast } from "@/hooks/use-toast";
 function PostViewerContent({ params }: { params: { id: string } }) {
   const router = useRouter();
   const { toast } = useToast();
+  const supabase = createClient();
 
   const [post, setPost] = useState<Post | null>(null);
   const [loading, setLoading] = useState(true);
-  const [currentUser, setCurrentUser] = useState<User | null>(null); // Mock user state
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [isLiked, setIsLiked] = useState(false);
   const [likes, setLikes] = useState(0);
 
-  useEffect(() => {
+  const fetchPost = useCallback(async (user: User | null) => {
     setLoading(true);
-    // Mock fetching a single post. In a real app, you'd fetch this from Supabase.
-    const mockPost = getImagePosts(1)[0];
-    mockPost.id = params.id; // Assign the id from params
-    setPost(mockPost);
-    setLikes(mockPost.likes.count);
-    
-    // Mock current user
-    // In a real app, this would come from `supabase.auth.getUser()`
-    const mockUser = { id: 'mock-user-id', user_metadata: { name: 'Aung Aung', avatar_url: `https://i.pravatar.cc/150?u=aungaung` } };
-    // @ts-ignore
-    setCurrentUser(mockUser);
+    const { data: postData, error } = await supabase
+      .from('posts')
+      .select('*, profiles(*), likes:post_likes(count), comments:post_comments(count)')
+      .eq('id', params.id)
+      .single();
+
+    if (error || !postData) {
+      toast({ variant: "destructive", title: "Post not found", description: error?.message });
+      setPost(null);
+    } else {
+        const { data: userLike } = user ? await supabase
+          .from('post_likes')
+          .select('post_id')
+          .eq('user_id', user.id)
+          .eq('post_id', postData.id)
+          .single() : { data: null };
+
+        const processedPost: Post = {
+          id: postData.id,
+          // @ts-ignore
+          user: Array.isArray(postData.profiles) ? postData.profiles[0] : postData.profiles,
+          media_url: postData.media_url,
+          media_type: postData.media_type,
+          caption: postData.caption,
+          created_at: postData.created_at,
+          // @ts-ignore
+          likes: { count: postData.likes[0]?.count || 0 },
+          // @ts-ignore
+          comments: { count: postData.comments[0]?.count || 0 },
+          isLiked: !!userLike,
+        };
+        setPost(processedPost);
+        setLikes(processedPost.likes.count);
+        setIsLiked(processedPost.isLiked);
+    }
     setLoading(false);
-  }, [params.id]);
+  }, [params.id, supabase, toast]);
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data: { user } }) => {
+        setCurrentUser(user);
+        fetchPost(user);
+    });
+  }, [fetchPost, supabase.auth]);
 
   const handleLike = async () => {
     if (!currentUser) {
@@ -54,7 +86,22 @@ function PostViewerContent({ params }: { params: { id: string } }) {
     const newLikedState = !isLiked;
     setIsLiked(newLikedState);
     setLikes(newLikedState ? likes + 1 : likes - 1);
-    toast({ title: `Post ${newLikedState ? 'liked' : 'unliked'} (mock)` });
+
+    if (newLikedState) {
+        const { error } = await supabase.from('post_likes').insert({ post_id: post!.id, user_id: currentUser.id });
+        if (error) {
+            toast({ variant: "destructive", title: "Failed to like post", description: error.message });
+            setIsLiked(false);
+            setLikes(likes);
+        }
+    } else {
+        const { error } = await supabase.from('post_likes').delete().match({ post_id: post!.id, user_id: currentUser.id });
+        if (error) {
+            toast({ variant: "destructive", title: "Failed to unlike post", description: error.message });
+            setIsLiked(true);
+            setLikes(likes);
+        }
+    }
   };
 
 
@@ -84,14 +131,14 @@ function PostViewerContent({ params }: { params: { id: string } }) {
     <div className="flex h-dvh w-full items-center justify-center bg-black">
       <Card className="rounded-xl overflow-hidden w-full max-w-lg max-h-[95dvh] flex flex-col">
         <CardHeader className="p-4 flex-row items-center gap-3">
-          <Link href={`/profile/${post.user.username}`}>
+          <Link href={`/profile/${post.user.id}`}>
               <Avatar>
                 <AvatarImage src={post.user.avatar_url} data-ai-hint="person portrait" />
                 <AvatarFallback>{post.user.username.charAt(0).toUpperCase()}</AvatarFallback>
               </Avatar>
           </Link>
           <div className="flex-1">
-              <Link href={`/profile/${post.user.username}`}>
+              <Link href={`/profile/${post.user.id}`}>
                   <p className="font-semibold hover:underline">{post.user.username}</p>
               </Link>
               <p className="text-xs text-muted-foreground">{timeAgo}</p>

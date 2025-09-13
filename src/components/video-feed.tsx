@@ -6,7 +6,6 @@ import { VideoDescription } from '@/components/video-description';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Heart, MessageCircle, Send, Loader2, VideoOff, VolumeOff, Music } from 'lucide-react';
-import Image from 'next/image';
 import {
   Sheet,
   SheetContent,
@@ -17,22 +16,23 @@ import { ShareSheet } from "./share-sheet";
 import { cn } from '@/lib/utils';
 import type { Post } from '@/lib/data';
 import { useToast } from '@/hooks/use-toast';
+import { createClient } from '@/lib/supabase/client';
 import { User } from '@supabase/supabase-js';
 
 const VideoPost = ({ post, index }: { post: Post; index: number }) => {
-    const [isLiked, setIsLiked] = useState(post.isLiked || false);
-    const [likesCount, setLikesCount] = useState(post.likes.count || 0);
+    const [isLiked, setIsLiked] = useState(post.isLiked);
+    const [likesCount, setLikesCount] = useState(post.likes.count);
     const [isMuted, setIsMuted] = useState(index !== 0); 
     const videoRef = useRef<HTMLVideoElement>(null);
     const [currentUser, setCurrentUser] = useState<User | null>(null);
     const { toast } = useToast();
+    const supabase = createClient();
 
     useEffect(() => {
-        // Mock current user
-        const mockUser = { id: 'mock-user-id', user_metadata: { name: 'Aung Aung', avatar_url: `https://i.pravatar.cc/150?u=aungaung` } };
-        // @ts-ignore
-        setCurrentUser(mockUser);
-    }, []);
+        supabase.auth.getUser().then(({ data: { user } }) => {
+            setCurrentUser(user);
+        });
+    }, [supabase.auth]);
 
      useEffect(() => {
         const video = videoRef.current;
@@ -73,10 +73,26 @@ const VideoPost = ({ post, index }: { post: Post; index: number }) => {
             toast({ variant: "destructive", title: "You must be logged in to like a post." });
             return;
         }
+        
         const newLikedState = !isLiked;
         setIsLiked(newLikedState);
         setLikesCount(newLikedState ? likesCount + 1 : likesCount - 1);
-        toast({ title: `Post ${newLikedState ? 'liked' : 'unliked'} (mock)` });
+
+        if (newLikedState) {
+            const { error } = await supabase.from('post_likes').insert({ post_id: post.id, user_id: currentUser.id });
+            if (error) {
+                toast({ variant: "destructive", title: "Failed to like post", description: error.message });
+                setIsLiked(false);
+                setLikesCount(likesCount);
+            }
+        } else {
+            const { error } = await supabase.from('post_likes').delete().match({ post_id: post.id, user_id: currentUser.id });
+            if (error) {
+                toast({ variant: "destructive", title: "Failed to unlike post", description: error.message });
+                setIsLiked(true);
+                setLikesCount(likesCount);
+            }
+        }
     };
 
     const toggleMute = (e: React.MouseEvent) => {

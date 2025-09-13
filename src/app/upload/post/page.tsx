@@ -9,7 +9,7 @@ import { ImagePlus, X, ArrowLeft, Loader2 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useToast } from "@/hooks/use-toast";
-import { Progress } from "@/components/ui/progress";
+import { createClient } from "@/lib/supabase/client";
 
 export default function UploadPostPage() {
   const [caption, setCaption] = useState("");
@@ -20,6 +20,7 @@ export default function UploadPostPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
   const { toast } = useToast();
+  const supabase = createClient();
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -54,10 +55,40 @@ export default function UploadPostPage() {
     }
 
     startTransition(async () => {
-        // Mock upload logic
-        toast({ title: "Post created (mock)!" });
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        router.push("/home");
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        toast({ variant: "destructive", title: "Not authenticated", description: "You must be logged in to post." });
+        return;
+      }
+      
+      const fileExtension = mediaFile.name.split('.').pop();
+      const fileName = `${user.id}-${Date.now()}.${fileExtension}`;
+      const filePath = `public/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage.from('posts').upload(filePath, mediaFile);
+
+      if (uploadError) {
+        toast({ variant: "destructive", title: "Upload failed", description: uploadError.message });
+        return;
+      }
+
+      const { data: { publicUrl } } = supabase.storage.from('posts').getPublicUrl(filePath);
+
+      const { error: insertError } = await supabase.from('posts').insert({
+        user_id: user.id,
+        media_url: publicUrl,
+        media_type: mediaFile.type.startsWith('image') ? 'image' : 'video',
+        caption: caption,
+      });
+
+      if (insertError) {
+        toast({ variant: "destructive", title: "Failed to create post", description: insertError.message });
+        return;
+      }
+
+      toast({ title: "Post created successfully!" });
+      router.push("/home");
+      router.refresh();
     });
   };
 

@@ -9,6 +9,7 @@ import { PostFeed } from '@/components/post-feed';
 import { VideoFeed } from '@/components/video-feed';
 import { createClient } from '@/lib/supabase/client';
 import type { Post } from '@/lib/data';
+import { useToast } from '@/hooks/use-toast';
 
 function FeedFallback() {
   return (
@@ -23,34 +24,44 @@ export default function HomePage() {
   const [videoPosts, setVideoPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
   const supabase = createClient();
+  const { toast } = useToast();
 
   const fetchPosts = useCallback(async () => {
     setLoading(true);
 
-    // Corrected Supabase query: Select all from 'posts' and join the related 'profiles' data.
-    // Likes and comments will be handled later. This query is stable.
+    const { data: { user: currentUser } } = await supabase.auth.getUser();
+
     const { data: posts, error } = await supabase
       .from('posts')
-      .select('*, profiles(*)')
+      .select('*, profiles(*), likes:post_likes(count), comments:post_comments(count)')
       .order('created_at', { ascending: false });
 
-    if (error || !posts) {
-      console.error("Error fetching posts:", error || "No posts found");
+    if (error) {
+      console.error("Error fetching posts:", error);
+      toast({ variant: "destructive", title: "Failed to fetch posts", description: error.message });
       setImagePosts([]);
       setVideoPosts([]);
-    } else {
-      // Process the fetched data to match the expected 'Post' type structure.
+    } else if (posts) {
+      // Fetch user's likes in a separate query
+      const postIds = posts.map(p => p.id);
+      const { data: userLikes } = currentUser ? await supabase
+        .from('post_likes')
+        .select('post_id')
+        .eq('user_id', currentUser.id)
+        .in('post_id', postIds) : { data: [] };
+      
+      const likedPostIds = new Set(userLikes?.map(like => like.post_id));
+
       const processedPosts: Post[] = posts.map((post: any) => ({
         id: post.id,
-        user: Array.isArray(post.profiles) ? post.profiles[0] : post.profiles, // Handle potential array from Supabase join
+        user: Array.isArray(post.profiles) ? post.profiles[0] : post.profiles,
         media_url: post.media_url,
         media_type: post.media_type,
         caption: post.caption,
         created_at: post.created_at,
-        // Using placeholder data for now. We will build the real like/comment system next.
-        likes: { count: 0 },
-        comments: { count: 0 },
-        isLiked: false,
+        likes: { count: post.likes[0]?.count || 0 },
+        comments: { count: post.comments[0]?.count || 0 },
+        isLiked: likedPostIds.has(post.id),
       }));
 
       setImagePosts(processedPosts.filter(p => p.media_type === 'image'));
@@ -58,7 +69,7 @@ export default function HomePage() {
     }
     
     setLoading(false);
-  }, [supabase]);
+  }, [supabase, toast]);
 
   useEffect(() => {
     fetchPosts();

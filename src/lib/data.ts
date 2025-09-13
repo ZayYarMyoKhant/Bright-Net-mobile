@@ -1,11 +1,10 @@
 
-import {faker} from '@faker-js/faker';
-
 export type Profile = {
   id: string;
   username: string;
   avatar_url: string;
   full_name?: string;
+  bio?: string;
   win_streak_3?: boolean;
   win_streak_10?: boolean;
 };
@@ -54,44 +53,6 @@ export type Country = {
   name: string;
   code: string;
   flag: string;
-};
-
-
-// Mock Data Generation
-const createMockUser = (): Profile => {
-    const firstName = faker.person.firstName();
-    const lastName = faker.person.lastName();
-    const username = faker.internet.userName({ firstName, lastName }).toLowerCase();
-    return {
-        id: faker.string.uuid(),
-        username: username,
-        full_name: `${firstName} ${lastName}`,
-        avatar_url: `https://i.pravatar.cc/150?u=${username}`,
-    };
-};
-
-const createMockPost = (type: 'image' | 'video'): Post => {
-    return {
-        id: faker.string.uuid(),
-        user: createMockUser(),
-        media_url: type === 'image' 
-            ? `https://picsum.photos/seed/${faker.number.int()}/640/480`
-            : 'https://test-videos.co.uk/vids/bigbuckbunny/mp4/h264/360/Big_Buck_Bunny_360_10s_1MB.mp4',
-        media_type: type,
-        caption: faker.lorem.sentence(),
-        created_at: faker.date.recent().toISOString(),
-        likes: { count: faker.number.int({ min: 0, max: 5000 }) },
-        comments: { count: faker.number.int({ min: 0, max: 500 }) },
-        isLiked: faker.datatype.boolean(),
-    };
-}
-
-export const getImagePosts = (count: number): Post[] => {
-    return Array.from({ length: count }, () => createMockPost('image'));
-};
-
-export const getVideoPosts = (count: number): Post[] => {
-    return Array.from({ length: count }, () => createMockPost('video'));
 };
 
 
@@ -202,5 +163,3 @@ export const countries: Country[] = [
     { name: "Slovakia", code: "421", flag: "🇸🇰" },
     { name: "Norway", code: "47", flag: "🇳🇴" },
 ];
-
-    

@@ -5,7 +5,6 @@
 import { use, useEffect, useState, useCallback } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { Card, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Grid3x3, Clapperboard, ArrowLeft, MessageCircle, CameraOff, Loader2, Eye, Trash2, MoreVertical, BookOpen, Swords } from "lucide-react";
 import Image from "next/image";
@@ -13,7 +12,7 @@ import Link from "next/link";
 import { BottomNav } from '@/components/bottom-nav';
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import type { PostWithViews, Profile } from "@/lib/data";
+import type { Post, Profile } from "@/lib/data";
 import { User } from "@supabase/supabase-js";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -29,7 +28,6 @@ import {
 } from "@/components/ui/alert-dialog"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
-import { getImagePosts } from "@/lib/data";
 
 
 type ProfileData = Profile & {
@@ -53,7 +51,7 @@ export default function UserProfilePage({ params: paramsPromise }: { params: Pro
   
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<ProfileData | null>(null);
-  const [posts, setPosts] = useState<PostWithViews[]>([]);
+  const [posts, setPosts] = useState<Post[]>([]);
   const [createdClasses, setCreatedClasses] = useState<CreatedClass[]>([]);
   const [loading, setLoading] = useState(true);
   const [joiningClassId, setJoiningClassId] = useState<string | null>(null);
@@ -67,7 +65,6 @@ export default function UserProfilePage({ params: paramsPromise }: { params: Pro
     const { data: { user: authUser } } = await supabase.auth.getUser();
     setCurrentUser(authUser);
 
-    // Mock fetching profile data
     const { data: profileData, error: profileError } = await supabase
       .from('profiles')
       .select('id, username, full_name, avatar_url, bio, win_streak_3, win_streak_10')
@@ -81,6 +78,7 @@ export default function UserProfilePage({ params: paramsPromise }: { params: Pro
       return;
     }
     
+    // Placeholder for follower/following counts
     setProfile({
       ...profileData,
       bio: profileData.bio || "Another digital creator's bio.",
@@ -88,14 +86,20 @@ export default function UserProfilePage({ params: paramsPromise }: { params: Pro
       followers: Math.floor(Math.random() * 5000),
     });
     
-    // Mock fetching posts
-    const mockPosts = getImagePosts(12).map(p => ({
-        ...p,
-        views: Math.floor(Math.random() * 10000)
-    }));
-    setPosts(mockPosts);
+    // Fetch posts by the user
+    const { data: postData, error: postError } = await supabase
+      .from('posts')
+      .select('*')
+      .eq('user_id', params.id)
+      .order('created_at', { ascending: false });
+
+    if (postError) {
+        console.error("Error fetching posts:", postError);
+        setPosts([]);
+    } else {
+        setPosts(postData as Post[]);
+    }
     
-    // Mock fetching classes
     setCreatedClasses([]);
 
     setLoading(false);
@@ -114,15 +118,28 @@ export default function UserProfilePage({ params: paramsPromise }: { params: Pro
     }
 
     setJoiningClassId(classId);
-    toast({ title: "Joining class (mock)..." });
     await new Promise(resolve => setTimeout(resolve, 1000));
     setCreatedClasses(prev => prev.map(c => c.id === classId ? { ...c, is_member: true } : c));
     setJoiningClassId(null);
   }
 
   const handleDeletePost = async (postId: string, mediaUrl: string) => {
+    // Optimistically remove from UI
     setPosts(prev => prev.filter(p => p.id !== postId));
-    toast({ title: "Post Deleted (mock)", description: "Your post has been removed." });
+
+    // Delete from DB
+    const { error } = await supabase.from('posts').delete().eq('id', postId);
+
+    if (error) {
+        toast({ variant: "destructive", title: "Delete Failed", description: error.message });
+        // Re-fetch to revert UI
+        fetchProfileData();
+    } else {
+        toast({ title: "Post Deleted", description: "Your post has been removed." });
+        // Optionally, also delete from storage
+        const filePath = mediaUrl.substring(mediaUrl.lastIndexOf('public/') + 'public/'.length);
+        supabase.storage.from('posts').remove([filePath]);
+    }
   };
 
 
@@ -164,7 +181,7 @@ export default function UserProfilePage({ params: paramsPromise }: { params: Pro
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <h1 className="font-bold">{profile.username}</h1>
-          <Link href={`/chat/${profile.username}`}>
+          <Link href={`/chat/${profile.id}`}>
             <Button variant="ghost" size="icon">
               <MessageCircle className="h-5 w-5" />
               <span className="sr-only">Message user</span>
@@ -248,11 +265,6 @@ export default function UserProfilePage({ params: paramsPromise }: { params: Pro
                             </div>
                         </Link>
                         
-                        <div className="absolute bottom-1 left-1 flex items-center gap-1 rounded bg-black/50 px-1 py-0.5 text-white text-xs pointer-events-none">
-                           <Eye className="h-3 w-3" />
-                           <span className="font-bold">{post.views}</span>
-                        </div>
-                        
                         {isOwnProfile && (
                             <div className="absolute top-1 right-1">
                                 <DropdownMenu>
@@ -300,12 +312,10 @@ export default function UserProfilePage({ params: paramsPromise }: { params: Pro
               {createdClasses.length > 0 ? (
                  <div className="space-y-4 pt-4">
                     {createdClasses.map(classItem => (
-                         <Card key={classItem.id}>
-                              <CardHeader>
-                                  <CardTitle>{classItem.name}</CardTitle>
-                                  {classItem.description && <p className="text-sm text-muted-foreground pt-2">{classItem.description}</p>}
-                              </CardHeader>
-                              <CardFooter>
+                         <div key={classItem.id} className="border rounded-lg p-4">
+                              <h3 className="font-semibold">{classItem.name}</h3>
+                              {classItem.description && <p className="text-sm text-muted-foreground pt-2">{classItem.description}</p>}
+                              <div className="mt-4">
                                   {isOwnProfile || classItem.is_member ? (
                                       <Link href={`/class/${classItem.id}`} className="w-full">
                                         <Button variant="secondary" className="w-full">
@@ -321,8 +331,8 @@ export default function UserProfilePage({ params: paramsPromise }: { params: Pro
                                       {joiningClassId === classItem.id ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Join"}
                                     </Button>
                                   )}
-                              </CardFooter>
-                         </Card>
+                              </div>
+                         </div>
                     ))}
                  </div>
               ) : (

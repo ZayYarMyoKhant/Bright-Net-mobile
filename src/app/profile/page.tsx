@@ -12,16 +12,10 @@ import Link from "next/link";
 import { BottomNav } from '@/components/bottom-nav';
 import { useToast } from '@/hooks/use-toast';
 import { createClient } from '@/lib/supabase/client';
-import type { Post } from '@/lib/data';
-import { getImagePosts } from '@/lib/data';
+import type { Post, Profile } from '@/lib/data';
 
 
-type ProfileData = {
-  id: string;
-  full_name: string;
-  username: string;
-  avatar_url: string;
-  bio: string;
+type ProfileData = Profile & {
   following: number;
   followers: number;
 };
@@ -57,13 +51,21 @@ export default function ProfilePage() {
             if (profileData) {
                  setUser({
                     ...profileData,
-                    following: Math.floor(Math.random() * 500),
-                    followers: Math.floor(Math.random() * 5000),
+                    following: Math.floor(Math.random() * 500), // Placeholder
+                    followers: Math.floor(Math.random() * 5000), // Placeholder
                 });
                 
-                // Mock fetching posts
-                const mockPosts = getImagePosts(12);
-                setPosts(mockPosts);
+                const { data: postData, error: postError } = await supabase
+                    .from('posts')
+                    .select('*')
+                    .eq('user_id', authUser.id)
+                    .order('created_at', { ascending: false });
+                
+                if (postError) {
+                    toast({ variant: 'destructive', title: 'Error loading posts', description: postError.message });
+                } else {
+                    setPosts(postData as Post[]);
+                }
 
             } else {
                 router.push('/profile/setup');

@@ -19,21 +19,21 @@ import { CommentSheet } from "./comment-sheet";
 import { ShareSheet } from "./share-sheet";
 import type { Post } from "@/lib/data";
 import { useToast } from "@/hooks/use-toast";
+import { createClient } from "@/lib/supabase/client";
 import { User } from "@supabase/supabase-js";
 
 export function PostCard({ post }: { post: Post }) {
-  const [isLiked, setIsLiked] = useState(post.isLiked || false);
-  const [likesCount, setLikesCount] = useState(post.likes.count || 0);
-  const [currentUser, setCurrentUser] = useState<User | null>(null); // Mock user state
+  const [isLiked, setIsLiked] = useState(post.isLiked);
+  const [likesCount, setLikesCount] = useState(post.likes.count);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
   const { toast } = useToast();
+  const supabase = createClient();
   
   useEffect(() => {
-    // Mock current user
-    // In a real app, this would come from `supabase.auth.getUser()`
-    const mockUser = { id: 'mock-user-id', user_metadata: { name: 'Aung Aung', avatar_url: `https://i.pravatar.cc/150?u=aungaung` } };
-    // @ts-ignore
-    setCurrentUser(mockUser);
-  }, []);
+    supabase.auth.getUser().then(({ data: { user } }) => {
+        setCurrentUser(user);
+    });
+  }, [supabase.auth]);
   
   const handleLike = async () => {
     if (!currentUser) {
@@ -44,7 +44,22 @@ export function PostCard({ post }: { post: Post }) {
     const newLikedState = !isLiked;
     setIsLiked(newLikedState);
     setLikesCount(newLikedState ? likesCount + 1 : likesCount - 1);
-    toast({ title: `Post ${newLikedState ? 'liked' : 'unliked'} (mock)` });
+
+    if (newLikedState) {
+        const { error } = await supabase.from('post_likes').insert({ post_id: post.id, user_id: currentUser.id });
+        if (error) {
+            toast({ variant: "destructive", title: "Failed to like post", description: error.message });
+            setIsLiked(false);
+            setLikesCount(likesCount);
+        }
+    } else {
+        const { error } = await supabase.from('post_likes').delete().match({ post_id: post.id, user_id: currentUser.id });
+        if (error) {
+            toast({ variant: "destructive", title: "Failed to unlike post", description: error.message });
+            setIsLiked(true);
+            setLikesCount(likesCount);
+        }
+    }
   };
   
   const timeAgo = formatDistanceToNow(new Date(post.created_at), { addSuffix: true });
@@ -52,14 +67,14 @@ export function PostCard({ post }: { post: Post }) {
   return (
     <Card className="rounded-xl overflow-hidden">
       <CardHeader className="p-4 flex-row items-center gap-3">
-        <Link href={`/profile/${post.user.username}`}>
+        <Link href={`/profile/${post.user.id}`}>
             <Avatar>
               <AvatarImage src={post.user.avatar_url} data-ai-hint="person portrait" />
               <AvatarFallback>{post.user.username.charAt(0).toUpperCase()}</AvatarFallback>
             </Avatar>
         </Link>
         <div className="flex-1">
-            <Link href={`/profile/${post.user.username}`}>
+            <Link href={`/profile/${post.user.id}`}>
                 <p className="font-semibold hover:underline">{post.user.username}</p>
             </Link>
             <p className="text-xs text-muted-foreground">{timeAgo}</p>
