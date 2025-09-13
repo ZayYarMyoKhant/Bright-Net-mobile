@@ -5,17 +5,34 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { ArrowLeft, Phone, Mic, Image as ImageIcon, Send, Smile, MoreVertical, MessageSquareReply, Trash2, X, Loader2, Waves } from "lucide-react";
+import { ArrowLeft, Phone, Mic, Image as ImageIcon, Send, Smile, MoreVertical, MessageSquareReply, Trash2, X, Loader2, Waves, Heart, ThumbsUp, Laugh, Frown } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { use, useState, useRef, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { EmojiPicker } from "@/components/emoji-picker";
 import { useToast } from "@/hooks/use-toast";
-import AudioPlayer from "@/components/audio-player";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 
-const ChatMessage = ({ message, isSender, isImage, onReply }: { message: any, isSender: boolean, isImage?: boolean, onReply: (message: any) => void }) => {
+const ReactionEmojis = {
+  '❤️': Heart,
+  '👍': ThumbsUp,
+  '😂': Laugh,
+  '😢': Frown
+};
+
+
+const ChatMessage = ({ message, isSender, onReply, onDelete }: { message: any, isSender: boolean, onReply: (message: any) => void, onDelete: (messageId: number) => void }) => {
+    
+    const [isReacting, setIsReacting] = useState(false);
+
+    const handleReact = (reaction: string) => {
+        setIsReacting(false);
+        // Mock reaction logic
+        console.log(`Reacted with ${reaction} on message ${message.id}`);
+    };
+
     return (
         <div className={`flex items-start gap-3 ${isSender ? 'justify-end' : 'justify-start'}`}>
             {!isSender && (
@@ -26,32 +43,62 @@ const ChatMessage = ({ message, isSender, isImage, onReply }: { message: any, is
                     </Avatar>
                 </Link>
             )}
-             <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                    <div className="cursor-pointer">
-                        {isImage ? (
+            <div className="group relative">
+                <div className={cn(
+                    "max-w-xs rounded-lg",
+                     message.isImage ? "bg-transparent" : (isSender ? 'bg-primary text-primary-foreground' : 'bg-muted')
+                )}>
+                     <div className={message.isImage ? "" : "px-4 py-2"}>
+                        {!isSender && <p className="font-semibold text-xs mb-1">{message.user.name}</p>}
+                        {message.isImage ? (
                             <div className="relative h-48 w-48 rounded-lg overflow-hidden">
                                 <Image src={message.text} alt="sent image" layout="fill" objectFit="cover" data-ai-hint="photo message" />
                             </div>
                         ) : (
-                            <div className={`max-w-xs rounded-lg px-4 py-2 ${isSender ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}>
-                                <p className="font-semibold text-xs mb-1">{message.user.name}</p>
-                                {message.text}
-                            </div>
+                            <p>{message.text}</p>
                         )}
-                    </div>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent>
-                    <DropdownMenuItem onClick={() => onReply(message)}>
-                        <MessageSquareReply className="mr-2 h-4 w-4" />
-                        <span>Reply</span>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem className="text-destructive">
-                         <Trash2 className="mr-2 h-4 w-4" />
-                        <span>Delete</span>
-                    </DropdownMenuItem>
-                </DropdownMenuContent>
-            </DropdownMenu>
+                     </div>
+                </div>
+                <div className="absolute top-0 right-0 z-10 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className={cn("h-6 w-6", isSender ? "text-primary-foreground/70 hover:text-primary-foreground hover:bg-white/20" : "text-muted-foreground hover:text-foreground hover:bg-black/10")}>
+                                <MoreVertical className="h-4 w-4" />
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent>
+                             {isSender ? (
+                                <DropdownMenuItem className="text-destructive" onClick={() => onDelete(message.id)}>
+                                    <Trash2 className="mr-2 h-4 w-4" />
+                                    <span>Delete</span>
+                                </DropdownMenuItem>
+                            ) : (
+                                <DropdownMenuItem onClick={() => onReply(message)}>
+                                    <MessageSquareReply className="mr-2 h-4 w-4" />
+                                    <span>Reply</span>
+                                </DropdownMenuItem>
+                            )}
+                             <Popover open={isReacting} onOpenChange={setIsReacting}>
+                                <PopoverTrigger asChild>
+                                    <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                                            <Smile className="mr-2 h-4 w-4" />
+                                        <span>React</span>
+                                    </DropdownMenuItem>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-1">
+                                    <div className="flex gap-1">
+                                        {Object.entries(ReactionEmojis).map(([emoji, Icon]) => (
+                                                <Button key={emoji} variant="ghost" size="icon" className="h-8 w-8 rounded-full" onClick={() => handleReact(emoji)}>
+                                                <Icon className="h-5 w-5" />
+                                            </Button>
+                                        ))}
+                                    </div>
+                                </PopoverContent>
+                            </Popover>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                </div>
+            </div>
         </div>
     )
 };
@@ -100,6 +147,11 @@ export default function IndividualChatPage({ params: paramsPromise }: { params: 
 
   const handleReply = (message: any) => {
     setReplyingTo(message);
+  };
+  
+  const handleDelete = (messageId: number) => {
+    setMessages(prev => prev.filter(msg => msg.id !== messageId));
+    toast({ title: "Message deleted (mock)" });
   };
   
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -249,7 +301,7 @@ export default function IndividualChatPage({ params: paramsPromise }: { params: 
       
       <main className="flex-1 overflow-y-auto p-4 space-y-4">
         {messages.map((msg) => (
-            <ChatMessage key={msg.id} message={msg} isSender={msg.sender} isImage={msg.isImage} onReply={handleReply} />
+            <ChatMessage key={msg.id} message={msg} isSender={msg.sender} onReply={handleReply} onDelete={handleDelete}/>
         ))}
         <div ref={messagesEndRef} />
       </main>
@@ -344,3 +396,5 @@ export default function IndividualChatPage({ params: paramsPromise }: { params: 
     </div>
   );
 }
+
+    
