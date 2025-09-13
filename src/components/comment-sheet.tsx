@@ -22,7 +22,7 @@ type CommentSheetProps = {
   currentUser: User | null;
 };
 
-type CommentWithProfile = Comment & { profiles: Profile };
+type CommentWithProfile = Comment & { profiles: Profile, replies: CommentWithProfile[] };
 
 const CommentItem = ({ comment, isReply = false, onReply, onDelete, currentUser }: { comment: CommentWithProfile, isReply?: boolean, onReply: (comment: CommentWithProfile) => void, onDelete: (commentId: string) => void, currentUser: User | null }) => {
   const timeAgo = formatDistanceToNow(new Date(comment.created_at), { addSuffix: true });
@@ -49,7 +49,7 @@ const CommentItem = ({ comment, isReply = false, onReply, onDelete, currentUser 
              {comment.replies && comment.replies.length > 0 && (
                 <div className="mt-3 space-y-4">
                     {comment.replies.map(reply => (
-                        <CommentItem key={reply.id} comment={reply as CommentWithProfile} isReply onReply={onReply} onDelete={onDelete} currentUser={currentUser}/>
+                        <CommentItem key={reply.id} comment={reply} isReply onReply={onReply} onDelete={onDelete} currentUser={currentUser}/>
                     ))}
                 </div>
             )}
@@ -102,7 +102,7 @@ export function CommentSheet({ post, currentUser }: CommentSheetProps) {
       toast({ variant: 'destructive', title: 'Error fetching comments', description: error.message });
       setComments([]);
     } else {
-      setComments(data as CommentWithProfile[]);
+      setComments(data as unknown as CommentWithProfile[]);
     }
     setLoading(false);
   }, [post.id, supabase, toast]);
@@ -129,7 +129,7 @@ export function CommentSheet({ post, currentUser }: CommentSheetProps) {
         if (replyingTo) {
              setComments(prev => prev.map(c => {
                 if (c.id === replyingTo.parent_comment_id || c.id === replyingTo.id) {
-                    const newReplies = [...(c.replies || []), data];
+                    const newReplies = [...(c.replies || []), data as CommentWithProfile];
                     return {...c, replies: newReplies};
                 }
                 return c;
@@ -164,7 +164,7 @@ export function CommentSheet({ post, currentUser }: CommentSheetProps) {
   return (
     <>
       <SheetHeader className="h-14 flex-shrink-0 items-center justify-center border-b px-4 relative text-center">
-        <SheetTitle>{loading ? 'Loading...' : `${comments.length} Comments`}</SheetTitle>
+        <SheetTitle>{loading ? 'Loading...' : `${post.comments} Comments`}</SheetTitle>
       </SheetHeader>
       <ScrollArea className="flex-1">
         {loading ? (

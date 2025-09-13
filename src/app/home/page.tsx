@@ -54,13 +54,13 @@ export default function HomePage() {
 
       const processedPosts: Post[] = posts.map((post: any) => ({
         id: post.id,
-        user: Array.isArray(post.profiles) ? post.profiles[0] : post.profiles,
+        user: post.profiles, // profiles is not an array here based on new schema
         media_url: post.media_url,
         media_type: post.media_type,
         caption: post.caption,
         created_at: post.created_at,
-        likes: { count: post.likes[0]?.count || 0 },
-        comments: { count: post.comments[0]?.count || 0 },
+        likes: post.likes[0]?.count || 0,
+        comments: post.comments[0]?.count || 0,
         isLiked: likedPostIds.has(post.id),
       }));
 

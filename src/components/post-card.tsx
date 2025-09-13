@@ -24,7 +24,8 @@ import { User } from "@supabase/supabase-js";
 
 export function PostCard({ post }: { post: Post }) {
   const [isLiked, setIsLiked] = useState(post.isLiked);
-  const [likesCount, setLikesCount] = useState(post.likes.count);
+  const [likesCount, setLikesCount] = useState(post.likes);
+  const [commentsCount, setCommentsCount] = useState(post.comments);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const { toast } = useToast();
   const supabase = createClient();
@@ -107,7 +108,7 @@ export function PostCard({ post }: { post: Post }) {
               <SheetTrigger asChild>
                 <Button variant="ghost" className="flex items-center gap-2">
                     <MessageCircle className="h-6 w-6" />
-                    <span className="text-sm">{post.comments.count}</span>
+                    <span className="text-sm">{commentsCount}</span>
                 </Button>
               </SheetTrigger>
               <SheetContent side="bottom" className="h-[75dvh] flex flex-col p-0">

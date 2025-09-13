@@ -21,7 +21,8 @@ import { User } from '@supabase/supabase-js';
 
 const VideoPost = ({ post, index }: { post: Post; index: number }) => {
     const [isLiked, setIsLiked] = useState(post.isLiked);
-    const [likesCount, setLikesCount] = useState(post.likes.count);
+    const [likesCount, setLikesCount] = useState(post.likes);
+    const [commentsCount, setCommentsCount] = useState(post.comments);
     const [isMuted, setIsMuted] = useState(index !== 0); 
     const videoRef = useRef<HTMLVideoElement>(null);
     const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -153,7 +154,7 @@ const VideoPost = ({ post, index }: { post: Post; index: number }) => {
                             <CommentSheet post={post} currentUser={currentUser}/>
                         </SheetContent>
                     </Sheet>
-                    <span className="text-sm font-semibold shadow-black [text-shadow:0_1px_2px_var(--tw-shadow-color)]">{post.comments.count}</span>
+                    <span className="text-sm font-semibold shadow-black [text-shadow:0_1px_2px_var(--tw-shadow-color)]">{commentsCount}</span>
                 </div>
                  <div className="flex flex-col items-center gap-1 text-white">
                     <Sheet>

@@ -28,7 +28,8 @@ function PostViewerContent({ params }: { params: { id: string } }) {
   const [loading, setLoading] = useState(true);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [isLiked, setIsLiked] = useState(false);
-  const [likes, setLikes] = useState(0);
+  const [likesCount, setLikesCount] = useState(0);
+  const [commentsCount, setCommentsCount] = useState(0);
 
   const fetchPost = useCallback(async (user: User | null) => {
     setLoading(true);
@@ -52,19 +53,20 @@ function PostViewerContent({ params }: { params: { id: string } }) {
         const processedPost: Post = {
           id: postData.id,
           // @ts-ignore
-          user: Array.isArray(postData.profiles) ? postData.profiles[0] : postData.profiles,
+          user: postData.profiles,
           media_url: postData.media_url,
           media_type: postData.media_type,
           caption: postData.caption,
           created_at: postData.created_at,
           // @ts-ignore
-          likes: { count: postData.likes[0]?.count || 0 },
+          likes: postData.likes[0]?.count || 0,
           // @ts-ignore
-          comments: { count: postData.comments[0]?.count || 0 },
+          comments: postData.comments[0]?.count || 0,
           isLiked: !!userLike,
         };
         setPost(processedPost);
-        setLikes(processedPost.likes.count);
+        setLikesCount(processedPost.likes);
+        setCommentsCount(processedPost.comments);
         setIsLiked(processedPost.isLiked);
     }
     setLoading(false);
@@ -78,28 +80,28 @@ function PostViewerContent({ params }: { params: { id: string } }) {
   }, [fetchPost, supabase.auth]);
 
   const handleLike = async () => {
-    if (!currentUser) {
+    if (!currentUser || !post) {
       toast({ variant: "destructive", title: "You must be logged in to like a post." });
       return;
     }
     
     const newLikedState = !isLiked;
     setIsLiked(newLikedState);
-    setLikes(newLikedState ? likes + 1 : likes - 1);
+    setLikesCount(newLikedState ? likesCount + 1 : likesCount - 1);
 
     if (newLikedState) {
-        const { error } = await supabase.from('post_likes').insert({ post_id: post!.id, user_id: currentUser.id });
+        const { error } = await supabase.from('post_likes').insert({ post_id: post.id, user_id: currentUser.id });
         if (error) {
             toast({ variant: "destructive", title: "Failed to like post", description: error.message });
-            setIsLiked(false);
-            setLikes(likes);
+            setIsLiked(false); // Revert
+            setLikesCount(likesCount); // Revert
         }
     } else {
-        const { error } = await supabase.from('post_likes').delete().match({ post_id: post!.id, user_id: currentUser.id });
+        const { error } = await supabase.from('post_likes').delete().match({ post_id: post.id, user_id: currentUser.id });
         if (error) {
             toast({ variant: "destructive", title: "Failed to unlike post", description: error.message });
-            setIsLiked(true);
-            setLikes(likes);
+            setIsLiked(true); // Revert
+            setLikesCount(likesCount); // Revert
         }
     }
   };
@@ -173,13 +175,13 @@ function PostViewerContent({ params }: { params: { id: string } }) {
           <div className="flex items-center gap-2">
               <Button variant="ghost" className="flex items-center gap-2" onClick={handleLike}>
                   <Heart className={cn("h-6 w-6", isLiked && "fill-red-500 text-red-500")} />
-                  <span className="text-sm">{likes}</span>
+                  <span className="text-sm">{likesCount}</span>
               </Button>
               <Sheet>
                 <SheetTrigger asChild>
                   <Button variant="ghost" className="flex items-center gap-2">
                       <MessageCircle className="h-6 w-6" />
-                      <span className="text-sm">{post.comments.count}</span>
+                      <span className="text-sm">{commentsCount}</span>
                   </Button>
                 </SheetTrigger>
                 <SheetContent side="bottom" className="h-[75dvh] flex flex-col p-0">

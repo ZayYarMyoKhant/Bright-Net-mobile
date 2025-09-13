@@ -11,11 +11,10 @@ export type Profile = {
 
 export type Comment = {
     id: string;
-    user: Profile;
+    user_id: string;
     content: string;
     created_at: string;
     parent_comment_id: string | null;
-    replies?: Comment[];
 };
 
 export type Post = {
@@ -25,8 +24,8 @@ export type Post = {
   media_type: 'image' | 'video';
   caption: string;
   created_at: string;
-  likes: { count: number };
-  comments: { count: number };
+  likes: number;
+  comments: number;
   isLiked?: boolean;
 };
 
