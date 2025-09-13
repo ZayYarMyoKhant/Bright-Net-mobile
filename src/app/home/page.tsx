@@ -39,9 +39,9 @@ export default function HomePage() {
           media_url,
           media_type,
           created_at,
-          user:profiles!posts_user_id_fkey(id, username, avatar_url),
-          post_likes(user_id),
-          post_comments(id)
+          user:profiles(id, username, avatar_url),
+          post_likes(count),
+          post_comments(count)
         `)
         .order('created_at', { ascending: false });
 
@@ -67,9 +67,9 @@ export default function HomePage() {
           media_url: p.media_url,
           media_type: p.media_type,
           created_at: p.created_at,
-          user: p.user, 
-          likes: { count: p.post_likes.length },
-          comments: { count: p.post_comments.length },
+          user: p.user,
+          likes: p.post_likes[0] || { count: 0 },
+          comments: p.post_comments[0] || { count: 0 },
           isLiked: likedPostIds.has(p.id),
         }));
         
