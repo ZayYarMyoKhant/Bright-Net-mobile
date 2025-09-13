@@ -33,15 +33,21 @@ export default function HomePage() {
 
     const { data: posts, error } = await supabase
       .from('posts')
-      .select('*, profiles(*), likes:post_likes(count), comments:post_comments(count)')
+      .select('*, profiles:profiles!posts_user_id_fkey(*), likes:post_likes(count), comments:post_comments(count)')
       .order('created_at', { ascending: false });
 
     if (error) {
       console.error("Error fetching posts:", error);
       toast({ variant: "destructive", title: "Failed to fetch posts", description: error.message });
-      setImagePosts([]);
-      setVideoPosts([]);
-    } else if (posts) {
+      setLoading(false);
+      return;
+    } 
+    
+    if (!posts) {
+        setLoading(false);
+        return;
+    }
+
       // Fetch user's likes in a separate query
       const postIds = posts.map(p => p.id);
       const { data: userLikes } = currentUser ? await supabase
@@ -54,7 +60,7 @@ export default function HomePage() {
 
       const processedPosts: Post[] = posts.map((post: any) => ({
         id: post.id,
-        user: post.profiles, // profiles is not an array here based on new schema
+        user: post.profiles,
         media_url: post.media_url,
         media_type: post.media_type,
         caption: post.caption,
@@ -66,7 +72,6 @@ export default function HomePage() {
 
       setImagePosts(processedPosts.filter(p => p.media_type === 'image'));
       setVideoPosts(processedPosts.filter(p => p.media_type === 'video'));
-    }
     
     setLoading(false);
   }, [supabase, toast]);
