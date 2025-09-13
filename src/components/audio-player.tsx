@@ -36,6 +36,7 @@ export default function AudioPlayer({ audioUrl, duration, isSender }: AudioPlaye
         barGap: 2,
         barRadius: 2,
         cursorWidth: 0,
+        interact: true,
     });
 
     useEffect(() => {
@@ -49,11 +50,13 @@ export default function AudioPlayer({ audioUrl, duration, isSender }: AudioPlaye
             wavesurfer.seekTo(0);
         };
 
-        wavesurfer.on("timeupdate", onTimeUpdate);
+        wavesurfer.on("audioprocess", onTimeUpdate);
+        wavesurfer.on("seeking", onTimeUpdate);
         wavesurfer.on("finish", onFinish);
 
         return () => {
-            wavesurfer.un("timeupdate", onTimeUpdate);
+            wavesurfer.un("audioprocess", onTimeUpdate);
+            wavesurfer.un("seeking", onTimeUpdate);
             wavesurfer.un("finish", onFinish);
         };
     }, [wavesurfer]);
@@ -71,16 +74,19 @@ export default function AudioPlayer({ audioUrl, duration, isSender }: AudioPlaye
             disabled={!isReady}
             className={cn(
                 "h-10 w-10 rounded-full flex-shrink-0",
-                 isSender ? "bg-white text-primary" : "bg-primary text-primary-foreground"
+                 isSender ? "bg-white text-primary hover:bg-white/90" : "bg-primary text-primary-foreground hover:bg-primary/90"
             )}
         >
             {isPlaying ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5" />}
         </Button>
         <div className="flex-1 flex flex-col justify-center">
-            <div ref={containerRef} className="w-full h-10" />
+            <div ref={containerRef} className="w-full h-10 cursor-pointer" />
             <div className="flex justify-between items-center mt-1">
                 <span className={cn("text-xs", isSender ? "text-primary-foreground/80" : "text-muted-foreground")}>
-                    {isPlaying ? formatTime(currentTime) : formatTime(duration)}
+                    {formatTime(currentTime)}
+                </span>
+                <span className={cn("text-xs", isSender ? "text-primary-foreground/80" : "text-muted-foreground")}>
+                    {formatTime(duration)}
                 </span>
             </div>
         </div>
