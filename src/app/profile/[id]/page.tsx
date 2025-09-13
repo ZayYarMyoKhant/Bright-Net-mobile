@@ -13,7 +13,7 @@ import Link from "next/link";
 import { BottomNav } from '@/components/bottom-nav';
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import type { Post, PostWithViews } from "@/lib/data";
+import type { PostWithViews } from "@/lib/data";
 import { User } from "@supabase/supabase-js";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -68,9 +68,11 @@ export default function UserProfilePage({ params: paramsPromise }: { params: Pro
   const fetchProfileData = useCallback(async () => {
     setLoading(true);
 
+    // Get current user first
     const { data: { user: authUser } } = await supabase.auth.getUser();
     setCurrentUser(authUser);
 
+    // 1. Fetch the main profile data
     const { data: profileData, error: profileError } = await supabase
       .from('profiles')
       .select('id, username, full_name, avatar_url, bio, win_streak_3, win_streak_10')
@@ -79,51 +81,51 @@ export default function UserProfilePage({ params: paramsPromise }: { params: Pro
 
     if (profileError || !profileData) {
       console.error("Error fetching user profile:", profileError);
-      setProfile(null);
+      setProfile(null); // Explicitly set profile to null on error
       setLoading(false);
       return;
     }
 
-    // TODO: Fetch real follower/following counts
+    // Set profile state immediately after fetching
     setProfile({
       id: profileData.id,
       username: profileData.username,
       full_name: profileData.full_name || 'No Name',
       avatar_url: profileData.avatar_url || `https://i.pravatar.cc/150?u=${profileData.id}`,
       bio: profileData.bio || "Another digital creator's bio.",
-      following: 0,
-      followers: 0,
+      following: 0, // Placeholder
+      followers: 0, // Placeholder
       win_streak_3: profileData.win_streak_3,
       win_streak_10: profileData.win_streak_10,
     });
     
-    const [postsResult, classesResult] = await Promise.all([
-        supabase
-            .from('posts')
-            .select('*, post_views(view_count)')
-            .eq('user_id', profileData.id)
-            .order('created_at', { ascending: false }),
-        supabase
-            .from('classes')
-            .select('*, class_members!left(user_id)')
-            .eq('created_by', profileData.id)
-    ]);
+    // 2. Fetch posts for this profile
+    const { data: postsData, error: postsError } = await supabase
+        .from('posts')
+        .select('*, post_views(view_count)')
+        .eq('user_id', profileData.id)
+        .order('created_at', { ascending: false });
 
-
-    if (postsResult.error) {
-      console.error("Error fetching posts:", postsResult.error);
-    } else {
-      const postsWithViews = postsResult.data.map((p: any) => ({
+    if (postsError) {
+      console.error("Error fetching posts:", postsError);
+    } else if (postsData) {
+      const postsWithViews = postsData.map((p: any) => ({
           ...p,
-          views: p.post_views[0]?.view_count || 0
+          views: p.post_views?.[0]?.view_count || 0
       }));
       setPosts(postsWithViews);
     }
+    
+    // 3. Fetch classes created by this profile
+    const { data: classesData, error: classesError } = await supabase
+        .from('classes')
+        .select('*, class_members!left(user_id)')
+        .eq('created_by', profileData.id);
 
-    if (classesResult.error) {
-        console.error("Error fetching created classes:", classesResult.error);
-    } else if (classesResult.data) {
-        const processedClasses = classesResult.data.map((c: any) => ({
+    if (classesError) {
+        console.error("Error fetching created classes:", classesError);
+    } else if (classesData) {
+        const processedClasses = classesData.map((c: any) => ({
             id: c.id,
             name: c.name,
             description: c.description,
@@ -199,7 +201,7 @@ export default function UserProfilePage({ params: paramsPromise }: { params: Pro
   if (!profile) {
     return (
       <>
-        <div className="flex h-full flex-col bg-background text-foreground pb-16 items-center justify-center text-center">
+        <div className="flex h-full flex-col bg-background text-foreground pb-16 items-center justify-center text-center p-4">
           <p className="text-lg font-semibold">User not found</p>
            <p className="text-sm text-muted-foreground mt-1">The profile you are looking for does not exist.</p>
            <Button onClick={() => router.back()} className="mt-4">Go Back</Button>
@@ -397,3 +399,5 @@ export default function UserProfilePage({ params: paramsPromise }: { params: Pro
     </>
   );
 }
+
+    
