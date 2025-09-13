@@ -43,7 +43,7 @@ export type TypingBattle = {
     player2_score: number;
     current_text: string;
     player1_progress: string;
-    player2_progress: string;
+    player2_progress:string;
     winner_id: string | null;
     status: 'requesting' | 'accepted' | 'declined' | 'in-progress' | 'completed' | 'cancelled';
     updated_at: string;
@@ -75,7 +75,7 @@ const createMockPost = (type: 'image' | 'video'): Post => {
         id: faker.string.uuid(),
         user: createMockUser(),
         media_url: type === 'image' 
-            ? faker.image.urlLoremFlickr({ category: 'nature', width: 640, height: 480 })
+            ? `https://picsum.photos/seed/${faker.number.int()}/640/480`
             : 'https://test-videos.co.uk/vids/bigbuckbunny/mp4/h264/360/Big_Buck_Bunny_360_10s_1MB.mp4',
         media_type: type,
         caption: faker.lorem.sentence(),
@@ -202,3 +202,5 @@ export const countries: Country[] = [
     { name: "Slovakia", code: "421", flag: "🇸🇰" },
     { name: "Norway", code: "47", flag: "🇳🇴" },
 ];
+
+    
