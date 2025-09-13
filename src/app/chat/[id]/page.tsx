@@ -9,7 +9,6 @@ import { ArrowLeft, Phone, Mic, Image as ImageIcon, Send, Smile, MoreVertical, M
 import Image from "next/image";
 import Link from "next/link";
 import { use, useState, useRef, useEffect } from "react";
-import { getVideoPosts } from "@/lib/data";
 
 const ChatMessage = ({ message, isSender, isImage, onReply }: { message: any, isSender: boolean, isImage?: boolean, onReply: (message: any) => void }) => {
     return (
@@ -58,22 +57,13 @@ export default function IndividualChatPage({ params: paramsPromise }: { params: 
   const [replyingTo, setReplyingTo] = useState<any | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   
-  const allUsers = getVideoPosts().map(p => p.user);
-  const uniqueUsers = [...new Map(allUsers.map(item => [item['username'], item])).values()];
-  const currentUser = uniqueUsers.find(u => u.username === params.id) || {
+  const user = {
     id: params.id,
     username: params.id,
     name: params.id.charAt(0).toUpperCase() + params.id.slice(1),
     avatar: `https://i.pravatar.cc/150?u=${params.id}`,
-    online: true
+    online: Math.random() > 0.5
   };
-
-  const user = {
-      ...currentUser,
-      id: currentUser.username,
-      name: currentUser.username.charAt(0).toUpperCase() + currentUser.username.slice(1),
-      online: Math.random() > 0.5
-  }
 
   const messages = [
     { id: 1, text: "Hello!", sender: false, user: { name: user.name, username: user.username, avatar: user.avatar } },
