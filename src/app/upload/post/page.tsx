@@ -17,11 +17,9 @@ export default function UploadPostPage() {
   const [mediaFile, setMediaFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
-  const [uploadProgress, setUploadProgress] = useState(0);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
-  const supabase = createClient();
   const { toast } = useToast();
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -56,58 +54,14 @@ export default function UploadPostPage() {
       return;
     }
 
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      toast({ variant: "destructive", title: "Not authenticated", description: "You need to be logged in to post." });
-      return;
-    }
-
     startTransition(async () => {
-      setUploadProgress(10); 
-      const mediaType = mediaFile.type.startsWith("image") ? "image" : "video";
-      const fileExtension = mediaFile.name.split('.').pop();
-      const fileName = `${Date.now()}.${fileExtension}`;
-      const filePath = `posts/${user.id}/${fileName}`;
-
-      setUploadProgress(30);
+      // In a real app, this would upload to Supabase and create a post record.
+      toast({ title: "Posting... (Mock)" });
+      await new Promise(resolve => setTimeout(resolve, 2000));
       
-      const { error: uploadError } = await supabase.storage
-        .from('posts')
-        .upload(filePath, mediaFile);
-
-      if (uploadError) {
-        toast({ variant: "destructive", title: "Upload Error", description: uploadError.message });
-        setUploadProgress(0);
-        return;
-      }
-      
-      setUploadProgress(70);
-
-      const { data: urlData } = supabase.storage.from('posts').getPublicUrl(filePath);
-      const media_url = urlData.publicUrl;
-
-      const { error: insertError } = await supabase.from('posts').insert({
-        user_id: user.id,
-        caption,
-        media_url,
-        media_type: mediaType,
-      });
-
-      if (insertError) {
-        toast({ variant: "destructive", title: "Database Error", description: insertError.message });
-        setUploadProgress(0);
-        // Attempt to delete the orphaned file from storage
-        await supabase.storage.from('posts').remove([filePath]);
-        return;
-      }
-      
-      setUploadProgress(100);
       toast({ title: "Post created successfully!" });
       
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
       router.push("/home");
-      router.refresh();
     });
   };
 
@@ -193,13 +147,6 @@ export default function UploadPostPage() {
               />
             </div>
             
-            {isPending && (
-              <div className="space-y-2">
-                <p className="text-sm text-muted-foreground text-center">Uploading: {Math.round(uploadProgress)}%</p>
-                <Progress value={uploadProgress} className="w-full" />
-              </div>
-            )}
-
             <div className="pt-4">
               <Button className="w-full" type="submit" disabled={isPending || !mediaFile}>
                 {isPending ? (

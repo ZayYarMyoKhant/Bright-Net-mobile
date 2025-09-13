@@ -22,11 +22,9 @@ import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { User } from "@supabase/supabase-js";
 
-export function PostCard({ post: initialPost }: { post: Post }) {
-  const [post, setPost] = useState(initialPost);
-  const [isLiked, setIsLiked] = useState(initialPost.isLiked);
-  const [likesCount, setLikesCount] = useState(initialPost.likes.count);
-  const [commentsCount, setCommentsCount] = useState(initialPost.comments.count);
+export function PostCard({ post }: { post: Post }) {
+  const [isLiked, setIsLiked] = useState(post.isLiked);
+  const [likesCount, setLikesCount] = useState(post.likes.count);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const supabase = createClient();
   const { toast } = useToast();
@@ -49,30 +47,8 @@ export function PostCard({ post: initialPost }: { post: Post }) {
     setIsLiked(newLikedState);
     setLikesCount(newLikedState ? likesCount + 1 : likesCount - 1);
 
-    if (newLikedState) {
-      // Add like to the database
-      const { error } = await supabase
-        .from('post_likes')
-        .insert({ post_id: post.id, user_id: currentUser.id });
-      if (error) {
-        // Revert UI on error
-        setIsLiked(false);
-        setLikesCount(likesCount);
-        console.error("Error liking post:", error);
-      }
-    } else {
-      // Remove like from the database
-      const { error } = await supabase
-        .from('post_likes')
-        .delete()
-        .match({ post_id: post.id, user_id: currentUser.id });
-      if (error) {
-        // Revert UI on error
-        setIsLiked(true);
-        setLikesCount(likesCount);
-        console.error("Error unliking post:", error);
-      }
-    }
+    // In a real app, you would handle database updates here.
+    console.log("Like status changed.");
   };
   
   const timeAgo = formatDistanceToNow(new Date(post.created_at), { addSuffix: true });
@@ -123,7 +99,7 @@ export function PostCard({ post: initialPost }: { post: Post }) {
               <SheetTrigger asChild>
                 <Button variant="ghost" className="flex items-center gap-2">
                     <MessageCircle className="h-6 w-6" />
-                    <span className="text-sm">{commentsCount}</span>
+                    <span className="text-sm">{post.comments.count}</span>
                 </Button>
               </SheetTrigger>
               <SheetContent side="bottom" className="h-[75dvh] flex flex-col p-0">

@@ -168,28 +168,9 @@ export default function UserProfilePage({ params: paramsPromise }: { params: Pro
     // Optimistic UI update
     setPosts(prev => prev.filter(p => p.id !== postId));
     
-    // Delete from storage
-    const filePath = mediaUrl.split('/public/')[1];
-    if (filePath) {
-        const { error: storageError } = await supabase.storage.from('posts').remove([filePath.replace('posts/','')]);
-        if (storageError) {
-            console.error("Failed to delete from storage:", storageError);
-            toast({ variant: "destructive", title: "Storage Error", description: "Could not delete the post media." });
-            // Re-fetch to revert UI change
-            fetchProfileData();
-            return;
-        }
-    }
-    
-    // Delete from database
-    const { error: dbError } = await supabase.from('posts').delete().eq('id', postId);
-    if (dbError) {
-      console.error("Error deleting post from db:", dbError);
-      toast({ variant: "destructive", title: "Database Error", description: "Could not delete the post." });
-      fetchProfileData(); // Revert
-    } else {
-      toast({ title: "Post Deleted", description: "Your post has been successfully removed." });
-    }
+    // In a real app, delete from storage and database
+    toast({ title: "Post Deleted (Mock)", description: "This is a UI-only deletion." });
+
   };
 
 

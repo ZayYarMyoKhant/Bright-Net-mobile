@@ -7,9 +7,8 @@ import { Loader2 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PostFeed } from '@/components/post-feed';
 import { VideoFeed } from '@/components/video-feed';
-import { createClient } from '@/lib/supabase/client';
+import { getNewsPosts, getVideoPosts } from '@/lib/data';
 import type { Post } from '@/lib/data';
-import { useToast } from '@/hooks/use-toast';
 
 function FeedFallback() {
   return (
@@ -23,74 +22,15 @@ export default function HomePage() {
   const [imagePosts, setImagePosts] = useState<Post[]>([]);
   const [videoPosts, setVideoPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
-  const supabase = createClient();
-  const { toast } = useToast();
-
-  const fetchPosts = useCallback(async () => {
-    setLoading(true);
-    try {
-      const { data: { user: currentUser } } = await supabase.auth.getUser();
-
-      const { data, error } = await supabase
-        .from('posts')
-        .select(`
-          id,
-          caption,
-          media_url,
-          media_type,
-          created_at,
-          user:profiles(id, username, avatar_url),
-          post_likes(count),
-          post_comments(count)
-        `)
-        .order('created_at', { ascending: false });
-
-      if (error) {
-        throw error;
-      }
-
-      if (data) {
-        const likedPostIds = new Set();
-        if (currentUser) {
-            const { data: likedPostsData } = await supabase
-                .from('post_likes')
-                .select('post_id')
-                .eq('user_id', currentUser.id);
-            if (likedPostsData) {
-                likedPostsData.forEach(lp => likedPostIds.add(lp.post_id));
-            }
-        }
-
-        const allPosts: Post[] = data.map((p: any) => ({
-          id: p.id,
-          caption: p.caption,
-          media_url: p.media_url,
-          media_type: p.media_type,
-          created_at: p.created_at,
-          user: p.user,
-          likes: p.post_likes[0] || { count: 0 },
-          comments: p.post_comments[0] || { count: 0 },
-          isLiked: likedPostIds.has(p.id),
-        }));
-        
-        setImagePosts(allPosts.filter((p: Post) => p.media_type === 'image'));
-        setVideoPosts(allPosts.filter((p: Post) => p.media_type === 'video'));
-      }
-    } catch (error: any) {
-        console.error("Error fetching posts:", error);
-        toast({
-            variant: "destructive",
-            title: "Failed to fetch posts",
-            description: error.message || "There was a problem loading the feed. Please try again.",
-        });
-    } finally {
-        setLoading(false);
-    }
-  }, [supabase, toast]);
 
   useEffect(() => {
-    fetchPosts();
-  }, [fetchPosts]);
+    // Simulate fetching data
+    setTimeout(() => {
+      setImagePosts(getNewsPosts());
+      setVideoPosts(getVideoPosts());
+      setLoading(false);
+    }, 1000);
+  }, []);
 
   return (
     <>

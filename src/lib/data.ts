@@ -1,5 +1,7 @@
 
 
+import {faker} from '@faker-js/faker';
+
 export type Profile = {
   id: string;
   username: string;
@@ -57,6 +59,34 @@ export type Country = {
   code: string;
   flag: string;
 };
+
+// --- Helper Functions to Generate Mock Data ---
+
+const generateMockProfile = (id: string, username: string, name: string): Profile => ({
+    id,
+    username,
+    avatar_url: `https://i.pravatar.cc/150?u=${id}`,
+    full_name: name,
+});
+
+const generateMockComment = (id: string, user: Profile, parentId: string | null = null): Comment => ({
+    id,
+    user,
+    content: faker.lorem.sentence(),
+    created_at: faker.date.recent().toISOString(),
+    parent_comment_id: parentId,
+    replies: []
+});
+
+const mockUsers = [
+    generateMockProfile('aungaung', 'aungaung', 'Aung Aung'),
+    generateMockProfile('susu', 'susu', 'Su Su'),
+    generateMockProfile('myomyint', 'myomyint', 'Myo Myint'),
+    generateMockProfile('thuzar', 'thuzar', 'Thuzar'),
+    generateMockProfile('kyawkyaw', 'kyawkyaw', 'Kyaw Kyaw'),
+];
+
+// --- Exported Data Functions ---
 
 export const countries: Country[] = [
     { name: "United States", code: "1", flag: "🇺🇸" },
@@ -166,12 +196,68 @@ export const countries: Country[] = [
     { name: "Norway", code: "47", flag: "🇳🇴" },
 ];
 
-// These are now just for type reference and are not used to supply data directly.
 export function getNewsPosts(): Post[] {
-    return []
+    return [
+        {
+            id: 1,
+            user: mockUsers[0],
+            media_url: 'https://images.pexels.com/photos/167699/pexels-photo-167699.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2',
+            media_type: 'image',
+            caption: 'The mountains are calling and I must go. 🌲🏔️ #nature #adventure',
+            created_at: faker.date.recent({ days: 1 }).toISOString(),
+            likes: { count: faker.number.int({ min: 100, max: 1000 }) },
+            comments: { count: faker.number.int({ min: 5, max: 50 }) },
+            isLiked: false,
+        },
+        {
+            id: 2,
+            user: mockUsers[1],
+            media_url: 'https://images.pexels.com/photos/3408744/pexels-photo-3408744.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2',
+            media_type: 'image',
+            caption: 'Chasing the northern lights. A night I will never forget. ✨ #aurora #travel',
+            created_at: faker.date.recent({ days: 2 }).toISOString(),
+            likes: { count: faker.number.int({ min: 100, max: 1000 }) },
+            comments: { count: faker.number.int({ min: 5, max: 50 }) },
+            isLiked: true,
+        },
+        {
+            id: 3,
+            user: mockUsers[2],
+            media_url: 'https://images.pexels.com/photos/3225517/pexels-photo-3225517.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2',
+            media_type: 'image',
+            caption: 'Lost in the beauty of the tropics. 🌴 #beachlife #vacation',
+            created_at: faker.date.recent({ days: 3 }).toISOString(),
+            likes: { count: faker.number.int({ min: 100, max: 1000 }) },
+            comments: { count: faker.number.int({ min: 5, max: 50 }) },
+            isLiked: false,
+        },
+    ];
 }
 
 
 export function getVideoPosts(): Post[] {
-  return [];
+  return [
+    {
+        id: 'vid1',
+        user: mockUsers[3],
+        media_url: 'https://videos.pexels.com/video-files/853877/853877-hd.mp4',
+        media_type: 'video',
+        caption: 'Morning brew perfection. ☕️ #coffee #latteart',
+        created_at: faker.date.recent({ days: 1 }).toISOString(),
+        likes: { count: faker.number.int({ min: 100, max: 1000 }) },
+        comments: { count: faker.number.int({ min: 5, max: 50 }) },
+        isLiked: false,
+    },
+    {
+        id: 'vid2',
+        user: mockUsers[4],
+        media_url: 'https://videos.pexels.com/video-files/4434246/4434246-hd.mp4',
+        media_type: 'video',
+        caption: 'Exploring the city streets. 🏙️ #citylife #travel',
+        created_at: faker.date.recent({ days: 2 }).toISOString(),
+        likes: { count: faker.number.int({ min: 100, max: 1000 }) },
+        comments: { count: faker.number.int({ min: 5, max: 50 }) },
+        isLiked: true,
+    },
+  ];
 }

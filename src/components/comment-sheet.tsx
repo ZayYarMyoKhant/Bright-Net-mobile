@@ -1,7 +1,7 @@
 
 "use client";
 
-import type { Post, Comment, Profile } from "@/lib/data";
+import type { Post, Comment } from "@/lib/data";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { Button } from "./ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "./ui/dropdown-menu";
@@ -84,41 +84,15 @@ export function CommentSheet({ post, currentUser }: CommentSheetProps) {
   const [replyingTo, setReplyingTo] = useState<Comment | null>(null);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
-  const supabase = createClient();
   const { toast } = useToast();
 
   const fetchComments = useCallback(async () => {
     setLoading(true);
-    const { data, error } = await supabase
-      .from('post_comments')
-      .select(`
-        id,
-        content,
-        created_at,
-        parent_comment_id,
-        user:profiles(id, username, avatar_url)
-      `)
-      .eq('post_id', post.id)
-      .order('created_at', { ascending: true });
-
-    if (error) {
-      console.error("Error fetching comments:", error);
-    } else {
-      // Simple nesting logic for one level of replies
-      const topLevelComments = data.filter(c => !c.parent_comment_id);
-      const replies = data.filter(c => c.parent_comment_id);
-      const nestedComments = topLevelComments.map(c => ({
-        ...c,
-        user: Array.isArray(c.user) ? c.user[0] : c.user,
-        replies: replies.filter(r => r.parent_comment_id === c.id).map(r => ({
-          ...r,
-          user: Array.isArray(r.user) ? r.user[0] : r.user
-        }))
-      }));
-      setComments(nestedComments);
-    }
+    // Mocking comments for now
+    await new Promise(resolve => setTimeout(resolve, 500));
+    setComments([]); // Start with no comments
     setLoading(false);
-  }, [post.id, supabase]);
+  }, [post.id]);
 
   useEffect(() => {
     fetchComments();
@@ -128,60 +102,18 @@ export function CommentSheet({ post, currentUser }: CommentSheetProps) {
     if (newComment.trim() === "" || !currentUser) return;
     setSending(true);
 
-    const { data, error } = await supabase
-      .from('post_comments')
-      .insert({
-        post_id: post.id,
-        user_id: currentUser.id,
-        content: newComment,
-        parent_comment_id: replyingTo?.id || null,
-      })
-      .select('*, user:profiles(id, username, avatar_url)')
-      .single();
+    // In a real app, this would be a Supabase insert
+    await new Promise(resolve => setTimeout(resolve, 500));
 
-    if (error) {
-      console.error("Error adding comment:", error);
-      toast({ variant: 'destructive', title: "Failed to post comment." });
-    } else if (data) {
-       const newCommentWithUser = {
-         ...data,
-         user: Array.isArray(data.user) ? data.user[0] : data.user,
-       };
-
-      if (replyingTo) {
-        setComments(prev => prev.map(c => 
-          c.id === replyingTo.parent_comment_id || c.id === replyingTo.id
-            ? { ...c, replies: [...(c.replies || []), newCommentWithUser] } 
-            : c
-        ));
-      } else {
-        setComments(prev => [...prev, newCommentWithUser]);
-      }
-      setNewComment("");
-      setReplyingTo(null);
-    }
+    toast({ title: "Comment posted (mock)" });
+    
+    setNewComment("");
+    setReplyingTo(null);
     setSending(false);
   };
   
   const handleDeleteComment = async (commentId: string) => {
-    // Optimistic deletion
-    setComments(prev => 
-      prev
-        .map(c => ({...c, replies: c.replies?.filter(r => r.id !== commentId)}))
-        .filter(c => c.id !== commentId)
-    );
-
-    const { error } = await supabase
-      .from('post_comments')
-      .delete()
-      .eq('id', commentId);
-    
-    if (error) {
-      console.error("Failed to delete comment:", error);
-      toast({ variant: "destructive", title: "Could not delete comment" });
-      // Re-fetch to revert UI
-      fetchComments();
-    }
+    toast({ title: "Comment deleted (mock)" });
   };
 
   const handleReply = (comment: Comment) => {

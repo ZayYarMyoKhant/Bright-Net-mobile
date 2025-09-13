@@ -14,20 +14,10 @@ import { CommentSheet } from "@/components/comment-sheet";
 import { ShareSheet } from "@/components/share-sheet";
 import { createClient } from "@/lib/supabase/client";
 import { User } from "@supabase/supabase-js";
-import { Post } from "@/lib/data";
+import { Post, getNewsPosts, getVideoPosts } from "@/lib/data";
 import { formatDistanceToNow } from 'date-fns';
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
-
-type FullPost = Post & {
-    profiles: {
-        id: string;
-        username: string;
-        avatar_url: string;
-    };
-    post_likes: [{ count: number }];
-    post_comments: [{ count: number }];
-};
 
 function PostViewerContent({ params }: { params: { id: string } }) {
   const router = useRouter();
@@ -40,61 +30,29 @@ function PostViewerContent({ params }: { params: { id: string } }) {
   const [isLiked, setIsLiked] = useState(false);
   const [likes, setLikes] = useState(0);
 
-  const fetchPost = useCallback(async (user: User | null) => {
-    const { data, error } = await supabase
-      .from('posts')
-      .select(`
-        *,
-        profiles (id, username, avatar_url),
-        post_likes (count),
-        post_comments (count)
-      `)
-      .eq('id', params.id)
-      .single();
-
-    if (error || !data) {
-      console.error("Error fetching post:", error);
-      toast({ variant: 'destructive', title: 'Error', description: 'Could not load the post.' });
-      setLoading(false);
-      return;
-    }
-    
-    // @ts-ignore
-    const formattedPost: Post = {
-        ...data,
-        user: data.profiles,
-        likes: data.post_likes[0] || { count: 0 },
-        comments: data.post_comments[0] || { count: 0 },
-    };
-
-    setPost(formattedPost);
-    setLikes(formattedPost.likes.count);
-
-    if (user) {
-        const { data: likeData, error: likeError } = await supabase
-            .from('post_likes')
-            .select('*', { count: 'exact' })
-            .match({ post_id: params.id, user_id: user.id });
-        
-        if (!likeError && likeData.length > 0) {
-            setIsLiked(true);
-        }
-    }
-
-    setLoading(false);
-  }, [params.id, supabase, toast]);
-
   useEffect(() => {
     const init = async () => {
         const { data: { user } } = await supabase.auth.getUser();
         setCurrentUser(user);
-        fetchPost(user);
+        
+        // Mock finding the post
+        const allPosts = [...getNewsPosts(), ...getVideoPosts()];
+        const foundPost = allPosts.find(p => p.id.toString() === params.id);
+        
+        if (foundPost) {
+            setPost(foundPost);
+            setLikes(foundPost.likes.count);
+        } else {
+            toast({ variant: 'destructive', title: 'Error', description: 'Could not load the post.' });
+        }
+        
+        setLoading(false);
     }
     init();
-  }, [fetchPost, supabase]);
+  }, [params.id, supabase, toast]);
 
   const handleLike = async () => {
-    if (!currentUser || !post) {
+    if (!currentUser) {
       toast({ variant: "destructive", title: "You must be logged in to like a post." });
       return;
     }
@@ -103,21 +61,7 @@ function PostViewerContent({ params }: { params: { id: string } }) {
     setIsLiked(newLikedState);
     setLikes(newLikedState ? likes + 1 : likes - 1);
 
-    if (newLikedState) {
-      const { error } = await supabase.from('post_likes').insert({ post_id: post.id, user_id: currentUser.id });
-      if (error) {
-        setIsLiked(false);
-        setLikes(likes);
-        console.error("Error liking post:", error);
-      }
-    } else {
-      const { error } = await supabase.from('post_likes').delete().match({ post_id: post.id, user_id: currentUser.id });
-      if (error) {
-        setIsLiked(true);
-        setLikes(likes);
-        console.error("Error unliking post:", error);
-      }
-    }
+    // In a real app, you would update the database here.
   };
 
 
