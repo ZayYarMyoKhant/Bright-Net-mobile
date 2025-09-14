@@ -43,7 +43,10 @@ export function BottomNav() {
           }
           return (
              <div key={item.label} className={cn("flex-1 flex justify-center items-center", 
-                index < 3 ? `order-${index}` : `order-${index + 1}`)}>
+                // This logic correctly places the special button in the middle
+                // We want 3 items, then the special button (order-3), then the rest
+                index < 3 ? `order-${index}` : `order-${index + 1}`
+             )}>
                 <Link
                   href={item.href}
                   className={cn(
