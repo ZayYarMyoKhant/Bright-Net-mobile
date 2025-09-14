@@ -73,7 +73,6 @@ export default function ClassPage() {
                                 <p className="text-sm text-muted-foreground">{cls.teacher.name}</p>
                             </div>
                             <div className="flex flex-col items-end gap-1">
-                                <p className="text-sm font-bold">{cls.price.toLocaleString()} MMK</p>
                                 {cls.isJoined ? (
                                     <Button variant="outline" size="sm" className="bg-yellow-500 hover:bg-yellow-600 text-black border-none pointer-events-none">
                                         View
