@@ -29,7 +29,7 @@ export function BottomNav() {
 
   return (
     <footer className="fixed bottom-0 left-0 right-0 z-10 border-t bg-background/80 backdrop-blur-sm md:hidden">
-      <nav className="flex h-16 items-center justify-around">
+      <nav className="flex h-14 items-center justify-around">
         {leftItems.map((item) => {
           const isActive = (item.href === "/" && pathname === "/") || (item.href !== "/" && pathname.startsWith(item.href));
           return (
@@ -49,12 +49,12 @@ export function BottomNav() {
         })}
 
         {specialItem && (
-             <div key={specialItem.label} className="flex-shrink-0 mx-2">
+             <div key={specialItem.label} className="flex-shrink-0 mx-1">
                   <Link
                     href={specialItem.href}
-                    className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-md transition-transform active:scale-95"
+                    className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-md transition-transform active:scale-95"
                   >
-                    <specialItem.icon className="h-7 w-7" />
+                    <specialItem.icon className="h-6 w-6" />
                     <span className="sr-only">{specialItem.label}</span>
                   </Link>
               </div>
