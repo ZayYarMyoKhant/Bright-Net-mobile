@@ -32,7 +32,9 @@ const problemSolverFlow = ai.defineFlow(
     
     const llmResponse = await ai.generate({
       model: 'googleai/gemini-1.5-flash-latest',
-      prompt: `You are an expert problem solver. A user is asking for help with the following problem. Provide a clear, step-by-step solution. Format the solution with headings and bullet points for readability.
+      prompt: `You are a friendly and helpful chatbot. A user is asking for help with a problem. 
+Your goal is to provide a simple, conversational, and easy-to-understand solution. Avoid overly technical jargon or long-winded explanations. 
+Keep your answers concise and straight to the point, as if you were explaining it to a friend.
 
 Problem: "${problem}"`,
     });
