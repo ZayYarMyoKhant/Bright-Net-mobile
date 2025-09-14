@@ -7,7 +7,7 @@ import { useRouter } from 'next/navigation';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Grid3x3, Settings, UserPlus, Clapperboard, Loader2, CameraOff } from "lucide-react";
+import { Grid3x3, Settings, UserPlus, Clapperboard, Loader2, CameraOff, GraduationCap } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { BottomNav } from '@/components/bottom-nav';
@@ -171,7 +171,7 @@ export default function ProfilePage() {
                 Posts
               </TabsTrigger>
               <TabsTrigger value="class">
-                <Clapperboard className="mr-2 h-4 w-4" />
+                <GraduationCap className="mr-2 h-4 w-4" />
                 Class
               </TabsTrigger>
             </TabsList>
@@ -203,7 +203,7 @@ export default function ProfilePage() {
             </TabsContent>
             <TabsContent value="class">
                <div className="flex flex-col items-center justify-center pt-10">
-                  <Clapperboard className="h-12 w-12 text-muted-foreground" />
+                  <GraduationCap className="h-12 w-12 text-muted-foreground" />
                   <p className="mt-4 text-sm text-muted-foreground">No classes yet.</p>
               </div>
             </TabsContent>
