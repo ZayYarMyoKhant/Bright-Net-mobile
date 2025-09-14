@@ -33,18 +33,17 @@ export function BottomNav() {
         {leftItems.map((item) => {
           const isActive = (item.href === "/" && pathname === "/") || (item.href !== "/" && pathname.startsWith(item.href));
           return (
-             <div key={item.label} className="flex-1 flex justify-center items-center">
-                <Link
-                  href={item.href}
-                  className={cn(
-                      "flex flex-col items-center gap-1 text-xs font-medium transition-colors w-14",
-                      isActive ? "text-primary" : "text-muted-foreground hover:text-foreground"
-                  )}
-                >
-                  <item.icon className="h-5 w-5" />
-                  <span className="text-[10px] text-center">{item.label}</span>
-                </Link>
-            </div>
+            <Link
+              key={item.label}
+              href={item.href}
+              className={cn(
+                  "flex flex-col items-center gap-1 text-xs font-medium transition-colors w-14",
+                  isActive ? "text-primary" : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              <item.icon className="h-5 w-5" />
+              <span className="text-[10px] text-center">{item.label}</span>
+            </Link>
           );
         })}
 
@@ -63,8 +62,8 @@ export function BottomNav() {
         {rightItems.map((item) => {
             const isActive = pathname.startsWith(item.href);
              return (
-             <div key={item.label} className="flex-1 flex justify-center items-center">
                 <Link
+                  key={item.label}
                   href={item.href}
                   className={cn(
                       "flex flex-col items-center gap-1 text-xs font-medium transition-colors w-14",
@@ -74,7 +73,6 @@ export function BottomNav() {
                   <item.icon className="h-5 w-5" />
                   <span className="text-[10px] text-center">{item.label}</span>
                 </Link>
-            </div>
           );
         })}
       </nav>
