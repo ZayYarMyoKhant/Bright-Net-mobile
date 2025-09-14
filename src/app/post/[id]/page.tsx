@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { use, Suspense, useEffect, useState, useCallback } from "react";
@@ -35,7 +36,7 @@ function PostViewerContent({ params }: { params: { id: string } }) {
     setLoading(true);
     const { data: postData, error } = await supabase
       .from('posts')
-      .select('*, profiles(*), likes:post_likes(count), comments:post_comments(count)')
+      .select('*, profiles!posts_user_id_fkey(*), likes:post_likes(count), comments:post_comments(count)')
       .eq('id', params.id)
       .single();
 

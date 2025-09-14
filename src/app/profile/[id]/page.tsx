@@ -55,9 +55,8 @@ export default function UserProfilePage({ params: paramsPromise }: { params: Pro
   const [loading, setLoading] = useState(true);
   const [joiningClassId, setJoiningClassId] = useState<string | null>(null);
   const [isFollowing, setIsFollowing] = useState(false);
+  const [isOwnProfile, setIsOwnProfile] = useState(false);
 
-
-  const isOwnProfile = currentUser?.id === profile?.id;
 
   const fetchProfileData = useCallback(async () => {
     setLoading(true);
@@ -81,6 +80,8 @@ export default function UserProfilePage({ params: paramsPromise }: { params: Pro
       return;
     }
     
+    setIsOwnProfile(authUser?.id === profileRes.data.id);
+
     let isFollowingUser = false;
     if (authUser && authUser.id !== params.id) {
         const { data: followData, error: followError } = await supabase
