@@ -21,32 +21,49 @@ export function BottomNav() {
     { href: "/profile", label: t('bottomNav.profile'), icon: User },
   ];
 
+  const specialButtonIndex = navItems.findIndex(item => item.isSpecial);
+  const leftItems = navItems.slice(0, specialButtonIndex);
+  const specialItem = navItems[specialButtonIndex];
+  const rightItems = navItems.slice(specialButtonIndex + 1);
+
 
   return (
     <footer className="fixed bottom-0 left-0 right-0 z-10 border-t bg-background/80 backdrop-blur-sm md:hidden">
       <nav className="flex h-16 items-center justify-around">
-        {navItems.map((item, index) => {
+        {leftItems.map((item) => {
           const isActive = (item.href === "/" && pathname === "/") || (item.href !== "/" && pathname.startsWith(item.href));
+          return (
+             <div key={item.label} className="flex-1 flex justify-center items-center">
+                <Link
+                  href={item.href}
+                  className={cn(
+                      "flex flex-col items-center gap-1 text-xs font-medium transition-colors w-14",
+                      isActive ? "text-primary" : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  <item.icon className="h-5 w-5" />
+                  <span className="text-[10px] text-center">{item.label}</span>
+                </Link>
+            </div>
+          );
+        })}
 
-          if (item.isSpecial) {
-            return (
-              <div key={item.label} className="order-3 flex h-full items-center">
+        {specialItem && (
+             <div key={specialItem.label} className="flex-shrink-0 mx-2">
                   <Link
-                    href={item.href}
+                    href={specialItem.href}
                     className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-md transition-transform active:scale-95"
                   >
-                    <item.icon className="h-7 w-7" />
-                    <span className="sr-only">{item.label}</span>
+                    <specialItem.icon className="h-7 w-7" />
+                    <span className="sr-only">{specialItem.label}</span>
                   </Link>
               </div>
-            );
-          }
-          return (
-             <div key={item.label} className={cn("flex-1 flex justify-center items-center", 
-                // This logic correctly places the special button in the middle
-                // We want 3 items, then the special button (order-3), then the rest
-                index < 3 ? `order-${index}` : `order-${index + 1}`
-             )}>
+        )}
+
+        {rightItems.map((item) => {
+            const isActive = pathname.startsWith(item.href);
+             return (
+             <div key={item.label} className="flex-1 flex justify-center items-center">
                 <Link
                   href={item.href}
                   className={cn(
