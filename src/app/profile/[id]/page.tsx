@@ -35,13 +35,6 @@ type ProfileData = Profile & {
   is_following: boolean;
 };
 
-type CreatedClass = {
-  id: string;
-  name: string;
-  description: string | null;
-  is_member: boolean;
-};
-
 export default function UserProfilePage({ params: paramsPromise }: { params: Promise<{ id: string }> }) {
   const params = use(paramsPromise);
   const router = useRouter();
@@ -51,9 +44,7 @@ export default function UserProfilePage({ params: paramsPromise }: { params: Pro
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [posts, setPosts] = useState<Post[]>([]);
-  const [createdClasses, setCreatedClasses] = useState<CreatedClass[]>([]);
   const [loading, setLoading] = useState(true);
-  const [joiningClassId, setJoiningClassId] = useState<string | null>(null);
   const [isFollowing, setIsFollowing] = useState(false);
   const [isOwnProfile, setIsOwnProfile] = useState(false);
 
@@ -65,12 +56,11 @@ export default function UserProfilePage({ params: paramsPromise }: { params: Pro
     setCurrentUser(authUser);
 
     // Fetch profile, followers, and following in parallel
-    const [profileRes, followersRes, followingRes, postsRes, classesRes] = await Promise.all([
-        supabase.from('profiles').select('*, win_streak_3, win_streak_10').eq('id', params.id).single(),
+    const [profileRes, followersRes, followingRes, postsRes] = await Promise.all([
+        supabase.from('profiles').select('*').eq('id', params.id).single(),
         supabase.from('followers').select('user_id', { count: 'exact' }).eq('user_id', params.id),
         supabase.from('followers').select('follower_id', { count: 'exact' }).eq('follower_id', params.id),
         supabase.from('posts').select('*').eq('user_id', params.id).order('created_at', { ascending: false }),
-        supabase.from('classes').select('*, is_member:class_members!inner(user_id)').eq('created_by', params.id),
     ]);
 
     if (profileRes.error || !profileRes.data) {
@@ -105,8 +95,6 @@ export default function UserProfilePage({ params: paramsPromise }: { params: Pro
     
     setPosts(postsRes.data as Post[] || []);
     
-    setCreatedClasses(classesRes.data as CreatedClass[] || []);
-
     setLoading(false);
   }, [params.id, supabase]);
 
@@ -153,18 +141,6 @@ export default function UserProfilePage({ params: paramsPromise }: { params: Pro
     }
   };
 
-  const handleJoinClass = async (classId: string) => {
-    if (!currentUser) {
-      toast({ variant: 'destructive', title: 'Not logged in', description: 'You must be logged in to join a class.' });
-      return;
-    }
-
-    setJoiningClassId(classId);
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    setCreatedClasses(prev => prev.map(c => c.id === classId ? { ...c, is_member: true } : c));
-    setJoiningClassId(null);
-  }
-
   const handleDeletePost = async (postId: string, mediaUrl: string) => {
     // Optimistically remove from UI
     setPosts(prev => prev.filter(p => p.id !== postId));
@@ -210,6 +186,9 @@ export default function UserProfilePage({ params: paramsPromise }: { params: Pro
     )
   }
   
+  const videoPosts = posts.filter(p => p.media_type === 'video');
+  const imagePosts = posts.filter(p => p.media_type === 'image');
+
   return (
     <>
       <div className="flex h-full flex-col bg-background text-foreground pb-16">
@@ -275,29 +254,25 @@ export default function UserProfilePage({ params: paramsPromise }: { params: Pro
                 <Grid3x3 className="mr-2 h-4 w-4" />
                 Posts
               </TabsTrigger>
-              <TabsTrigger value="class">
+              <TabsTrigger value="videos">
                 <Clapperboard className="mr-2 h-4 w-4" />
-                Class
+                Videos
               </TabsTrigger>
             </TabsList>
             <TabsContent value="posts">
-             {posts.length > 0 ? (
+             {imagePosts.length > 0 ? (
                 <div className="grid grid-cols-3 gap-1 mt-4">
-                    {posts.map((post) => (
+                    {imagePosts.map((post) => (
                     <div key={post.id} className="group relative aspect-square w-full bg-muted">
                         <Link href={`/post/${post.id}`} className="block h-full w-full">
                             <div className="aspect-square w-full relative h-full">
-                                {post.media_type === 'video' ? (
-                                    <video src={post.media_url} className="h-full w-full object-cover" />
-                                ) : (
-                                    <Image
-                                        src={post.media_url}
-                                        alt={`Post by ${profile.username}`}
-                                        fill
-                                        className="object-cover h-full w-full"
-                                        data-ai-hint="lifestyle content"
-                                    />
-                                )}
+                                <Image
+                                    src={post.media_url}
+                                    alt={`Post by ${profile.username}`}
+                                    fill
+                                    className="object-cover h-full w-full"
+                                    data-ai-hint="lifestyle content"
+                                />
                             </div>
                         </Link>
                         
@@ -340,15 +315,63 @@ export default function UserProfilePage({ params: paramsPromise }: { params: Pro
              ) : (
                 <div className="flex flex-col items-center justify-center pt-10 text-center text-muted-foreground">
                   <CameraOff className="h-12 w-12" />
-                  <p className="mt-4 text-sm">{isOwnProfile ? "You have no posts yet." : "This user has no posts yet."}</p>
+                  <p className="mt-4 text-sm">{isOwnProfile ? "You have no image posts yet." : "This user has no image posts yet."}</p>
                 </div>
              )}
             </TabsContent>
-            <TabsContent value="class">
-               <div className="flex flex-col items-center justify-center pt-10">
-                  <Clapperboard className="h-12 w-12 text-muted-foreground" />
-                  <p className="mt-4 text-sm text-muted-foreground">No classes yet.</p>
-              </div>
+            <TabsContent value="videos">
+               {videoPosts.length > 0 ? (
+                <div className="grid grid-cols-3 gap-1 mt-4">
+                    {videoPosts.map((post) => (
+                    <div key={post.id} className="group relative aspect-square w-full bg-muted">
+                        <Link href={`/post/${post.id}`} className="block h-full w-full">
+                            <div className="aspect-square w-full relative h-full">
+                                <video src={post.media_url} className="h-full w-full object-cover" />
+                            </div>
+                        </Link>
+                        
+                        {isOwnProfile && (
+                            <div className="absolute top-1 right-1">
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                        <Button variant="ghost" size="icon" className="h-7 w-7 text-white bg-black/30 hover:bg-black/50 hover:text-white">
+                                            <MoreVertical className="h-4 w-4" />
+                                        </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent>
+                                        <AlertDialog>
+                                            <AlertDialogTrigger asChild>
+                                                <DropdownMenuItem className="text-destructive" onSelect={(e) => e.preventDefault()}>
+                                                    <Trash2 className="mr-2 h-4 w-4" />
+                                                    <span>Delete</span>
+                                                </DropdownMenuItem>
+                                            </AlertDialogTrigger>
+                                            <AlertDialogContent>
+                                                <AlertDialogHeader>
+                                                    <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                                    <AlertDialogDescription>
+                                                        This action cannot be undone. This will permanently delete your post.
+                                                    </AlertDialogDescription>
+                                                </AlertDialogHeader>
+                                                <AlertDialogFooter>
+                                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                    <AlertDialogAction onClick={() => handleDeletePost(post.id, post.media_url)} className="bg-destructive hover:bg-destructive/80">Delete</AlertDialogAction>
+                                                </AlertDialogFooter>
+                                            </AlertDialogContent>
+                                        </AlertDialog>
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
+                            </div>
+                        )}
+                    </div>
+                    ))}
+                </div>
+                ) : (
+                    <div className="flex flex-col items-center justify-center pt-10 text-center text-muted-foreground">
+                        <CameraOff className="h-12 w-12" />
+                        <p className="mt-4 text-sm">{isOwnProfile ? "You have no video posts yet." : "This user has no video posts yet."}</p>
+                    </div>
+                )}
             </TabsContent>
           </Tabs>
         </main>
