@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { Suspense, useEffect, useState, useCallback } from 'react';
@@ -33,7 +34,7 @@ export default function HomePage() {
 
     const { data: posts, error } = await supabase
       .from('posts')
-      .select('*, profiles:profiles!posts_user_id_fkey(*), likes:post_likes(count), comments:post_comments(count)')
+      .select('*, profiles!posts_user_id_fkey(*), likes:post_likes(count), comments:post_comments(count)')
       .order('created_at', { ascending: false });
 
     if (error) {

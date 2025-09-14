@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -49,22 +50,22 @@ export default function ProfilePage() {
             }
 
             if (profileData) {
+                 const [followersRes, followingRes, postDataRes] = await Promise.all([
+                    supabase.from('followers').select('user_id', { count: 'exact' }).eq('user_id', authUser.id),
+                    supabase.from('followers').select('follower_id', { count: 'exact' }).eq('follower_id', authUser.id),
+                    supabase.from('posts').select('*').eq('user_id', authUser.id).order('created_at', { ascending: false })
+                 ]);
+                
                  setUser({
                     ...profileData,
-                    following: Math.floor(Math.random() * 500), // Placeholder
-                    followers: Math.floor(Math.random() * 5000), // Placeholder
+                    followers: followersRes.count || 0,
+                    following: followingRes.count || 0,
                 });
                 
-                const { data: postData, error: postError } = await supabase
-                    .from('posts')
-                    .select('*')
-                    .eq('user_id', authUser.id)
-                    .order('created_at', { ascending: false });
-                
-                if (postError) {
-                    toast({ variant: 'destructive', title: 'Error loading posts', description: postError.message });
+                if (postDataRes.error) {
+                    toast({ variant: 'destructive', title: 'Error loading posts', description: postDataRes.error.message });
                 } else {
-                    setPosts(postData as Post[]);
+                    setPosts(postDataRes.data as Post[]);
                 }
 
             } else {
@@ -174,7 +175,7 @@ export default function ProfilePage() {
                 Class
               </TabsTrigger>
             </TabsList>
-            <TabsContent value="posts">
+            <TabsContent value="posts" className="mt-4">
               {posts.length > 0 ? (
                 <div className="grid grid-cols-3 gap-1">
                   {posts.map((post) => (

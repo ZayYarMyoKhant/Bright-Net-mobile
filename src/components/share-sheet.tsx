@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useState, useEffect } from "react";
@@ -44,7 +45,7 @@ export function ShareSheet({ post, currentUser }: ShareSheetProps) {
       if (error) {
         console.error("Error fetching friends:", error);
       } else {
-        setFriends(data);
+        setFriends(data as Profile[]);
       }
       setLoading(false);
     }
@@ -100,10 +101,10 @@ export function ShareSheet({ post, currentUser }: ShareSheetProps) {
               <div key={friend.id} className="flex items-center gap-4">
                   <Avatar className="h-10 w-10">
                       <AvatarImage src={friend.avatar_url} data-ai-hint="person portrait" />
-                      <AvatarFallback>{friend.username.charAt(0).toUpperCase()}</AvatarFallback>
+                      <AvatarFallback>{friend.username ? friend.username.charAt(0).toUpperCase() : '?'}</AvatarFallback>
                   </Avatar>
                   <div className="flex-1">
-                      <p className="font-semibold">{friend.username}</p>
+                      <p className="font-semibold">{friend.username || 'Unknown User'}</p>
                   </div>
                   <Checkbox 
                       id={`friend-${friend.id}`}

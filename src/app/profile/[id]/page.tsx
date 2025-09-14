@@ -6,7 +6,7 @@ import { use, useEffect, useState, useCallback } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Grid3x3, Clapperboard, ArrowLeft, MessageCircle, CameraOff, Loader2, Eye, Trash2, MoreVertical, BookOpen, Swords } from "lucide-react";
+import { Grid3x3, Clapperboard, ArrowLeft, MessageCircle, CameraOff, Loader2, MoreVertical, Trash2 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { BottomNav } from '@/components/bottom-nav';
@@ -25,15 +25,14 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
     AlertDialogTrigger,
-} from "@/components/ui/alert-dialog"
+} from "@/components/ui/alert-dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { cn } from "@/lib/utils";
 
 
 type ProfileData = Profile & {
   following: number;
   followers: number;
-  bio: string;
+  is_following: boolean;
 };
 
 type CreatedClass = {
@@ -55,6 +54,7 @@ export default function UserProfilePage({ params: paramsPromise }: { params: Pro
   const [createdClasses, setCreatedClasses] = useState<CreatedClass[]>([]);
   const [loading, setLoading] = useState(true);
   const [joiningClassId, setJoiningClassId] = useState<string | null>(null);
+  const [isFollowing, setIsFollowing] = useState(false);
 
 
   const isOwnProfile = currentUser?.id === profile?.id;
@@ -65,42 +65,46 @@ export default function UserProfilePage({ params: paramsPromise }: { params: Pro
     const { data: { user: authUser } } = await supabase.auth.getUser();
     setCurrentUser(authUser);
 
-    const { data: profileData, error: profileError } = await supabase
-      .from('profiles')
-      .select('id, username, full_name, avatar_url, bio, win_streak_3, win_streak_10')
-      .eq('id', params.id)
-      .single();
+    // Fetch profile, followers, and following in parallel
+    const [profileRes, followersRes, followingRes, postsRes, classesRes] = await Promise.all([
+        supabase.from('profiles').select('*, win_streak_3, win_streak_10').eq('id', params.id).single(),
+        supabase.from('followers').select('user_id', { count: 'exact' }).eq('user_id', params.id),
+        supabase.from('followers').select('follower_id', { count: 'exact' }).eq('follower_id', params.id),
+        supabase.from('posts').select('*').eq('user_id', params.id).order('created_at', { ascending: false }),
+        supabase.from('classes').select('*, is_member:class_members!inner(user_id)').eq('created_by', params.id),
+    ]);
 
-    if (profileError || !profileData) {
-      console.error("Error fetching user profile:", profileError);
+    if (profileRes.error || !profileRes.data) {
+      console.error("Error fetching user profile:", profileRes.error);
       setProfile(null); 
       setLoading(false);
       return;
     }
     
-    // Placeholder for follower/following counts
+    let isFollowingUser = false;
+    if (authUser && authUser.id !== params.id) {
+        const { data: followData, error: followError } = await supabase
+            .from('followers')
+            .select('*')
+            .eq('user_id', params.id)
+            .eq('follower_id', authUser.id)
+            .single();
+        if (followData) isFollowingUser = true;
+    }
+    setIsFollowing(isFollowingUser);
+
+
     setProfile({
-      ...profileData,
-      bio: profileData.bio || "Another digital creator's bio.",
-      following: Math.floor(Math.random() * 500),
-      followers: Math.floor(Math.random() * 5000),
+      ...profileRes.data,
+      bio: profileRes.data.bio || "Another digital creator's bio.",
+      followers: followersRes.count || 0,
+      following: followingRes.count || 0,
+      is_following: isFollowingUser,
     });
     
-    // Fetch posts by the user
-    const { data: postData, error: postError } = await supabase
-      .from('posts')
-      .select('*')
-      .eq('user_id', params.id)
-      .order('created_at', { ascending: false });
-
-    if (postError) {
-        console.error("Error fetching posts:", postError);
-        setPosts([]);
-    } else {
-        setPosts(postData as Post[]);
-    }
+    setPosts(postsRes.data as Post[] || []);
     
-    setCreatedClasses([]);
+    setCreatedClasses(classesRes.data as CreatedClass[] || []);
 
     setLoading(false);
   }, [params.id, supabase]);
@@ -111,6 +115,43 @@ export default function UserProfilePage({ params: paramsPromise }: { params: Pro
     }
   }, [params.id, fetchProfileData]);
   
+  const handleFollowToggle = async () => {
+    if (!currentUser) {
+        toast({ variant: 'destructive', title: 'Please log in', description: 'You need to be logged in to follow users.' });
+        return;
+    }
+    if (!profile) return;
+
+    const newFollowingState = !isFollowing;
+    setIsFollowing(newFollowingState);
+
+    if (newFollowingState) {
+        // Follow
+        const { error } = await supabase.from('followers').insert({
+            user_id: profile.id,
+            follower_id: currentUser.id,
+        });
+        if (error) {
+            toast({ variant: 'destructive', title: 'Error', description: 'Could not follow user.' });
+            setIsFollowing(false); // Revert UI on error
+        } else {
+            setProfile(p => p ? {...p, followers: p.followers + 1} : null);
+        }
+    } else {
+        // Unfollow
+        const { error } = await supabase.from('followers').delete().match({
+            user_id: profile.id,
+            follower_id: currentUser.id,
+        });
+         if (error) {
+            toast({ variant: 'destructive', title: 'Error', description: 'Could not unfollow user.' });
+            setIsFollowing(true); // Revert UI on error
+        } else {
+            setProfile(p => p ? {...p, followers: p.followers - 1} : null);
+        }
+    }
+  };
+
   const handleJoinClass = async (classId: string) => {
     if (!currentUser) {
       toast({ variant: 'destructive', title: 'Not logged in', description: 'You must be logged in to join a class.' });
@@ -168,11 +209,6 @@ export default function UserProfilePage({ params: paramsPromise }: { params: Pro
     )
   }
   
-  const frameClass = cn(
-    "h-24 w-24 border-2 rounded-full p-0.5",
-    profile.win_streak_10 ? "border-yellow-400" : (profile.win_streak_3 ? "border-sky-400" : "border-primary")
-  );
-
   return (
     <>
       <div className="flex h-full flex-col bg-background text-foreground pb-16">
@@ -191,19 +227,10 @@ export default function UserProfilePage({ params: paramsPromise }: { params: Pro
 
         <main className="flex-1 overflow-y-auto p-4">
           <div className="flex flex-col items-center">
-             <div className={frameClass}>
-                <div className="relative w-full h-full">
-                  <Avatar className="h-full w-full rounded-full">
-                    <AvatarImage src={profile.avatar_url} alt={profile.username} data-ai-hint="person portrait" />
-                    <AvatarFallback>{profile.username.charAt(0)}</AvatarFallback>
-                  </Avatar>
-                  {(profile.win_streak_3 || profile.win_streak_10) && (
-                    <div className="absolute -top-2 left-1/2 -translate-x-1/2 bg-gray-800 p-1 rounded-full">
-                      <Swords className={cn("h-4 w-4", profile.win_streak_10 ? "text-yellow-400" : "text-sky-400")} />
-                    </div>
-                  )}
-                </div>
-            </div>
+            <Avatar className="h-24 w-24 border-2 border-primary">
+              <AvatarImage src={profile.avatar_url} alt={profile.username} data-ai-hint="person portrait" />
+              <AvatarFallback>{profile.username.charAt(0)}</AvatarFallback>
+            </Avatar>
             <h2 className="mt-3 text-xl font-bold">{profile.full_name}</h2>
             <p className="text-sm text-muted-foreground">@{profile.username}</p>
             <p className="mt-2 text-center text-sm">{profile.bio}</p>
@@ -229,7 +256,15 @@ export default function UserProfilePage({ params: paramsPromise }: { params: Pro
           </div>
 
           <div className="mt-4 flex items-center gap-2">
-            {!isOwnProfile && <Button className="w-full">Follow</Button>}
+            {isOwnProfile ? (
+              <Link href="/profile/edit" className="w-full">
+                <Button variant="outline" className="w-full">Edit Profile</Button>
+              </Link>
+            ) : (
+              <Button className="w-full" variant={isFollowing ? 'secondary' : 'default'} onClick={handleFollowToggle}>
+                  {isFollowing ? 'Following' : 'Follow'}
+              </Button>
+            )}
           </div>
 
 
@@ -246,7 +281,7 @@ export default function UserProfilePage({ params: paramsPromise }: { params: Pro
             </TabsList>
             <TabsContent value="posts">
              {posts.length > 0 ? (
-                <div className="grid grid-cols-3 gap-1">
+                <div className="grid grid-cols-3 gap-1 mt-4">
                     {posts.map((post) => (
                     <div key={post.id} className="group relative aspect-square w-full bg-muted">
                         <Link href={`/post/${post.id}`} className="block h-full w-full">
@@ -309,38 +344,10 @@ export default function UserProfilePage({ params: paramsPromise }: { params: Pro
              )}
             </TabsContent>
             <TabsContent value="class">
-              {createdClasses.length > 0 ? (
-                 <div className="space-y-4 pt-4">
-                    {createdClasses.map(classItem => (
-                         <div key={classItem.id} className="border rounded-lg p-4">
-                              <h3 className="font-semibold">{classItem.name}</h3>
-                              {classItem.description && <p className="text-sm text-muted-foreground pt-2">{classItem.description}</p>}
-                              <div className="mt-4">
-                                  {isOwnProfile || classItem.is_member ? (
-                                      <Link href={`/class/${classItem.id}`} className="w-full">
-                                        <Button variant="secondary" className="w-full">
-                                            View Channel
-                                        </Button>
-                                      </Link>
-                                  ) : (
-                                    <Button 
-                                      className="w-full" 
-                                      onClick={() => handleJoinClass(classItem.id)}
-                                      disabled={joiningClassId === classItem.id}
-                                    >
-                                      {joiningClassId === classItem.id ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Join"}
-                                    </Button>
-                                  )}
-                              </div>
-                         </div>
-                    ))}
-                 </div>
-              ) : (
-                <div className="flex flex-col items-center justify-center pt-10 text-center text-muted-foreground">
-                    <BookOpen className="h-12 w-12" />
-                    <p className="mt-4 text-sm">{isOwnProfile ? "You haven't created any classes." : "This user hasn't created any classes."}</p>
-                </div>
-              )}
+               <div className="flex flex-col items-center justify-center pt-10">
+                  <Clapperboard className="h-12 w-12 text-muted-foreground" />
+                  <p className="mt-4 text-sm text-muted-foreground">No classes yet.</p>
+              </div>
             </TabsContent>
           </Tabs>
         </main>
