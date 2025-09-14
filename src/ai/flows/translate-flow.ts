@@ -34,9 +34,8 @@ const translateTextFlow = ai.defineFlow(
   },
   async ({ text, sourceLang, targetLang }) => {
     
-    const model = ai.model('googleai/gemini-pro');
-    
-    const llmResponse = await model.generate({
+    const llmResponse = await ai.generate({
+      model: 'googleai/gemini-pro',
       prompt: `Translate the following text from ${sourceLang} to ${targetLang}. Provide only the translated text, with no extra explanation or introductory phrases.\n\nText to translate: "${text}"`,
     });
 
