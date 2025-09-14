@@ -60,12 +60,12 @@ export default function ClassPage() {
            {classes.length > 0 ? (
              <div className="divide-y">
                 {classes.map((cls) => (
-                    <Link href={`/class/${cls.id}/info`} key={cls.id}>
+                    <Link href={cls.isJoined ? `/class/${cls.id}` : `/class/${cls.id}/info`} key={cls.id}>
                         <div className="p-4 flex items-center gap-4 hover:bg-muted/50 cursor-pointer">
-                            <Avatar className="h-14 w-14">
-                                <AvatarImage src={cls.teacher.avatar} />
+                            <Avatar className="h-14 w-14 rounded-md">
+                                <AvatarImage src={cls.thumbnail} />
                                 <AvatarFallback>
-                                {cls.teacher.name.charAt(0)}
+                                    <GraduationCap/>
                                 </AvatarFallback>
                             </Avatar>
                             <div className="flex-1">
@@ -101,4 +101,3 @@ export default function ClassPage() {
     </>
   );
 }
-
