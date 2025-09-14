@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Loader2, Heart, MessageCircle, Send } from "lucide-react";
+import { ArrowLeft, Loader2, Heart, MessageCircle, Send, MoreVertical, Trash2 } from "lucide-react";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Card, CardHeader, CardContent, CardFooter } from "@/components/ui/card";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -19,6 +19,9 @@ import { Post } from "@/lib/data";
 import { formatDistanceToNow } from 'date-fns';
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+
 
 function PostViewerContent({ params }: { params: { id: string } }) {
   const router = useRouter();
@@ -31,6 +34,8 @@ function PostViewerContent({ params }: { params: { id: string } }) {
   const [isLiked, setIsLiked] = useState(false);
   const [likesCount, setLikesCount] = useState(0);
   const [commentsCount, setCommentsCount] = useState(0);
+  const [isOwner, setIsOwner] = useState(false);
+
 
   const fetchPost = useCallback(async (user: User | null) => {
     setLoading(true);
@@ -50,6 +55,9 @@ function PostViewerContent({ params }: { params: { id: string } }) {
           .eq('user_id', user.id)
           .eq('post_id', postData.id)
           .single() : { data: null };
+        
+        // @ts-ignore
+        setIsOwner(user?.id === postData.profiles.id);
 
         const processedPost: Post = {
           id: postData.id,
@@ -106,6 +114,31 @@ function PostViewerContent({ params }: { params: { id: string } }) {
         }
     }
   };
+  
+  const handleDeletePost = async () => {
+    if (!post) return;
+
+    // 1. Delete from DB
+    const { error: dbError } = await supabase.from('posts').delete().eq('id', post.id);
+
+    if (dbError) {
+        toast({ variant: "destructive", title: "Delete Failed", description: dbError.message });
+        return;
+    }
+
+    // 2. Delete from Storage
+    const filePath = post.media_url.substring(post.media_url.lastIndexOf('public/') + 'public/'.length);
+    const { error: storageError } = await supabase.storage.from('posts').remove([filePath]);
+
+     if (storageError) {
+        // Log this error, but don't block the user, as the main DB entry is gone.
+        console.error("Storage deletion failed:", storageError);
+    }
+
+    toast({ title: "Post Deleted", description: "Your post has been removed." });
+    router.push('/home'); // Redirect after deletion
+    router.refresh();
+  };
 
 
   if (loading) {
@@ -146,9 +179,42 @@ function PostViewerContent({ params }: { params: { id: string } }) {
               </Link>
               <p className="text-xs text-muted-foreground">{timeAgo}</p>
           </div>
-          <Button variant="ghost" size="icon" onClick={() => router.back()}>
+          <div className="flex items-center gap-2">
+            {isOwner && (
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon">
+                            <MoreVertical />
+                        </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent>
+                        <AlertDialog>
+                             <AlertDialogTrigger asChild>
+                                <DropdownMenuItem className="text-destructive" onSelect={(e) => e.preventDefault()}>
+                                    <Trash2 className="mr-2 h-4 w-4" />
+                                    <span>Delete</span>
+                                </DropdownMenuItem>
+                             </AlertDialogTrigger>
+                             <AlertDialogContent>
+                                <AlertDialogHeader>
+                                    <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                        This action cannot be undone. This will permanently delete your post.
+                                    </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                    <AlertDialogAction onClick={handleDeletePost} className="bg-destructive hover:bg-destructive/80">Delete</AlertDialogAction>
+                                </AlertDialogFooter>
+                            </AlertDialogContent>
+                        </AlertDialog>
+                    </DropdownMenuContent>
+                </DropdownMenu>
+            )}
+            <Button variant="ghost" size="icon" onClick={() => router.back()}>
               <ArrowLeft />
-          </Button>
+            </Button>
+          </div>
         </CardHeader>
         
         <CardContent className="p-0 flex-1 min-h-0">

@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useState, useEffect } from "react";
@@ -7,8 +8,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { ArrowLeft, Camera, Loader2 } from "lucide-react";
-import Link from "next/link";
+import { Camera, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { createClient } from "@/lib/supabase/client";
 import { User } from "@supabase/supabase-js";
@@ -115,10 +115,7 @@ export default function EditProfilePage() {
 
   return (
     <div className="flex h-full flex-col bg-background text-foreground">
-      <header className="flex h-16 flex-shrink-0 items-center border-b px-4">
-        <Link href={`/profile/${user?.id}`} className="p-2 -ml-2">
-           <ArrowLeft className="h-5 w-5" />
-        </Link>
+      <header className="flex h-16 flex-shrink-0 items-center justify-center border-b px-4">
         <h1 className="mx-auto font-bold text-xl">Edit your profile</h1>
       </header>
 
