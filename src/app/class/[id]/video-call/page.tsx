@@ -3,7 +3,7 @@
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { AlertTriangle, ArrowLeft, Mic, MicOff, PhoneOff, Video, VideoOff, RefreshCw, Users, Crown } from "lucide-react";
+import { AlertTriangle, ArrowLeft, Mic, MicOff, PhoneOff, Video, VideoOff, RefreshCw, Users, UserX } from "lucide-react";
 import Link from "next/link";
 import { useState, useEffect, use, useRef, useCallback } from "react";
 import { cn } from "@/lib/utils";
@@ -12,23 +12,15 @@ import { useToast } from "@/hooks/use-toast";
 
 // Mock participant data
 const initialParticipants = [
-    { id: 'aungaung', name: 'Aung Aung', avatar: 'https://i.pravatar.cc/150?u=aungaung', isCurrentUser: true, isMuted: false },
-    { id: 'susu', name: 'Su Su', avatar: 'https://i.pravatar.cc/150?u=susu', isMuted: true },
-    { id: 'kyawkyaw', name: 'Kyaw Kyaw', avatar: 'https://i.pravatar.cc/150?u=kyawkyaw', isMuted: false },
-    { id: 'myomyint', name: 'Myo Myint', avatar: 'https://i.pravatar.cc/150?u=myomyint', isMuted: false },
-    { id: 'thuzar', name: 'Thuzar', avatar: 'https://i.pravatar.cc/150?u=thuzar', isMuted: true },
-    { id: 'phyuphyu', name: 'Phyu Phyu', avatar: 'https://i.pravatar.cc/150?u=phyuphyu', isMuted: false },
-    { id: 'zawzaw', name: 'Zaw Zaw', avatar: 'https://i.pravatar.cc/150?u=zawzaw', isMuted: false },
-    { id: 'htethtet', name: 'Htet Htet', avatar: 'https://i.pravatar.cc/150?u=htethtet', isMuted: false },
-    { id: 'nandar', name: 'Nandar', avatar: 'https://i.pravatar.cc/150?u=nandar', isMuted: false },
-    { id: 'waiyan', name: 'Wai Yan', avatar: 'https://i.pravatar.cc/150?u=waiyan', isMuted: false },
-    { id: 'thiri', name: 'Thiri', avatar: 'https://i.pravatar.cc/150?u=thiri', isMuted: true },
-    // This user won't be shown due to the 11-person limit
-    { id: 'extra', name: 'Extra User', avatar: 'https://i.pravatar.cc/150?u=extra', isMuted: false },
+    { id: 'aungaung', name: 'Aung Aung', avatar: 'https://i.pravatar.cc/150?u=aungaung', isCurrentUser: true, isMuted: false, isCameraOn: true },
+    { id: 'susu', name: 'Su Su', avatar: 'https://i.pravatar.cc/150?u=susu', isMuted: true, isCameraOn: true },
+    { id: 'kyawkyaw', name: 'Kyaw Kyaw', avatar: 'https://i.pravatar.cc/150?u=kyawkyaw', isMuted: false, isCameraOn: false },
+    { id: 'myomyint', name: 'Myo Myint', avatar: 'https://i.pravatar.cc/150?u=myomyint', isMuted: false, isCameraOn: true },
+    { id: 'thuzar', name: 'Thuzar', avatar: 'https://i.pravatar.cc/150?u=thuzar', isMuted: true, isCameraOn: true },
 ];
 
 
-const ParticipantVideo = ({ participant, isHost = false, isCurrentUser = false, stream, isCameraOn, isMuted: userIsMuted }: { participant: any, isHost?: boolean, isCurrentUser?: boolean, stream?: MediaStream | null, isCameraOn?: boolean, isMuted?: boolean }) => {
+const ParticipantVideo = ({ participant, isHost = false, isCurrentUser = false, stream, isCameraOn, isMuted: userIsMuted }: { participant?: any, isHost?: boolean, isCurrentUser?: boolean, stream?: MediaStream | null, isCameraOn?: boolean, isMuted?: boolean }) => {
     const videoRef = useRef<HTMLVideoElement>(null);
     useEffect(() => {
         if (videoRef.current && stream) {
@@ -36,33 +28,42 @@ const ParticipantVideo = ({ participant, isHost = false, isCurrentUser = false, 
         }
     }, [stream]);
 
+    const showVideo = isCurrentUser ? isCameraOn : participant?.isCameraOn;
+
     return (
         <div className={cn(
-            "relative rounded-lg overflow-hidden bg-black/80", 
+            "relative rounded-lg overflow-hidden bg-black/80 flex items-center justify-center", 
             isHost ? "col-span-full aspect-video" : "aspect-square"
         )}>
-            {isCurrentUser ? (
-                <>
-                    <video ref={videoRef} className={cn("w-full h-full object-cover", !isCameraOn && "hidden")} autoPlay muted playsInline />
-                     {!isCameraOn && (
-                        <div className="flex flex-col items-center justify-center h-full">
-                            <VideoOff className="h-8 w-8 text-muted-foreground" />
-                        </div>
-                    )}
-                </>
+            {!participant && !isCurrentUser ? (
+                 <div className="flex flex-col items-center gap-1 text-muted-foreground">
+                    <UserX className="h-6 w-6" />
+                    <p className="text-xs font-semibold">Not Joined</p>
+                </div>
+            ) : showVideo ? (
+                isCurrentUser ? (
+                    <video ref={videoRef} className="w-full h-full object-cover" autoPlay muted playsInline />
+                ) : (
+                    <Avatar className="h-full w-full rounded-none">
+                        <AvatarImage src={participant.avatar} alt={participant.name} className="object-cover" data-ai-hint="person talking" />
+                        <AvatarFallback className="rounded-none bg-gray-800">{participant.name.charAt(0)}</AvatarFallback>
+                    </Avatar>
+                )
             ) : (
-                 <Avatar className="h-full w-full rounded-none">
-                    <AvatarImage src={participant.avatar} alt={participant.name} className="object-cover" data-ai-hint="person talking" />
-                    <AvatarFallback className="rounded-none bg-gray-800">{participant.name.charAt(0)}</AvatarFallback>
-                </Avatar>
+                 <div className="flex flex-col items-center gap-1 text-muted-foreground">
+                    <VideoOff className="h-6 w-6" />
+                    <p className="text-xs font-semibold">Camera Off</p>
+                </div>
             )}
             
-            <div className="absolute bottom-0 left-0 right-0 p-1.5 bg-gradient-to-t from-black/70 to-transparent">
-                <div className="flex items-center gap-1.5 text-xs text-white font-medium truncate">
-                    {(isCurrentUser ? userIsMuted : participant.isMuted) ? <MicOff className="h-3 w-3 flex-shrink-0" /> : <Mic className="h-3 w-3 flex-shrink-0" />}
-                    <span className="truncate">{isCurrentUser ? "You (Host)" : participant.name}</span>
+            {(participant || isCurrentUser) && (
+                <div className="absolute bottom-0 left-0 right-0 p-1.5 bg-gradient-to-t from-black/70 to-transparent">
+                    <div className="flex items-center gap-1.5 text-xs text-white font-medium truncate">
+                        {(isCurrentUser ? userIsMuted : participant.isMuted) ? <MicOff className="h-3 w-3 flex-shrink-0" /> : <Mic className="h-3 w-3 flex-shrink-0" />}
+                        <span className="truncate">{isCurrentUser ? "You (Host)" : participant?.name}</span>
+                    </div>
                 </div>
-            </div>
+            )}
         </div>
     );
 };
@@ -82,44 +83,38 @@ export default function ClassVideoCallPage({ params: paramsPromise }: { params: 
     name: "Advanced Graphic Design",
   };
   
-  const participants = initialParticipants.slice(0, 11);
-  const host = participants.find(p => p.isCurrentUser);
-  const members = participants.filter(p => !p.isCurrentUser).slice(0, 10);
+  const host = initialParticipants.find(p => p.isCurrentUser);
+  const members = initialParticipants.filter(p => !p.isCurrentUser).slice(0, 10);
+  const totalParticipants = 1 + members.length;
   
   const startStream = useCallback(async () => {
     try {
-      // Stop any existing stream tracks before starting a new one
       if (streamRef.current) {
         streamRef.current.getTracks().forEach(track => track.stop());
       }
       
       const newStream = await navigator.mediaDevices.getUserMedia({ 
         video: isCameraOn ? { facingMode: facingMode } : false,
-        audio: true // Always request audio to control mute state
+        audio: true
       });
 
       streamRef.current = newStream;
       setHasCameraPermission(true);
       
-      // Control audio track based on isMuted state
       newStream.getAudioTracks().forEach(track => track.enabled = !isMuted);
+      if (!isCameraOn) {
+        newStream.getVideoTracks().forEach(track => track.stop());
+      }
 
     } catch (error) {
       console.error('Error accessing camera/mic:', error);
       setHasCameraPermission(false);
-      // Don't toast on initial load if permission is not yet granted
-      // toast({
-      //   variant: 'destructive',
-      //   title: 'Hardware Access Denied',
-      //   description: 'Please enable camera and microphone permissions in your browser settings.',
-      // });
     }
   }, [facingMode, isMuted, isCameraOn]);
 
   useEffect(() => {
     startStream();
     
-    // Cleanup function to stop tracks when the component unmounts
     return () => {
       if (streamRef.current) {
         streamRef.current.getTracks().forEach(track => track.stop());
@@ -141,7 +136,6 @@ export default function ClassVideoCallPage({ params: paramsPromise }: { params: 
   };
   
   const handleToggleCamera = () => {
-      // This will trigger the useEffect to get a new stream
       setIsCameraOn(prev => !prev);
   };
   
@@ -158,7 +152,7 @@ export default function ClassVideoCallPage({ params: paramsPromise }: { params: 
                 <p className="font-bold">{classInfo.name}</p>
                 <div className="flex items-center gap-1 text-xs text-green-400">
                     <Users className="h-3 w-3" />
-                    <span>{participants.length} participants</span>
+                    <span>{totalParticipants} participants</span>
                 </div>
             </div>
           </div>
@@ -167,7 +161,7 @@ export default function ClassVideoCallPage({ params: paramsPromise }: { params: 
         <main className="flex-1 overflow-y-auto p-2">
             <div className="grid grid-cols-5 gap-2">
                 {host && (
-                     <div className="col-span-full">
+                     <div className="col-span-full row-span-2">
                          <ParticipantVideo 
                             participant={host} 
                             isHost 
@@ -178,11 +172,11 @@ export default function ClassVideoCallPage({ params: paramsPromise }: { params: 
                          />
                      </div>
                 )}
-                {members.map(p => (
-                    <ParticipantVideo key={p.id} participant={p} />
+                {Array.from({ length: 10 }).map((_, index) => (
+                    <ParticipantVideo key={members[index]?.id || `empty-${index}`} participant={members[index]} />
                 ))}
             </div>
-             {hasCameraPermission === false && (
+             {hasCameraPermission === false && isCameraOn && (
                 <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/70 p-2 text-center text-xs">
                     <AlertTriangle className="h-6 w-6 text-destructive mb-1" />
                     <p>Camera access denied.</p>
