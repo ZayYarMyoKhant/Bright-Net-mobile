@@ -22,6 +22,7 @@ const initialParticipants = [
 
 const ParticipantVideo = ({ participant, isHost = false, isCurrentUser = false, stream, isCameraOn, isMuted: userIsMuted }: { participant?: any, isHost?: boolean, isCurrentUser?: boolean, stream?: MediaStream | null, isCameraOn?: boolean, isMuted?: boolean }) => {
     const videoRef = useRef<HTMLVideoElement>(null);
+    
     useEffect(() => {
         if (videoRef.current && stream) {
             videoRef.current.srcObject = stream;
@@ -40,20 +41,24 @@ const ParticipantVideo = ({ participant, isHost = false, isCurrentUser = false, 
                     <UserX className="h-6 w-6" />
                     <p className="text-xs font-semibold">Not Joined</p>
                 </div>
-            ) : showVideo ? (
-                isCurrentUser ? (
-                    <video ref={videoRef} className="w-full h-full object-cover" autoPlay muted playsInline />
-                ) : (
-                    <Avatar className="h-full w-full rounded-none">
-                        <AvatarImage src={participant.avatar} alt={participant.name} className="object-cover" data-ai-hint="person talking" />
-                        <AvatarFallback className="rounded-none bg-gray-800">{participant.name.charAt(0)}</AvatarFallback>
-                    </Avatar>
-                )
             ) : (
-                 <div className="flex flex-col items-center gap-1 text-muted-foreground">
-                    <VideoOff className="h-6 w-6" />
-                    <p className="text-xs font-semibold">Camera Off</p>
-                </div>
+                <>
+                    {isCurrentUser && (
+                         <video ref={videoRef} className={cn("w-full h-full object-cover", !isCameraOn && "hidden")} autoPlay muted playsInline />
+                    )}
+                     {!isCurrentUser && showVideo && (
+                        <Avatar className="h-full w-full rounded-none">
+                            <AvatarImage src={participant.avatar} alt={participant.name} className="object-cover" data-ai-hint="person talking" />
+                            <AvatarFallback className="rounded-none bg-gray-800">{participant.name.charAt(0)}</AvatarFallback>
+                        </Avatar>
+                     )}
+                    {!showVideo && (
+                         <div className="flex flex-col items-center gap-1 text-muted-foreground">
+                            <VideoOff className="h-6 w-6" />
+                            <p className="text-xs font-semibold">Camera Off</p>
+                        </div>
+                    )}
+                </>
             )}
             
             {(participant || isCurrentUser) && (
@@ -76,6 +81,7 @@ export default function ClassVideoCallPage({ params: paramsPromise }: { params: 
   const [facingMode, setFacingMode] = useState<'user' | 'environment'>('user');
   const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
   const { toast } = useToast();
 
   const classInfo = {
@@ -87,40 +93,46 @@ export default function ClassVideoCallPage({ params: paramsPromise }: { params: 
   const members = initialParticipants.filter(p => !p.isCurrentUser).slice(0, 10);
   const totalParticipants = 1 + members.length;
   
-  const startStream = useCallback(async () => {
+  const startStream = useCallback(async (currentFacingMode: 'user' | 'environment') => {
     try {
+      // Stop any existing tracks before starting new ones
       if (streamRef.current) {
         streamRef.current.getTracks().forEach(track => track.stop());
       }
       
       const newStream = await navigator.mediaDevices.getUserMedia({ 
-        video: isCameraOn ? { facingMode: facingMode } : false,
+        video: { facingMode: currentFacingMode },
         audio: true
       });
 
       streamRef.current = newStream;
       setHasCameraPermission(true);
-      
-      newStream.getAudioTracks().forEach(track => track.enabled = !isMuted);
-      if (!isCameraOn) {
-        newStream.getVideoTracks().forEach(track => track.stop());
+
+      if(videoRef.current){
+        videoRef.current.srcObject = newStream;
       }
+      
+      // Apply current states to the new stream
+      newStream.getAudioTracks().forEach(track => track.enabled = !isMuted);
+      newStream.getVideoTracks().forEach(track => track.enabled = isCameraOn);
 
     } catch (error) {
       console.error('Error accessing camera/mic:', error);
       setHasCameraPermission(false);
+      toast({ variant: 'destructive', title: 'Hardware Access Denied', description: 'Please enable camera and microphone permissions.' });
     }
-  }, [facingMode, isMuted, isCameraOn]);
+  }, [isMuted, isCameraOn, toast]);
 
   useEffect(() => {
-    startStream();
+    startStream(facingMode);
     
+    // Cleanup on component unmount
     return () => {
       if (streamRef.current) {
         streamRef.current.getTracks().forEach(track => track.stop());
       }
     };
-  }, [startStream]);
+  }, [facingMode]); // Rerun only when facingMode changes
 
 
   const handleFlipCamera = () => {
@@ -136,7 +148,11 @@ export default function ClassVideoCallPage({ params: paramsPromise }: { params: 
   };
   
   const handleToggleCamera = () => {
-      setIsCameraOn(prev => !prev);
+    const newCameraState = !isCameraOn;
+    setIsCameraOn(newCameraState);
+     if (streamRef.current) {
+        streamRef.current.getVideoTracks().forEach(track => track.enabled = newCameraState);
+    }
   };
   
   return (
@@ -162,26 +178,33 @@ export default function ClassVideoCallPage({ params: paramsPromise }: { params: 
             <div className="grid grid-cols-5 gap-2">
                 {host && (
                      <div className="col-span-full row-span-2">
-                         <ParticipantVideo 
-                            participant={host} 
-                            isHost 
-                            isCurrentUser={true}
-                            stream={streamRef.current}
-                            isCameraOn={isCameraOn}
-                            isMuted={isMuted}
-                         />
+                         <div className="relative rounded-lg overflow-hidden bg-black/80 flex items-center justify-center aspect-video">
+                            <video ref={videoRef} className={cn("w-full h-full object-cover", !isCameraOn && "hidden")} autoPlay muted playsInline />
+                             {!isCameraOn && (
+                                <div className="flex flex-col items-center gap-1 text-muted-foreground">
+                                    <VideoOff className="h-8 w-8" />
+                                     <p className="text-sm font-semibold">Camera Off</p>
+                                </div>
+                             )}
+                              {hasCameraPermission === false && (
+                                <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/70 p-2 text-center text-xs">
+                                    <AlertTriangle className="h-6 w-6 text-destructive mb-1" />
+                                    <p>Camera access denied.</p>
+                                </div>
+                            )}
+                             <div className="absolute bottom-0 left-0 right-0 p-1.5 bg-gradient-to-t from-black/70 to-transparent">
+                                <div className="flex items-center gap-1.5 text-xs text-white font-medium truncate">
+                                    {isMuted ? <MicOff className="h-3 w-3 flex-shrink-0" /> : <Mic className="h-3 w-3 flex-shrink-0" />}
+                                    <span className="truncate">You (Host)</span>
+                                </div>
+                            </div>
+                        </div>
                      </div>
                 )}
                 {Array.from({ length: 10 }).map((_, index) => (
                     <ParticipantVideo key={members[index]?.id || `empty-${index}`} participant={members[index]} />
                 ))}
             </div>
-             {hasCameraPermission === false && isCameraOn && (
-                <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/70 p-2 text-center text-xs">
-                    <AlertTriangle className="h-6 w-6 text-destructive mb-1" />
-                    <p>Camera access denied.</p>
-                </div>
-            )}
         </main>
         
         <footer className="flex-shrink-0 p-6 z-20">
