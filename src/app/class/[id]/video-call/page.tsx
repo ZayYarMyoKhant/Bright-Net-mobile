@@ -3,7 +3,7 @@
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { AlertTriangle, ArrowLeft, Mic, MicOff, PhoneOff, Video, VideoOff, RefreshCw, Users } from "lucide-react";
+import { AlertTriangle, ArrowLeft, Mic, MicOff, PhoneOff, Video, VideoOff, RefreshCw, Users, Crown } from "lucide-react";
 import Link from "next/link";
 import { useState, useEffect, use, useRef, useCallback } from "react";
 import { cn } from "@/lib/utils";
@@ -12,11 +12,32 @@ import { useToast } from "@/hooks/use-toast";
 
 // Mock participant data
 const participants = [
-    { id: 'aungaung', name: 'Aung Aung', avatar: 'https://i.pravatar.cc/150?u=aungaung', isHost: true },
-    { id: 'susu', name: 'Su Su', avatar: 'https://i.pravatar.cc/150?u=susu' },
-    { id: 'kyawkyaw', name: 'Kyaw Kyaw', avatar: 'https://i.pravatar.cc/150?u=kyawkyaw' },
-    { id: 'myomyint', name: 'Myo Myint', avatar: 'https://i.pravatar.cc/150?u=myomyint' },
+    { id: 'aungaung', name: 'Aung Aung', avatar: 'https://i.pravatar.cc/150?u=aungaung', isHost: true, isMuted: false },
+    { id: 'susu', name: 'Su Su', avatar: 'https://i.pravatar.cc/150?u=susu', isMuted: true },
+    { id: 'kyawkyaw', name: 'Kyaw Kyaw', avatar: 'https://i.pravatar.cc/150?u=kyawkyaw', isMuted: false },
+    { id: 'myomyint', name: 'Myo Myint', avatar: 'https://i.pravatar.cc/150?u=myomyint', isMuted: false },
+    { id: 'thuzar', name: 'Thuzar', avatar: 'https://i.pravatar.cc/150?u=thuzar', isMuted: true },
+    { id: 'phyuphyu', name: 'Phyu Phyu', avatar: 'https://i.pravatar.cc/150?u=phyuphyu', isMuted: false },
+    { id: 'zawzaw', name: 'Zaw Zaw', avatar: 'https://i.pravatar.cc/150?u=zawzaw', isMuted: false },
+    { id: 'htethtet', name: 'Htet Htet', avatar: 'https://i.pravatar.cc/150?u=htethtet', isMuted: false },
 ];
+
+const ParticipantVideo = ({ participant, isHost = false }: { participant: any, isHost?: boolean }) => (
+    <div className={cn("relative rounded-lg overflow-hidden bg-black/80 aspect-[4/3] flex items-center justify-center", isHost && "aspect-video row-span-2 col-span-full")}>
+        <Avatar className={cn("rounded-none", isHost ? "h-32 w-32" : "h-20 w-20")}>
+            <AvatarImage src={participant.avatar} alt={participant.name} className="object-cover" data-ai-hint="person talking" />
+            <AvatarFallback className="rounded-none bg-gray-800">{participant.name.charAt(0)}</AvatarFallback>
+        </Avatar>
+        <div className="absolute bottom-0 left-0 right-0 p-2 bg-gradient-to-t from-black/70 to-transparent">
+            <div className="flex items-center gap-2 text-sm text-white font-semibold">
+                {participant.isMuted ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+                <span>{participant.name}</span>
+                {isHost && <span>(Host)</span>}
+            </div>
+        </div>
+    </div>
+);
+
 
 export default function ClassVideoCallPage({ params: paramsPromise }: { params: Promise<{ id: string }> }) {
   const params = use(paramsPromise);
@@ -30,8 +51,11 @@ export default function ClassVideoCallPage({ params: paramsPromise }: { params: 
 
   const classInfo = {
     id: params.id,
-    name: "Digital Marketing Masterclass",
+    name: "Advanced Graphic Design",
   };
+
+  const host = participants.find(p => p.isHost);
+  const members = participants.filter(p => !p.isHost);
   
    const startStream = useCallback(async () => {
     try {
@@ -96,6 +120,8 @@ export default function ClassVideoCallPage({ params: paramsPromise }: { params: 
       }
   };
   
+  // Assuming the current user is the host for UI purposes
+  const currentUserIsHost = true;
 
   return (
       <div className="flex h-dvh flex-col bg-gray-900 text-white">
@@ -116,43 +142,53 @@ export default function ClassVideoCallPage({ params: paramsPromise }: { params: 
           </div>
         </header>
 
-        <main className="flex-1 relative grid grid-cols-2 grid-rows-2 gap-1 p-1">
-            {/* Local User's Video */}
-            <div className="relative rounded-lg overflow-hidden bg-black border-2 border-primary">
-                <video ref={videoRef} className={cn("w-full h-full object-cover", !isCameraOn && "hidden")} autoPlay muted playsInline />
-                {!isCameraOn && (
-                    <div className="flex flex-col items-center justify-center h-full">
-                        <VideoOff className="h-8 w-8 text-muted-foreground" />
-                    </div>
-                )}
-                 {hasCameraPermission === false && (
-                    <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/70 p-2 text-center text-xs">
-                        <AlertTriangle className="h-6 w-6 text-destructive mb-1" />
-                        <p>Camera access denied.</p>
-                    </div>
-                )}
-                <div className="absolute bottom-2 left-2 bg-black/50 px-2 py-1 rounded-md text-sm font-semibold">You</div>
-            </div>
-
-            {/* Remote Participants */}
-            {participants.slice(0, 3).map(p => (
-                <div key={p.id} className="relative rounded-lg overflow-hidden bg-black/80">
-                     <Avatar className="h-full w-full rounded-none">
-                        <AvatarImage src={p.avatar} alt={p.name} className="object-cover opacity-50 blur-sm" data-ai-hint="person talking" />
-                        <AvatarFallback className="rounded-none bg-gray-800"></AvatarFallback>
-                    </Avatar>
-                     <div className="absolute inset-0 flex items-center justify-center">
-                        <Avatar className="h-20 w-20 border-2">
-                             <AvatarImage src={p.avatar} alt={p.name} data-ai-hint="person talking" />
-                             <AvatarFallback>{p.name.charAt(0)}</AvatarFallback>
-                        </Avatar>
-                    </div>
-                    <div className="absolute bottom-2 left-2 bg-black/50 px-2 py-1 rounded-md text-sm font-semibold">{p.name}</div>
-                     <div className="absolute top-2 right-2 bg-black/50 p-1.5 rounded-full">
-                        <MicOff className="h-4 w-4" />
+        <main className="flex-1 flex flex-col p-1 gap-1 min-h-0">
+            {/* Host Video */}
+             {host && (
+                 <div className="relative rounded-lg overflow-hidden bg-black/80 flex-shrink-0">
+                     <div className={cn("relative w-full h-full object-cover", !isCameraOn && "hidden")}>
+                        {/* Assuming the current user is the host */}
+                        <video ref={videoRef} className="w-full h-full object-cover" autoPlay muted playsInline />
+                     </div>
+                      {!isCameraOn && (
+                        <div className="flex flex-col items-center justify-center h-full aspect-video">
+                            <VideoOff className="h-8 w-8 text-muted-foreground" />
+                        </div>
+                    )}
+                    {hasCameraPermission === false && (
+                        <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/70 p-2 text-center text-xs">
+                            <AlertTriangle className="h-6 w-6 text-destructive mb-1" />
+                            <p>Camera access denied.</p>
+                        </div>
+                    )}
+                     <div className="absolute bottom-0 left-0 right-0 p-2 bg-gradient-to-t from-black/70 to-transparent">
+                        <div className="flex items-center gap-2 text-sm text-white font-semibold">
+                            {isMuted ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+                            <span>You (Host)</span>
+                        </div>
                     </div>
                 </div>
-            ))}
+             )}
+
+            {/* Members Grid */}
+            <div className="flex-1 overflow-y-auto">
+                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-1">
+                     {members.map(p => (
+                        <div key={p.id} className="relative rounded-lg overflow-hidden bg-black/80 aspect-square flex items-center justify-center">
+                             <Avatar className="h-full w-full rounded-none">
+                                <AvatarImage src={p.avatar} alt={p.name} className="object-cover" data-ai-hint="person talking" />
+                                <AvatarFallback className="rounded-none bg-gray-800"></AvatarFallback>
+                            </Avatar>
+                            <div className="absolute bottom-0 left-0 right-0 p-1.5 bg-gradient-to-t from-black/70 to-transparent">
+                                <div className="flex items-center gap-1.5 text-xs text-white font-medium truncate">
+                                    {p.isMuted ? <MicOff className="h-3 w-3 flex-shrink-0" /> : <Mic className="h-3 w-3 flex-shrink-0" />}
+                                    <span className="truncate">{p.name}</span>
+                                </div>
+                            </div>
+                        </div>
+                    ))}
+                 </div>
+            </div>
         </main>
         
         <footer className="flex-shrink-0 p-6 z-20">
