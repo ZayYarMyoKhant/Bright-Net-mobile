@@ -22,21 +22,41 @@ const participants = [
     { id: 'htethtet', name: 'Htet Htet', avatar: 'https://i.pravatar.cc/150?u=htethtet', isMuted: false },
 ];
 
-const ParticipantVideo = ({ participant, isHost = false }: { participant: any, isHost?: boolean }) => (
-    <div className={cn("relative rounded-lg overflow-hidden bg-black/80 aspect-[4/3] flex items-center justify-center", isHost && "aspect-video row-span-2 col-span-full")}>
-        <Avatar className={cn("rounded-none", isHost ? "h-32 w-32" : "h-20 w-20")}>
-            <AvatarImage src={participant.avatar} alt={participant.name} className="object-cover" data-ai-hint="person talking" />
-            <AvatarFallback className="rounded-none bg-gray-800">{participant.name.charAt(0)}</AvatarFallback>
-        </Avatar>
-        <div className="absolute bottom-0 left-0 right-0 p-2 bg-gradient-to-t from-black/70 to-transparent">
-            <div className="flex items-center gap-2 text-sm text-white font-semibold">
-                {participant.isMuted ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
-                <span>{participant.name}</span>
-                {isHost && <span>(Host)</span>}
+const ParticipantVideo = ({ participant, isHost = false, isCurrentUser = false, stream, isCameraOn, isMuted: userIsMuted }: { participant: any, isHost?: boolean, isCurrentUser?: boolean, stream?: MediaStream | null, isCameraOn?: boolean, isMuted?: boolean }) => {
+    const videoRef = useRef<HTMLVideoElement>(null);
+    useEffect(() => {
+        if (videoRef.current && stream) {
+            videoRef.current.srcObject = stream;
+        }
+    }, [stream]);
+
+    return (
+        <div className={cn("relative rounded-lg overflow-hidden bg-black/80", isHost ? "aspect-video col-span-full" : "aspect-square")}>
+            {isCurrentUser ? (
+                <>
+                    <video ref={videoRef} className={cn("w-full h-full object-cover", !isCameraOn && "hidden")} autoPlay muted playsInline />
+                     {!isCameraOn && (
+                        <div className="flex flex-col items-center justify-center h-full">
+                            <VideoOff className="h-8 w-8 text-muted-foreground" />
+                        </div>
+                    )}
+                </>
+            ) : (
+                 <Avatar className="h-full w-full rounded-none">
+                    <AvatarImage src={participant.avatar} alt={participant.name} className="object-cover" data-ai-hint="person talking" />
+                    <AvatarFallback className="rounded-none bg-gray-800">{participant.name.charAt(0)}</AvatarFallback>
+                </Avatar>
+            )}
+            
+            <div className="absolute bottom-0 left-0 right-0 p-1.5 bg-gradient-to-t from-black/70 to-transparent">
+                <div className="flex items-center gap-1.5 text-xs text-white font-medium truncate">
+                    {(isCurrentUser ? userIsMuted : participant.isMuted) ? <MicOff className="h-3 w-3 flex-shrink-0" /> : <Mic className="h-3 w-3 flex-shrink-0" />}
+                    <span className="truncate">{isCurrentUser ? "You (Host)" : participant.name}</span>
+                </div>
             </div>
         </div>
-    </div>
-);
+    );
+};
 
 
 export default function ClassVideoCallPage({ params: paramsPromise }: { params: Promise<{ id: string }> }) {
@@ -45,7 +65,6 @@ export default function ClassVideoCallPage({ params: paramsPromise }: { params: 
   const [isCameraOn, setIsCameraOn] = useState(true);
   const [facingMode, setFacingMode] = useState<'user' | 'environment'>('user');
   const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
-  const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const { toast } = useToast();
 
@@ -70,10 +89,6 @@ export default function ClassVideoCallPage({ params: paramsPromise }: { params: 
 
       streamRef.current = newStream;
       setHasCameraPermission(true);
-
-      if (videoRef.current) {
-        videoRef.current.srcObject = newStream;
-      }
       
       newStream.getAudioTracks().forEach(track => track.enabled = !isMuted);
       newStream.getVideoTracks().forEach(track => track.enabled = isCameraOn);
@@ -120,9 +135,6 @@ export default function ClassVideoCallPage({ params: paramsPromise }: { params: 
       }
   };
   
-  // Assuming the current user is the host for UI purposes
-  const currentUserIsHost = true;
-
   return (
       <div className="flex h-dvh flex-col bg-gray-900 text-white">
         <header className="flex h-16 flex-shrink-0 items-center justify-between px-4 z-20">
@@ -142,53 +154,28 @@ export default function ClassVideoCallPage({ params: paramsPromise }: { params: 
           </div>
         </header>
 
-        <main className="flex-1 flex flex-col p-1 gap-1 min-h-0">
-            {/* Host Video */}
-             {host && (
-                 <div className="relative rounded-lg overflow-hidden bg-black/80 flex-shrink-0">
-                     <div className={cn("relative w-full h-full object-cover", !isCameraOn && "hidden")}>
-                        {/* Assuming the current user is the host */}
-                        <video ref={videoRef} className="w-full h-full object-cover" autoPlay muted playsInline />
-                     </div>
-                      {!isCameraOn && (
-                        <div className="flex flex-col items-center justify-center h-full aspect-video">
-                            <VideoOff className="h-8 w-8 text-muted-foreground" />
-                        </div>
-                    )}
-                    {hasCameraPermission === false && (
-                        <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/70 p-2 text-center text-xs">
-                            <AlertTriangle className="h-6 w-6 text-destructive mb-1" />
-                            <p>Camera access denied.</p>
-                        </div>
-                    )}
-                     <div className="absolute bottom-0 left-0 right-0 p-2 bg-gradient-to-t from-black/70 to-transparent">
-                        <div className="flex items-center gap-2 text-sm text-white font-semibold">
-                            {isMuted ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
-                            <span>You (Host)</span>
-                        </div>
-                    </div>
-                </div>
-             )}
-
-            {/* Members Grid */}
-            <div className="flex-1 overflow-y-auto">
-                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-1">
-                     {members.map(p => (
-                        <div key={p.id} className="relative rounded-lg overflow-hidden bg-black/80 aspect-square flex items-center justify-center">
-                             <Avatar className="h-full w-full rounded-none">
-                                <AvatarImage src={p.avatar} alt={p.name} className="object-cover" data-ai-hint="person talking" />
-                                <AvatarFallback className="rounded-none bg-gray-800"></AvatarFallback>
-                            </Avatar>
-                            <div className="absolute bottom-0 left-0 right-0 p-1.5 bg-gradient-to-t from-black/70 to-transparent">
-                                <div className="flex items-center gap-1.5 text-xs text-white font-medium truncate">
-                                    {p.isMuted ? <MicOff className="h-3 w-3 flex-shrink-0" /> : <Mic className="h-3 w-3 flex-shrink-0" />}
-                                    <span className="truncate">{p.name}</span>
-                                </div>
-                            </div>
-                        </div>
-                    ))}
-                 </div>
+        <main className="flex-1 overflow-y-auto p-1">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-1">
+                {host && (
+                     <ParticipantVideo 
+                        participant={host} 
+                        isHost 
+                        isCurrentUser={true}
+                        stream={streamRef.current}
+                        isCameraOn={isCameraOn}
+                        isMuted={isMuted}
+                     />
+                )}
+                {members.map(p => (
+                    <ParticipantVideo key={p.id} participant={p} />
+                ))}
             </div>
+             {hasCameraPermission === false && (
+                <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/70 p-2 text-center text-xs">
+                    <AlertTriangle className="h-6 w-6 text-destructive mb-1" />
+                    <p>Camera access denied.</p>
+                </div>
+            )}
         </main>
         
         <footer className="flex-shrink-0 p-6 z-20">
