@@ -11,8 +11,8 @@ import { useToast } from "@/hooks/use-toast";
 
 
 // Mock participant data
-const participants = [
-    { id: 'aungaung', name: 'Aung Aung', avatar: 'https://i.pravatar.cc/150?u=aungaung', isHost: true, isMuted: false },
+const initialParticipants = [
+    { id: 'aungaung', name: 'Aung Aung', avatar: 'https://i.pravatar.cc/150?u=aungaung', isCurrentUser: true, isMuted: false },
     { id: 'susu', name: 'Su Su', avatar: 'https://i.pravatar.cc/150?u=susu', isMuted: true },
     { id: 'kyawkyaw', name: 'Kyaw Kyaw', avatar: 'https://i.pravatar.cc/150?u=kyawkyaw', isMuted: false },
     { id: 'myomyint', name: 'Myo Myint', avatar: 'https://i.pravatar.cc/150?u=myomyint', isMuted: false },
@@ -20,7 +20,13 @@ const participants = [
     { id: 'phyuphyu', name: 'Phyu Phyu', avatar: 'https://i.pravatar.cc/150?u=phyuphyu', isMuted: false },
     { id: 'zawzaw', name: 'Zaw Zaw', avatar: 'https://i.pravatar.cc/150?u=zawzaw', isMuted: false },
     { id: 'htethtet', name: 'Htet Htet', avatar: 'https://i.pravatar.cc/150?u=htethtet', isMuted: false },
+    { id: 'nandar', name: 'Nandar', avatar: 'https://i.pravatar.cc/150?u=nandar', isMuted: false },
+    { id: 'waiyan', name: 'Wai Yan', avatar: 'https://i.pravatar.cc/150?u=waiyan', isMuted: false },
+    { id: 'thiri', name: 'Thiri', avatar: 'https://i.pravatar.cc/150?u=thiri', isMuted: true },
+    // This user won't be shown due to the 11-person limit
+    { id: 'extra', name: 'Extra User', avatar: 'https://i.pravatar.cc/150?u=extra', isMuted: false },
 ];
+
 
 const ParticipantVideo = ({ participant, isHost = false, isCurrentUser = false, stream, isCameraOn, isMuted: userIsMuted }: { participant: any, isHost?: boolean, isCurrentUser?: boolean, stream?: MediaStream | null, isCameraOn?: boolean, isMuted?: boolean }) => {
     const videoRef = useRef<HTMLVideoElement>(null);
@@ -31,7 +37,10 @@ const ParticipantVideo = ({ participant, isHost = false, isCurrentUser = false, 
     }, [stream]);
 
     return (
-        <div className={cn("relative rounded-lg overflow-hidden bg-black/80", isHost ? "aspect-video col-span-full" : "aspect-square")}>
+        <div className={cn(
+            "relative rounded-lg overflow-hidden bg-black/80", 
+            isHost ? "col-span-full aspect-video" : "aspect-square"
+        )}>
             {isCurrentUser ? (
                 <>
                     <video ref={videoRef} className={cn("w-full h-full object-cover", !isCameraOn && "hidden")} autoPlay muted playsInline />
@@ -72,41 +81,45 @@ export default function ClassVideoCallPage({ params: paramsPromise }: { params: 
     id: params.id,
     name: "Advanced Graphic Design",
   };
-
-  const host = participants.find(p => p.isHost);
-  const members = participants.filter(p => !p.isHost);
   
-   const startStream = useCallback(async () => {
+  const participants = initialParticipants.slice(0, 11);
+  const host = participants.find(p => p.isCurrentUser);
+  const members = participants.filter(p => !p.isCurrentUser).slice(0, 10);
+  
+  const startStream = useCallback(async () => {
     try {
+      // Stop any existing stream tracks before starting a new one
       if (streamRef.current) {
         streamRef.current.getTracks().forEach(track => track.stop());
       }
       
       const newStream = await navigator.mediaDevices.getUserMedia({ 
-        video: { facingMode: facingMode },
-        audio: true
+        video: isCameraOn ? { facingMode: facingMode } : false,
+        audio: true // Always request audio to control mute state
       });
 
       streamRef.current = newStream;
       setHasCameraPermission(true);
       
+      // Control audio track based on isMuted state
       newStream.getAudioTracks().forEach(track => track.enabled = !isMuted);
-      newStream.getVideoTracks().forEach(track => track.enabled = isCameraOn);
 
     } catch (error) {
       console.error('Error accessing camera/mic:', error);
       setHasCameraPermission(false);
-      toast({
-        variant: 'destructive',
-        title: 'Hardware Access Denied',
-        description: 'Please enable camera and microphone permissions in your browser settings.',
-      });
+      // Don't toast on initial load if permission is not yet granted
+      // toast({
+      //   variant: 'destructive',
+      //   title: 'Hardware Access Denied',
+      //   description: 'Please enable camera and microphone permissions in your browser settings.',
+      // });
     }
-  }, [facingMode, isMuted, isCameraOn, toast]);
+  }, [facingMode, isMuted, isCameraOn]);
 
   useEffect(() => {
     startStream();
     
+    // Cleanup function to stop tracks when the component unmounts
     return () => {
       if (streamRef.current) {
         streamRef.current.getTracks().forEach(track => track.stop());
@@ -128,11 +141,8 @@ export default function ClassVideoCallPage({ params: paramsPromise }: { params: 
   };
   
   const handleToggleCamera = () => {
-      const newCameraState = !isCameraOn;
-      setIsCameraOn(newCameraState);
-      if (streamRef.current) {
-          streamRef.current.getVideoTracks().forEach(track => track.enabled = newCameraState);
-      }
+      // This will trigger the useEffect to get a new stream
+      setIsCameraOn(prev => !prev);
   };
   
   return (
@@ -154,17 +164,19 @@ export default function ClassVideoCallPage({ params: paramsPromise }: { params: 
           </div>
         </header>
 
-        <main className="flex-1 overflow-y-auto p-1">
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-1">
+        <main className="flex-1 overflow-y-auto p-2">
+            <div className="grid grid-cols-5 gap-2">
                 {host && (
-                     <ParticipantVideo 
-                        participant={host} 
-                        isHost 
-                        isCurrentUser={true}
-                        stream={streamRef.current}
-                        isCameraOn={isCameraOn}
-                        isMuted={isMuted}
-                     />
+                     <div className="col-span-full">
+                         <ParticipantVideo 
+                            participant={host} 
+                            isHost 
+                            isCurrentUser={true}
+                            stream={streamRef.current}
+                            isCameraOn={isCameraOn}
+                            isMuted={isMuted}
+                         />
+                     </div>
                 )}
                 {members.map(p => (
                     <ParticipantVideo key={p.id} participant={p} />
