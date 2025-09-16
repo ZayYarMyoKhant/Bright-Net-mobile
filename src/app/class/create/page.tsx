@@ -69,9 +69,9 @@ export default function CreateClassPage() {
       
       // 1. Upload avatar if provided
       if (thumbnailFile) {
-        const filePath = `public/${currentUser.id}-${Date.now()}`;
+        const filePath = `public/${currentUser.id}-class-${Date.now()}`;
         const { error: uploadError } = await supabase.storage
-          .from('class-avatars')
+          .from('avatars')
           .upload(filePath, thumbnailFile);
 
         if (uploadError) {
@@ -79,7 +79,7 @@ export default function CreateClassPage() {
           return;
         }
         
-        const { data: urlData } = supabase.storage.from('class-avatars').getPublicUrl(filePath);
+        const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(filePath);
         publicAvatarUrl = urlData.publicUrl;
       }
 
