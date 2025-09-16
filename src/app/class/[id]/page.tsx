@@ -5,57 +5,60 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { ArrowLeft, Video, Mic, Image as ImageIcon, Send, Smile, MoreVertical, MessageSquareReply, Trash2, X, Loader2, Waves, Heart, ThumbsUp, Laugh, Frown } from "lucide-react";
+import { ArrowLeft, Video, Mic, Image as ImageIcon, Send, Smile, MoreVertical, MessageSquareReply, Trash2, X, Loader2, Waves, Users } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { use, useState, useRef, useEffect } from "react";
+import { use, useState, useRef, useEffect, useCallback } from "react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { EmojiPicker } from "@/components/emoji-picker";
+import { createClient } from "@/lib/supabase/client";
+import { User } from "@supabase/supabase-js";
+import { Profile } from "@/lib/data";
 
-
-const ReactionEmojis = {
-  '❤️': Heart,
-  '👍': ThumbsUp,
-  '😂': Laugh,
-  '😢': Frown
+type ClassInfo = {
+  id: string;
+  name: string;
+  creator_id: string;
 };
 
+type ClassMessage = {
+  id: string;
+  class_id: string;
+  user_id: string;
+  content: string | null;
+  media_url: string | null;
+  media_type: string | null;
+  parent_message_id: string | null;
+  created_at: string;
+  profiles: Profile;
+};
 
-const ChatMessage = ({ message, isSender, onReply, onDelete }: { message: any, isSender: boolean, onReply: (message: any) => void, onDelete: (messageId: number) => void }) => {
-    
-    const [isReacting, setIsReacting] = useState(false);
-
-    const handleReact = (reaction: string) => {
-        setIsReacting(false);
-        // Mock reaction logic
-        console.log(`Reacted with ${reaction} on message ${message.id}`);
-    };
-
+const ChatMessage = ({ message, isSender, onReply, onDelete }: { message: ClassMessage, isSender: boolean, onReply: (message: any) => void, onDelete: (messageId: string) => void }) => {
     return (
         <div className={`flex items-start gap-3 ${isSender ? 'justify-end' : 'justify-start'}`}>
             {!isSender && (
-                <Link href={`/profile/${message.user.username}`}>
+                <Link href={`/profile/${message.profiles.id}`}>
                     <Avatar className="h-8 w-8">
-                        <AvatarImage src={message.user.avatar} alt={message.user.name} data-ai-hint="person portrait" />
-                        <AvatarFallback>{message.user.name.charAt(0)}</AvatarFallback>
+                        <AvatarImage src={message.profiles.avatar_url} alt={message.profiles.username} data-ai-hint="person portrait" />
+                        <AvatarFallback>{message.profiles.username.charAt(0)}</AvatarFallback>
                     </Avatar>
                 </Link>
             )}
             <div className="group relative">
                 <div className={cn(
                     "max-w-xs rounded-lg",
-                     message.isImage ? "bg-transparent" : (isSender ? 'bg-primary text-primary-foreground' : 'bg-muted')
+                     message.media_type === 'image' ? "bg-transparent" : (isSender ? 'bg-primary text-primary-foreground' : 'bg-muted')
                 )}>
-                     <div className={message.isImage ? "" : "px-4 py-2"}>
-                        {!isSender && <p className="font-semibold text-xs mb-1">{message.user.name}</p>}
-                        {message.isImage ? (
+                     <div className={message.media_type === 'image' ? "" : "px-4 py-2"}>
+                        {!isSender && <p className="font-semibold text-xs mb-1">{message.profiles.full_name}</p>}
+                        {message.media_type === 'image' && message.media_url ? (
                             <div className="relative h-48 w-48 rounded-lg overflow-hidden">
-                                <Image src={message.text} alt="sent image" layout="fill" objectFit="cover" data-ai-hint="photo message" />
+                                <Image src={message.media_url} alt="sent image" layout="fill" objectFit="cover" data-ai-hint="photo message" />
                             </div>
                         ) : (
-                            <p>{message.text}</p>
+                            <p>{message.content}</p>
                         )}
                      </div>
                 </div>
@@ -78,23 +81,6 @@ const ChatMessage = ({ message, isSender, onReply, onDelete }: { message: any, i
                                     <span>Reply</span>
                                 </DropdownMenuItem>
                             )}
-                             <Popover open={isReacting} onOpenChange={setIsReacting}>
-                                <PopoverTrigger asChild>
-                                    <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
-                                            <Smile className="mr-2 h-4 w-4" />
-                                        <span>React</span>
-                                    </DropdownMenuItem>
-                                </PopoverTrigger>
-                                <PopoverContent className="w-auto p-1">
-                                    <div className="flex gap-1">
-                                        {Object.entries(ReactionEmojis).map(([emoji, Icon]) => (
-                                                <Button key={emoji} variant="ghost" size="icon" className="h-8 w-8 rounded-full" onClick={() => handleReact(emoji)}>
-                                                <Icon className="h-5 w-5" />
-                                            </Button>
-                                        ))}
-                                    </div>
-                                </PopoverContent>
-                            </Popover>
                         </DropdownMenuContent>
                     </DropdownMenu>
                 </div>
@@ -107,13 +93,12 @@ const ChatMessage = ({ message, isSender, onReply, onDelete }: { message: any, i
 export default function IndividualClassPage({ params: paramsPromise }: { params: Promise<{ id: string }> }) {
   const params = use(paramsPromise);
   const { toast } = useToast();
+  const supabase = createClient();
   
-  // Mock data
-  const [messages, setMessages] = useState([
-    { id: 1, text: "Hello Class! Welcome to Digital Marketing Masterclass.", sender: false, user: { name: 'Aung Aung', username: 'aungaung', avatar: `https://i.pravatar.cc/150?u=aungaung` } },
-    { id: 2, text: "Hi teacher!", sender: true, user: { name: 'Kyaw Kyaw', username: 'kyawkyaw' } },
-    { id: 3, text: "When will we start the first lesson?", sender: false, user: { name: 'Susu', username: 'susu', avatar: `https://i.pravatar.cc/150?u=susu` } },
-  ]);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [classInfo, setClassInfo] = useState<ClassInfo | null>(null);
+  const [messages, setMessages] = useState<ClassMessage[]>([]);
+  const [loading, setLoading] = useState(true);
 
   const [newMessage, setNewMessage] = useState("");
   const [replyingTo, setReplyingTo] = useState<any | null>(null);
@@ -130,34 +115,99 @@ export default function IndividualClassPage({ params: paramsPromise }: { params:
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const recordingTimerRef = useRef<NodeJS.Timeout | null>(null);
-  
-  const classInfo = {
-    id: params.id,
-    name: "Digital Marketing Masterclass",
-  };
+
+  const fetchClassData = useCallback(async () => {
+    setLoading(true);
+    const { data: classData, error: classError } = await supabase
+      .from('classes')
+      .select('id, name, creator_id')
+      .eq('id', params.id)
+      .single();
+
+    if (classError || !classData) {
+      toast({ variant: "destructive", title: "Class not found." });
+      setClassInfo(null);
+      setLoading(false);
+      return;
+    }
+    setClassInfo(classData);
+
+    const { data: messagesData, error: messagesError } = await supabase
+      .from('class_messages')
+      .select('*, profiles(*)')
+      .eq('class_id', params.id)
+      .order('created_at', { ascending: true });
+
+    if (messagesError) {
+      toast({ variant: "destructive", title: "Failed to load messages." });
+    } else {
+      setMessages(messagesData as any);
+    }
+    setLoading(false);
+  }, [params.id, supabase, toast]);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "auto" });
+    supabase.auth.getUser().then(({ data: { user } }) => setCurrentUser(user));
+    fetchClassData();
+  }, [fetchClassData, supabase.auth]);
+
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  useEffect(() => {
+    const channel = supabase.channel(`class-chat-${params.id}`)
+      .on<ClassMessage>(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'class_messages', filter: `class_id=eq.${params.id}` },
+        async (payload) => {
+           const { data: profile, error } = await supabase
+                .from('profiles')
+                .select('*')
+                .eq('id', payload.new.user_id)
+                .single();
+            if (error) {
+                console.error("Could not fetch profile for new message");
+            } else {
+                 setMessages((prevMessages) => [...prevMessages, { ...payload.new, profiles: profile as Profile }]);
+            }
+        }
+      )
+      .subscribe();
+    
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [params.id, supabase]);
 
   const handleReply = (message: any) => {
     setReplyingTo(message);
   };
   
-  const handleDelete = (messageId: number) => {
+  const handleDelete = (messageId: string) => {
+    // Optimistic delete
     setMessages(prev => prev.filter(msg => msg.id !== messageId));
-    toast({ title: "Message deleted (mock)" });
+    // DB delete
+    supabase.from('class_messages').delete().eq('id', messageId).then(({ error }) => {
+        if (error) {
+            toast({ variant: 'destructive', title: "Failed to delete message."});
+            fetchClassData(); // Re-fetch on error
+        } else {
+            toast({ title: "Message deleted" });
+        }
+    });
   };
   
  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
-      if (file.type.startsWith("image/") || file.type.startsWith("video/")) {
+      if (file.type.startsWith("image/") || file.type.startsWith("video/") || file.type.startsWith("audio/")) {
         setMediaFile(file);
         setMediaPreview(URL.createObjectURL(file));
-        setMediaDuration(null); // Reset duration for non-audio
+        setMediaDuration(null); // Reset duration
       } else {
-        toast({variant: "destructive", title: "Unsupported File Type", description: "Only images and videos are allowed."});
+        toast({variant: "destructive", title: "Unsupported File Type"});
         handleRemoveMedia();
       }
     }
@@ -174,28 +224,62 @@ export default function IndividualClassPage({ params: paramsPromise }: { params:
   
   const handleSendMessage = async (e?: React.FormEvent) => {
     e?.preventDefault();
-    if (!newMessage.trim() && !mediaFile) return;
+    if ((!newMessage.trim() && !mediaFile) || !currentUser) return;
     
     setSending(true);
-    // Mock sending logic
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    let publicMediaUrl = null;
+    let mediaType = null;
+    
+    if (mediaFile) {
+        const fileExtension = mediaFile.name.split('.').pop();
+        const fileName = `${currentUser.id}-class_media-${Date.now()}.${fileExtension}`;
+        const filePath = `public/${fileName}`;
+
+        const { error: uploadError } = await supabase.storage.from('class-media').upload(filePath, mediaFile);
+        if (uploadError) {
+            toast({ variant: "destructive", title: "Media upload failed", description: uploadError.message });
+            setSending(false);
+            return;
+        }
+        const { data: { publicUrl } } = supabase.storage.from('class-media').getPublicUrl(filePath);
+        publicMediaUrl = publicUrl;
+        mediaType = mediaFile.type.split('/')[0]; // 'image', 'video', 'audio'
+    }
+
+    const { error: insertError } = await supabase.from('class_messages').insert({
+        class_id: params.id,
+        user_id: currentUser.id,
+        content: newMessage || null,
+        media_url: publicMediaUrl,
+        media_type: mediaType,
+        parent_message_id: replyingTo?.id || null,
+    });
     
     setNewMessage("");
     handleRemoveMedia();
+    setReplyingTo(null);
     setSending(false);
     setShowEmojiPicker(false);
-    toast({ title: "Message sent (mock)" });
+    
+    if (insertError) {
+        toast({ variant: "destructive", title: "Failed to send message", description: insertError.message });
+    }
   }
 
   const handleSendSticker = async (stickerUrl: string) => {
     setShowEmojiPicker(false);
     setSending(true);
-    
-    // Mock sending logic
-    await new Promise(resolve => setTimeout(resolve, 500));
+
+    if (!currentUser) return;
+
+    await supabase.from('class_messages').insert({
+        class_id: params.id,
+        user_id: currentUser.id,
+        media_url: stickerUrl,
+        media_type: 'sticker'
+    });
 
     setSending(false);
-    toast({ title: "Sticker sent (mock)" });
   }
 
  const startRecording = async () => {
@@ -262,12 +346,12 @@ export default function IndividualClassPage({ params: paramsPromise }: { params:
                     <ArrowLeft className="h-5 w-5" />
                 </Button>
             </Link>
-            <Link href={`/class/${classInfo.id}/info`}>
-                <p className="font-bold">{classInfo.name}</p>
+            <Link href={`/class/${classInfo?.id}/info`}>
+                <p className="font-bold">{classInfo?.name || "Loading..."}</p>
             </Link>
         </div>
         <div className="flex items-center gap-2">
-          <Link href={`/class/${classInfo.id}/video-call`}>
+          <Link href={`/class/${classInfo?.id}/video-call`}>
             <Button variant="ghost" size="icon">
               <Video className="h-5 w-5" />
             </Button>
@@ -286,9 +370,21 @@ export default function IndividualClassPage({ params: paramsPromise }: { params:
       </header>
       
       <main className="flex-1 overflow-y-auto p-4 space-y-4">
-        {messages.map((msg) => (
-            <ChatMessage key={msg.id} message={msg} isSender={msg.sender} onReply={handleReply} onDelete={handleDelete}/>
-        ))}
+        {loading ? (
+           <div className="flex justify-center items-center h-full pt-10">
+            <Loader2 className="h-6 w-6 animate-spin" />
+          </div>
+        ) : messages.length === 0 ? (
+          <div className="text-center p-10 text-muted-foreground flex flex-col items-center">
+            <Users className="h-12 w-12 mb-4" />
+            <p className="font-bold">No messages yet</p>
+            <p className="text-sm mt-1">Be the first to start the conversation!</p>
+          </div>
+        ) : (
+            messages.map((msg) => (
+                <ChatMessage key={msg.id} message={msg} isSender={msg.user_id === currentUser?.id} onReply={handleReply} onDelete={handleDelete}/>
+            ))
+        )}
         <div ref={messagesEndRef} />
       </main>
 
@@ -346,7 +442,7 @@ export default function IndividualClassPage({ params: paramsPromise }: { params:
                             ref={fileInputRef} 
                             onChange={handleFileChange}
                             className="hidden" 
-                            accept="image/*,video/*"
+                            accept="image/*,video/*,audio/*"
                         />
                         <Button variant="ghost" size="icon" type="button" onClick={() => fileInputRef.current?.click()}><ImageIcon className="h-5 w-5 text-muted-foreground" /></Button>
                         <Button variant="ghost" size="icon" type="button" onClick={() => setShowEmojiPicker(!showEmojiPicker)}>
@@ -382,4 +478,3 @@ export default function IndividualClassPage({ params: paramsPromise }: { params:
     </div>
   );
 }
-
