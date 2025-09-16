@@ -5,7 +5,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { ArrowLeft, Video, Mic, Image as ImageIcon, Send, Smile, MoreVertical, MessageSquareReply, Trash2, X, Loader2, Waves, Users } from "lucide-react";
+import { ArrowLeft, Video, Mic, Image as ImageIcon, Send, Smile, MoreVertical, MessageSquareReply, Trash2, X, Loader2, Waves, Users, Check } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { use, useState, useRef, useEffect, useCallback } from "react";
@@ -16,6 +16,7 @@ import { EmojiPicker } from "@/components/emoji-picker";
 import { createClient } from "@/lib/supabase/client";
 import { User } from "@supabase/supabase-js";
 import { Profile } from "@/lib/data";
+import { formatDistanceToNow } from 'date-fns';
 
 type ClassInfo = {
   id: string;
@@ -36,6 +37,11 @@ type ClassMessage = {
 };
 
 const ChatMessage = ({ message, isSender, onReply, onDelete }: { message: ClassMessage, isSender: boolean, onReply: (message: any) => void, onDelete: (messageId: string) => void }) => {
+    const timeAgo = formatDistanceToNow(new Date(message.created_at), { addSuffix: true });
+    
+    // Mock seen status for now
+    const isSeen = Math.random() > 0.5;
+
     return (
         <div className={`flex items-start gap-3 ${isSender ? 'justify-end' : 'justify-start'}`}>
             {!isSender && (
@@ -49,19 +55,41 @@ const ChatMessage = ({ message, isSender, onReply, onDelete }: { message: ClassM
             <div className="group relative">
                 <div className={cn(
                     "max-w-xs rounded-lg",
-                     message.media_type === 'image' ? "bg-transparent" : (isSender ? 'bg-primary text-primary-foreground' : 'bg-muted')
+                     message.media_type && ['image', 'video', 'sticker'].includes(message.media_type) ? "bg-transparent" : (isSender ? 'bg-primary text-primary-foreground' : 'bg-muted')
                 )}>
-                     <div className={message.media_type === 'image' ? "" : "px-4 py-2"}>
+                     <div className={message.media_type && ['image', 'video', 'sticker'].includes(message.media_type) ? "" : "px-3 py-2"}>
                         {!isSender && <p className="font-semibold text-xs mb-1">{message.profiles.full_name}</p>}
+                        
                         {message.media_type === 'image' && message.media_url ? (
-                            <div className="relative h-48 w-48 rounded-lg overflow-hidden">
-                                <Image src={message.media_url} alt="sent image" layout="fill" objectFit="cover" data-ai-hint="photo message" />
+                            <Link href={`/class/${message.class_id}/media-viewer?url=${encodeURIComponent(message.media_url)}&type=image`}>
+                                <div className="relative h-48 w-48 rounded-lg overflow-hidden">
+                                    <Image src={message.media_url} alt="sent image" layout="fill" objectFit="cover" data-ai-hint="photo message" />
+                                </div>
+                            </Link>
+                        ) : message.media_type === 'sticker' && message.media_url ? (
+                             <div className="relative h-32 w-32">
+                                <Image src={message.media_url} alt="sticker" layout="fill" objectFit="contain" unoptimized />
                             </div>
                         ) : (
-                            <p>{message.content}</p>
+                            <p className="text-sm">{message.content}</p>
                         )}
                      </div>
                 </div>
+
+                {/* Timestamp and Seen Status */}
+                {isSender && (
+                    <div className="flex items-center justify-end gap-1.5 px-2 py-0.5">
+                        <span className="text-xs text-muted-foreground">{timeAgo}</span>
+                        <Check className={cn("h-4 w-4", isSeen ? "text-blue-500" : "text-muted-foreground")} />
+                    </div>
+                )}
+                 {!isSender && (
+                    <div className="px-2 py-0.5">
+                        <span className="text-xs text-muted-foreground">{timeAgo}</span>
+                    </div>
+                )}
+
+
                 <div className="absolute top-0 right-0 z-10 opacity-0 group-hover:opacity-100 transition-opacity">
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
