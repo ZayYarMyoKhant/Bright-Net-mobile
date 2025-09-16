@@ -15,6 +15,12 @@ import { useToast } from '@/hooks/use-toast';
 import { createClient } from '@/lib/supabase/client';
 import type { Post, Profile } from '@/lib/data';
 
+type Class = {
+  id: string;
+  name: string;
+  creator_id: string;
+  avatar_url: string;
+};
 
 type ProfileData = Profile & {
   following: number;
@@ -29,6 +35,7 @@ export default function ProfilePage() {
   
   const [user, setUser] = useState<ProfileData | null>(null);
   const [posts, setPosts] = useState<Post[]>([]);
+  const [joinedClasses, setJoinedClasses] = useState<Class[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -50,10 +57,11 @@ export default function ProfilePage() {
             }
 
             if (profileData) {
-                 const [followersRes, followingRes, postDataRes] = await Promise.all([
+                 const [followersRes, followingRes, postDataRes, classMemberRes] = await Promise.all([
                     supabase.from('followers').select('user_id', { count: 'exact' }).eq('user_id', authUser.id),
                     supabase.from('followers').select('follower_id', { count: 'exact' }).eq('follower_id', authUser.id),
-                    supabase.from('posts').select('*').eq('user_id', authUser.id).order('created_at', { ascending: false })
+                    supabase.from('posts').select('*').eq('user_id', authUser.id).order('created_at', { ascending: false }),
+                    supabase.from('class_members').select('class_id').eq('user_id', authUser.id)
                  ]);
                 
                  setUser({
@@ -66,6 +74,19 @@ export default function ProfilePage() {
                     toast({ variant: 'destructive', title: 'Error loading posts', description: postDataRes.error.message });
                 } else {
                     setPosts(postDataRes.data as Post[]);
+                }
+                
+                if (classMemberRes.data && classMemberRes.data.length > 0) {
+                    const classIds = classMemberRes.data.map(cm => cm.class_id);
+                    const { data: classesData, error: classesError } = await supabase
+                        .from('classes')
+                        .select('*')
+                        .in('id', classIds);
+                    if (classesError) {
+                         toast({ variant: 'destructive', title: 'Error loading classes', description: classesError.message });
+                    } else {
+                        setJoinedClasses(classesData as Class[]);
+                    }
                 }
 
             } else {
@@ -202,10 +223,30 @@ export default function ProfilePage() {
               )}
             </TabsContent>
             <TabsContent value="class">
-               <div className="flex flex-col items-center justify-center pt-10">
-                  <GraduationCap className="h-12 w-12 text-muted-foreground" />
-                  <p className="mt-4 text-sm text-muted-foreground">No classes yet.</p>
-              </div>
+               {joinedClasses.length > 0 ? (
+                 <div className="divide-y mt-4">
+                    {joinedClasses.map((cls) => (
+                        <Link href={`/class/${cls.id}`} key={cls.id}>
+                            <div className="p-4 flex items-center gap-4 hover:bg-muted/50 cursor-pointer">
+                                <Avatar className="h-14 w-14 rounded-md">
+                                    <AvatarImage src={cls.avatar_url} />
+                                    <AvatarFallback>
+                                        <GraduationCap/>
+                                    </AvatarFallback>
+                                </Avatar>
+                                <div className="flex-1">
+                                    <p className="font-semibold text-primary">{cls.name}</p>
+                                </div>
+                            </div>
+                        </Link>
+                    ))}
+                 </div>
+               ) : (
+                  <div className="flex flex-col items-center justify-center pt-10">
+                      <GraduationCap className="h-12 w-12 text-muted-foreground" />
+                      <p className="mt-4 text-sm text-muted-foreground">You haven't joined any classes yet.</p>
+                  </div>
+               )}
             </TabsContent>
           </Tabs>
         </main>
