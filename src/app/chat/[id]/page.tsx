@@ -169,6 +169,7 @@ export default function IndividualChatPage({ params: paramsPromise }: { params: 
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [messages, setMessages] = useState<DirectMessage[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isCalling, setIsCalling] = useState(false);
 
   const [newMessage, setNewMessage] = useState("");
   const [replyingTo, setReplyingTo] = useState<any | null>(null);
@@ -434,6 +435,25 @@ export default function IndividualChatPage({ params: paramsPromise }: { params: 
     return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
   };
 
+  const handleInitiateCall = async () => {
+    if (!currentUser || !otherUser) return;
+
+    setIsCalling(true);
+    const { data, error } = await supabase
+        .from('video_calls')
+        .insert({ caller_id: currentUser.id, callee_id: otherUser.id, status: 'requesting' })
+        .select('id')
+        .single();
+    
+    setIsCalling(false);
+
+    if (error) {
+        toast({ variant: 'destructive', title: 'Could not start call', description: error.message });
+    } else {
+        router.push(`/chat/${otherUser.id}/voice-call/${data.id}/requesting`);
+    }
+  }
+
   if (loading || !otherUser) {
     return <div className="flex h-dvh w-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin"/></div>
   }
@@ -459,11 +479,9 @@ export default function IndividualChatPage({ params: paramsPromise }: { params: 
             </div>
         </div>
         <div className="flex items-center gap-2">
-          <Link href={`/chat/${otherUser.id}/voice-call`}>
-            <Button variant="ghost" size="icon">
-              <Phone className="h-5 w-5" />
+            <Button variant="ghost" size="icon" onClick={handleInitiateCall} disabled={isCalling}>
+                {isCalling ? <Loader2 className="h-5 w-5 animate-spin" /> : <Phone className="h-5 w-5" />}
             </Button>
-          </Link>
            <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="icon">
