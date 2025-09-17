@@ -143,7 +143,7 @@ export default function ChatPage() {
              <div className="text-center p-10 text-muted-foreground flex flex-col items-center pt-20">
                 <Users className="h-12 w-12 mb-4" />
                 <p className="font-bold">No Chats Yet</p>
-                <p className="text-sm mt-1">Find someone on their profile to start a conversation!</p>
+                <p className="text-sm mt-1">Find someone on the Search page to start a conversation!</p>
             </div>
           ) : (
             <div className="divide-y">
@@ -175,3 +175,5 @@ export default function ChatPage() {
     </>
   );
 }
+
+    
