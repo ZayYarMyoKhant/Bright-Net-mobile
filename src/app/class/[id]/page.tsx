@@ -24,6 +24,13 @@ type ClassInfo = {
   creator_id: string;
 };
 
+type MessageReaction = {
+    id: string;
+    emoji: string;
+    user_id: string;
+    profiles: Profile;
+}
+
 type ClassMessage = {
   id: string;
   class_id: string;
@@ -34,14 +41,13 @@ type ClassMessage = {
   parent_message_id: string | null;
   created_at: string;
   profiles: Profile;
+  message_reactions: MessageReaction[];
+  is_seen?: boolean;
 };
 
-const ChatMessage = ({ message, isSender, onReply, onDelete }: { message: ClassMessage, isSender: boolean, onReply: (message: any) => void, onDelete: (messageId: string) => void }) => {
+const ChatMessage = ({ message, isSender, onReply, onDelete, currentUser }: { message: ClassMessage, isSender: boolean, onReply: (message: any) => void, onDelete: (messageId: string) => void, currentUser: User | null }) => {
     const timeAgo = formatDistanceToNow(new Date(message.created_at), { addSuffix: true });
     
-    // Mock seen status for now
-    const isSeen = Math.random() > 0.5;
-
     return (
         <div className={`flex items-start gap-3 ${isSender ? 'justify-end' : 'justify-start'}`}>
             {!isSender && (
@@ -55,9 +61,9 @@ const ChatMessage = ({ message, isSender, onReply, onDelete }: { message: ClassM
             <div className="group relative">
                 <div className={cn(
                     "max-w-xs rounded-lg",
-                     message.media_type && ['image', 'video', 'sticker'].includes(message.media_type) ? "bg-transparent" : (isSender ? 'bg-primary text-primary-foreground' : 'bg-muted')
+                     message.media_type && ['image', 'video', 'sticker', 'audio'].includes(message.media_type) ? "bg-transparent" : (isSender ? 'bg-primary text-primary-foreground' : 'bg-muted')
                 )}>
-                     <div className={message.media_type && ['image', 'video', 'sticker'].includes(message.media_type) ? "" : "px-3 py-2"}>
+                     <div className={message.media_type && ['image', 'video', 'sticker', 'audio'].includes(message.media_type) ? "" : "px-3 py-2"}>
                         {!isSender && <p className="font-semibold text-xs mb-1">{message.profiles.full_name}</p>}
                         
                         {message.media_type === 'image' && message.media_url ? (
@@ -70,17 +76,18 @@ const ChatMessage = ({ message, isSender, onReply, onDelete }: { message: ClassM
                              <div className="relative h-32 w-32">
                                 <Image src={message.media_url} alt="sticker" layout="fill" objectFit="contain" unoptimized />
                             </div>
+                        ) : message.media_type === 'audio' && message.media_url ? (
+                            <audio controls src={message.media_url} className="w-60 h-10" />
                         ) : (
                             <p className="text-sm">{message.content}</p>
                         )}
                      </div>
                 </div>
 
-                {/* Timestamp and Seen Status */}
                 {isSender && (
                     <div className="flex items-center justify-end gap-1.5 px-2 py-0.5">
                         <span className="text-xs text-muted-foreground">{timeAgo}</span>
-                        <Check className={cn("h-4 w-4", isSeen ? "text-blue-500" : "text-muted-foreground")} />
+                        <Check className={cn("h-4 w-4", message.is_seen ? "text-blue-500" : "text-muted-foreground")} />
                     </div>
                 )}
                  {!isSender && (
@@ -88,7 +95,6 @@ const ChatMessage = ({ message, isSender, onReply, onDelete }: { message: ClassM
                         <span className="text-xs text-muted-foreground">{timeAgo}</span>
                     </div>
                 )}
-
 
                 <div className="absolute top-0 right-0 z-10 opacity-0 group-hover:opacity-100 transition-opacity">
                     <DropdownMenu>
@@ -144,7 +150,7 @@ export default function IndividualClassPage({ params: paramsPromise }: { params:
   const audioChunksRef = useRef<Blob[]>([]);
   const recordingTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-  const fetchClassData = useCallback(async () => {
+  const fetchClassData = useCallback(async (user: User | null) => {
     setLoading(true);
     const { data: classData, error: classError } = await supabase
       .from('classes')
@@ -162,21 +168,27 @@ export default function IndividualClassPage({ params: paramsPromise }: { params:
 
     const { data: messagesData, error: messagesError } = await supabase
       .from('class_messages')
-      .select('*, profiles(*)')
+      .select('*, profiles(*), message_reactions(*, profiles(*)), read_status:class_message_read_status(user_id)')
       .eq('class_id', params.id)
       .order('created_at', { ascending: true });
 
     if (messagesError) {
       toast({ variant: "destructive", title: "Failed to load messages." });
     } else {
-      setMessages(messagesData as any);
+      const processedMessages = messagesData.map((msg: any) => ({
+        ...msg,
+        is_seen: msg.read_status.some((status: any) => status.user_id !== user?.id)
+      }));
+      setMessages(processedMessages);
     }
     setLoading(false);
   }, [params.id, supabase, toast]);
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => setCurrentUser(user));
-    fetchClassData();
+    supabase.auth.getUser().then(({ data: { user } }) => {
+        setCurrentUser(user);
+        fetchClassData(user);
+    });
   }, [fetchClassData, supabase.auth]);
 
 
@@ -198,9 +210,21 @@ export default function IndividualClassPage({ params: paramsPromise }: { params:
             if (error) {
                 console.error("Could not fetch profile for new message");
             } else {
-                 setMessages((prevMessages) => [...prevMessages, { ...payload.new, profiles: profile as Profile }]);
+                 setMessages((prevMessages) => [...prevMessages, { ...payload.new, profiles: profile as Profile, message_reactions: [], is_seen: false }]);
             }
         }
+      )
+      .on(
+        'postgres_changes',
+         { event: 'INSERT', schema: 'public', table: 'class_message_read_status' },
+         (payload) => {
+            setMessages(prev => prev.map(msg => {
+                if (msg.id === payload.new.message_id) {
+                    return {...msg, is_seen: true};
+                }
+                return msg;
+            }));
+         }
       )
       .subscribe();
     
@@ -214,13 +238,11 @@ export default function IndividualClassPage({ params: paramsPromise }: { params:
   };
   
   const handleDelete = (messageId: string) => {
-    // Optimistic delete
     setMessages(prev => prev.filter(msg => msg.id !== messageId));
-    // DB delete
     supabase.from('class_messages').delete().eq('id', messageId).then(({ error }) => {
         if (error) {
             toast({ variant: 'destructive', title: "Failed to delete message."});
-            fetchClassData(); // Re-fetch on error
+            fetchClassData(currentUser);
         } else {
             toast({ title: "Message deleted" });
         }
@@ -233,7 +255,7 @@ export default function IndividualClassPage({ params: paramsPromise }: { params:
       if (file.type.startsWith("image/") || file.type.startsWith("video/") || file.type.startsWith("audio/")) {
         setMediaFile(file);
         setMediaPreview(URL.createObjectURL(file));
-        setMediaDuration(null); // Reset duration
+        setMediaDuration(null);
       } else {
         toast({variant: "destructive", title: "Unsupported File Type"});
         handleRemoveMedia();
@@ -260,18 +282,17 @@ export default function IndividualClassPage({ params: paramsPromise }: { params:
     
     if (mediaFile) {
         const fileExtension = mediaFile.name.split('.').pop();
-        const fileName = `${currentUser.id}-class_media-${Date.now()}.${fileExtension}`;
-        const filePath = `public/${fileName}`;
-
-        const { error: uploadError } = await supabase.storage.from('class-media').upload(filePath, mediaFile);
+        const fileName = `public/class-media/${currentUser.id}-${Date.now()}.${fileExtension}`;
+        
+        const { error: uploadError } = await supabase.storage.from('avatars').upload(fileName, mediaFile);
         if (uploadError) {
             toast({ variant: "destructive", title: "Media upload failed", description: uploadError.message });
             setSending(false);
             return;
         }
-        const { data: { publicUrl } } = supabase.storage.from('class-media').getPublicUrl(filePath);
+        const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(fileName);
         publicMediaUrl = publicUrl;
-        mediaType = mediaFile.type.split('/')[0]; // 'image', 'video', 'audio'
+        mediaType = mediaFile.type.split('/')[0];
     }
 
     const { error: insertError } = await supabase.from('class_messages').insert({
@@ -327,7 +348,6 @@ export default function IndividualClassPage({ params: paramsPromise }: { params:
         if (recordingTimerRef.current) clearInterval(recordingTimerRef.current);
         setMediaDuration(recordingTime);
         setRecordingTime(0);
-
         setMediaFile(audioFile);
       };
 
@@ -410,7 +430,7 @@ export default function IndividualClassPage({ params: paramsPromise }: { params:
           </div>
         ) : (
             messages.map((msg) => (
-                <ChatMessage key={msg.id} message={msg} isSender={msg.user_id === currentUser?.id} onReply={handleReply} onDelete={handleDelete}/>
+                <ChatMessage key={msg.id} message={msg} isSender={msg.user_id === currentUser?.id} onReply={handleReply} onDelete={handleDelete} currentUser={currentUser}/>
             ))
         )}
         <div ref={messagesEndRef} />
@@ -422,8 +442,8 @@ export default function IndividualClassPage({ params: paramsPromise }: { params:
                 <div className="flex items-center justify-between bg-muted/50 px-3 py-1.5 text-xs">
                     <div className="truncate">
                         <span className="text-muted-foreground">Replying to </span>
-                        <span className="font-semibold">{replyingTo.user.name}</span>: 
-                        <span className="text-muted-foreground ml-1">{replyingTo.isImage ? "an image" : replyingTo.text}</span>
+                        <span className="font-semibold">{replyingTo.profiles.full_name}</span>: 
+                        <span className="text-muted-foreground ml-1">{replyingTo.media_url ? "a media file" : replyingTo.content}</span>
                     </div>
                     <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => setReplyingTo(null)}>
                         <X className="h-4 w-4" />
@@ -456,12 +476,14 @@ export default function IndividualClassPage({ params: paramsPromise }: { params:
                         <p className="text-sm font-mono text-red-500">{formatRecordingTime(recordingTime)}</p>
                     </div>
                 ) : mediaFile && mediaFile.type.startsWith('audio/') ? (
-                    <div className="flex-1 flex items-center bg-muted h-10 rounded-md px-3 gap-2">
+                    <div className="flex-1 flex items-center bg-muted h-10 rounded-md px-3 gap-2 justify-between">
+                        <div className="flex items-center gap-2">
+                            <Waves className="h-5 w-5 text-primary" />
+                            <p className="text-sm font-mono text-muted-foreground">{formatRecordingTime(Math.round(mediaDuration || 0))}</p>
+                        </div>
                         <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={handleRemoveMedia}>
                             <Trash2 className="h-5 w-5 text-destructive" />
                         </Button>
-                        <Waves className="h-5 w-5 text-primary" />
-                        <p className="text-sm font-mono text-muted-foreground">{formatRecordingTime(Math.round(mediaDuration || 0))}</p>
                     </div>
                 ) : (
                     <>
@@ -506,3 +528,4 @@ export default function IndividualClassPage({ params: paramsPromise }: { params:
     </div>
   );
 }
+
