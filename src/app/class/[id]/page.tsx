@@ -5,7 +5,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { ArrowLeft, Video, Mic, Image as ImageIcon, Send, Smile, MoreVertical, MessageSquareReply, Trash2, X, Loader2, Waves, Users, Check } from "lucide-react";
+import { ArrowLeft, Video, Mic, Image as ImageIcon, Send, Smile, MoreVertical, MessageSquareReply, Trash2, X, Loader2, Waves, Users, Check, ThumbsUp, Heart, Laugh, Frown } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { use, useState, useRef, useEffect, useCallback } from "react";
@@ -17,6 +17,7 @@ import { createClient } from "@/lib/supabase/client";
 import { User } from "@supabase/supabase-js";
 import { Profile } from "@/lib/data";
 import { formatDistanceToNow } from 'date-fns';
+import { useRouter } from "next/navigation";
 
 type ClassInfo = {
   id: string;
@@ -45,9 +46,27 @@ type ClassMessage = {
   is_seen?: boolean;
 };
 
-const ChatMessage = ({ message, isSender, onReply, onDelete, currentUser }: { message: ClassMessage, isSender: boolean, onReply: (message: any) => void, onDelete: (messageId: string) => void, currentUser: User | null }) => {
+const ReactionEmojis = {
+  '👍': ThumbsUp,
+  '❤️': Heart,
+  '😂': Laugh,
+  '😢': Frown
+};
+
+
+const ChatMessage = ({ message, isSender, onReply, onDelete, currentUser, onReaction }: { message: ClassMessage, isSender: boolean, onReply: (message: any) => void, onDelete: (messageId: string) => void, currentUser: User | null, onReaction: (messageId: string, emoji: string) => void }) => {
     const timeAgo = formatDistanceToNow(new Date(message.created_at), { addSuffix: true });
     
+    const aggregatedReactions = message.message_reactions.reduce((acc, reaction) => {
+        if (!acc[reaction.emoji]) {
+            acc[reaction.emoji] = { count: 0, users: [] };
+        }
+        acc[reaction.emoji].count++;
+        // @ts-ignore
+        acc[reaction.emoji].users.push(reaction.profiles.full_name);
+        return acc;
+    }, {} as Record<string, { count: number; users: string[] }>);
+
     return (
         <div className={`flex items-start gap-3 ${isSender ? 'justify-end' : 'justify-start'}`}>
             {!isSender && (
@@ -58,9 +77,9 @@ const ChatMessage = ({ message, isSender, onReply, onDelete, currentUser }: { me
                     </Avatar>
                 </Link>
             )}
-            <div className="group relative">
+            <div className="group relative max-w-xs">
                 <div className={cn(
-                    "max-w-xs rounded-lg",
+                    "rounded-lg",
                      message.media_type && ['image', 'video', 'sticker', 'audio'].includes(message.media_type) ? "bg-transparent" : (isSender ? 'bg-primary text-primary-foreground' : 'bg-muted')
                 )}>
                      <div className={message.media_type && ['image', 'video', 'sticker', 'audio'].includes(message.media_type) ? "" : "px-3 py-2"}>
@@ -84,19 +103,35 @@ const ChatMessage = ({ message, isSender, onReply, onDelete, currentUser }: { me
                      </div>
                 </div>
 
-                {isSender && (
-                    <div className="flex items-center justify-end gap-1.5 px-2 py-0.5">
-                        <span className="text-xs text-muted-foreground">{timeAgo}</span>
-                        <Check className={cn("h-4 w-4", message.is_seen ? "text-blue-500" : "text-muted-foreground")} />
+                {Object.keys(aggregatedReactions).length > 0 && (
+                     <div className="absolute -bottom-3 right-2 flex items-center gap-1">
+                        {Object.entries(aggregatedReactions).map(([emoji, {count}]) => (
+                            <div key={emoji} className="flex items-center bg-background border rounded-full px-1.5 py-0.5 text-xs shadow-sm">
+                                <span>{emoji}</span>
+                                <span className="ml-1 font-semibold text-muted-foreground">{count}</span>
+                            </div>
+                        ))}
                     </div>
                 )}
-                 {!isSender && (
-                    <div className="px-2 py-0.5">
-                        <span className="text-xs text-muted-foreground">{timeAgo}</span>
-                    </div>
-                )}
+                
 
                 <div className="absolute top-0 right-0 z-10 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <Popover>
+                        <PopoverTrigger asChild>
+                            <Button variant="ghost" size="icon" className={cn("h-6 w-6 rounded-full", isSender ? "text-primary-foreground/70 hover:text-primary-foreground hover:bg-white/20" : "text-muted-foreground hover:text-foreground hover:bg-black/10")}>
+                                <Smile className="h-4 w-4" />
+                            </Button>
+                        </PopoverTrigger>
+                         <PopoverContent className="w-auto p-1">
+                            <div className="flex gap-1">
+                                {Object.entries(ReactionEmojis).map(([emoji, Icon]) => (
+                                    <Button key={emoji} variant="ghost" size="icon" className="h-8 w-8 rounded-full" onClick={() => onReaction(message.id, emoji)}>
+                                        <Icon className="h-5 w-5" />
+                                    </Button>
+                                ))}
+                            </div>
+                        </PopoverContent>
+                    </Popover>
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                             <Button variant="ghost" size="icon" className={cn("h-6 w-6", isSender ? "text-primary-foreground/70 hover:text-primary-foreground hover:bg-white/20" : "text-muted-foreground hover:text-foreground hover:bg-black/10")}>
@@ -118,6 +153,10 @@ const ChatMessage = ({ message, isSender, onReply, onDelete, currentUser }: { me
                         </DropdownMenuContent>
                     </DropdownMenu>
                 </div>
+                 <div className="flex items-center justify-end gap-1.5 px-2 py-0.5 mt-1">
+                    <span className="text-xs text-muted-foreground">{timeAgo}</span>
+                    {isSender && <Check className={cn("h-4 w-4", message.is_seen ? "text-blue-500" : "text-muted-foreground")} />}
+                </div>
             </div>
         </div>
     )
@@ -126,6 +165,7 @@ const ChatMessage = ({ message, isSender, onReply, onDelete, currentUser }: { me
 
 export default function IndividualClassPage({ params: paramsPromise }: { params: Promise<{ id: string }> }) {
   const params = use(paramsPromise);
+  const router = useRouter();
   const { toast } = useToast();
   const supabase = createClient();
   
@@ -133,6 +173,7 @@ export default function IndividualClassPage({ params: paramsPromise }: { params:
   const [classInfo, setClassInfo] = useState<ClassInfo | null>(null);
   const [messages, setMessages] = useState<ClassMessage[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isCreator, setIsCreator] = useState(false);
 
   const [newMessage, setNewMessage] = useState("");
   const [replyingTo, setReplyingTo] = useState<any | null>(null);
@@ -162,27 +203,26 @@ export default function IndividualClassPage({ params: paramsPromise }: { params:
       toast({ variant: "destructive", title: "Class not found." });
       setClassInfo(null);
       setLoading(false);
+      router.push('/class');
       return;
     }
     setClassInfo(classData);
+    setIsCreator(user?.id === classData.creator_id);
 
     const { data: messagesData, error: messagesError } = await supabase
       .from('class_messages')
-      .select('*, profiles(*), message_reactions(*, profiles(*)), read_status:class_message_read_status(user_id)')
+      .select('*, profiles(*), message_reactions(*, profiles(*))')
       .eq('class_id', params.id)
       .order('created_at', { ascending: true });
 
     if (messagesError) {
       toast({ variant: "destructive", title: "Failed to load messages." });
+      setMessages([]);
     } else {
-      const processedMessages = messagesData.map((msg: any) => ({
-        ...msg,
-        is_seen: msg.read_status.some((status: any) => status.user_id !== user?.id)
-      }));
-      setMessages(processedMessages);
+        setMessages(messagesData as unknown as ClassMessage[]);
     }
     setLoading(false);
-  }, [params.id, supabase, toast]);
+  }, [params.id, supabase, toast, router]);
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
@@ -197,7 +237,7 @@ export default function IndividualClassPage({ params: paramsPromise }: { params:
   }, [messages]);
 
   useEffect(() => {
-    const channel = supabase.channel(`class-chat-${params.id}`)
+    const messageChannel = supabase.channel(`class-chat-${params.id}`)
       .on<ClassMessage>(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'class_messages', filter: `class_id=eq.${params.id}` },
@@ -210,43 +250,41 @@ export default function IndividualClassPage({ params: paramsPromise }: { params:
             if (error) {
                 console.error("Could not fetch profile for new message");
             } else {
-                 setMessages((prevMessages) => [...prevMessages, { ...payload.new, profiles: profile as Profile, message_reactions: [], is_seen: false }]);
+                 setMessages((prevMessages) => [...prevMessages, { ...payload.new, profiles: profile as Profile, message_reactions: [] }]);
             }
         }
       )
-      .on(
-        'postgres_changes',
-         { event: 'INSERT', schema: 'public', table: 'class_message_read_status' },
-         (payload) => {
-            setMessages(prev => prev.map(msg => {
-                if (msg.id === payload.new.message_id) {
-                    return {...msg, is_seen: true};
-                }
-                return msg;
-            }));
-         }
+      .subscribe();
+      
+      const reactionChannel = supabase.channel(`class-reactions-${params.id}`)
+      .on<MessageReaction>(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'message_reactions' },
+          async (payload) => {
+              fetchClassData(currentUser); // Refetch all data on reaction change for simplicity
+          }
       )
       .subscribe();
     
     return () => {
-      supabase.removeChannel(channel);
+      supabase.removeChannel(messageChannel);
+      supabase.removeChannel(reactionChannel);
     };
-  }, [params.id, supabase]);
+  }, [params.id, supabase, fetchClassData, currentUser]);
 
   const handleReply = (message: any) => {
     setReplyingTo(message);
   };
   
-  const handleDelete = (messageId: string) => {
+  const handleDelete = async (messageId: string) => {
     setMessages(prev => prev.filter(msg => msg.id !== messageId));
-    supabase.from('class_messages').delete().eq('id', messageId).then(({ error }) => {
-        if (error) {
-            toast({ variant: 'destructive', title: "Failed to delete message."});
-            fetchClassData(currentUser);
-        } else {
-            toast({ title: "Message deleted" });
-        }
-    });
+    const { error } = await supabase.from('class_messages').delete().eq('id', messageId);
+    if (error) {
+        toast({ variant: 'destructive', title: "Failed to delete message."});
+        fetchClassData(currentUser);
+    } else {
+        toast({ title: "Message deleted" });
+    }
   };
   
  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -314,6 +352,29 @@ export default function IndividualClassPage({ params: paramsPromise }: { params:
         toast({ variant: "destructive", title: "Failed to send message", description: insertError.message });
     }
   }
+  
+    const handleReaction = async (messageId: string, emoji: string) => {
+        if (!currentUser) return;
+
+        // Check if user already reacted with this emoji
+        const existingReaction = messages
+            .find(m => m.id === messageId)?.message_reactions
+            .find(r => r.user_id === currentUser.id && r.emoji === emoji);
+
+        if (existingReaction) {
+            // User is removing their reaction
+            await supabase.from('message_reactions').delete().eq('id', existingReaction.id);
+        } else {
+            // User is adding a new reaction
+            await supabase.from('message_reactions').insert({
+                message_id: messageId,
+                user_id: currentUser.id,
+                emoji: emoji
+            });
+        }
+        // The real-time subscription will handle the UI update by refetching.
+    }
+
 
   const handleSendSticker = async (stickerUrl: string) => {
     setShowEmojiPicker(false);
@@ -385,6 +446,31 @@ export default function IndividualClassPage({ params: paramsPromise }: { params:
     return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
   };
 
+    const handleLeaveClass = async () => {
+        if (!currentUser) return;
+        const { error } = await supabase.from('class_members').delete().match({ class_id: params.id, user_id: currentUser.id });
+        if (error) {
+            toast({ variant: "destructive", title: "Failed to leave class", description: error.message });
+        } else {
+            toast({ title: "You have left the class." });
+            router.push('/class');
+            router.refresh();
+        }
+    };
+
+    const handleDeleteClass = async () => {
+        if (!isCreator) return;
+        const { error } = await supabase.from('classes').delete().eq('id', params.id);
+         if (error) {
+            toast({ variant: "destructive", title: "Failed to delete class", description: error.message });
+        } else {
+            toast({ title: "Class has been deleted." });
+            router.push('/class');
+            router.refresh();
+        }
+    };
+
+
   return (
     <div className="flex h-dvh flex-col bg-background text-foreground">
       <header className="flex h-16 flex-shrink-0 items-center justify-between border-b px-4">
@@ -399,11 +485,13 @@ export default function IndividualClassPage({ params: paramsPromise }: { params:
             </Link>
         </div>
         <div className="flex items-center gap-2">
-          <Link href={`/class/${classInfo?.id}/video-call`}>
-            <Button variant="ghost" size="icon">
-              <Video className="h-5 w-5" />
-            </Button>
-          </Link>
+          {isCreator && (
+            <Link href={`/class/${classInfo?.id}/video-call`}>
+                <Button variant="ghost" size="icon">
+                <Video className="h-5 w-5" />
+                </Button>
+            </Link>
+          )}
            <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="icon">
@@ -411,13 +499,17 @@ export default function IndividualClassPage({ params: paramsPromise }: { params:
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent>
-              <DropdownMenuItem>Leave Class</DropdownMenuItem>
+                {isCreator ? (
+                    <DropdownMenuItem className="text-destructive" onClick={handleDeleteClass}>Delete Class</DropdownMenuItem>
+                ) : (
+                    <DropdownMenuItem className="text-destructive" onClick={handleLeaveClass}>Leave Class</DropdownMenuItem>
+                )}
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
       </header>
       
-      <main className="flex-1 overflow-y-auto p-4 space-y-4">
+      <main className="flex-1 overflow-y-auto p-4 space-y-6">
         {loading ? (
            <div className="flex justify-center items-center h-full pt-10">
             <Loader2 className="h-6 w-6 animate-spin" />
@@ -430,7 +522,7 @@ export default function IndividualClassPage({ params: paramsPromise }: { params:
           </div>
         ) : (
             messages.map((msg) => (
-                <ChatMessage key={msg.id} message={msg} isSender={msg.user_id === currentUser?.id} onReply={handleReply} onDelete={handleDelete} currentUser={currentUser}/>
+                <ChatMessage key={msg.id} message={msg} isSender={msg.user_id === currentUser?.id} onReply={handleReply} onDelete={handleDelete} currentUser={currentUser} onReaction={handleReaction}/>
             ))
         )}
         <div ref={messagesEndRef} />
@@ -528,4 +620,3 @@ export default function IndividualClassPage({ params: paramsPromise }: { params:
     </div>
   );
 }
-
