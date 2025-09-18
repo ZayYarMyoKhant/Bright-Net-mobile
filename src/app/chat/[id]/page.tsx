@@ -48,9 +48,11 @@ const ReactionEmojis = {
 };
 
 
-const ChatMessage = ({ message, isSender, onReply, onDelete, onReaction }: { message: DirectMessage, isSender: boolean, onReply: (message: any) => void, onDelete: (messageId: string) => void, onReaction: (messageId: string, emoji: string) => void }) => {
+const ChatMessage = ({ message, isSender, onReply, onDelete, onReaction, otherUserId }: { message: DirectMessage, isSender: boolean, onReply: (message: any) => void, onDelete: (messageId: string) => void, onReaction: (messageId: string, emoji: string) => void, otherUserId: string }) => {
     
     const timeAgo = formatDistanceToNow(new Date(message.created_at), { addSuffix: true });
+    const msgRef = useRef<HTMLDivElement>(null);
+    const supabase = createClient();
     
     const aggregatedReactions = message.direct_message_reactions.reduce((acc, reaction) => {
         if (!acc[reaction.emoji]) {
@@ -62,8 +64,37 @@ const ChatMessage = ({ message, isSender, onReply, onDelete, onReaction }: { mes
         return acc;
     }, {} as Record<string, { count: number; users: string[] }>);
 
+     useEffect(() => {
+        const observer = new IntersectionObserver(
+            async ([entry]) => {
+                if (entry.isIntersecting && !isSender && !message.is_seen_by_other) {
+                    const { data: { user } } = await supabase.auth.getUser();
+                    if (user) {
+                       await supabase.from('direct_message_read_status').insert({
+                           message_id: message.id,
+                           user_id: user.id
+                       });
+                    }
+                    observer.disconnect();
+                }
+            },
+            { threshold: 0.5 }
+        );
+
+        if (msgRef.current) {
+            observer.observe(msgRef.current);
+        }
+
+        return () => {
+            if (msgRef.current) {
+                observer.unobserve(msgRef.current);
+            }
+        };
+    }, [isSender, message.id, message.is_seen_by_other, supabase, otherUserId]);
+
+
     return (
-        <div className={`flex items-start gap-3 ${isSender ? 'justify-end' : 'justify-start'}`}>
+        <div ref={msgRef} className={`flex items-start gap-3 ${isSender ? 'justify-end' : 'justify-start'}`}>
             {!isSender && (
                 <Link href={`/profile/${message.profiles.id}`}>
                     <Avatar className="h-8 w-8">
@@ -247,7 +278,7 @@ export default function IndividualChatPage({ params: paramsPromise }: { params: 
   
   // Realtime subscriptions
   useEffect(() => {
-    if (!conversationId) return;
+    if (!conversationId || !currentUser) return;
     
     const messageChannel = supabase.channel(`direct-messages-${conversationId}`)
       .on<DirectMessage>(
@@ -270,8 +301,7 @@ export default function IndividualChatPage({ params: paramsPromise }: { params: 
         .on( 'postgres_changes',
           { event: '*', schema: 'public', table: 'direct_message_reactions' },
           (payload) => {
-             // Just refetch all messages for simplicity
-             if(currentUser) fetchChatData(currentUser, params.id);
+             fetchChatData(currentUser, params.id);
           }
       ).subscribe();
 
@@ -279,8 +309,7 @@ export default function IndividualChatPage({ params: paramsPromise }: { params: 
         .on('postgres_changes',
           { event: '*', schema: 'public', table: 'direct_message_read_status' },
           (payload) => {
-             // Just refetch all messages for simplicity
-             if(currentUser) fetchChatData(currentUser, params.id);
+             fetchChatData(currentUser, params.id);
           }
       ).subscribe();
     
@@ -498,7 +527,7 @@ export default function IndividualChatPage({ params: paramsPromise }: { params: 
       
       <main className="flex-1 overflow-y-auto p-4 space-y-6">
         {messages.map((msg) => (
-            <ChatMessage key={msg.id} message={msg} isSender={msg.sender_id === currentUser?.id} onReply={handleReply} onDelete={handleDelete} onReaction={handleReaction}/>
+            <ChatMessage key={msg.id} message={msg} isSender={msg.sender_id === currentUser?.id} onReply={handleReply} onDelete={handleDelete} onReaction={handleReaction} otherUserId={otherUser.id}/>
         ))}
         <div ref={messagesEndRef} />
       </main>

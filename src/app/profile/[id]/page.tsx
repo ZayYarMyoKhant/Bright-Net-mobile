@@ -6,7 +6,7 @@ import { use, useEffect, useState, useCallback } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Grid3x3, Clapperboard, ArrowLeft, MessageCircle, CameraOff, Loader2, MoreVertical, Trash2 } from "lucide-react";
+import { Grid3x3, Clapperboard, ArrowLeft, MessageCircle, CameraOff, Loader2, MoreVertical, Trash2, GraduationCap } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { BottomNav } from '@/components/bottom-nav';
@@ -35,6 +35,13 @@ type ProfileData = Profile & {
   is_following: boolean;
 };
 
+type JoinedClass = {
+  id: string;
+  name: string;
+  avatar_url: string;
+};
+
+
 export default function UserProfilePage({ params: paramsPromise }: { params: Promise<{ id: string }> }) {
   const params = use(paramsPromise);
   const router = useRouter();
@@ -44,6 +51,7 @@ export default function UserProfilePage({ params: paramsPromise }: { params: Pro
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [posts, setPosts] = useState<Post[]>([]);
+  const [joinedClasses, setJoinedClasses] = useState<JoinedClass[]>([]);
   const [loading, setLoading] = useState(true);
   const [isFollowing, setIsFollowing] = useState(false);
   const [isOwnProfile, setIsOwnProfile] = useState(false);
@@ -55,48 +63,58 @@ export default function UserProfilePage({ params: paramsPromise }: { params: Pro
     const { data: { user: authUser } } = await supabase.auth.getUser();
     setCurrentUser(authUser);
 
-    // Fetch profile, followers, and following in parallel
-    const [profileRes, followersRes, followingRes, postsRes] = await Promise.all([
-        supabase.from('profiles').select('*').eq('id', params.id).single(),
-        supabase.from('followers').select('user_id', { count: 'exact' }).eq('user_id', params.id),
-        supabase.from('followers').select('follower_id', { count: 'exact' }).eq('follower_id', params.id),
-        supabase.from('posts').select('*').eq('user_id', params.id).order('created_at', { ascending: false }),
-    ]);
+    // Fetch profile data
+    const { data: profileData, error: profileError } = await supabase.from('profiles').select('*').eq('id', params.id).single();
 
-    if (profileRes.error || !profileRes.data) {
-      console.error("Error fetching user profile:", profileRes.error);
+    if (profileError || !profileData) {
+      console.error("Error fetching user profile:", profileError);
       setProfile(null); 
       setLoading(false);
       return;
     }
     
-    setIsOwnProfile(authUser?.id === profileRes.data.id);
+    setIsOwnProfile(authUser?.id === profileData.id);
 
-    let isFollowingUser = false;
-    if (authUser && authUser.id !== params.id) {
-        const { data: followData, error: followError } = await supabase
-            .from('followers')
-            .select('*')
-            .eq('user_id', params.id)
-            .eq('follower_id', authUser.id)
-            .single();
-        if (followData) isFollowingUser = true;
-    }
+    // Parallelize fetches for counts, posts, and classes
+    const [followersRes, followingRes, postsRes, classMemberRes, followStatusRes] = await Promise.all([
+        supabase.from('followers').select('user_id', { count: 'exact' }).eq('user_id', params.id),
+        supabase.from('followers').select('follower_id', { count: 'exact' }).eq('follower_id', params.id),
+        supabase.from('posts').select('*').eq('user_id', params.id).order('created_at', { ascending: false }),
+        supabase.from('class_members').select('class_id').eq('user_id', params.id),
+        authUser && authUser.id !== params.id 
+            ? supabase.from('followers').select('*').eq('user_id', params.id).eq('follower_id', authUser.id).maybeSingle() 
+            : Promise.resolve({ data: null })
+    ]);
+    
+    const isFollowingUser = !!followStatusRes?.data;
     setIsFollowing(isFollowingUser);
 
-
     setProfile({
-      ...profileRes.data,
-      bio: profileRes.data.bio || "Another digital creator's bio.",
+      ...profileData,
+      bio: profileData.bio || "Another digital creator's bio.",
       followers: followersRes.count || 0,
       following: followingRes.count || 0,
       is_following: isFollowingUser,
     });
     
     setPosts(postsRes.data as Post[] || []);
+
+    // Fetch details for joined classes
+    if (classMemberRes.data && classMemberRes.data.length > 0) {
+      const classIds = classMemberRes.data.map(cm => cm.class_id);
+      const { data: classesData, error: classesError } = await supabase
+          .from('classes')
+          .select('id, name, avatar_url')
+          .in('id', classIds);
+      if (classesError) {
+           toast({ variant: 'destructive', title: 'Error loading classes', description: classesError.message });
+      } else {
+          setJoinedClasses(classesData as JoinedClass[]);
+      }
+    }
     
     setLoading(false);
-  }, [params.id, supabase]);
+  }, [params.id, supabase, toast]);
 
   useEffect(() => {
     if (params.id) {
@@ -141,26 +159,6 @@ export default function UserProfilePage({ params: paramsPromise }: { params: Pro
     }
   };
 
-  const handleDeletePost = async (postId: string, mediaUrl: string) => {
-    // Optimistically remove from UI
-    setPosts(prev => prev.filter(p => p.id !== postId));
-
-    // Delete from DB
-    const { error } = await supabase.from('posts').delete().eq('id', postId);
-
-    if (error) {
-        toast({ variant: "destructive", title: "Delete Failed", description: error.message });
-        // Re-fetch to revert UI
-        fetchProfileData();
-    } else {
-        toast({ title: "Post Deleted", description: "Your post has been removed." });
-        // Optionally, also delete from storage
-        const filePath = mediaUrl.substring(mediaUrl.lastIndexOf('public/') + 'public/'.length);
-        supabase.storage.from('posts').remove([filePath]);
-    }
-  };
-
-
   if (loading) {
     return (
        <>
@@ -185,9 +183,6 @@ export default function UserProfilePage({ params: paramsPromise }: { params: Pro
       </>
     )
   }
-  
-  const videoPosts = posts.filter(p => p.media_type === 'video');
-  const imagePosts = posts.filter(p => p.media_type === 'image');
 
   return (
     <>
@@ -254,15 +249,15 @@ export default function UserProfilePage({ params: paramsPromise }: { params: Pro
                 <Grid3x3 className="mr-2 h-4 w-4" />
                 Posts
               </TabsTrigger>
-              <TabsTrigger value="videos">
-                <Clapperboard className="mr-2 h-4 w-4" />
-                Videos
+              <TabsTrigger value="class">
+                 <GraduationCap className="mr-2 h-4 w-4" />
+                 Class
               </TabsTrigger>
             </TabsList>
             <TabsContent value="posts">
-             {imagePosts.length > 0 ? (
+             {posts.length > 0 ? (
                 <div className="grid grid-cols-3 gap-1 mt-4">
-                    {imagePosts.map((post) => (
+                    {posts.map((post) => (
                     <div key={post.id} className="group relative aspect-square w-full bg-muted">
                         <Link href={`/post/${post.id}`} className="block h-full w-full">
                             <div className="aspect-square w-full relative h-full">
@@ -275,101 +270,41 @@ export default function UserProfilePage({ params: paramsPromise }: { params: Pro
                                 />
                             </div>
                         </Link>
-                        
-                        {isOwnProfile && (
-                            <div className="absolute top-1 right-1">
-                                <DropdownMenu>
-                                    <DropdownMenuTrigger asChild>
-                                        <Button variant="ghost" size="icon" className="h-7 w-7 text-white bg-black/30 hover:bg-black/50 hover:text-white">
-                                            <MoreVertical className="h-4 w-4" />
-                                        </Button>
-                                    </DropdownMenuTrigger>
-                                    <DropdownMenuContent>
-                                        <AlertDialog>
-                                            <AlertDialogTrigger asChild>
-                                                <DropdownMenuItem className="text-destructive" onSelect={(e) => e.preventDefault()}>
-                                                    <Trash2 className="mr-2 h-4 w-4" />
-                                                    <span>Delete</span>
-                                                </DropdownMenuItem>
-                                            </AlertDialogTrigger>
-                                            <AlertDialogContent>
-                                                <AlertDialogHeader>
-                                                    <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                                                    <AlertDialogDescription>
-                                                        This action cannot be undone. This will permanently delete your post.
-                                                    </AlertDialogDescription>
-                                                </AlertDialogHeader>
-                                                <AlertDialogFooter>
-                                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                                    <AlertDialogAction onClick={() => handleDeletePost(post.id, post.media_url)} className="bg-destructive hover:bg-destructive/80">Delete</AlertDialogAction>
-                                                </AlertDialogFooter>
-                                            </AlertDialogContent>
-                                        </AlertDialog>
-                                    </DropdownMenuContent>
-                                </DropdownMenu>
-                            </div>
-                        )}
                     </div>
                     ))}
                 </div>
              ) : (
                 <div className="flex flex-col items-center justify-center pt-10 text-center text-muted-foreground">
                   <CameraOff className="h-12 w-12" />
-                  <p className="mt-4 text-sm">{isOwnProfile ? "You have no image posts yet." : "This user has no image posts yet."}</p>
+                  <p className="mt-4 text-sm">{isOwnProfile ? "You have no posts yet." : "This user has no posts yet."}</p>
                 </div>
              )}
             </TabsContent>
-            <TabsContent value="videos">
-               {videoPosts.length > 0 ? (
+            <TabsContent value="class">
+               {joinedClasses.length > 0 ? (
                 <div className="grid grid-cols-3 gap-1 mt-4">
-                    {videoPosts.map((post) => (
-                    <div key={post.id} className="group relative aspect-square w-full bg-muted">
-                        <Link href={`/post/${post.id}`} className="block h-full w-full">
-                            <div className="aspect-square w-full relative h-full">
-                                <video src={post.media_url} className="h-full w-full object-cover" />
-                            </div>
-                        </Link>
-                        
-                        {isOwnProfile && (
-                            <div className="absolute top-1 right-1">
-                                <DropdownMenu>
-                                    <DropdownMenuTrigger asChild>
-                                        <Button variant="ghost" size="icon" className="h-7 w-7 text-white bg-black/30 hover:bg-black/50 hover:text-white">
-                                            <MoreVertical className="h-4 w-4" />
-                                        </Button>
-                                    </DropdownMenuTrigger>
-                                    <DropdownMenuContent>
-                                        <AlertDialog>
-                                            <AlertDialogTrigger asChild>
-                                                <DropdownMenuItem className="text-destructive" onSelect={(e) => e.preventDefault()}>
-                                                    <Trash2 className="mr-2 h-4 w-4" />
-                                                    <span>Delete</span>
-                                                </DropdownMenuItem>
-                                            </AlertDialogTrigger>
-                                            <AlertDialogContent>
-                                                <AlertDialogHeader>
-                                                    <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                                                    <AlertDialogDescription>
-                                                        This action cannot be undone. This will permanently delete your post.
-                                                    </AlertDialogDescription>
-                                                </AlertDialogHeader>
-                                                <AlertDialogFooter>
-                                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                                    <AlertDialogAction onClick={() => handleDeletePost(post.id, post.media_url)} className="bg-destructive hover:bg-destructive/80">Delete</AlertDialogAction>
-                                                </AlertDialogFooter>
-                                            </AlertDialogContent>
-                                        </AlertDialog>
-                                    </DropdownMenuContent>
-                                </DropdownMenu>
-                            </div>
-                        )}
+                  {joinedClasses.map((cls) => (
+                    <div key={cls.id} className="group relative aspect-square w-full bg-muted">
+                      <Link href={`/class/${cls.id}`} className="block h-full w-full">
+                        <div className="aspect-square w-full relative h-full">
+                          <Avatar className="h-full w-full rounded-none">
+                            <AvatarImage src={cls.avatar_url} className="object-cover" />
+                            <AvatarFallback className="rounded-none">
+                              <GraduationCap className="h-10 w-10 text-muted-foreground" />
+                            </AvatarFallback>
+                          </Avatar>
+                           <div className="absolute inset-0 bg-black/30 flex items-end p-2">
+                                <p className="text-white font-bold text-xs line-clamp-2">{cls.name}</p>
+                           </div>
+                        </div>
+                      </Link>
                     </div>
-                    ))}
+                  ))}
                 </div>
                 ) : (
                     <div className="flex flex-col items-center justify-center pt-10 text-center text-muted-foreground">
-                        <CameraOff className="h-12 w-12" />
-                        <p className="mt-4 text-sm">{isOwnProfile ? "You have no video posts yet." : "This user has no video posts yet."}</p>
+                        <GraduationCap className="h-12 w-12" />
+                        <p className="mt-4 text-sm">{isOwnProfile ? "You haven't joined any classes." : "This user hasn't joined any classes."}</p>
                     </div>
                 )}
             </TabsContent>
@@ -380,3 +315,5 @@ export default function UserProfilePage({ params: paramsPromise }: { params: Pro
     </>
   );
 }
+
+    
