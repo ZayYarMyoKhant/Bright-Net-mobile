@@ -6,7 +6,7 @@ import { BottomNav } from "@/components/bottom-nav";
 import { Loader2, Users } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { User } from "@supabase/supabase-js";
 import { formatDistanceToNow } from "date-fns";
@@ -33,8 +33,7 @@ export default function ChatPage() {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const fetchUserAndConversations = async () => {
+  const fetchUserAndConversations = useCallback(async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
         router.push('/signup');
@@ -42,20 +41,22 @@ export default function ChatPage() {
       }
       setCurrentUser(user);
 
-      // Fetch conversations for the current user
-      const { data: convosData, error: convosError } = await supabase
+      // Fetch the conversation IDs the user is a member of
+      const { data: memberEntries, error: memberError } = await supabase
         .from('conversation_participants')
         .select('conversation_id')
         .eq('user_id', user.id);
 
-      if (convosError) {
-        console.error("Error fetching conversations:", convosError);
+      if (memberError) {
+        console.error("Error fetching user's conversations:", memberError);
         setLoading(false);
         return;
       }
-
-      const convoIds = convosData.map(c => c.conversation_id);
+      
+      const convoIds = memberEntries.map(entry => entry.conversation_id);
+      
       if (convoIds.length === 0) {
+        setConversations([]);
         setLoading(false);
         return;
       }
@@ -95,8 +96,10 @@ export default function ChatPage() {
 
       setConversations(resolvedConvos);
       setLoading(false);
-    };
+    }, [supabase, router]);
 
+  useEffect(() => {
+    setLoading(true);
     fetchUserAndConversations();
     
     // Setup realtime subscription
@@ -113,7 +116,7 @@ export default function ChatPage() {
         supabase.removeChannel(channel);
     }
 
-  }, [supabase, router]);
+  }, [fetchUserAndConversations]);
 
   const handleProfileClick = (e: React.MouseEvent, userId: string) => {
     e.stopPropagation(); // Prevents the parent Link from firing
@@ -175,5 +178,3 @@ export default function ChatPage() {
     </>
   );
 }
-
-    
