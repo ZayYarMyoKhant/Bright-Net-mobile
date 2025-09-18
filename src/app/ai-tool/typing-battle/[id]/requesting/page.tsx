@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, use } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -17,7 +17,8 @@ type Profile = {
     full_name: string;
 };
 
-export default function TypingBattleRequestingPage({ params }: { params: { id: string } }) {
+export default function TypingBattleRequestingPage({ params: paramsPromise }: { params: Promise<{ id: string }> }) {
+    const params = use(paramsPromise);
     const battleId = params.id;
     const router = useRouter();
     const supabase = createClient();
@@ -108,3 +109,5 @@ export default function TypingBattleRequestingPage({ params }: { params: { id: s
         </div>
     );
 }
+
+    

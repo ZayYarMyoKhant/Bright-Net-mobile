@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, use } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -17,7 +17,8 @@ type VideoCall = {
     status: string;
 }
 
-export default function VideoCallRequestingPage({ params }: { params: { id: string, callId: string } }) {
+export default function VideoCallRequestingPage({ params: paramsPromise }: { params: Promise<{ id: string, callId: string }> }) {
+    const params = use(paramsPromise);
     const otherUserId = params.id;
     const callId = params.callId;
     const router = useRouter();
@@ -108,3 +109,5 @@ export default function VideoCallRequestingPage({ params }: { params: { id: stri
         </div>
     );
 }
+
+    

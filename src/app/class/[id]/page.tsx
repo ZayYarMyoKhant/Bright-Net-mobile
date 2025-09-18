@@ -43,7 +43,7 @@ type ClassMessage = {
   created_at: string;
   profiles: Profile;
   message_reactions: MessageReaction[];
-  is_seen?: boolean;
+  is_seen_by_others: boolean;
 };
 
 const ReactionEmojis = {
@@ -56,6 +56,8 @@ const ReactionEmojis = {
 
 const ChatMessage = ({ message, isSender, onReply, onDelete, currentUser, onReaction }: { message: ClassMessage, isSender: boolean, onReply: (message: any) => void, onDelete: (messageId: string) => void, currentUser: User | null, onReaction: (messageId: string, emoji: string) => void }) => {
     const timeAgo = formatDistanceToNow(new Date(message.created_at), { addSuffix: true });
+    const supabase = createClient();
+    const msgRef = useRef<HTMLDivElement>(null);
     
     const aggregatedReactions = message.message_reactions.reduce((acc, reaction) => {
         if (!acc[reaction.emoji]) {
@@ -67,8 +69,38 @@ const ChatMessage = ({ message, isSender, onReply, onDelete, currentUser, onReac
         return acc;
     }, {} as Record<string, { count: number; users: string[] }>);
 
+    useEffect(() => {
+        if (!isSender && !message.is_seen_by_others) {
+            const observer = new IntersectionObserver(
+                async ([entry]) => {
+                    if (entry.isIntersecting) {
+                        const { data: { user } } = await supabase.auth.getUser();
+                        if (user) {
+                           await supabase.from('class_message_read_status').insert({
+                               message_id: message.id,
+                               user_id: user.id
+                           });
+                        }
+                        observer.disconnect();
+                    }
+                },
+                { threshold: 0.5 }
+            );
+
+            if (msgRef.current) {
+                observer.observe(msgRef.current);
+            }
+
+            return () => {
+                if (msgRef.current) {
+                    observer.unobserve(msgRef.current);
+                }
+            };
+        }
+    }, [isSender, message.id, message.is_seen_by_others, supabase]);
+
     return (
-        <div className={`flex items-start gap-3 ${isSender ? 'justify-end' : 'justify-start'}`}>
+        <div ref={msgRef} className={`flex items-start gap-3 ${isSender ? 'justify-end' : 'justify-start'}`}>
             {!isSender && (
                 <Link href={`/profile/${message.profiles.id}`}>
                     <Avatar className="h-8 w-8">
@@ -155,7 +187,7 @@ const ChatMessage = ({ message, isSender, onReply, onDelete, currentUser, onReac
                 </div>
                  <div className="flex items-center justify-end gap-1.5 px-2 py-0.5 mt-1">
                     <span className="text-xs text-muted-foreground">{timeAgo}</span>
-                    {isSender && <Check className={cn("h-4 w-4", message.is_seen ? "text-blue-500" : "text-muted-foreground")} />}
+                    {isSender && <Check className={cn("h-4 w-4", message.is_seen_by_others ? "text-blue-500" : "text-muted-foreground")} />}
                 </div>
             </div>
         </div>
@@ -211,7 +243,7 @@ export default function IndividualClassPage({ params: paramsPromise }: { params:
 
     const { data: messagesData, error: messagesError } = await supabase
       .from('class_messages')
-      .select('*, profiles(*), message_reactions(*, profiles(*))')
+      .select('*, profiles(*), message_reactions(*, profiles(*)), seen_by:class_message_read_status(user_id)')
       .eq('class_id', params.id)
       .order('created_at', { ascending: true });
 
@@ -219,7 +251,12 @@ export default function IndividualClassPage({ params: paramsPromise }: { params:
       toast({ variant: "destructive", title: "Failed to load messages." });
       setMessages([]);
     } else {
-        setMessages(messagesData as unknown as ClassMessage[]);
+        const processedMessages = messagesData.map(msg => ({
+            ...msg,
+            // @ts-ignore
+            is_seen_by_others: msg.seen_by.length > 0
+        })) as ClassMessage[];
+        setMessages(processedMessages);
     }
     setLoading(false);
   }, [params.id, supabase, toast, router]);
@@ -250,13 +287,10 @@ export default function IndividualClassPage({ params: paramsPromise }: { params:
             if (error) {
                 console.error("Could not fetch profile for new message");
             } else {
-                 setMessages((prevMessages) => [...prevMessages, { ...payload.new, profiles: profile as Profile, message_reactions: [] }]);
+                 setMessages((prevMessages) => [...prevMessages, { ...payload.new, profiles: profile as Profile, message_reactions: [], is_seen_by_others: false }]);
             }
         }
       )
-      .subscribe();
-      
-      const reactionChannel = supabase.channel(`class-reactions-${params.id}`)
       .on<MessageReaction>(
           'postgres_changes',
           { event: '*', schema: 'public', table: 'message_reactions' },
@@ -264,11 +298,16 @@ export default function IndividualClassPage({ params: paramsPromise }: { params:
               fetchClassData(currentUser); // Refetch all data on reaction change for simplicity
           }
       )
+      .on('postgres_changes', 
+        { event: '*', schema: 'public', table: 'class_message_read_status' },
+        (payload) => {
+            fetchClassData(currentUser);
+        }
+       )
       .subscribe();
     
     return () => {
       supabase.removeChannel(messageChannel);
-      supabase.removeChannel(reactionChannel);
     };
   }, [params.id, supabase, fetchClassData, currentUser]);
 
@@ -620,3 +659,5 @@ export default function IndividualClassPage({ params: paramsPromise }: { params:
     </div>
   );
 }
+
+    

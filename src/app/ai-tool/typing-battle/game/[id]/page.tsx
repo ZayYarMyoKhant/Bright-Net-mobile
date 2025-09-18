@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, use } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { User } from '@supabase/supabase-js';
@@ -33,7 +33,8 @@ const TypingTextDisplay = ({ text, typed }: { text: string; typed: string }) => 
     );
 };
 
-export default function TypingBattleGamePage({ params }: { params: { id: string } }) {
+export default function TypingBattleGamePage({ params: paramsPromise }: { params: Promise<{ id: string }> }) {
+    const params = use(paramsPromise);
     const battleId = params.id;
     const router = useRouter();
     const supabase = createClient();
@@ -191,3 +192,5 @@ export default function TypingBattleGamePage({ params }: { params: { id: string 
         </div>
     );
 }
+
+    
