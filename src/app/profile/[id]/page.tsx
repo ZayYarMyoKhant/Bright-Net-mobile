@@ -77,8 +77,8 @@ export default function UserProfilePage({ params: paramsPromise }: { params: Pro
 
     // Parallelize fetches for counts, posts, and classes
     const [followersRes, followingRes, postsRes, classMemberRes, followStatusRes] = await Promise.all([
-        supabase.from('followers').select('user_id', { count: 'exact' }).eq('user_id', params.id),
-        supabase.from('followers').select('follower_id', { count: 'exact' }).eq('follower_id', params.id),
+        supabase.from('followers').select('follower_id', { count: 'exact' }).eq('user_id', params.id),
+        supabase.from('followers').select('user_id', { count: 'exact' }).eq('follower_id', params.id),
         supabase.from('posts').select('*').eq('user_id', params.id).order('created_at', { ascending: false }),
         supabase.from('class_members').select('class_id').eq('user_id', params.id),
         authUser && authUser.id !== params.id 
