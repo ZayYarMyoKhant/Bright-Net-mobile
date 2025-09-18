@@ -222,6 +222,7 @@ export default function IndividualClassPage({ params: paramsPromise }: { params:
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const recordingTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const notificationSoundRef = useRef<HTMLAudioElement | null>(null);
 
   const fetchClassData = useCallback(async (user: User | null) => {
     setLoading(true);
@@ -266,7 +267,11 @@ export default function IndividualClassPage({ params: paramsPromise }: { params:
         setCurrentUser(user);
         fetchClassData(user);
     });
-  }, [fetchClassData, supabase.auth]);
+    
+    if (typeof Audio !== 'undefined' && process.env.NEXT_PUBLIC_NOTIFICATION_SOUND_URL) {
+      notificationSoundRef.current = new Audio(process.env.NEXT_PUBLIC_NOTIFICATION_SOUND_URL);
+    }
+  }, [fetchClassData, supabase.auth, params.id]);
 
 
   useEffect(() => {
@@ -274,6 +279,7 @@ export default function IndividualClassPage({ params: paramsPromise }: { params:
   }, [messages]);
 
   useEffect(() => {
+    if (!currentUser) return;
     const messageChannel = supabase.channel(`class-chat-${params.id}`)
       .on<ClassMessage>(
         'postgres_changes',
@@ -288,6 +294,9 @@ export default function IndividualClassPage({ params: paramsPromise }: { params:
                 console.error("Could not fetch profile for new message");
             } else {
                  setMessages((prevMessages) => [...prevMessages, { ...payload.new, profiles: profile as Profile, message_reactions: [], is_seen_by_others: false }]);
+                 if (payload.new.user_id !== currentUser.id) {
+                    notificationSoundRef.current?.play().catch(e => console.error("Error playing sound:", e));
+                 }
             }
         }
       )
@@ -608,13 +617,13 @@ export default function IndividualClassPage({ params: paramsPromise }: { params:
                     </div>
                 ) : mediaFile && mediaFile.type.startsWith('audio/') ? (
                     <div className="flex-1 flex items-center bg-muted h-10 rounded-md px-3 gap-2 justify-between">
+                        <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={handleRemoveMedia}>
+                            <Trash2 className="h-5 w-5 text-destructive" />
+                        </Button>
                         <div className="flex items-center gap-2">
                             <Waves className="h-5 w-5 text-primary" />
                             <p className="text-sm font-mono text-muted-foreground">{formatRecordingTime(Math.round(mediaDuration || 0))}</p>
                         </div>
-                        <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={handleRemoveMedia}>
-                            <Trash2 className="h-5 w-5 text-destructive" />
-                        </Button>
                     </div>
                 ) : (
                     <>

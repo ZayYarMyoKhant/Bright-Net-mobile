@@ -220,6 +220,7 @@ export default function IndividualChatPage({ params: paramsPromise }: { params: 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const recordingTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const notificationSoundRef = useRef<HTMLAudioElement | null>(null);
   
   const fetchChatData = useCallback(async (user: User, otherUserId: string) => {
     setLoading(true);
@@ -284,6 +285,10 @@ export default function IndividualChatPage({ params: paramsPromise }: { params: 
         setCurrentUser(user);
         fetchChatData(user, params.id);
     });
+    
+    if (typeof Audio !== 'undefined' && process.env.NEXT_PUBLIC_NOTIFICATION_SOUND_URL) {
+      notificationSoundRef.current = new Audio(process.env.NEXT_PUBLIC_NOTIFICATION_SOUND_URL);
+    }
   }, [fetchChatData, supabase.auth, params.id, router]);
 
 
@@ -308,6 +313,9 @@ export default function IndividualChatPage({ params: paramsPromise }: { params: 
             if (!error && profile) {
                  const newMessage = { ...payload.new, profiles: profile as Profile, direct_message_reactions: [], is_seen_by_other: false } as DirectMessage;
                  setMessages((prevMessages) => [...prevMessages, newMessage]);
+                 if (payload.new.sender_id !== currentUser.id) {
+                    notificationSoundRef.current?.play().catch(e => console.error("Error playing sound:", e));
+                 }
             }
         }
       ).subscribe();
