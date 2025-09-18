@@ -659,5 +659,3 @@ export default function IndividualClassPage({ params: paramsPromise }: { params:
     </div>
   );
 }
-
-    

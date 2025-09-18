@@ -42,24 +42,33 @@ function SearchBar() {
   const searchParams = useSearchParams();
   const [query, setQuery] = useState(searchParams.get("q") || "");
 
-  const handleSearchSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSearch = () => {
     if (query.trim()) {
       const newParams = new URLSearchParams(searchParams.toString());
       newParams.set('q', query.trim());
       router.push(`${pathname}?${newParams.toString()}`);
     }
   };
+  
+  const handleSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    handleSearch();
+  };
 
   return (
-    <form onSubmit={handleSearchSubmit} className="relative w-full">
-      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-      <Input
-        placeholder="Search for posts, classes, or users..."
-        className="w-full pl-10"
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
-      />
+    <form onSubmit={handleSearchSubmit} className="flex w-full items-center gap-2">
+      <div className="relative flex-1">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+        <Input
+          placeholder="Search for posts, classes, or users..."
+          className="w-full pl-10"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+        />
+      </div>
+      <Button type="submit">
+        <Search className="h-4 w-4" />
+      </Button>
     </form>
   );
 }
@@ -376,5 +385,3 @@ export default function SearchPage() {
     </>
   );
 }
-
-    

@@ -5,7 +5,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { ArrowLeft, Phone, Mic, Image as ImageIcon, Send, Smile, MoreVertical, MessageSquareReply, Trash2, X, Loader2, Waves, Heart, ThumbsUp, Laugh, Frown, Check } from "lucide-react";
+import { ArrowLeft, Phone, Mic, Image as ImageIcon, Send, Smile, MoreVertical, MessageSquareReply, Trash2, X, Loader2, Waves, Heart, ThumbsUp, Laugh, Frown, Check, Ban } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { use, useState, useRef, useEffect, useCallback } from "react";
@@ -18,6 +18,7 @@ import { User } from "@supabase/supabase-js";
 import { Profile } from "@/lib/data";
 import { formatDistanceToNow } from 'date-fns';
 import { useRouter } from "next/navigation";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 
 
 type Reaction = {
@@ -201,6 +202,8 @@ export default function IndividualChatPage({ params: paramsPromise }: { params: 
   const [messages, setMessages] = useState<DirectMessage[]>([]);
   const [loading, setLoading] = useState(true);
   const [isCalling, setIsCalling] = useState(false);
+  const [isBlocked, setIsBlocked] = useState(false);
+  const [isBlockedBy, setIsBlockedBy] = useState(false);
 
   const [newMessage, setNewMessage] = useState("");
   const [replyingTo, setReplyingTo] = useState<any | null>(null);
@@ -221,6 +224,18 @@ export default function IndividualChatPage({ params: paramsPromise }: { params: 
   const fetchChatData = useCallback(async (user: User, otherUserId: string) => {
     setLoading(true);
     
+    // Check block status
+    const { data: blockData, error: blockError } = await supabase
+      .from('blocks')
+      .select('*')
+      .or(`(blocker_id.eq.${user.id},blocked_id.eq.${otherUserId}),(blocker_id.eq.${otherUserId},blocked_id.eq.${user.id})`);
+
+    if (blockData) {
+        setIsBlocked(blockData.some(b => b.blocker_id === user.id));
+        setIsBlockedBy(blockData.some(b => b.blocked_id === user.id));
+    }
+
+
     const { data: otherUserData, error: otherUserError } = await supabase.from('profiles').select('*').eq('id', otherUserId).single();
     if(otherUserError) {
         toast({variant: 'destructive', title: 'User not found'});
@@ -482,10 +497,42 @@ export default function IndividualChatPage({ params: paramsPromise }: { params: 
         router.push(`/chat/${otherUser.id}/voice-call/${data.id}/requesting`);
     }
   }
+  
+  const handleBlockUser = async () => {
+    if (!currentUser || !otherUser) return;
+
+    const { error } = await supabase.from('blocks').insert({
+        blocker_id: currentUser.id,
+        blocked_id: otherUser.id,
+    });
+
+    if (error) {
+        toast({ variant: 'destructive', title: 'Failed to block user', description: error.message });
+    } else {
+        toast({ title: `Blocked ${otherUser.username}` });
+        setIsBlocked(true);
+    }
+  };
+
+  const handleDeleteChat = async () => {
+      if (!conversationId) return;
+
+      const { error } = await supabase.from('conversations').delete().eq('id', conversationId);
+
+      if (error) {
+          toast({ variant: 'destructive', title: 'Failed to delete chat', description: error.message });
+      } else {
+          toast({ title: 'Chat deleted' });
+          router.push('/chat');
+          router.refresh();
+      }
+  };
 
   if (loading || !otherUser) {
     return <div className="flex h-dvh w-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin"/></div>
   }
+
+  const isChatDisabled = isBlocked || isBlockedBy;
 
   return (
     <div className="flex h-dvh flex-col bg-background text-foreground">
@@ -518,8 +565,30 @@ export default function IndividualChatPage({ params: paramsPromise }: { params: 
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent>
-              <DropdownMenuItem className="text-destructive">Block user</DropdownMenuItem>
-              <DropdownMenuItem className="text-destructive">Delete chat</DropdownMenuItem>
+              <DropdownMenuItem className="text-destructive" onClick={handleBlockUser}>
+                <Ban className="mr-2 h-4 w-4" />
+                <span>Block user</span>
+              </DropdownMenuItem>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                    <DropdownMenuItem className="text-destructive" onSelect={(e) => e.preventDefault()}>
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        <span>Delete chat</span>
+                    </DropdownMenuItem>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            This will permanently delete this entire conversation for both you and {otherUser.full_name}. This action cannot be undone.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleDeleteChat}>Delete</AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
@@ -533,6 +602,11 @@ export default function IndividualChatPage({ params: paramsPromise }: { params: 
       </main>
 
        <footer className="flex-shrink-0 border-t">
+        {isChatDisabled && (
+            <div className="bg-muted p-3 text-center text-sm text-muted-foreground">
+                {isBlocked ? `You have blocked this user.` : `You cannot reply to this conversation.`}
+            </div>
+        )}
         <div className="p-2">
             {replyingTo && (
                 <div className="flex items-center justify-between bg-muted/50 px-3 py-1.5 text-xs">
@@ -589,9 +663,10 @@ export default function IndividualChatPage({ params: paramsPromise }: { params: 
                             onChange={handleFileChange}
                             className="hidden" 
                             accept="image/*,video/*,audio/*"
+                            disabled={isChatDisabled}
                         />
-                        <Button variant="ghost" size="icon" type="button" onClick={() => fileInputRef.current?.click()}><ImageIcon className="h-5 w-5 text-muted-foreground" /></Button>
-                        <Button variant="ghost" size="icon" type="button" onClick={() => setShowEmojiPicker(!showEmojiPicker)}>
+                        <Button variant="ghost" size="icon" type="button" onClick={() => fileInputRef.current?.click()} disabled={isChatDisabled}><ImageIcon className="h-5 w-5 text-muted-foreground" /></Button>
+                        <Button variant="ghost" size="icon" type="button" onClick={() => setShowEmojiPicker(!showEmojiPicker)} disabled={isChatDisabled}>
                             <Smile className={cn("h-5 w-5 text-muted-foreground", showEmojiPicker && "text-primary")} />
                         </Button>
                         <Input 
@@ -600,14 +675,15 @@ export default function IndividualChatPage({ params: paramsPromise }: { params: 
                           value={newMessage}
                           onChange={(e) => setNewMessage(e.target.value)}
                           onFocus={() => setShowEmojiPicker(false)}
+                          disabled={isChatDisabled}
                         />
                     </>
                 )}
 
-                <Button variant="ghost" size="icon" type="button" onClick={handleMicClick}>
+                <Button variant="ghost" size="icon" type="button" onClick={handleMicClick} disabled={isChatDisabled}>
                   <Mic className={cn("h-5 w-5 text-muted-foreground", isRecording && "text-red-500")} />
                 </Button>
-                <Button size="icon" type="submit" disabled={(!newMessage.trim() && !mediaFile) || sending}>
+                <Button size="icon" type="submit" disabled={(!newMessage.trim() && !mediaFile) || sending || isChatDisabled}>
                     {sending ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
                 </Button>
             </form>
@@ -622,7 +698,3 @@ export default function IndividualChatPage({ params: paramsPromise }: { params: 
     </div>
   );
 }
-
-    
-
-    
