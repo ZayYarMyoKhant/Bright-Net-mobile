@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { BottomNav } from "@/components/bottom-nav";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -28,53 +28,54 @@ export default function ClassPage() {
   const router = useRouter();
   const { toast } = useToast();
 
-  useEffect(() => {
-    const fetchUserAndClasses = async () => {
-      setLoading(true);
-      const { data: { user } } = await supabase.auth.getUser();
+  const fetchUserAndClasses = useCallback(async () => {
+    setLoading(true);
+    const { data: { user } } = await supabase.auth.getUser();
 
-      if (!user) {
-        toast({ variant: 'destructive', title: 'Not authenticated' });
-        router.push('/signup');
-        return;
-      }
-      setCurrentUser(user);
-
-      // Fetch the class IDs the user is a member of
-      const { data: memberEntries, error: memberError } = await supabase
-        .from('class_members')
-        .select('class_id')
-        .eq('user_id', user.id);
-
-      if (memberError) {
-        console.error("Error fetching user's classes:", memberError);
-        toast({ variant: 'destructive', title: "Error loading your classes", description: memberError.message });
-        setLoading(false);
-        return;
-      }
-      
-      const classIds = memberEntries.map(entry => entry.class_id);
-
-      if (classIds.length > 0) {
-        // Fetch the details of those classes
-        const { data: classDetails, error: classError } = await supabase
-          .from('classes')
-          .select('*')
-          .in('id', classIds);
-        
-        if (classError) {
-            console.error("Error fetching class details:", classError);
-            toast({ variant: 'destructive', title: "Error loading class details", description: classError.message });
-        } else {
-            setClasses(classDetails as Class[]);
-        }
-      } else {
-        setClasses([]);
-      }
-
+    if (!user) {
+      toast({ variant: 'destructive', title: 'Not authenticated' });
+      router.push('/signup');
       setLoading(false);
-    };
+      return;
+    }
+    setCurrentUser(user);
 
+    // Fetch the class IDs the user is a member of
+    const { data: memberEntries, error: memberError } = await supabase
+      .from('class_members')
+      .select('class_id')
+      .eq('user_id', user.id);
+
+    if (memberError) {
+      console.error("Error fetching user's classes:", memberError);
+      toast({ variant: 'destructive', title: "Error loading your classes", description: memberError.message });
+      setLoading(false);
+      return;
+    }
+    
+    const classIds = memberEntries.map(entry => entry.class_id);
+
+    if (classIds.length > 0) {
+      // Fetch the details of those classes
+      const { data: classDetails, error: classError } = await supabase
+        .from('classes')
+        .select('*')
+        .in('id', classIds);
+      
+      if (classError) {
+          console.error("Error fetching class details:", classError);
+          toast({ variant: 'destructive', title: "Error loading class details", description: classError.message });
+      } else {
+          setClasses(classDetails as Class[]);
+      }
+    } else {
+      setClasses([]);
+    }
+
+    setLoading(false);
+  }, [supabase, router, toast]);
+
+  useEffect(() => {
     fetchUserAndClasses();
     
     // Set up a real-time subscription
@@ -91,7 +92,7 @@ export default function ClassPage() {
       supabase.removeChannel(channel);
     };
 
-  }, [supabase, router, toast]);
+  }, [fetchUserAndClasses]);
 
   return (
     <>
