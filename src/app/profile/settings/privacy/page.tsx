@@ -1,27 +1,83 @@
 
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Loader2 } from "lucide-react";
 import Link from "next/link";
+import { createClient } from "@/lib/supabase/client";
+import { useToast } from "@/hooks/use-toast";
+import { useRouter } from "next/navigation";
 
 export default function PrivacySettingsPage() {
-    // In a real app, these values would be fetched from the user's profile
+    const [loading, setLoading] = useState(true);
+    const [saving, setSaving] = useState(false);
     const [showActive, setShowActive] = useState(true);
     const [isPrivateAccount, setIsPrivateAccount] = useState(false);
-    const [isPrivatePost, setIsPrivatePost] = useState(false);
+    
+    const supabase = createClient();
+    const { toast } = useToast();
+    const router = useRouter();
 
-    // In a real app, you would have a function to save these settings
-    const handleSaveChanges = () => {
-        console.log({
-            showActive,
-            isPrivateAccount,
-            isPrivatePost
-        });
-        // Add server action to update user profile in Supabase
+    useEffect(() => {
+        const fetchSettings = async () => {
+            setLoading(true);
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) {
+                router.push('/signup');
+                return;
+            }
+            const { data: profile, error } = await supabase
+                .from('profiles')
+                .select('show_active_status') // In a real app, add 'is_private'
+                .eq('id', user.id)
+                .single();
+            
+            if (error) {
+                toast({ variant: 'destructive', title: 'Error loading settings' });
+            } else if (profile) {
+                setShowActive(profile.show_active_status);
+                // setIsPrivateAccount(profile.is_private);
+            }
+            setLoading(false);
+        };
+        fetchSettings();
+    }, [supabase, router, toast]);
+
+
+    const handleSaveChanges = async () => {
+        setSaving(true);
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+            toast({ variant: 'destructive', title: 'Not authenticated'});
+            setSaving(false);
+            return;
+        }
+
+        const { error } = await supabase
+            .from('profiles')
+            .update({ 
+                show_active_status: showActive,
+                // is_private: isPrivateAccount
+            })
+            .eq('id', user.id);
+        
+        if (error) {
+            toast({ variant: 'destructive', title: 'Failed to save settings', description: error.message });
+        } else {
+            toast({ title: 'Settings saved!' });
+        }
+        setSaving(false);
+    }
+
+    if (loading) {
+        return (
+            <div className="flex h-dvh w-full items-center justify-center">
+                <Loader2 className="h-8 w-8 animate-spin" />
+            </div>
+        );
     }
 
     return (
@@ -38,7 +94,7 @@ export default function PrivacySettingsPage() {
                     <div className="flex items-center justify-between py-4">
                         <div>
                             <Label htmlFor="active-status" className="font-semibold text-base">Show your active status</Label>
-                            <p className="text-sm text-muted-foreground">Let others see when you're active.</p>
+                            <p className="text-sm text-muted-foreground">Let others see when you're online or last active.</p>
                         </div>
                         <Switch id="active-status" checked={showActive} onCheckedChange={setShowActive} />
                     </div>
@@ -47,19 +103,15 @@ export default function PrivacySettingsPage() {
                             <Label htmlFor="private-account" className="font-semibold text-base">Private account</Label>
                             <p className="text-sm text-muted-foreground">Only approved followers can see your content.</p>
                         </div>
-                        <Switch id="private-account" checked={isPrivateAccount} onCheckedChange={setIsPrivateAccount} />
-                    </div>
-                     <div className="flex items-center justify-between py-4">
-                         <div>
-                            <Label htmlFor="private-post" className="font-semibold text-base">Private post</Label>
-                             <p className="text-sm text-muted-foreground">Make all your past and future posts private.</p>
-                        </div>
-                        <Switch id="private-post" checked={isPrivatePost} onCheckedChange={setIsPrivatePost} />
+                        <Switch id="private-account" checked={isPrivateAccount} onCheckedChange={setIsPrivateAccount} disabled />
                     </div>
                 </div>
             </main>
             <footer className="p-4 border-t">
-                <Button className="w-full" onClick={handleSaveChanges}>Save Changes</Button>
+                <Button className="w-full" onClick={handleSaveChanges} disabled={saving}>
+                    {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Save Changes
+                </Button>
             </footer>
         </div>
     );

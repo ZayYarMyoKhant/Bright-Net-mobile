@@ -19,12 +19,6 @@ const ptSans = PT_Sans({
   variable: '--font-pt-sans',
 });
 
-// export const metadata: Metadata = {
-//   title: 'Myanmar TikTok Lite',
-//   description:
-//     'A social mobile app for sharing short videos, inspired by TikTok.',
-// };
-
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -46,6 +40,30 @@ export default function RootLayout({
       subscription?.unsubscribe();
     };
   }, [supabase.auth]);
+
+  // Real-time user presence heartbeat
+  useEffect(() => {
+    let presenceInterval: NodeJS.Timeout;
+
+    const updatePresence = async () => {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+            await supabase.rpc('update_user_presence');
+        }
+    };
+
+    if (currentUser) {
+        updatePresence(); // Initial update
+        presenceInterval = setInterval(updatePresence, 30000); // Update every 30 seconds
+    }
+
+    return () => {
+        if (presenceInterval) {
+            clearInterval(presenceInterval);
+        }
+    };
+}, [currentUser, supabase]);
+
 
   return (
     <html lang="en" className="dark">
