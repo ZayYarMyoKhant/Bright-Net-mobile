@@ -41,19 +41,50 @@ export default function FollowersPage({ params: paramsPromise }: { params: Promi
             return;
         }
         setProfileUsername(profileData.username);
+        
+        // 1. Fetch all followers for the profile
+        const { data: followerData, error: followerError } = await supabase
+            .from('followers')
+            .select('profiles!followers_follower_id_fkey(*)')
+            .eq('user_id', params.id);
 
-        const { data, error } = await supabase.rpc('get_followers_with_follow_status', {
-            profile_id: params.id,
-            current_user_id: currentUserId
-        });
-
-        if (error) {
-            toast({ variant: "destructive", title: "Error fetching followers" });
-            console.error(error);
-            setFollowers([]);
-        } else {
-            setFollowers(data as FollowerProfile[]);
+        if (followerError) {
+             toast({ variant: "destructive", title: "Error fetching followers" });
+             console.error(followerError);
+             setFollowers([]);
+             setLoading(false);
+             return;
         }
+        
+        // @ts-ignore
+        const followerProfiles: Profile[] = followerData.map(f => f.profiles);
+        
+        if (followerProfiles.length === 0 || !currentUserId) {
+            setFollowers(followerProfiles.map(p => ({ ...p, is_following_back: false })));
+            setLoading(false);
+            return;
+        }
+        
+        // 2. Check which of these followers the current user is also following back
+        const followerIds = followerProfiles.map(p => p.id);
+        const { data: followingBackData, error: followingBackError } = await supabase
+            .from('followers')
+            .select('user_id')
+            .eq('follower_id', currentUserId)
+            .in('user_id', followerIds);
+            
+        if (followingBackError) {
+            toast({ variant: "destructive", title: "Error checking follow status" });
+            setFollowers(followerProfiles.map(p => ({ ...p, is_following_back: false })));
+        } else {
+            const followingBackIds = new Set(followingBackData.map(f => f.user_id));
+            const combinedData = followerProfiles.map(p => ({
+                ...p,
+                is_following_back: followingBackIds.has(p.id),
+            }));
+            setFollowers(combinedData);
+        }
+
         setLoading(false);
     }, [params.id, supabase, toast, router]);
 

@@ -42,18 +42,49 @@ export default function FollowingPage({ params: paramsPromise }: { params: Promi
         }
         setProfileUsername(profileData.username);
 
-        const { data, error } = await supabase.rpc('get_following_with_follow_status', {
-            profile_id: params.id,
-            current_user_id: currentUserId
-        });
-
-        if (error) {
-            toast({ variant: "destructive", title: "Error fetching following list" });
-            console.error(error);
-            setFollowing([]);
-        } else {
-            setFollowing(data as FollowingProfile[]);
+        // 1. Fetch all users the profile is following
+        const { data: followingData, error: followingError } = await supabase
+            .from('followers')
+            .select('profiles!followers_user_id_fkey(*)')
+            .eq('follower_id', params.id);
+            
+        if (followingError) {
+             toast({ variant: "destructive", title: "Error fetching following list" });
+             console.error(followingError);
+             setFollowing([]);
+             setLoading(false);
+             return;
         }
+        
+        // @ts-ignore
+        const followingProfiles: Profile[] = followingData.map(f => f.profiles);
+
+        if (followingProfiles.length === 0 || !currentUserId) {
+            setFollowing(followingProfiles.map(p => ({ ...p, is_also_following: false })));
+            setLoading(false);
+            return;
+        }
+
+        // 2. Check which of these users the current user is also following
+        const followingIds = followingProfiles.map(p => p.id);
+        const { data: followingBackData, error: followingBackError } = await supabase
+            .from('followers')
+            .select('user_id')
+            .eq('follower_id', currentUserId)
+            .in('user_id', followingIds);
+        
+        if (followingBackError) {
+            toast({ variant: "destructive", title: "Error checking follow status" });
+            setFollowing(followingProfiles.map(p => ({ ...p, is_also_following: false })));
+        } else {
+             const followingBackIds = new Set(followingBackData.map(f => f.user_id));
+             const combinedData = followingProfiles.map(p => ({
+                ...p,
+                is_also_following: followingBackIds.has(p.id),
+            }));
+            setFollowing(combinedData);
+        }
+
         setLoading(false);
     }, [params.id, supabase, toast, router]);
 
@@ -76,7 +107,7 @@ export default function FollowingPage({ params: paramsPromise }: { params: Promi
             if (error) {
                 toast({ variant: 'destructive', title: 'Failed to unfollow'});
                 // Revert on error
-                setFollowing(following.map(f => f.id === targetId ? {...f, is_also_following: true} : f));
+                setFollowing(prev => prev.map(f => f.id === targetId ? {...f, is_also_following: true} : f));
             }
         } else {
             // Follow
@@ -84,7 +115,7 @@ export default function FollowingPage({ params: paramsPromise }: { params: Promi
              if (error) {
                 toast({ variant: 'destructive', title: 'Failed to follow'});
                 // Revert on error
-                setFollowing(following.map(f => f.id === targetId ? {...f, is_also_following: false} : f));
+                setFollowing(prev => prev.map(f => f.id === targetId ? {...f, is_also_following: false} : f));
             }
         }
     };
