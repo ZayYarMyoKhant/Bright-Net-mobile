@@ -67,43 +67,98 @@ export default function ChatPage() {
       }
       setCurrentUser(user);
 
-      // Re-implementing the logic of the RPC on the client side to avoid RLS issues with functions.
-      const { data: convosData, error: convosError } = await supabase.rpc('get_user_conversations');
+      // This is a manual implementation of the `get_user_conversations` RPC to avoid RLS issues with functions.
+      // 1. Get all conversations the user is part of.
+      const { data: userConvos, error: convoError } = await supabase
+        .from('conversation_participants')
+        .select('conversation_id, user_id')
+        .eq('user_id', user.id);
+
+      if (convoError) {
+          console.error("Error fetching user's conversation list:", convoError);
+          setLoading(false);
+          return;
+      }
+
+      const conversationIds = userConvos.map(c => c.conversation_id);
       
-      if (convosError) {
-        console.error("Error fetching user's conversations:", convosError);
+      if (conversationIds.length === 0) {
+        setConversations([]);
         setLoading(false);
         return;
       }
 
-      if (convosData) {
-        const convos = (convosData as any[]).map(c => ({
-            conversation_id: c.conversation_id,
-            other_user: {
-                id: c.other_user_id,
-                username: c.other_user_username,
-                avatar_url: c.other_user_avatar_url,
-                full_name: c.other_user_full_name,
-                last_seen: c.other_user_last_seen,
-                show_active_status: c.other_user_show_active_status
-            },
-            last_message: c.last_message_created_at ? {
-                content: c.last_message_content,
-                media_type: c.last_message_media_type,
-                created_at: c.last_message_created_at,
-                sender_id: c.last_message_sender_id
-            } : null,
-            unread_count: c.unread_count
-        }));
-        
-        convos.sort((a, b) => {
-            if (!a.last_message) return 1;
-            if (!b.last_message) return -1;
-            return new Date(b.last_message.created_at).getTime() - new Date(a.last_message.created_at).getTime();
-        });
+      // 2. Get all participants for these conversations
+      const { data: allParticipants, error: participantsError } = await supabase
+        .from('conversation_participants')
+        .select('conversation_id, user_id, profiles(*)')
+        .in('conversation_id', conversationIds);
 
-        setConversations(convos);
+      if (participantsError) {
+        console.error("Error fetching participants:", participantsError);
+        setLoading(false);
+        return;
       }
+      
+      // 3. Get last message for each conversation
+      const { data: lastMessages, error: messagesError } = await supabase
+        .from('direct_messages')
+        .select('id, conversation_id, content, media_type, created_at, sender_id')
+        .in('conversation_id', conversationIds)
+        .order('created_at', { ascending: false });
+
+      if(messagesError) {
+        console.error("Error fetching last messages:", messagesError);
+      }
+      
+      // 4. Get unread counts
+      const { data: unreadData, error: unreadError } = await supabase
+        .rpc('count_unread_messages', { user_id_param: user.id });
+
+       if (unreadError) {
+        console.error("Error fetching unread counts:", unreadError);
+       }
+       
+      const unreadCountsMap = new Map<string, number>();
+      if (unreadData) {
+        unreadData.forEach((item: any) => {
+            unreadCountsMap.set(item.conversation_id, item.unread_count);
+        });
+      }
+
+
+      // 5. Process and combine the data
+      const processedConversations = conversationIds.map(convoId => {
+          const participants = allParticipants.filter(p => p.conversation_id === convoId);
+          const otherParticipant = participants.find(p => p.user_id !== user.id);
+          
+          if (!otherParticipant || !otherParticipant.profiles) {
+            return null; // Should not happen in a valid conversation
+          }
+
+          const uniqueLastMessages = lastMessages ? Array.from(new Map(lastMessages.map(m => [m.conversation_id, m])).values()) : [];
+          const lastMessage = uniqueLastMessages.find(m => m.conversation_id === convoId);
+
+          return {
+              conversation_id: convoId,
+              other_user: otherParticipant.profiles as OtherUser,
+              last_message: lastMessage ? {
+                  content: lastMessage.content,
+                  media_type: lastMessage.media_type,
+                  created_at: lastMessage.created_at,
+                  sender_id: lastMessage.sender_id,
+              } : null,
+              unread_count: unreadCountsMap.get(convoId) || 0,
+          };
+      }).filter((c): c is Conversation => c !== null);
+      
+      processedConversations.sort((a, b) => {
+          if (!a.last_message) return 1;
+          if (!b.last_message) return -1;
+          return new Date(b.last_message.created_at).getTime() - new Date(a.last_message.created_at).getTime();
+      });
+
+      setConversations(processedConversations);
       setLoading(false);
     }, [supabase, router]);
 
@@ -111,13 +166,13 @@ export default function ChatPage() {
     setLoading(true);
     fetchUserAndConversations();
     
-    const channel = supabase.channel('public-changes-chat-list').on(
-      'postgres_changes',
-      { event: '*', schema: 'public' },
-      (payload) => {
-        fetchUserAndConversations();
-      }
-    ).subscribe();
+    const channel = supabase.channel('public:direct_messages')
+      .on( 'postgres_changes',
+        { event: '*', schema: 'public', table: 'direct_messages' },
+        (payload) => {
+          fetchUserAndConversations();
+        }
+      ).subscribe();
     
     return () => {
         supabase.removeChannel(channel);
