@@ -42,6 +42,8 @@ type DirectMessage = {
   media_type: string | null;
   created_at: string;
   profiles: Profile;
+  parent_message_id: string | null;
+  parent_message?: { content: string | null; profiles: { full_name: string } };
   direct_message_reactions: Reaction[];
   is_seen_by_other: boolean;
 };
@@ -127,12 +129,22 @@ const ChatMessage = ({ message, isSender, onReply, onDelete, onReaction, otherUs
                 </Link>
             )}
             <div className="group relative max-w-xs">
+                 {message.parent_message && (
+                    <div className="text-xs text-muted-foreground px-3 pt-2 pb-1">
+                        <p>
+                            Replied to <span className="font-semibold">{message.parent_message.profiles.full_name}</span>
+                        </p>
+                        <p className="bg-muted/50 p-1.5 rounded-md mt-1 truncate">
+                            {message.parent_message.content}
+                        </p>
+                    </div>
+                )}
                 <div className={cn(
                     "rounded-lg",
                      message.media_type && ['image', 'video', 'sticker', 'audio'].includes(message.media_type) ? "bg-transparent" : (isSender ? 'bg-primary text-primary-foreground' : 'bg-muted')
                 )}>
                      <div className={message.media_type && ['image', 'video', 'sticker', 'audio'].includes(message.media_type) ? "" : "px-3 py-2"}>
-                        {!isSender && <p className="font-semibold text-xs mb-1">{message.profiles.full_name}</p>}
+                        {!isSender && !message.parent_message && <p className="font-semibold text-xs mb-1">{message.profiles.full_name}</p>}
                         
                         {message.media_type === 'image' && message.media_url ? (
                             <div className="relative h-48 w-48 rounded-lg overflow-hidden">
@@ -280,7 +292,7 @@ export default function IndividualChatPage({ params: paramsPromise }: { params: 
     // Fetch messages
     const { data: messagesData, error: messagesError } = await supabase
       .from('direct_messages')
-      .select('*, profiles!direct_messages_sender_id_fkey(*), direct_message_reactions(*, profiles(*)), seen_by:direct_message_read_status(user_id)')
+      .select('*, profiles!direct_messages_sender_id_fkey(*), direct_message_reactions(*, profiles(*)), seen_by:direct_message_read_status(user_id), parent_message:parent_message_id(*, profiles(full_name))')
       .eq('conversation_id', currentConvoId)
       .order('created_at', { ascending: true });
 
@@ -327,13 +339,13 @@ export default function IndividualChatPage({ params: paramsPromise }: { params: 
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'direct_messages', filter: `conversation_id=eq.${conversationId}` },
         async (payload) => {
-           const { data: profile, error } = await supabase
-                .from('profiles')
-                .select('*')
-                .eq('id', payload.new.sender_id)
+           const { data: fullMessage, error } = await supabase
+                .from('direct_messages')
+                .select('*, profiles!direct_messages_sender_id_fkey(*), direct_message_reactions(*, profiles(*)), seen_by:direct_message_read_status(user_id), parent_message:parent_message_id(*, profiles(full_name))')
+                .eq('id', payload.new.id)
                 .single();
-            if (!error && profile) {
-                 const newMessage = { ...payload.new, profiles: profile as Profile, direct_message_reactions: [], is_seen_by_other: false } as DirectMessage;
+            if (!error && fullMessage) {
+                 const newMessage = { ...fullMessage, is_seen_by_other: false } as DirectMessage;
                  setMessages((prevMessages) => [...prevMessages, newMessage]);
                  if (payload.new.sender_id !== currentUser.id) {
                     notificationSoundRef.current?.play().catch(e => console.error("Error playing sound:", e));
@@ -449,6 +461,7 @@ export default function IndividualChatPage({ params: paramsPromise }: { params: 
         content: newMessage || null,
         media_url: publicMediaUrl,
         media_type: mediaType,
+        parent_message_id: replyingTo?.id || null,
     });
     
     setNewMessage("");
@@ -757,4 +770,3 @@ export default function IndividualChatPage({ params: paramsPromise }: { params: 
   );
 }
 
-    
