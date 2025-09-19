@@ -67,6 +67,7 @@ export default function ChatPage() {
       }
       setCurrentUser(user);
 
+      // Re-implementing the logic of the RPC on the client side to avoid RLS issues with functions.
       const { data: convosData, error: convosError } = await supabase.rpc('get_user_conversations');
       
       if (convosError) {
