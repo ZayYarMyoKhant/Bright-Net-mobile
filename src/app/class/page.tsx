@@ -92,7 +92,7 @@ export default function ClassPage() {
       supabase.removeChannel(channel);
     };
 
-  }, [fetchUserAndClasses]);
+  }, [fetchUserAndClasses, supabase]);
 
   return (
     <>
