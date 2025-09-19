@@ -39,8 +39,8 @@ function PresenceIndicator({ user }: { user: OtherUser }) {
         return null;
     }
 
-    const fiveMinutesAgo = subMinutes(new Date(), 2);
-    const isOnline = isBefore(fiveMinutesAgo, new Date(user.last_seen));
+    const twoMinutesAgo = subMinutes(new Date(), 2);
+    const isOnline = isBefore(twoMinutesAgo, new Date(user.last_seen));
 
     if (isOnline) {
          return (
@@ -50,7 +50,7 @@ function PresenceIndicator({ user }: { user: OtherUser }) {
 
     return (
         <div className="absolute bottom-0 right-0 text-xs text-muted-foreground bg-background/80 px-1 rounded-full">
-            {formatDistanceToNow(new Date(user.last_seen), { addSuffix: true })}
+            {formatDistanceToNow(new Date(user.last_seen), { addSuffix: true, includeSeconds: true })}
         </div>
     )
 }
@@ -71,68 +71,40 @@ export default function ChatPage() {
       }
       setCurrentUser(user);
 
-      const { data: memberEntries, error: memberError } = await supabase
-        .from('conversation_participants')
-        .select('conversation_id')
-        .eq('user_id', user.id);
+      const { data, error } = await supabase.rpc('get_user_conversations');
 
-      if (memberError) {
-        console.error("Error fetching user's conversations:", memberError);
-        setLoading(false);
-        return;
-      }
-      
-      const convoIds = memberEntries.map(entry => entry.conversation_id);
-      
-      if (convoIds.length === 0) {
-        setConversations([]);
+      if (error) {
+        console.error("Error fetching user's conversations:", error);
         setLoading(false);
         return;
       }
 
-      const convoPromises = convoIds.map(async (convoId) => {
-        const { data: participantData, error: participantError } = await supabase
-          .from('conversation_participants')
-          .select('profiles(id, username, avatar_url, full_name, last_seen, show_active_status)')
-          .eq('conversation_id', convoId)
-          .neq('user_id', user.id)
-          .single();
-
-        if (participantError || !participantData.profiles) return null;
-        
-        const otherUser = participantData.profiles as OtherUser;
-
-        const { data: lastMessageData, error: lastMessageError } = await supabase
-          .from('direct_messages')
-          .select('content, media_type, created_at, sender_id')
-          .eq('conversation_id', convoId)
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .single();
-
-        const { count: unreadCount, error: unreadError } = await supabase
-          .from('direct_messages')
-          .select('id', { count: 'exact', head: true })
-          .eq('conversation_id', convoId)
-          .neq('sender_id', user.id)
-          .is('is_seen_by_other', false); // This assumes `is_seen_by_other` is accurate. We will improve this.
-
-        return {
-          conversation_id: convoId,
-          other_user: otherUser,
-          last_message: lastMessageData,
-          unread_count: unreadCount || 0
-        };
-      });
-
-      const resolvedConvos = (await Promise.all(convoPromises)).filter(Boolean) as Conversation[];
-      resolvedConvos.sort((a, b) => {
+      const convos = (data as any[]).map(c => ({
+          conversation_id: c.conversation_id,
+          other_user: {
+              id: c.other_user_id,
+              username: c.other_user_username,
+              avatar_url: c.other_user_avatar_url,
+              full_name: c.other_user_full_name,
+              last_seen: c.other_user_last_seen,
+              show_active_status: c.other_user_show_active_status
+          },
+          last_message: c.last_message_created_at ? {
+              content: c.last_message_content,
+              media_type: c.last_message_media_type,
+              created_at: c.last_message_created_at,
+              sender_id: c.last_message_sender_id
+          } : null,
+          unread_count: c.unread_count
+      }));
+      
+      convos.sort((a, b) => {
           if (!a.last_message) return 1;
           if (!b.last_message) return -1;
           return new Date(b.last_message.created_at).getTime() - new Date(a.last_message.created_at).getTime();
       });
 
-      setConversations(resolvedConvos);
+      setConversations(convos);
       setLoading(false);
     }, [supabase, router]);
 
@@ -140,24 +112,13 @@ export default function ChatPage() {
     setLoading(true);
     fetchUserAndConversations();
     
-    const channel = supabase.channel('public:direct_messages').on(
+    const channel = supabase.channel('public-changes').on(
       'postgres_changes',
-      { event: '*', schema: 'public', table: 'direct_messages' },
-      () => fetchUserAndConversations()
-    ).on(
-      'postgres_changes',
-      { event: 'UPDATE', schema: 'public', table: 'profiles' },
+      { event: '*', schema: 'public' },
       (payload) => {
-          // Listen for presence updates
-          setConversations(prev => prev.map(convo => {
-              if (convo.other_user.id === payload.new.id) {
-                  return { ...convo, other_user: { ...convo.other_user, last_seen: payload.new.last_seen }};
-              }
-              return convo;
-          }))
+        fetchUserAndConversations();
       }
-    )
-    .subscribe();
+    ).subscribe();
     
     return () => {
         supabase.removeChannel(channel);
