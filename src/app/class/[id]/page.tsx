@@ -71,15 +71,22 @@ const ChatMessage = ({ message, isSender, onReply, onDelete, currentUser, onReac
     }, {} as Record<string, { count: number; users: string[] }>);
 
     useEffect(() => {
-        if (!isSender && !message.is_seen_by_others) {
+        if (!isSender && currentUser) {
             const observer = new IntersectionObserver(
                 async ([entry]) => {
                     if (entry.isIntersecting) {
-                        const { data: { user } } = await supabase.auth.getUser();
-                        if (user) {
+                        // Check if the user has already seen this message
+                        const { data: existingStatus, error: checkError } = await supabase
+                            .from('class_message_read_status')
+                            .select('id')
+                            .eq('message_id', message.id)
+                            .eq('user_id', currentUser.id)
+                            .single();
+                        
+                        if (!checkError && !existingStatus) {
                            await supabase.from('class_message_read_status').insert({
                                message_id: message.id,
-                               user_id: user.id
+                               user_id: currentUser.id
                            });
                         }
                         observer.disconnect();
@@ -99,7 +106,7 @@ const ChatMessage = ({ message, isSender, onReply, onDelete, currentUser, onReac
                 }
             };
         }
-    }, [isSender, message.id, message.is_seen_by_others, supabase]);
+    }, [isSender, message.id, supabase, currentUser]);
 
     return (
         <div ref={msgRef} className={`flex items-start gap-3 ${isSender ? 'justify-end' : 'justify-start'}`}>
@@ -260,7 +267,7 @@ export default function IndividualClassPage({ params: paramsPromise }: { params:
 
     const { data: messagesData, error: messagesError } = await supabase
       .from('class_messages')
-      .select('*, profiles(*), message_reactions(*, profiles(*)), seen_by:class_message_read_status(user_id), parent_message:parent_message_id(*, content, media_type, profiles(full_name))')
+      .select('*, profiles(*), message_reactions(*, profiles(*)), seen_by:class_message_read_status(count), parent_message:parent_message_id(*, content, media_type, profiles(full_name))')
       .eq('class_id', params.id)
       .order('created_at', { ascending: true });
 
@@ -270,8 +277,9 @@ export default function IndividualClassPage({ params: paramsPromise }: { params:
     } else {
         const processedMessages = messagesData.map(msg => ({
             ...msg,
-            // @ts-ignore
-            is_seen_by_others: msg.seen_by.length > 0
+            // A message is "seen by others" if at least one person other than the sender has seen it.
+            // So, for a sent message, the seen_by count must be > 1.
+            is_seen_by_others: msg.user_id === user?.id ? (msg.seen_by[0]?.count || 0) > 1 : (msg.seen_by[0]?.count || 0) > 0,
         })) as ClassMessage[];
         setMessages(processedMessages);
     }
@@ -303,7 +311,7 @@ export default function IndividualClassPage({ params: paramsPromise }: { params:
         async (payload) => {
            const { data: fullMessage, error } = await supabase
                 .from('class_messages')
-                .select('*, profiles(*), message_reactions(*, profiles(*)), seen_by:class_message_read_status(user_id), parent_message:parent_message_id(*, content, media_type, profiles(full_name))')
+                .select('*, profiles(*), message_reactions(*, profiles(*)), seen_by:class_message_read_status(count), parent_message:parent_message_id(*, content, media_type, profiles(full_name))')
                 .eq('id', payload.new.id)
                 .single();
             if (!error && fullMessage) {
@@ -683,3 +691,5 @@ export default function IndividualClassPage({ params: paramsPromise }: { params:
     </div>
   );
 }
+
+    
