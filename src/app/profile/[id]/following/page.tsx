@@ -6,7 +6,6 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft, Loader2, UserX } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
@@ -76,14 +75,16 @@ export default function FollowingPage({ params: paramsPromise }: { params: Promi
             const { error } = await supabase.from('followers').delete().match({ user_id: targetId, follower_id: currentUser.id });
             if (error) {
                 toast({ variant: 'destructive', title: 'Failed to unfollow'});
-                setFollowing(following.map(f => f.id === targetId ? {...f, is_also_following: true} : f)); // Revert
+                // Revert on error
+                setFollowing(following.map(f => f.id === targetId ? {...f, is_also_following: true} : f));
             }
         } else {
             // Follow
             const { error } = await supabase.from('followers').insert({ user_id: targetId, follower_id: currentUser.id });
              if (error) {
                 toast({ variant: 'destructive', title: 'Failed to follow'});
-                setFollowing(following.map(f => f.id === targetId ? {...f, is_also_following: false} : f)); // Revert
+                // Revert on error
+                setFollowing(following.map(f => f.id === targetId ? {...f, is_also_following: false} : f));
             }
         }
     };

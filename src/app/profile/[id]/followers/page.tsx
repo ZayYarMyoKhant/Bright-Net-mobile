@@ -6,7 +6,6 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft, Loader2, UserX } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
@@ -68,6 +67,7 @@ export default function FollowersPage({ params: paramsPromise }: { params: Promi
     const handleFollowToggle = async (targetId: string, isCurrentlyFollowing: boolean) => {
         if (!currentUser) return;
 
+        // Optimistically update UI
         setFollowers(followers.map(f => f.id === targetId ? {...f, is_following_back: !isCurrentlyFollowing} : f));
 
         if (isCurrentlyFollowing) {
@@ -75,6 +75,7 @@ export default function FollowersPage({ params: paramsPromise }: { params: Promi
             const { error } = await supabase.from('followers').delete().match({ user_id: targetId, follower_id: currentUser.id });
             if (error) {
                 toast({ variant: 'destructive', title: 'Failed to unfollow'});
+                // Revert on error
                 setFollowers(followers.map(f => f.id === targetId ? {...f, is_following_back: true} : f));
             }
         } else {
@@ -82,6 +83,7 @@ export default function FollowersPage({ params: paramsPromise }: { params: Promi
             const { error } = await supabase.from('followers').insert({ user_id: targetId, follower_id: currentUser.id });
              if (error) {
                 toast({ variant: 'destructive', title: 'Failed to follow'});
+                // Revert on error
                 setFollowers(followers.map(f => f.id === targetId ? {...f, is_following_back: false} : f));
             }
         }
