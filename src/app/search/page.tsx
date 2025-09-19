@@ -111,6 +111,17 @@ function UserResults() {
     }
   }, [query, supabase, toast]);
 
+    const handleChat = async (otherUserId: string) => {
+        const { data, error } = await supabase.rpc('get_or_create_conversation', { user_2_id: otherUserId });
+
+        if (error) {
+            toast({ variant: "destructive", title: "Cannot start chat", description: error.message });
+        } else {
+            router.push(`/chat/${otherUserId}`);
+        }
+    };
+
+
   if (isPending) {
     return <div className="flex justify-center items-center pt-10"><Loader2 className="h-8 w-8 animate-spin" /></div>
   }
@@ -140,11 +151,9 @@ function UserResults() {
                         <p className="text-sm text-muted-foreground">@{user.username}</p>
                     </Link>
                 </div>
-                 <Link href={`/chat/${user.id}`}>
-                    <Button variant="ghost" size="icon">
-                        <MessageSquare className="h-5 w-5" />
-                    </Button>
-                </Link>
+                 <Button variant="ghost" size="icon" onClick={() => handleChat(user.id)}>
+                    <MessageSquare className="h-5 w-5" />
+                </Button>
             </div>
         ))}
       </div>
@@ -385,3 +394,5 @@ export default function SearchPage() {
     </>
   );
 }
+
+    

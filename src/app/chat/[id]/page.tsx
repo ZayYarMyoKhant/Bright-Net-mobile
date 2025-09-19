@@ -16,7 +16,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { createClient } from "@/lib/supabase/client";
 import { User } from "@supabase/supabase-js";
 import { Profile } from "@/lib/data";
-import { formatDistanceToNow } from 'date-fns';
+import { formatDistanceToNow, isBefore, subMinutes } from "date-fns";
 import { useRouter } from "next/navigation";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 
@@ -26,6 +26,11 @@ type Reaction = {
   emoji: string;
   user_id: string;
   profiles: Profile;
+}
+
+type OtherUserWithPresence = Profile & {
+    last_seen: string | null;
+    show_active_status: boolean;
 }
 
 type DirectMessage = {
@@ -47,6 +52,23 @@ const ReactionEmojis = {
   '😂': Laugh,
   '😢': Frown
 };
+
+function PresenceIndicator({ user }: { user: OtherUserWithPresence | null }) {
+    if (!user || !user.show_active_status || !user.last_seen) {
+        return null;
+    }
+
+    const twoMinutesAgo = subMinutes(new Date(), 2);
+    const isOnline = isBefore(twoMinutesAgo, new Date(user.last_seen));
+
+    if (isOnline) {
+         return (
+            <div className="absolute bottom-0 right-0 h-3 w-3 rounded-full bg-green-500 border-2 border-background" />
+         )
+    }
+
+    return null;
+}
 
 
 const ChatMessage = ({ message, isSender, onReply, onDelete, onReaction, otherUserId }: { message: DirectMessage, isSender: boolean, onReply: (message: any) => void, onDelete: (messageId: string) => void, onReaction: (messageId: string, emoji: string) => void, otherUserId: string }) => {
@@ -197,7 +219,7 @@ export default function IndividualChatPage({ params: paramsPromise }: { params: 
   const supabase = createClient();
   
   const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [otherUser, setOtherUser] = useState<Profile | null>(null);
+  const [otherUser, setOtherUser] = useState<OtherUserWithPresence | null>(null);
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [messages, setMessages] = useState<DirectMessage[]>([]);
   const [loading, setLoading] = useState(true);
@@ -335,11 +357,31 @@ export default function IndividualChatPage({ params: paramsPromise }: { params: 
              fetchChatData(currentUser, params.id);
           }
       ).subscribe();
+
+    const presenceChannel = supabase.channel(`presence-${params.id}`)
+      .on('postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'profiles',
+          filter: `id=eq.${params.id}`
+        },
+        (payload) => {
+          const newProfileData = payload.new as OtherUserWithPresence;
+          setOtherUser(currentOtherUser => ({
+            ...(currentOtherUser as OtherUserWithPresence),
+            last_seen: newProfileData.last_seen,
+            show_active_status: newProfileData.show_active_status,
+          }));
+        }
+      )
+      .subscribe();
     
     return () => {
       supabase.removeChannel(messageChannel);
       supabase.removeChannel(reactionChannel);
       supabase.removeChannel(readStatusChannel);
+      supabase.removeChannel(presenceChannel);
     };
   }, [conversationId, supabase, currentUser, fetchChatData, params.id]);
 
@@ -541,6 +583,7 @@ export default function IndividualChatPage({ params: paramsPromise }: { params: 
   }
 
   const isChatDisabled = isBlocked || isBlockedBy;
+  const isOtherUserOnline = otherUser?.show_active_status && otherUser?.last_seen && isBefore(subMinutes(new Date(), 2), new Date(otherUser.last_seen));
 
   return (
     <div className="flex h-dvh flex-col bg-background text-foreground">
@@ -551,15 +594,16 @@ export default function IndividualChatPage({ params: paramsPromise }: { params: 
                     <ArrowLeft className="h-5 w-5" />
                 </Button>
             </Link>
-            <Link href={`/profile/${otherUser.id}`}>
+            <Link href={`/profile/${otherUser.id}`} className="relative">
                 <Avatar className="h-10 w-10">
                     <AvatarImage src={otherUser.avatar_url} alt={otherUser.username} data-ai-hint="person portrait" />
                     <AvatarFallback>{otherUser.username.charAt(0)}</AvatarFallback>
                 </Avatar>
+                <PresenceIndicator user={otherUser} />
             </Link>
             <div>
                 <p className="font-bold">{otherUser.full_name}</p>
-                {/* Add online status logic if available */}
+                {isOtherUserOnline && <p className="text-xs text-muted-foreground">Online</p>}
             </div>
         </div>
         <div className="flex items-center gap-2">
@@ -630,7 +674,7 @@ export default function IndividualChatPage({ params: paramsPromise }: { params: 
             )}
              {mediaPreview && !mediaFile?.type.startsWith('audio') && (
                 <div className="p-2 relative">
-                    <div className="relative w-24 h-24 rounded-md overflow-hidden">
+                    <div className="relative w-24 h-24 rounded-lg overflow-hidden">
                         {mediaFile?.type.startsWith('image/') ? (
                             <Image src={mediaPreview} alt="Media preview" layout="fill" objectFit="cover" />
                         ) : (
@@ -649,12 +693,12 @@ export default function IndividualChatPage({ params: paramsPromise }: { params: 
             )}
             <form onSubmit={handleSendMessage} className="flex items-center gap-2 pt-1">
                  { isRecording ? (
-                    <div className="flex-1 flex items-center bg-muted h-10 rounded-md px-3 gap-2">
+                    <div className="flex-1 flex items-center bg-muted h-10 rounded-lg px-3 gap-2">
                         <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></div>
                         <p className="text-sm font-mono text-red-500">{formatRecordingTime(recordingTime)}</p>
                     </div>
                 ) : mediaFile && mediaFile.type.startsWith('audio/') ? (
-                    <div className="flex-1 flex items-center bg-muted h-10 rounded-md px-3 gap-2 justify-between">
+                    <div className="flex-1 flex items-center bg-muted h-10 rounded-lg px-3 gap-2 justify-between">
                          <div className="flex items-center gap-2">
                             <Waves className="h-5 w-5 text-primary" />
                             <p className="text-sm font-mono text-muted-foreground">{formatRecordingTime(Math.round(mediaDuration || 0))}</p>
@@ -684,6 +728,12 @@ export default function IndividualChatPage({ params: paramsPromise }: { params: 
                           onChange={(e) => setNewMessage(e.target.value)}
                           onFocus={() => setShowEmojiPicker(false)}
                           disabled={isChatDisabled}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' && !e.shiftKey) {
+                                e.preventDefault();
+                                handleSendMessage();
+                            }
+                          }}
                         />
                     </>
                 )}
@@ -706,3 +756,5 @@ export default function IndividualChatPage({ params: paramsPromise }: { params: 
     </div>
   );
 }
+
+    

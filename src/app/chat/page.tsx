@@ -112,10 +112,12 @@ export default function ChatPage() {
     setLoading(true);
     fetchUserAndConversations();
     
-    const channel = supabase.channel('public-changes').on(
+    const channel = supabase.channel('public-changes-chat-list').on(
       'postgres_changes',
       { event: '*', schema: 'public' },
       (payload) => {
+        // A bit aggressive, but ensures data is fresh.
+        // A more optimized approach would check payload table and update state accordingly.
         fetchUserAndConversations();
       }
     ).subscribe();
@@ -195,3 +197,5 @@ export default function ChatPage() {
     </>
   );
 }
+
+    

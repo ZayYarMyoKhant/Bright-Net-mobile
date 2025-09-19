@@ -20,19 +20,22 @@ export function BottomNav() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      const { count } = await supabase
-        .from('direct_messages')
-        .select('id', { count: 'exact', head: true })
-        .neq('sender_id', user.id)
-        .is('is_seen_by_other', false);
+      const { data, error } = await supabase.rpc('get_user_conversations');
       
-      setHasUnread(!!count && count > 0);
+      if (!error && data) {
+          const totalUnread = data.reduce((acc, convo) => acc + convo.unread_count, 0);
+          setHasUnread(totalUnread > 0);
+      }
     };
 
     checkUnreadMessages();
 
     const channel = supabase.channel('public:direct_messages:bottom-nav')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'direct_messages' }, checkUnreadMessages)
+      .on('postgres_changes', { event: '*', schema: 'public' }, (payload) => {
+        // This is a simple way to trigger a re-check. A more optimized way
+        // would be to intelligently update the count based on the payload.
+        checkUnreadMessages();
+      })
       .subscribe();
 
     return () => {
@@ -110,3 +113,5 @@ export function BottomNav() {
     </footer>
   );
 }
+
+    
