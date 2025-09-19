@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useRef, useTransition } from "react";
+import { useState, useRef, useTransition, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -28,7 +28,7 @@ export default function CreateClassPage() {
   const { toast } = useToast();
   const supabase = createClient();
 
-  useState(() => {
+  useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
       if (!user) {
         toast({ variant: 'destructive', title: 'You must be logged in' });
@@ -37,7 +37,7 @@ export default function CreateClassPage() {
         setCurrentUser(user);
       }
     });
-  });
+  }, [supabase.auth, router, toast]);
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
