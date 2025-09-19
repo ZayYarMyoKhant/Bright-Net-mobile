@@ -31,7 +31,7 @@ type PlayerProfile = {
 
 const TypingTextDisplay = ({ text, typed, opponentTyped }: { text: string; typed: string, opponentTyped: string }) => {
     return (
-        <div className="text-xl md:text-2xl font-mono tracking-wider p-4 bg-muted rounded-md text-left relative overflow-hidden">
+        <div className="text-xl md:text-2xl font-mono tracking-wider p-4 bg-muted rounded-md text-left relative overflow-hidden whitespace-pre-wrap">
              <div className="absolute top-0 left-0 h-full bg-primary/10" style={{ width: `${(opponentTyped.length / text.length) * 100}%` }} />
             <div className="relative">
                 {text.split('').map((char, index) => {
@@ -39,7 +39,7 @@ const TypingTextDisplay = ({ text, typed, opponentTyped }: { text: string; typed
                     if (index < typed.length) {
                         className = typed[index] === char ? "text-foreground" : "text-destructive underline";
                     }
-                    return <span key={index} className={cn(className, "transition-colors duration-150")}>{char === ' ' ? '\u00A0' : char}</span>;
+                    return <span key={index} className={cn(className, "transition-colors duration-150")}>{char}</span>;
                 })}
             </div>
         </div>
@@ -251,5 +251,3 @@ export default function TypingBattleGamePage({ params: paramsPromise }: { params
         </div>
     );
 }
-
-    
