@@ -576,7 +576,7 @@ export default function IndividualClassPage({ params: paramsPromise }: { params:
         <div ref={messagesEndRef} />
       </main>
 
-       <footer className="flex-shrink-0 border-t">
+       <footer className="sticky bottom-0 bg-background border-t">
         <div className="p-2">
             {replyingTo && (
                 <div className="flex items-center justify-between bg-muted/50 px-3 py-1.5 text-xs">
@@ -668,3 +668,5 @@ export default function IndividualClassPage({ params: paramsPromise }: { params:
     </div>
   );
 }
+
+    

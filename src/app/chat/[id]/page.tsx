@@ -609,7 +609,7 @@ export default function IndividualChatPage({ params: paramsPromise }: { params: 
         <div ref={messagesEndRef} />
       </main>
 
-       <footer className="flex-shrink-0 border-t">
+       <footer className="sticky bottom-0 bg-background border-t">
         {isChatDisabled && (
             <div className="bg-muted p-3 text-center text-sm text-muted-foreground">
                 {isBlocked ? `You have blocked this user.` : `You cannot reply to this conversation.`}
@@ -706,3 +706,5 @@ export default function IndividualChatPage({ params: paramsPromise }: { params: 
     </div>
   );
 }
+
+    
