@@ -47,12 +47,8 @@ function PresenceIndicator({ user }: { user: OtherUser }) {
             <div className="absolute bottom-0 right-0 h-4 w-4 rounded-full bg-green-500 border-2 border-background" />
          )
     }
-
-    return (
-        <div className="absolute bottom-0 right-0 text-xs text-muted-foreground bg-background/80 px-1 rounded-full">
-            {formatDistanceToNow(new Date(user.last_seen), { addSuffix: true, includeSeconds: true })}
-        </div>
-    )
+    
+    return null;
 }
 
 
@@ -71,40 +67,42 @@ export default function ChatPage() {
       }
       setCurrentUser(user);
 
-      const { data, error } = await supabase.rpc('get_user_conversations');
-
-      if (error) {
-        console.error("Error fetching user's conversations:", error);
+      const { data: convosData, error: convosError } = await supabase.rpc('get_user_conversations');
+      
+      if (convosError) {
+        console.error("Error fetching user's conversations:", convosError);
         setLoading(false);
         return;
       }
 
-      const convos = (data as any[]).map(c => ({
-          conversation_id: c.conversation_id,
-          other_user: {
-              id: c.other_user_id,
-              username: c.other_user_username,
-              avatar_url: c.other_user_avatar_url,
-              full_name: c.other_user_full_name,
-              last_seen: c.other_user_last_seen,
-              show_active_status: c.other_user_show_active_status
-          },
-          last_message: c.last_message_created_at ? {
-              content: c.last_message_content,
-              media_type: c.last_message_media_type,
-              created_at: c.last_message_created_at,
-              sender_id: c.last_message_sender_id
-          } : null,
-          unread_count: c.unread_count
-      }));
-      
-      convos.sort((a, b) => {
-          if (!a.last_message) return 1;
-          if (!b.last_message) return -1;
-          return new Date(b.last_message.created_at).getTime() - new Date(a.last_message.created_at).getTime();
-      });
+      if (convosData) {
+        const convos = (convosData as any[]).map(c => ({
+            conversation_id: c.conversation_id,
+            other_user: {
+                id: c.other_user_id,
+                username: c.other_user_username,
+                avatar_url: c.other_user_avatar_url,
+                full_name: c.other_user_full_name,
+                last_seen: c.other_user_last_seen,
+                show_active_status: c.other_user_show_active_status
+            },
+            last_message: c.last_message_created_at ? {
+                content: c.last_message_content,
+                media_type: c.last_message_media_type,
+                created_at: c.last_message_created_at,
+                sender_id: c.last_message_sender_id
+            } : null,
+            unread_count: c.unread_count
+        }));
+        
+        convos.sort((a, b) => {
+            if (!a.last_message) return 1;
+            if (!b.last_message) return -1;
+            return new Date(b.last_message.created_at).getTime() - new Date(a.last_message.created_at).getTime();
+        });
 
-      setConversations(convos);
+        setConversations(convos);
+      }
       setLoading(false);
     }, [supabase, router]);
 
@@ -116,8 +114,6 @@ export default function ChatPage() {
       'postgres_changes',
       { event: '*', schema: 'public' },
       (payload) => {
-        // A bit aggressive, but ensures data is fresh.
-        // A more optimized approach would check payload table and update state accordingly.
         fetchUserAndConversations();
       }
     ).subscribe();
@@ -170,7 +166,7 @@ export default function ChatPage() {
                     <div className="relative" onClick={(e) => handleProfileClick(e, chat.other_user.id)}>
                       <Avatar className="h-14 w-14">
                         <AvatarImage src={chat.other_user.avatar_url} alt={chat.other_user.username} data-ai-hint="person portrait" />
-                        <AvatarFallback>{chat.other_user.username.charAt(0)}</AvatarFallback>
+                        <AvatarFallback>{chat.other_user.full_name?.charAt(0) || '?'}</AvatarFallback>
                       </Avatar>
                       <PresenceIndicator user={chat.other_user} />
                     </div>
@@ -197,5 +193,3 @@ export default function ChatPage() {
     </>
   );
 }
-
-    
