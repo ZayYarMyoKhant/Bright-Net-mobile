@@ -9,6 +9,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Loader2, Swords } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Progress } from '@/components/ui/progress';
+import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import type { TypingBattle } from '@/lib/data';
 
@@ -192,5 +193,3 @@ export default function TypingBattleGamePage({ params: paramsPromise }: { params
         </div>
     );
 }
-
-    
