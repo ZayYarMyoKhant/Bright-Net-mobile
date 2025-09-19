@@ -44,6 +44,7 @@ type ClassMessage = {
   profiles: Profile;
   message_reactions: MessageReaction[];
   is_seen_by_others: boolean;
+  parent_message?: { content: string | null; media_type: string | null; profiles: { full_name: string } };
 };
 
 const ReactionEmojis = {
@@ -93,6 +94,7 @@ const ChatMessage = ({ message, isSender, onReply, onDelete, currentUser, onReac
 
             return () => {
                 if (msgRef.current) {
+                    // @ts-ignore
                     observer.unobserve(msgRef.current);
                 }
             };
@@ -117,6 +119,20 @@ const ChatMessage = ({ message, isSender, onReply, onDelete, currentUser, onReac
                      <div className={message.media_type && ['image', 'video', 'sticker', 'audio'].includes(message.media_type) ? "" : "px-3 py-2"}>
                         {!isSender && <p className="font-semibold text-xs mb-1">{message.profiles.full_name}</p>}
                         
+                        {message.parent_message && (
+                            <div className="bg-black/10 p-2 rounded-md mb-2">
+                                <div className="flex items-center gap-2">
+                                    <MessageSquareReply className="h-3 w-3" />
+                                    <p className="text-xs font-semibold">
+                                        {isSender ? "You" : message.profiles.full_name} replied to {message.parent_message.profiles.full_name}
+                                    </p>
+                                </div>
+                                <p className="text-xs text-muted-foreground mt-1 pl-5 truncate">
+                                    {message.parent_message.content || `a ${message.parent_message.media_type}`}
+                                </p>
+                            </div>
+                        )}
+
                         {message.media_type === 'image' && message.media_url ? (
                             <Link href={`/class/${message.class_id}/media-viewer?url=${encodeURIComponent(message.media_url)}&type=image`}>
                                 <div className="relative h-48 w-48 rounded-lg overflow-hidden">
@@ -244,7 +260,7 @@ export default function IndividualClassPage({ params: paramsPromise }: { params:
 
     const { data: messagesData, error: messagesError } = await supabase
       .from('class_messages')
-      .select('*, profiles(*), message_reactions(*, profiles(*)), seen_by:class_message_read_status(user_id)')
+      .select('*, profiles(*), message_reactions(*, profiles(*)), seen_by:class_message_read_status(user_id), parent_message:parent_message_id(*, content, media_type, profiles(full_name))')
       .eq('class_id', params.id)
       .order('created_at', { ascending: true });
 
@@ -285,15 +301,14 @@ export default function IndividualClassPage({ params: paramsPromise }: { params:
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'class_messages', filter: `class_id=eq.${params.id}` },
         async (payload) => {
-           const { data: profile, error } = await supabase
-                .from('profiles')
-                .select('*')
-                .eq('id', payload.new.user_id)
+           const { data: fullMessage, error } = await supabase
+                .from('class_messages')
+                .select('*, profiles(*), message_reactions(*, profiles(*)), seen_by:class_message_read_status(user_id), parent_message:parent_message_id(*, content, media_type, profiles(full_name))')
+                .eq('id', payload.new.id)
                 .single();
-            if (error) {
-                console.error("Could not fetch profile for new message");
-            } else {
-                 setMessages((prevMessages) => [...prevMessages, { ...payload.new, profiles: profile as Profile, message_reactions: [], is_seen_by_others: false }]);
+            if (!error && fullMessage) {
+                 const newMessage = { ...fullMessage, is_seen_by_others: false } as ClassMessage;
+                 setMessages((prevMessages) => [...prevMessages, newMessage]);
                  if (payload.new.user_id !== currentUser.id) {
                     notificationSoundRef.current?.play().catch(e => console.error("Error playing sound:", e));
                  }
@@ -668,5 +683,3 @@ export default function IndividualClassPage({ params: paramsPromise }: { params:
     </div>
   );
 }
-
-    

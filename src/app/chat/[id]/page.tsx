@@ -43,7 +43,7 @@ type DirectMessage = {
   created_at: string;
   profiles: Profile;
   parent_message_id: string | null;
-  parent_message?: { content: string | null; profiles: { full_name: string } };
+  parent_message?: { content: string | null; media_type: string | null; profiles: { full_name: string } };
   direct_message_reactions: Reaction[];
   is_seen_by_other: boolean;
 };
@@ -112,6 +112,7 @@ const ChatMessage = ({ message, isSender, onReply, onDelete, onReaction, otherUs
 
         return () => {
             if (msgRef.current) {
+                // @ts-ignore
                 observer.unobserve(msgRef.current);
             }
         };
@@ -129,16 +130,7 @@ const ChatMessage = ({ message, isSender, onReply, onDelete, onReaction, otherUs
                 </Link>
             )}
             <div className="group relative max-w-xs">
-                 {message.parent_message && (
-                    <div className="text-xs text-muted-foreground px-3 pt-2 pb-1">
-                        <p>
-                            Replied to <span className="font-semibold">{message.parent_message.profiles.full_name}</span>
-                        </p>
-                        <p className="bg-muted/50 p-1.5 rounded-md mt-1 truncate">
-                            {message.parent_message.content}
-                        </p>
-                    </div>
-                )}
+                
                 <div className={cn(
                     "rounded-lg",
                      message.media_type && ['image', 'video', 'sticker', 'audio'].includes(message.media_type) ? "bg-transparent" : (isSender ? 'bg-primary text-primary-foreground' : 'bg-muted')
@@ -146,6 +138,21 @@ const ChatMessage = ({ message, isSender, onReply, onDelete, onReaction, otherUs
                      <div className={message.media_type && ['image', 'video', 'sticker', 'audio'].includes(message.media_type) ? "" : "px-3 py-2"}>
                         {!isSender && !message.parent_message && <p className="font-semibold text-xs mb-1">{message.profiles.full_name}</p>}
                         
+                         {message.parent_message && (
+                            <div className="bg-black/10 p-2 rounded-md mb-2">
+                                <div className="flex items-center gap-2">
+                                    <MessageSquareReply className="h-3 w-3" />
+                                    <p className="text-xs font-semibold">
+                                        {isSender ? "You" : message.profiles.full_name} replied to {message.parent_message.profiles.full_name}
+                                    </p>
+                                </div>
+                                <p className="text-xs text-muted-foreground mt-1 pl-5 truncate">
+                                    {message.parent_message.content || `a ${message.parent_message.media_type}`}
+                                </p>
+                            </div>
+                        )}
+
+
                         {message.media_type === 'image' && message.media_url ? (
                             <div className="relative h-48 w-48 rounded-lg overflow-hidden">
                                 <Image src={message.media_url} alt="sent image" layout="fill" objectFit="cover" data-ai-hint="photo message" />
@@ -292,7 +299,7 @@ export default function IndividualChatPage({ params: paramsPromise }: { params: 
     // Fetch messages
     const { data: messagesData, error: messagesError } = await supabase
       .from('direct_messages')
-      .select('*, profiles!direct_messages_sender_id_fkey(*), direct_message_reactions(*, profiles(*)), seen_by:direct_message_read_status(user_id), parent_message:parent_message_id(*, profiles(full_name))')
+      .select('*, profiles!direct_messages_sender_id_fkey(*), direct_message_reactions(*, profiles(*)), seen_by:direct_message_read_status(user_id), parent_message:parent_message_id(*, content, media_type, profiles(full_name))')
       .eq('conversation_id', currentConvoId)
       .order('created_at', { ascending: true });
 
@@ -341,7 +348,7 @@ export default function IndividualChatPage({ params: paramsPromise }: { params: 
         async (payload) => {
            const { data: fullMessage, error } = await supabase
                 .from('direct_messages')
-                .select('*, profiles!direct_messages_sender_id_fkey(*), direct_message_reactions(*, profiles(*)), seen_by:direct_message_read_status(user_id), parent_message:parent_message_id(*, profiles(full_name))')
+                .select('*, profiles!direct_messages_sender_id_fkey(*), direct_message_reactions(*, profiles(*)), seen_by:direct_message_read_status(user_id), parent_message:parent_message_id(*, content, media_type, profiles(full_name))')
                 .eq('id', payload.new.id)
                 .single();
             if (!error && fullMessage) {
@@ -769,4 +776,3 @@ export default function IndividualChatPage({ params: paramsPromise }: { params: 
     </div>
   );
 }
-
