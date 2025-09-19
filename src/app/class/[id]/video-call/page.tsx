@@ -64,7 +64,7 @@ export default function ClassVideoCallPage({ params: paramsPromise }: { params: 
   const { toast } = useToast();
   const supabase = createClient();
   
-  const [classInfo, setClassInfo] = useState<{id: string, name: string} | null>(null);
+  const [classInfo, setClassInfo] = useState<{id: string, name: string, creator_id: string} | null>(null);
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -78,7 +78,7 @@ export default function ClassVideoCallPage({ params: paramsPromise }: { params: 
   const fetchCallData = useCallback(async (user: User) => {
     const { data: classData, error: classError } = await supabase
         .from('classes')
-        .select('id, name')
+        .select('id, name, creator_id')
         .eq('id', params.id)
         .single();
     
@@ -191,6 +191,23 @@ export default function ClassVideoCallPage({ params: paramsPromise }: { params: 
     }
   };
   
+  const handleEndCall = async () => {
+    if (!classInfo || !currentUser) return;
+
+    if (currentUser.id === classInfo.creator_id) {
+        // Creator is ending the call for everyone
+        const { error } = await supabase.from('classes')
+            .update({ is_video_call_active: false })
+            .eq('id', classInfo.id);
+
+        if (error) {
+            toast({ variant: 'destructive', title: 'Failed to end call' });
+        }
+    }
+    // Everyone (including creator) goes back to the class chat page
+    router.push(`/class/${classInfo.id}`);
+  };
+
   const host = participants.find(p => p.isCurrentUser);
   const members = participants.filter(p => !p.isCurrentUser);
   
@@ -206,11 +223,9 @@ export default function ClassVideoCallPage({ params: paramsPromise }: { params: 
       <div className="flex h-dvh flex-col bg-gray-900 text-white">
         <header className="flex h-16 flex-shrink-0 items-center justify-between px-4 z-20">
           <div className="flex items-center gap-3">
-             <Link href={`/class/${classInfo?.id}`}>
-                <Button variant="ghost" size="icon" className="text-white hover:bg-white/20">
-                    <ArrowLeft />
-                </Button>
-            </Link>
+             <Button variant="ghost" size="icon" className="text-white hover:bg-white/20" onClick={handleEndCall}>
+                <ArrowLeft />
+            </Button>
             <div>
                 <p className="font-bold">{classInfo?.name}</p>
                 <div className="flex items-center gap-1 text-xs text-green-400">
@@ -252,11 +267,9 @@ export default function ClassVideoCallPage({ params: paramsPromise }: { params: 
                 <Button variant="outline" size="icon" className="h-14 w-14 rounded-full bg-white/20 hover:bg-white/30 border-0" onClick={handleFlipCamera}>
                   <RefreshCw className="h-7 w-7" />
                 </Button>
-                 <Link href={`/class/${classInfo?.id}`}>
-                    <Button variant="destructive" size="icon" className="h-14 w-14 rounded-full">
-                        <PhoneOff className="h-7 w-7" />
-                    </Button>
-                </Link>
+                 <Button variant="destructive" size="icon" className="h-14 w-14 rounded-full" onClick={handleEndCall}>
+                    <PhoneOff className="h-7 w-7" />
+                </Button>
             </div>
           </footer>
       </div>

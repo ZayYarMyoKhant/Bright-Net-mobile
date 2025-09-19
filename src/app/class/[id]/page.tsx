@@ -23,6 +23,7 @@ type ClassInfo = {
   id: string;
   name: string;
   creator_id: string;
+  is_video_call_active: boolean;
 };
 
 type MessageReaction = {
@@ -251,7 +252,7 @@ export default function IndividualClassPage({ params: paramsPromise }: { params:
     setLoading(true);
     const { data: classData, error: classError } = await supabase
       .from('classes')
-      .select('id, name, creator_id')
+      .select('id, name, creator_id, is_video_call_active')
       .eq('id', params.id)
       .single();
 
@@ -277,9 +278,7 @@ export default function IndividualClassPage({ params: paramsPromise }: { params:
     } else {
         const processedMessages = messagesData.map(msg => ({
             ...msg,
-            // A message is "seen by others" if at least one person other than the sender has seen it.
-            // So, for a sent message, the seen_by count must be > 1.
-            is_seen_by_others: msg.user_id === user?.id ? (msg.seen_by[0]?.count || 0) > 1 : (msg.seen_by[0]?.count || 0) > 0,
+            is_seen_by_others: (msg.seen_by[0]?.count || 0) > (msg.user_id === user?.id ? 1 : 0),
         })) as ClassMessage[];
         setMessages(processedMessages);
     }
@@ -315,7 +314,10 @@ export default function IndividualClassPage({ params: paramsPromise }: { params:
                 .eq('id', payload.new.id)
                 .single();
             if (!error && fullMessage) {
-                 const newMessage = { ...fullMessage, is_seen_by_others: false } as ClassMessage;
+                 const newMessage = {
+                     ...fullMessage,
+                     is_seen_by_others: false
+                 } as ClassMessage;
                  setMessages((prevMessages) => [...prevMessages, newMessage]);
                  if (payload.new.user_id !== currentUser.id) {
                     notificationSoundRef.current?.play().catch(e => console.error("Error playing sound:", e));
@@ -333,7 +335,21 @@ export default function IndividualClassPage({ params: paramsPromise }: { params:
       .on('postgres_changes', 
         { event: '*', schema: 'public', table: 'class_message_read_status' },
         (payload) => {
-            fetchClassData(currentUser);
+             setMessages(prevMessages => {
+                const messageId = (payload.new as any).message_id;
+                return prevMessages.map(msg => {
+                    if (msg.id === messageId) {
+                        return { ...msg, is_seen_by_others: true };
+                    }
+                    return msg;
+                });
+            });
+        }
+       )
+       .on('postgres_changes', 
+        { event: 'UPDATE', schema: 'public', table: 'classes', filter: `id=eq.${params.id}` },
+        (payload) => {
+            setClassInfo(prev => prev ? { ...prev, is_video_call_active: (payload.new as ClassInfo).is_video_call_active } : null);
         }
        )
       .subscribe();
@@ -541,6 +557,22 @@ export default function IndividualClassPage({ params: paramsPromise }: { params:
         }
     };
 
+    const handleVideoCallClick = async () => {
+        if (!classInfo) return;
+        if (isCreator) {
+             const { error } = await supabase.from('classes')
+                .update({ is_video_call_active: true })
+                .eq('id', classInfo.id);
+            if (error) {
+                toast({ variant: 'destructive', title: 'Could not start call' });
+            } else {
+                 router.push(`/class/${classInfo.id}/video-call`);
+            }
+        } else {
+            // Join call
+            router.push(`/class/${classInfo.id}/video-call`);
+        }
+    };
 
   return (
     <div className="flex h-dvh flex-col bg-background text-foreground">
@@ -556,13 +588,9 @@ export default function IndividualClassPage({ params: paramsPromise }: { params:
             </Link>
         </div>
         <div className="flex items-center gap-2">
-          {isCreator && (
-            <Link href={`/class/${classInfo?.id}/video-call`}>
-                <Button variant="ghost" size="icon">
-                <Video className="h-5 w-5" />
-                </Button>
-            </Link>
-          )}
+            <Button variant="ghost" size="icon" onClick={handleVideoCallClick} disabled={!isCreator && !classInfo?.is_video_call_active}>
+              <Video className="h-5 w-5" />
+            </Button>
            <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="icon">
