@@ -26,12 +26,15 @@ import {
     AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { formatDistanceToNow, isBefore, subMinutes } from "date-fns";
 
 
 type ProfileData = Profile & {
   following: number;
   followers: number;
   is_following: boolean;
+  last_seen: string | null;
+  show_active_status: boolean;
 };
 
 type JoinedClass = {
@@ -39,6 +42,23 @@ type JoinedClass = {
   name: string;
   avatar_url: string;
 };
+
+function PresenceIndicator({ user }: { user: ProfileData }) {
+    if (!user.show_active_status || !user.last_seen) {
+        return null;
+    }
+
+    const twoMinutesAgo = subMinutes(new Date(), 2);
+    const isOnline = isBefore(twoMinutesAgo, new Date(user.last_seen));
+
+    if (isOnline) {
+         return (
+            <div className="absolute bottom-0 right-0 h-4 w-4 rounded-full bg-green-500 border-2 border-background" />
+         )
+    }
+
+    return null; // Don't show "last seen" on profile, only green dot for online
+}
 
 
 export default function UserProfilePage({ params: paramsPromise }: { params: Promise<{ id: string }> }) {
@@ -94,6 +114,8 @@ export default function UserProfilePage({ params: paramsPromise }: { params: Pro
       followers: followersRes.count || 0,
       following: followingRes.count || 0,
       is_following: isFollowingUser,
+      last_seen: profileData.last_seen,
+      show_active_status: profileData.show_active_status,
     });
     
     setPosts(postsRes.data as Post[] || []);
@@ -119,7 +141,16 @@ export default function UserProfilePage({ params: paramsPromise }: { params: Pro
     if (params.id) {
       fetchProfileData();
     }
-  }, [params.id, fetchProfileData]);
+     const channel = supabase.channel(`profile-${params.id}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles', filter: `id=eq.${params.id}` }, (payload) => {
+        fetchProfileData();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [params.id, fetchProfileData, supabase]);
   
   const handleFollowToggle = async () => {
     if (!currentUser) {
@@ -201,10 +232,13 @@ export default function UserProfilePage({ params: paramsPromise }: { params: Pro
 
         <main className="flex-1 overflow-y-auto p-4">
           <div className="flex flex-col items-center">
-            <Avatar className="h-24 w-24 border-2 border-primary">
-              <AvatarImage src={profile.avatar_url} alt={profile.username} data-ai-hint="person portrait" />
-              <AvatarFallback>{profile.username.charAt(0)}</AvatarFallback>
-            </Avatar>
+            <div className="relative">
+              <Avatar className="h-24 w-24 border-2 border-primary">
+                <AvatarImage src={profile.avatar_url} alt={profile.username} data-ai-hint="person portrait" />
+                <AvatarFallback>{profile.username.charAt(0)}</AvatarFallback>
+              </Avatar>
+              <PresenceIndicator user={profile} />
+            </div>
             <h2 className="mt-3 text-xl font-bold">{profile.full_name}</h2>
             <p className="text-sm text-muted-foreground">@{profile.username}</p>
             <p className="mt-2 text-center text-sm">{profile.bio}</p>
@@ -314,5 +348,3 @@ export default function UserProfilePage({ params: paramsPromise }: { params: Pro
     </>
   );
 }
-
-    
