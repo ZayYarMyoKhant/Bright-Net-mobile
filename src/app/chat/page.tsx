@@ -23,15 +23,17 @@ type OtherUser = {
   show_active_status: boolean;
 };
 
-type Conversation = {
-  conversation_id: string;
-  other_user: OtherUser;
-  last_message: {
+type LastMessage = {
     content: string | null;
     media_type: string | null;
     created_at: string;
     sender_id: string;
-  } | null;
+} | null;
+
+type Conversation = {
+  conversation_id: string;
+  other_user: OtherUser;
+  last_message: LastMessage;
   unread_count: number;
 };
 
@@ -70,6 +72,7 @@ export default function ChatPage() {
       setCurrentUser(user);
 
       try {
+        // This single RPC call gets all the necessary data
         const { data, error } = await supabase.rpc('get_user_conversations');
         
         if (error) {
@@ -97,6 +100,7 @@ export default function ChatPage() {
     setLoading(true);
     fetchUserAndConversations();
     
+    // Set up a real-time subscription to refetch data on changes
     const channel = supabase.channel('public:direct_messages')
       .on( 'postgres_changes',
         { event: '*', schema: 'public', table: 'direct_messages' },
@@ -118,10 +122,11 @@ export default function ChatPage() {
 
   const handleProfileClick = (e: React.MouseEvent, userId: string) => {
     e.stopPropagation();
+    e.preventDefault();
     router.push(`/profile/${userId}`);
   };
 
-  const getLastMessageDisplay = (msg: Conversation['last_message'], isUnread: boolean) => {
+  const getLastMessageDisplay = (msg: LastMessage, isUnread: boolean) => {
     if (!msg || !msg.created_at) return "No messages yet";
     const textClass = isUnread ? "font-bold text-foreground" : "text-muted-foreground";
     let content = "";
