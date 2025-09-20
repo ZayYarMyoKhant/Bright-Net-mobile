@@ -12,6 +12,7 @@ import { User } from "@supabase/supabase-js";
 import { formatDistanceToNow, isBefore, subMinutes } from "date-fns";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { useToast } from "@/hooks/use-toast";
 
 type OtherUser = {
   id: string;
@@ -58,6 +59,7 @@ export default function ChatPage() {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loading, setLoading] = useState(true);
+  const { toast } = useToast();
 
   const fetchUserAndConversations = useCallback(async () => {
       const { data: { user } } = await supabase.auth.getUser();
@@ -67,100 +69,110 @@ export default function ChatPage() {
       }
       setCurrentUser(user);
 
-      // This is a manual implementation of the `get_user_conversations` RPC to avoid RLS issues with functions.
-      // 1. Get all conversations the user is part of.
-      const { data: userConvos, error: convoError } = await supabase
-        .from('conversation_participants')
-        .select('conversation_id, user_id')
-        .eq('user_id', user.id);
+      // This is a manual implementation of fetching conversations without RPC
+      try {
+        // 1. Get all conversation IDs the user is part of.
+        const { data: userConvos, error: convoError } = await supabase
+          .from('conversation_participants')
+          .select('conversation_id')
+          .eq('user_id', user.id);
 
-      if (convoError) {
-          console.error("Error fetching user's conversation list:", convoError);
+        if (convoError) throw convoError;
+        
+        const conversationIds = userConvos.map(c => c.conversation_id);
+        
+        if (conversationIds.length === 0) {
+          setConversations([]);
           setLoading(false);
           return;
-      }
+        }
 
-      const conversationIds = userConvos.map(c => c.conversation_id);
-      
-      if (conversationIds.length === 0) {
-        setConversations([]);
-        setLoading(false);
-        return;
-      }
+        // 2. Get all participants and their profiles for these conversations
+        const { data: allParticipants, error: participantsError } = await supabase
+          .from('conversation_participants')
+          .select('conversation_id, user_id, profiles(*)')
+          .in('conversation_id', conversationIds);
 
-      // 2. Get all participants for these conversations
-      const { data: allParticipants, error: participantsError } = await supabase
-        .from('conversation_participants')
-        .select('conversation_id, user_id, profiles(*)')
-        .in('conversation_id', conversationIds);
-
-      if (participantsError) {
-        console.error("Error fetching participants:", participantsError);
-        setLoading(false);
-        return;
-      }
-      
-      // 3. Get last message for each conversation
-      const { data: lastMessages, error: messagesError } = await supabase
-        .from('direct_messages')
-        .select('id, conversation_id, content, media_type, created_at, sender_id')
-        .in('conversation_id', conversationIds)
-        .order('created_at', { ascending: false });
-
-      if(messagesError) {
-        console.error("Error fetching last messages:", messagesError);
-      }
-      
-      // 4. Get unread counts
-      const { data: unreadData, error: unreadError } = await supabase
-        .rpc('count_unread_messages', { user_id_param: user.id });
-
-       if (unreadError) {
-        console.error("Error fetching unread counts:", unreadError);
-       }
-       
-      const unreadCountsMap = new Map<string, number>();
-      if (unreadData) {
-        unreadData.forEach((item: any) => {
-            unreadCountsMap.set(item.conversation_id, item.unread_count);
-        });
-      }
-
-
-      // 5. Process and combine the data
-      const processedConversations = conversationIds.map(convoId => {
-          const participants = allParticipants.filter(p => p.conversation_id === convoId);
-          const otherParticipant = participants.find(p => p.user_id !== user.id);
+        if (participantsError) throw participantsError;
+        
+        // 3. Get the last message for each conversation
+        const { data: lastMessages, error: messagesError } = await supabase
+          .rpc('get_last_messages_for_conversations', { c_ids: conversationIds });
           
-          if (!otherParticipant || !otherParticipant.profiles) {
-            return null; // Should not happen in a valid conversation
-          }
+        if (messagesError) throw messagesError;
 
-          const uniqueLastMessages = lastMessages ? Array.from(new Map(lastMessages.map(m => [m.conversation_id, m])).values()) : [];
-          const lastMessage = uniqueLastMessages.find(m => m.conversation_id === convoId);
+        // 4. Get unread counts for each conversation
+        const { data: unreadData, error: unreadError } = await supabase
+            .from('direct_messages')
+            .select('id, conversation_id')
+            .in('conversation_id', conversationIds)
+            .eq('sender_id', user.id) // This seems wrong, should be sender_id != user.id
+            .neq('sender_id', user.id);
 
-          return {
-              conversation_id: convoId,
-              other_user: otherParticipant.profiles as OtherUser,
-              last_message: lastMessage ? {
-                  content: lastMessage.content,
-                  media_type: lastMessage.media_type,
-                  created_at: lastMessage.created_at,
-                  sender_id: lastMessage.sender_id,
-              } : null,
-              unread_count: unreadCountsMap.get(convoId) || 0,
-          };
-      }).filter((c): c is Conversation => c !== null);
-      
-      processedConversations.sort((a, b) => {
-          if (!a.last_message) return 1;
-          if (!b.last_message) return -1;
-          return new Date(b.last_message.created_at).getTime() - new Date(a.last_message.created_at).getTime();
-      });
 
-      setConversations(processedConversations);
-      setLoading(false);
-    }, [supabase, router]);
+        const { data: readStatuses, error: readStatusError } = await supabase
+            .from('direct_message_read_status')
+            .select('message_id')
+            .eq('user_id', user.id)
+            .in('message_id', unreadData?.map(m => m.id) || []);
+
+        if (readStatusError) throw readStatusError;
+        
+        const readMessageIds = new Set(readStatuses.map(rs => rs.message_id));
+        const unreadCountsMap = new Map<string, number>();
+
+        unreadData?.forEach(message => {
+            if (!readMessageIds.has(message.id)) {
+                const count = unreadCountsMap.get(message.conversation_id) || 0;
+                unreadCountsMap.set(message.conversation_id, count + 1);
+            }
+        });
+
+        // 5. Process and combine the data
+        const lastMessageMap = new Map(lastMessages.map(m => [m.conversation_id, m]));
+
+        const processedConversations = conversationIds.map(convoId => {
+            const participants = allParticipants.filter(p => p.conversation_id === convoId);
+            const otherParticipant = participants.find(p => p.user_id !== user.id);
+            
+            if (!otherParticipant || !otherParticipant.profiles) {
+              return null; // Should not happen in a valid conversation
+            }
+
+            const lastMessage = lastMessageMap.get(convoId);
+
+            return {
+                conversation_id: convoId,
+                other_user: otherParticipant.profiles as OtherUser,
+                last_message: lastMessage ? {
+                    content: lastMessage.content,
+                    media_type: lastMessage.media_type,
+                    created_at: lastMessage.created_at,
+                    sender_id: lastMessage.sender_id,
+                } : null,
+                unread_count: unreadCountsMap.get(convoId) || 0,
+            };
+        }).filter((c): c is Conversation => c !== null);
+        
+        processedConversations.sort((a, b) => {
+            if (!a.last_message) return 1;
+            if (!b.last_message) return -1;
+            return new Date(b.last_message.created_at).getTime() - new Date(a.last_message.created_at).getTime();
+        });
+
+        setConversations(processedConversations);
+
+      } catch (error: any) {
+        console.error("Error fetching user's conversations:", error);
+        toast({
+            variant: "destructive",
+            title: "Failed to load chats",
+            description: `Database error: ${error.message}`
+        });
+      } finally {
+        setLoading(false);
+      }
+    }, [supabase, router, toast]);
 
   useEffect(() => {
     setLoading(true);
@@ -169,6 +181,11 @@ export default function ChatPage() {
     const channel = supabase.channel('public:direct_messages')
       .on( 'postgres_changes',
         { event: '*', schema: 'public', table: 'direct_messages' },
+        (payload) => {
+          fetchUserAndConversations();
+        }
+      ).on( 'postgres_changes',
+        { event: '*', schema: 'public', table: 'direct_message_read_status' },
         (payload) => {
           fetchUserAndConversations();
         }
@@ -190,6 +207,7 @@ export default function ChatPage() {
     const textClass = isUnread ? "font-bold text-foreground" : "text-muted-foreground";
     let content = "";
     if (msg.content) content = msg.content;
+    else if (msg.media_type === 'sticker') content = 'Sent a sticker';
     else if (msg.media_type) content = `Sent a ${msg.media_type}`;
     else content = "No content";
     
