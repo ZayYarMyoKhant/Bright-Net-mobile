@@ -69,102 +69,18 @@ export default function ChatPage() {
       }
       setCurrentUser(user);
 
-      // This is a manual implementation of fetching conversations without RPC
       try {
-        // 1. Get all conversation IDs the user is part of.
-        const { data: userConvos, error: convoError } = await supabase
-          .from('conversation_participants')
-          .select('conversation_id')
-          .eq('user_id', user.id);
-
-        if (convoError) throw convoError;
+        const { data, error } = await supabase.rpc('get_user_conversations');
         
-        const conversationIds = userConvos.map(c => c.conversation_id);
-        
-        if (conversationIds.length === 0) {
-          setConversations([]);
-          setLoading(false);
-          return;
+        if (error) {
+            throw error;
         }
 
-        // 2. Get all participants and their profiles for these conversations
-        const { data: allParticipants, error: participantsError } = await supabase
-          .from('conversation_participants')
-          .select('conversation_id, user_id, profiles(*)')
-          .in('conversation_id', conversationIds);
-
-        if (participantsError) throw participantsError;
-        
-        // 3. Get the last message for each conversation
-        const { data: lastMessages, error: messagesError } = await supabase
-          .rpc('get_last_messages_for_conversations', { c_ids: conversationIds });
-          
-        if (messagesError) throw messagesError;
-
-        // 4. Get unread counts for each conversation
-        const { data: unreadData, error: unreadError } = await supabase
-            .from('direct_messages')
-            .select('id, conversation_id')
-            .in('conversation_id', conversationIds)
-            .neq('sender_id', user.id);
-
-        if (unreadError) throw unreadError;
-
-        const { data: readStatuses, error: readStatusError } = await supabase
-            .from('direct_message_read_status')
-            .select('message_id')
-            .eq('user_id', user.id)
-            .in('message_id', unreadData?.map(m => m.id) || []);
-
-        // if (readStatusError) throw readStatusError; // Don't throw, just handle it
-        if (readStatusError) {
-          console.error("Error fetching read statuses:", readStatusError);
+        if (data) {
+            setConversations(data as Conversation[]);
+        } else {
+            setConversations([]);
         }
-        
-        const readMessageIds = new Set((readStatuses || []).map(rs => rs.message_id));
-        const unreadCountsMap = new Map<string, number>();
-
-        unreadData?.forEach(message => {
-            if (!readMessageIds.has(message.id)) {
-                const count = unreadCountsMap.get(message.conversation_id) || 0;
-                unreadCountsMap.set(message.conversation_id, count + 1);
-            }
-        });
-
-        // 5. Process and combine the data
-        const lastMessageMap = new Map(lastMessages.map(m => [m.conversation_id, m]));
-
-        const processedConversations = conversationIds.map(convoId => {
-            const participants = allParticipants.filter(p => p.conversation_id === convoId);
-            const otherParticipant = participants.find(p => p.user_id !== user.id);
-            
-            if (!otherParticipant || !otherParticipant.profiles) {
-              return null; // Should not happen in a valid conversation
-            }
-
-            const lastMessage = lastMessageMap.get(convoId);
-
-            return {
-                conversation_id: convoId,
-                other_user: otherParticipant.profiles as OtherUser,
-                last_message: lastMessage ? {
-                    content: lastMessage.content,
-                    media_type: lastMessage.media_type,
-                    created_at: lastMessage.created_at,
-                    sender_id: lastMessage.sender_id,
-                } : null,
-                unread_count: unreadCountsMap.get(convoId) || 0,
-            };
-        }).filter((c): c is Conversation => c !== null);
-        
-        processedConversations.sort((a, b) => {
-            if (!a.last_message) return 1;
-            if (!b.last_message) return -1;
-            return new Date(b.last_message.created_at).getTime() - new Date(a.last_message.created_at).getTime();
-        });
-
-        setConversations(processedConversations);
-
       } catch (error: any) {
         console.error("Error fetching user's conversations:", error);
         toast({
@@ -206,13 +122,21 @@ export default function ChatPage() {
   };
 
   const getLastMessageDisplay = (msg: Conversation['last_message'], isUnread: boolean) => {
-    if (!msg) return "No messages yet";
+    if (!msg || !msg.created_at) return "No messages yet";
     const textClass = isUnread ? "font-bold text-foreground" : "text-muted-foreground";
     let content = "";
-    if (msg.content) content = msg.content;
-    else if (msg.media_type === 'sticker') content = 'Sent a sticker';
-    else if (msg.media_type) content = `Sent a ${msg.media_type}`;
-    else content = "No content";
+    
+    const prefix = msg.sender_id === currentUser?.id ? "You: " : "";
+
+    if (msg.content) {
+        content = prefix + msg.content;
+    } else if (msg.media_type === 'sticker') {
+        content = prefix + 'Sent a sticker';
+    } else if (msg.media_type) {
+        content = prefix + `Sent a ${msg.media_type}`;
+    } else {
+        content = "No content";
+    }
     
     return <p className={cn("text-sm truncate", textClass)}>{content}</p>
   }
@@ -253,7 +177,7 @@ export default function ChatPage() {
                     </div>
                      <div className="flex flex-col items-end gap-1.5 self-start">
                         <p className="text-xs text-muted-foreground shrink-0">
-                          {chat.last_message ? formatDistanceToNow(new Date(chat.last_message.created_at), { addSuffix: true }) : ''}
+                          {chat.last_message && chat.last_message.created_at ? formatDistanceToNow(new Date(chat.last_message.created_at), { addSuffix: true }) : ''}
                         </p>
                          {chat.unread_count > 0 && chat.last_message?.sender_id !== currentUser?.id && (
                              <Badge className="h-5 w-5 p-0 flex items-center justify-center rounded-full bg-primary text-primary-foreground">{chat.unread_count}</Badge>
