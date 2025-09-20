@@ -106,9 +106,9 @@ export default function ChatPage() {
             .from('direct_messages')
             .select('id, conversation_id')
             .in('conversation_id', conversationIds)
-            .eq('sender_id', user.id) // This seems wrong, should be sender_id != user.id
             .neq('sender_id', user.id);
 
+        if (unreadError) throw unreadError;
 
         const { data: readStatuses, error: readStatusError } = await supabase
             .from('direct_message_read_status')
@@ -116,9 +116,12 @@ export default function ChatPage() {
             .eq('user_id', user.id)
             .in('message_id', unreadData?.map(m => m.id) || []);
 
-        if (readStatusError) throw readStatusError;
+        // if (readStatusError) throw readStatusError; // Don't throw, just handle it
+        if (readStatusError) {
+          console.error("Error fetching read statuses:", readStatusError);
+        }
         
-        const readMessageIds = new Set(readStatuses.map(rs => rs.message_id));
+        const readMessageIds = new Set((readStatuses || []).map(rs => rs.message_id));
         const unreadCountsMap = new Map<string, number>();
 
         unreadData?.forEach(message => {
