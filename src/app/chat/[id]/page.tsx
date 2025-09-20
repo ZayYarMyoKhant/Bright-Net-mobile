@@ -46,6 +46,7 @@ type DirectMessage = {
   parent_message?: { content: string | null; media_type: string | null; profiles: { full_name: string } };
   direct_message_reactions: Reaction[];
   is_seen_by_other: boolean;
+  is_shared_post: boolean;
 };
 
 const ReactionEmojis = {
@@ -118,8 +119,6 @@ const ChatMessage = ({ message, isSender, onReply, onDelete, onReaction, otherUs
         };
     }, [isSender, message.id, message.is_seen_by_other, supabase, otherUserId]);
 
-    const isSharedPost = message.parent_message_id === 'shared_post';
-
     const renderMedia = (isShared: boolean) => {
         const mediaClass = isShared ? "w-48 h-48 mt-2" : "w-48 h-48";
         if (message.media_type === 'image' && message.media_url) {
@@ -163,7 +162,7 @@ const ChatMessage = ({ message, isSender, onReply, onDelete, onReaction, otherUs
                      message.media_type && ['sticker', 'audio'].includes(message.media_type) ? "bg-transparent" : (isSender ? 'bg-primary text-primary-foreground' : 'bg-muted')
                 )}>
                      <div className="px-3 py-2">
-                        {!isSender && !isSharedPost && !message.parent_message && <p className="font-semibold text-xs mb-1">{message.profiles.full_name}</p>}
+                        {!isSender && !message.is_shared_post && !message.parent_message && <p className="font-semibold text-xs mb-1">{message.profiles.full_name}</p>}
                         
                          {message.parent_message && (
                             <div className="bg-black/10 p-2 rounded-md mb-2">
@@ -179,7 +178,7 @@ const ChatMessage = ({ message, isSender, onReply, onDelete, onReaction, otherUs
                             </div>
                         )}
                         
-                        {isSharedPost ? (
+                        {message.is_shared_post ? (
                             <div className="space-y-1">
                                 <div className="flex items-center gap-2">
                                     <Share2 className="h-3 w-3" />

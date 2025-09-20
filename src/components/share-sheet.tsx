@@ -71,10 +71,10 @@ export function ShareSheet({ post, currentUser }: ShareSheetProps) {
             const { error: messageError } = await supabase.from('direct_messages').insert({
                 conversation_id: conversationId,
                 sender_id: currentUser.id,
-                content: post.caption, // The caption of the shared post
-                media_url: post.media_url, // The media of the shared post
-                media_type: post.media_type, // The media type
-                parent_message_id: 'shared_post' // Special identifier for shared posts
+                content: post.caption,
+                media_url: post.media_url,
+                media_type: post.media_type,
+                is_shared_post: true // Use the new boolean flag
             });
             if (messageError) {
                 throw new Error(`Could not send message to friend ${friendId}: ${messageError.message}`);
@@ -96,6 +96,7 @@ export function ShareSheet({ post, currentUser }: ShareSheetProps) {
     } finally {
         setSending(false);
         setSelectedFriends([]);
+        // This is a bit of a hack to close the sheet. A better way would be to control the sheet's open state from a parent component.
         document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
     }
   };
