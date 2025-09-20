@@ -5,7 +5,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { ArrowLeft, Phone, Mic, Image as ImageIcon, Send, Smile, MoreVertical, MessageSquareReply, Trash2, X, Loader2, Waves, Heart, ThumbsUp, Laugh, Frown, Check, Ban } from "lucide-react";
+import { ArrowLeft, Phone, Mic, Image as ImageIcon, Send, Smile, MoreVertical, MessageSquareReply, Trash2, X, Loader2, Waves, Heart, ThumbsUp, Laugh, Frown, Check, Ban, Share2 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { use, useState, useRef, useEffect, useCallback } from "react";
@@ -118,6 +118,33 @@ const ChatMessage = ({ message, isSender, onReply, onDelete, onReaction, otherUs
         };
     }, [isSender, message.id, message.is_seen_by_other, supabase, otherUserId]);
 
+    const isSharedPost = message.parent_message_id === 'shared_post';
+
+    const renderMedia = (isShared: boolean) => {
+        const mediaClass = isShared ? "w-48 h-48 mt-2" : "w-48 h-48";
+        if (message.media_type === 'image' && message.media_url) {
+            return (
+                <div className={cn("relative rounded-lg overflow-hidden", mediaClass)}>
+                    <Image src={message.media_url} alt="sent image" layout="fill" objectFit="cover" data-ai-hint="photo message" />
+                </div>
+            );
+        }
+        if (message.media_type === 'video' && message.media_url) {
+            return <video src={message.media_url} controls className={cn("rounded-lg", mediaClass)} />;
+        }
+        if (message.media_type === 'sticker' && message.media_url) {
+            return (
+                <div className="relative h-32 w-32">
+                    <Image src={message.media_url} alt="sticker" layout="fill" objectFit="contain" unoptimized />
+                </div>
+            );
+        }
+        if (message.media_type === 'audio' && message.media_url) {
+            return <audio controls src={message.media_url} className="w-60 h-10" />;
+        }
+        return null;
+    };
+
 
     return (
         <div ref={msgRef} className={`flex items-start gap-3 ${isSender ? 'justify-end' : 'justify-start'}`}>
@@ -133,10 +160,10 @@ const ChatMessage = ({ message, isSender, onReply, onDelete, onReaction, otherUs
                 
                 <div className={cn(
                     "rounded-lg",
-                     message.media_type && ['image', 'video', 'sticker', 'audio'].includes(message.media_type) ? "bg-transparent" : (isSender ? 'bg-primary text-primary-foreground' : 'bg-muted')
+                     message.media_type && ['sticker', 'audio'].includes(message.media_type) ? "bg-transparent" : (isSender ? 'bg-primary text-primary-foreground' : 'bg-muted')
                 )}>
-                     <div className={message.media_type && ['image', 'video', 'sticker', 'audio'].includes(message.media_type) ? "" : "px-3 py-2"}>
-                        {!isSender && !message.parent_message && <p className="font-semibold text-xs mb-1">{message.profiles.full_name}</p>}
+                     <div className="px-3 py-2">
+                        {!isSender && !isSharedPost && !message.parent_message && <p className="font-semibold text-xs mb-1">{message.profiles.full_name}</p>}
                         
                          {message.parent_message && (
                             <div className="bg-black/10 p-2 rounded-md mb-2">
@@ -151,24 +178,29 @@ const ChatMessage = ({ message, isSender, onReply, onDelete, onReaction, otherUs
                                 </p>
                             </div>
                         )}
-
-                        {message.content && !message.media_type && (
-                            <p className="text-sm break-words">{message.content}</p>
-                        )}
                         
-                        {message.media_type === 'image' && message.media_url ? (
-                            <div className="relative h-48 w-48 rounded-lg overflow-hidden">
-                                <Image src={message.media_url} alt="sent image" layout="fill" objectFit="cover" data-ai-hint="photo message" />
+                        {isSharedPost ? (
+                            <div className="space-y-1">
+                                <div className="flex items-center gap-2">
+                                    <Share2 className="h-3 w-3" />
+                                    <p className="text-xs font-semibold">
+                                        {isSender ? "You shared a post" : `${message.profiles.full_name} shared a post`}
+                                    </p>
+                                </div>
+                                {renderMedia(true)}
+                                {message.content && <p className="text-sm pt-2">{message.content}</p>}
                             </div>
-                        ) : message.media_type === 'video' && message.media_url ? (
-                            <video src={message.media_url} controls className="w-48 rounded-lg" />
-                        ) : message.media_type === 'sticker' && message.media_url ? (
-                             <div className="relative h-32 w-32">
-                                <Image src={message.media_url} alt="sticker" layout="fill" objectFit="contain" unoptimized />
-                            </div>
-                        ) : message.media_type === 'audio' && message.media_url ? (
-                            <audio controls src={message.media_url} className="w-60 h-10" />
-                        ) : null}
+                        ) : message.media_type === 'image' || message.media_type === 'video' ? (
+                            <>
+                                {renderMedia(false)}
+                                {message.content && <p className="text-sm pt-2">{message.content}</p>}
+                            </>
+                        ) : (
+                             <>
+                                {renderMedia(false)}
+                                {message.content && <p className="text-sm break-words">{message.content}</p>}
+                             </>
+                        )}
                      </div>
                 </div>
 

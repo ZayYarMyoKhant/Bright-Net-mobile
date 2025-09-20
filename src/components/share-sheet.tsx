@@ -34,12 +34,10 @@ export function ShareSheet({ post, currentUser }: ShareSheetProps) {
         setLoading(false);
         return;
       };
-      // This is a placeholder for actual friend logic.
-      // Fetching all profiles for now.
       const { data, error } = await supabase
         .from('profiles')
         .select('id, username, full_name, avatar_url')
-        .not('id', 'eq', currentUser.id); // Exclude self
+        .not('id', 'eq', currentUser.id); 
       
       if (error) {
         console.error("Error fetching friends:", error);
@@ -62,23 +60,21 @@ export function ShareSheet({ post, currentUser }: ShareSheetProps) {
     if (!currentUser || selectedFriends.length === 0) return;
     setSending(true);
 
-    const postUrl = `${window.location.origin}/post/${post.id}`;
-    const messageContent = `Check out this post from @${post.user.username}: ${post.caption}\n${postUrl}`;
-
     try {
         for (const friendId of selectedFriends) {
-            // 1. Find or create the conversation
             const { data: convos, error: convoError } = await supabase.rpc('get_or_create_conversation', { user_2_id: friendId });
             if (convoError || !convos || convos.length === 0) {
                 throw new Error(`Could not get conversation with friend ${friendId}: ${convoError?.message}`);
             }
             const conversationId = convos[0].id;
             
-            // 2. Send the message
             const { error: messageError } = await supabase.from('direct_messages').insert({
                 conversation_id: conversationId,
                 sender_id: currentUser.id,
-                content: messageContent,
+                content: post.caption, // The caption of the shared post
+                media_url: post.media_url, // The media of the shared post
+                media_type: post.media_type, // The media type
+                parent_message_id: 'shared_post' // Special identifier for shared posts
             });
             if (messageError) {
                 throw new Error(`Could not send message to friend ${friendId}: ${messageError.message}`);
@@ -100,7 +96,6 @@ export function ShareSheet({ post, currentUser }: ShareSheetProps) {
     } finally {
         setSending(false);
         setSelectedFriends([]);
-        // Optionally close the sheet after sharing
         document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
     }
   };
