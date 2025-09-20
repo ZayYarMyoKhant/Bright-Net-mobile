@@ -74,7 +74,7 @@ function PresenceIndicator({ user }: { user: OtherUserWithPresence | null }) {
 }
 
 
-const ChatMessage = ({ message, isSender, onReply, onDelete, onReaction, otherUserId }: { message: DirectMessage, isSender: boolean, onReply: (message: any) => void, onDelete: (messageId: string) => void, onReaction: (messageId: string, emoji: string) => void, otherUserId: string }) => {
+const ChatMessage = ({ message, isSender, onReply, onDelete, onReaction, currentUser, otherUserId }: { message: DirectMessage, isSender: boolean, onReply: (message: any) => void, onDelete: (messageId: string) => void, onReaction: (messageId: string, emoji: string) => void, currentUser: User | null, otherUserId: string }) => {
     
     const timeAgo = formatDistanceToNow(new Date(message.created_at), { addSuffix: true });
     const msgRef = useRef<HTMLDivElement>(null);
@@ -94,11 +94,10 @@ const ChatMessage = ({ message, isSender, onReply, onDelete, onReaction, otherUs
         const observer = new IntersectionObserver(
             async ([entry]) => {
                 if (entry.isIntersecting && !isSender && !message.is_seen_by_other) {
-                    const { data: { user } } = await supabase.auth.getUser();
-                    if (user) {
+                    if (currentUser) {
                        await supabase.from('direct_message_read_status').insert({
                            message_id: message.id,
-                           user_id: user.id
+                           user_id: currentUser.id
                        });
                     }
                     observer.disconnect();
@@ -117,7 +116,7 @@ const ChatMessage = ({ message, isSender, onReply, onDelete, onReaction, otherUs
                 observer.unobserve(msgRef.current);
             }
         };
-    }, [isSender, message.id, message.is_seen_by_other, supabase, otherUserId]);
+    }, [isSender, message.id, message.is_seen_by_other, supabase, otherUserId, currentUser]);
 
     const renderMedia = (isShared: boolean) => {
         const mediaClass = isShared ? "w-48 h-48 mt-2" : "w-48 h-48";
@@ -298,7 +297,6 @@ export default function IndividualChatPage({ params: paramsPromise }: { params: 
   const fetchChatData = useCallback(async (user: User, otherUserId: string) => {
     setLoading(true);
     
-    // Check block status
     const { data: blockData, error: blockError } = await supabase
       .from('blocks')
       .select('*')
@@ -309,7 +307,6 @@ export default function IndividualChatPage({ params: paramsPromise }: { params: 
         setIsBlockedBy(blockData.some(b => b.blocked_id === user.id));
     }
 
-
     const { data: otherUserData, error: otherUserError } = await supabase.from('profiles').select('*').eq('id', otherUserId).single();
     if(otherUserError) {
         toast({variant: 'destructive', title: 'User not found'});
@@ -318,7 +315,6 @@ export default function IndividualChatPage({ params: paramsPromise }: { params: 
     }
     setOtherUser(otherUserData);
 
-    // Find or create conversation
     const { data: convos } = await supabase.rpc('get_or_create_conversation', { user_2_id: otherUserId });
     if (!convos || convos.length === 0) {
         toast({variant: 'destructive', title: 'Could not start conversation'});
@@ -328,10 +324,9 @@ export default function IndividualChatPage({ params: paramsPromise }: { params: 
     const currentConvoId = convos[0].id;
     setConversationId(currentConvoId);
 
-    // Fetch messages
     const { data: messagesData, error: messagesError } = await supabase
       .from('direct_messages')
-      .select('*, profiles!direct_messages_sender_id_fkey(*), direct_message_reactions(*, profiles(*)), seen_by:direct_message_read_status(user_id), parent_message:parent_message_id(*, content, media_type, profiles(full_name))')
+      .select('*, profiles!direct_messages_sender_id_fkey(*), direct_message_reactions(*, profiles!direct_message_reactions_user_id_fkey(*)), seen_by:direct_message_read_status(user_id), parent_message:parent_message_id(*, content, media_type, profiles(full_name))')
       .eq('conversation_id', currentConvoId)
       .order('created_at', { ascending: true });
 
@@ -341,6 +336,8 @@ export default function IndividualChatPage({ params: paramsPromise }: { params: 
     } else {
         const processedMessages = messagesData.map(msg => ({
             ...msg,
+            // @ts-ignore
+            direct_message_reactions: msg.direct_message_reactions.map(r => ({ ...r, profiles: r.profiles })),
             // @ts-ignore
             is_seen_by_other: msg.seen_by.some(seen => seen.user_id === otherUserId)
         })) as DirectMessage[];
@@ -369,7 +366,6 @@ export default function IndividualChatPage({ params: paramsPromise }: { params: 
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
   
-  // Realtime subscriptions
   useEffect(() => {
     if (!conversationId || !currentUser) return;
     
@@ -380,7 +376,7 @@ export default function IndividualChatPage({ params: paramsPromise }: { params: 
         async (payload) => {
            const { data: fullMessage, error } = await supabase
                 .from('direct_messages')
-                .select('*, profiles!direct_messages_sender_id_fkey(*), direct_message_reactions(*, profiles(*)), seen_by:direct_message_read_status(user_id), parent_message:parent_message_id(*, content, media_type, profiles(full_name))')
+                .select('*, profiles!direct_messages_sender_id_fkey(*), direct_message_reactions(*, profiles!direct_message_reactions_user_id_fkey(*)), seen_by:direct_message_read_status(user_id), parent_message:parent_message_id(*, content, media_type, profiles(full_name))')
                 .eq('id', payload.new.id)
                 .single();
             if (!error && fullMessage) {
@@ -396,8 +392,27 @@ export default function IndividualChatPage({ params: paramsPromise }: { params: 
     const reactionChannel = supabase.channel(`reactions-${conversationId}`)
         .on( 'postgres_changes',
           { event: '*', schema: 'public', table: 'direct_message_reactions' },
-          (payload) => {
-             fetchChatData(currentUser, params.id);
+          async (payload) => {
+              if (payload.eventType === 'INSERT') {
+                  const newReaction = payload.new as {id: string, message_id: string, user_id: string, emoji: string};
+                   const { data: profile, error } = await supabase.from('profiles').select('*').eq('id', newReaction.user_id).single();
+                   if (error) return;
+
+                   setMessages(prev => prev.map(msg => {
+                       if (msg.id === newReaction.message_id) {
+                           return { ...msg, direct_message_reactions: [...msg.direct_message_reactions, { ...newReaction, profiles: profile }] };
+                       }
+                       return msg;
+                   }));
+              } else if (payload.eventType === 'DELETE') {
+                  const oldReaction = payload.old as {id: string, message_id: string};
+                  setMessages(prev => prev.map(msg => {
+                      if (msg.id === oldReaction.message_id) {
+                          return { ...msg, direct_message_reactions: msg.direct_message_reactions.filter(r => r.id !== oldReaction.id) };
+                      }
+                      return msg;
+                  }));
+              }
           }
       ).subscribe();
 
@@ -405,7 +420,10 @@ export default function IndividualChatPage({ params: paramsPromise }: { params: 
         .on('postgres_changes',
           { event: '*', schema: 'public', table: 'direct_message_read_status' },
           (payload) => {
-             fetchChatData(currentUser, params.id);
+             const { message_id, user_id } = payload.new as { message_id: string, user_id: string };
+             if (user_id === params.id) {
+                 setMessages(prev => prev.map(msg => msg.id === message_id ? { ...msg, is_seen_by_other: true } : msg));
+             }
           }
       ).subscribe();
 
@@ -434,7 +452,7 @@ export default function IndividualChatPage({ params: paramsPromise }: { params: 
       supabase.removeChannel(readStatusChannel);
       supabase.removeChannel(presenceChannel);
     };
-  }, [conversationId, supabase, currentUser, fetchChatData, params.id]);
+  }, [conversationId, supabase, currentUser, params.id]);
 
 
   const handleReply = (message: any) => {
@@ -446,7 +464,7 @@ export default function IndividualChatPage({ params: paramsPromise }: { params: 
     const { error } = await supabase.from('direct_messages').delete().eq('id', messageId);
     if (error) {
         toast({ variant: 'destructive', title: "Failed to delete message."});
-        if(currentUser) fetchChatData(currentUser, params.id); // refetch on error
+        if(currentUser) fetchChatData(currentUser, params.id);
     }
   };
   
@@ -516,13 +534,34 @@ export default function IndividualChatPage({ params: paramsPromise }: { params: 
   
   const handleReaction = async (messageId: string, emoji: string) => {
     if (!currentUser) return;
-    const existingReaction = messages
-        .find(m => m.id === messageId)?.direct_message_reactions
-        .find(r => r.user_id === currentUser.id && r.emoji === emoji);
+    const msg = messages.find(m => m.id === messageId);
+    if (!msg) return;
+
+    const existingReaction = msg.direct_message_reactions.find(r => r.user_id === currentUser.id && r.emoji === emoji);
 
     if (existingReaction) {
+        // Optimistically remove reaction
+        setMessages(prev => prev.map(m => 
+            m.id === messageId 
+                ? { ...m, direct_message_reactions: m.direct_message_reactions.filter(r => r.id !== existingReaction.id) } 
+                : m
+        ));
         await supabase.from('direct_message_reactions').delete().eq('id', existingReaction.id);
     } else {
+        const tempId = `temp_${Date.now()}`;
+        const newReaction = {
+            id: tempId,
+            message_id: messageId,
+            user_id: currentUser.id,
+            emoji: emoji,
+            profiles: { id: currentUser.id, username: currentUser.user_metadata.user_name, avatar_url: currentUser.user_metadata.avatar_url, full_name: currentUser.user_metadata.full_name }
+        };
+        // Optimistically add reaction
+        setMessages(prev => prev.map(m => 
+            m.id === messageId 
+                ? { ...m, direct_message_reactions: [...m.direct_message_reactions, newReaction] } 
+                : m
+        ));
         await supabase.from('direct_message_reactions').insert({ message_id: messageId, user_id: currentUser.id, emoji: emoji });
     }
   }
@@ -689,7 +728,7 @@ export default function IndividualChatPage({ params: paramsPromise }: { params: 
                     </AlertDialogHeader>
                     <AlertDialogFooter>
                         <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction onClick={handleDeleteChat}>Delete</AlertDialogAction>
+                        <AlertDialogAction onClick={handleDeleteChat} className="bg-destructive hover:bg-destructive/80">Delete</AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>
               </AlertDialog>
@@ -700,7 +739,7 @@ export default function IndividualChatPage({ params: paramsPromise }: { params: 
       
       <main className="flex-1 overflow-y-auto p-4 space-y-6">
         {messages.map((msg) => (
-            <ChatMessage key={msg.id} message={msg} isSender={msg.sender_id === currentUser?.id} onReply={handleReply} onDelete={handleDelete} onReaction={handleReaction} otherUserId={otherUser.id}/>
+            <ChatMessage key={msg.id} message={msg} isSender={msg.sender_id === currentUser?.id} onReply={handleReply} onDelete={handleDelete} onReaction={handleReaction} currentUser={currentUser} otherUserId={otherUser.id}/>
         ))}
         <div ref={messagesEndRef} />
       </main>
