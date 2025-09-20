@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import { useState, useEffect } from "react";
@@ -39,7 +38,7 @@ export function ShareSheet({ post, currentUser }: ShareSheetProps) {
       // Fetching all profiles for now.
       const { data, error } = await supabase
         .from('profiles')
-        .select('id, username, avatar_url')
+        .select('id, username, full_name, avatar_url')
         .not('id', 'eq', currentUser.id); // Exclude self
       
       if (error) {
@@ -60,29 +59,50 @@ export function ShareSheet({ post, currentUser }: ShareSheetProps) {
   };
 
   const handleShare = async () => {
-    if (!currentUser) return;
+    if (!currentUser || selectedFriends.length === 0) return;
     setSending(true);
 
-    const postUrl = `${window.location.origin}/post/${post.id}`; // Assuming a post page exists
-    const messageContent = `Check out this post: ${postUrl}`;
+    const postUrl = `${window.location.origin}/post/${post.id}`;
+    const messageContent = `Check out this post from @${post.user.username}: ${post.caption}\n${postUrl}`;
 
-    // This is a simplified share logic. In a real app, you'd create
-    // new chat messages for each selected friend.
-    console.log("Sharing with:", selectedFriends);
-    console.log("Message:", messageContent);
-    
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    toast({
-      title: "Shared Successfully!",
-      description: `Your post has been shared with ${selectedFriends.length} friend(s).`
-    });
+    try {
+        for (const friendId of selectedFriends) {
+            // 1. Find or create the conversation
+            const { data: convos, error: convoError } = await supabase.rpc('get_or_create_conversation', { user_2_id: friendId });
+            if (convoError || !convos || convos.length === 0) {
+                throw new Error(`Could not get conversation with friend ${friendId}: ${convoError?.message}`);
+            }
+            const conversationId = convos[0].id;
+            
+            // 2. Send the message
+            const { error: messageError } = await supabase.from('direct_messages').insert({
+                conversation_id: conversationId,
+                sender_id: currentUser.id,
+                content: messageContent,
+            });
+            if (messageError) {
+                throw new Error(`Could not send message to friend ${friendId}: ${messageError.message}`);
+            }
+        }
+        
+        toast({
+            title: "Shared Successfully!",
+            description: `Your post has been sent to ${selectedFriends.length} friend(s).`
+        });
 
-    setSending(false);
-    setSelectedFriends([]);
-    // Optionally close the sheet after sharing
-    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+    } catch (error) {
+        console.error("Sharing failed:", error);
+        toast({
+            variant: "destructive",
+            title: "Sharing Failed",
+            description: error instanceof Error ? error.message : "An unknown error occurred.",
+        });
+    } finally {
+        setSending(false);
+        setSelectedFriends([]);
+        // Optionally close the sheet after sharing
+        document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+    }
   };
 
   return (
@@ -104,7 +124,7 @@ export function ShareSheet({ post, currentUser }: ShareSheetProps) {
                       <AvatarFallback>{friend.username ? friend.username.charAt(0).toUpperCase() : '?'}</AvatarFallback>
                   </Avatar>
                   <div className="flex-1">
-                      <p className="font-semibold">{friend.username || 'Unknown User'}</p>
+                      <p className="font-semibold">{friend.full_name || friend.username}</p>
                   </div>
                   <Checkbox 
                       id={`friend-${friend.id}`}
@@ -126,7 +146,7 @@ export function ShareSheet({ post, currentUser }: ShareSheetProps) {
       <footer className="flex-shrink-0 border-t p-4">
         <Button className="w-full" disabled={selectedFriends.length === 0 || sending} onClick={handleShare}>
             {sending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
-            Share
+            Send
         </Button>
       </footer>
     </>

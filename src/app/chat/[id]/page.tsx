@@ -152,7 +152,10 @@ const ChatMessage = ({ message, isSender, onReply, onDelete, onReaction, otherUs
                             </div>
                         )}
 
-
+                        {message.content && !message.media_type && (
+                            <p className="text-sm break-words">{message.content}</p>
+                        )}
+                        
                         {message.media_type === 'image' && message.media_url ? (
                             <div className="relative h-48 w-48 rounded-lg overflow-hidden">
                                 <Image src={message.media_url} alt="sent image" layout="fill" objectFit="cover" data-ai-hint="photo message" />
@@ -165,9 +168,7 @@ const ChatMessage = ({ message, isSender, onReply, onDelete, onReaction, otherUs
                             </div>
                         ) : message.media_type === 'audio' && message.media_url ? (
                             <audio controls src={message.media_url} className="w-60 h-10" />
-                        ) : (
-                            <p className="text-sm">{message.content}</p>
-                        )}
+                        ) : null}
                      </div>
                 </div>
 
@@ -587,12 +588,12 @@ export default function IndividualChatPage({ params: paramsPromise }: { params: 
   const handleDeleteChat = async () => {
       if (!conversationId) return;
 
-      const { error } = await supabase.from('conversations').delete().eq('id', conversationId);
+      const { error } = await supabase.rpc('delete_conversation', { p_conversation_id: conversationId });
 
       if (error) {
           toast({ variant: 'destructive', title: 'Failed to delete chat', description: error.message });
       } else {
-          toast({ title: 'Chat deleted' });
+          toast({ title: 'Chat deleted permanently' });
           router.push('/chat');
           router.refresh();
       }
