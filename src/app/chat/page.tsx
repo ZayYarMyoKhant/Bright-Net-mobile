@@ -91,6 +91,7 @@ export default function ChatPage() {
             title: "Failed to load chats",
             description: `Database error: ${error.message}`
         });
+        setConversations([]);
       } finally {
         setLoading(false);
       }
