@@ -418,11 +418,17 @@ export default function IndividualChatPage({ params: paramsPromise }: { params: 
 
     const readStatusChannel = supabase.channel(`read-status-${conversationId}`)
         .on('postgres_changes',
-          { event: '*', schema: 'public', table: 'direct_message_read_status' },
+          { event: 'INSERT', schema: 'public', table: 'direct_message_read_status' },
           (payload) => {
              const { message_id, user_id } = payload.new as { message_id: string, user_id: string };
-             if (user_id === params.id) {
-                 setMessages(prev => prev.map(msg => msg.id === message_id ? { ...msg, is_seen_by_other: true } : msg));
+             if (user_id === params.id) { // If the other user read a message
+                setMessages(prev => prev.map(msg => {
+                    const found = prev.find(m => m.id === message_id);
+                    if (found && found.sender_id === currentUser.id) {
+                        return { ...msg, is_seen_by_other: true };
+                    }
+                    return msg;
+                }));
              }
           }
       ).subscribe();

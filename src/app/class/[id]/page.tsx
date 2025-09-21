@@ -72,24 +72,14 @@ const ChatMessage = ({ message, isSender, onReply, onDelete, currentUser, onReac
     }, {} as Record<string, { count: number; users: string[] }>);
 
     useEffect(() => {
-        if (!isSender && currentUser) {
+        if (!isSender && currentUser && !message.is_seen_by_others) {
             const observer = new IntersectionObserver(
                 async ([entry]) => {
                     if (entry.isIntersecting) {
-                        // Check if the user has already seen this message
-                        const { data: existingStatus, error: checkError } = await supabase
-                            .from('class_message_read_status')
-                            .select('id')
-                            .eq('message_id', message.id)
-                            .eq('user_id', currentUser.id)
-                            .single();
-                        
-                        if (!checkError && !existingStatus) {
-                           await supabase.from('class_message_read_status').insert({
-                               message_id: message.id,
-                               user_id: currentUser.id
-                           });
-                        }
+                       await supabase.from('class_message_read_status').insert({
+                           message_id: message.id,
+                           user_id: currentUser.id
+                       });
                         observer.disconnect();
                     }
                 },
@@ -107,7 +97,7 @@ const ChatMessage = ({ message, isSender, onReply, onDelete, currentUser, onReac
                 }
             };
         }
-    }, [isSender, message.id, supabase, currentUser]);
+    }, [isSender, message.id, message.is_seen_by_others, supabase, currentUser]);
 
     return (
         <div ref={msgRef} className={`flex items-start gap-3 ${isSender ? 'justify-end' : 'justify-start'}`}>
@@ -329,17 +319,17 @@ export default function IndividualClassPage({ params: paramsPromise }: { params:
           'postgres_changes',
           { event: '*', schema: 'public', table: 'message_reactions' },
           async (payload) => {
-              fetchClassData(currentUser); // Refetch all data on reaction change for simplicity
+              fetchClassData(currentUser); 
           }
       )
       .on('postgres_changes', 
-        { event: '*', schema: 'public', table: 'class_message_read_status' },
+        { event: 'INSERT', schema: 'public', table: 'class_message_read_status' },
         (payload) => {
+            const { message_id, user_id } = payload.new as { message_id: string, user_id: string };
              setMessages(prevMessages => {
-                const messageId = (payload.new as any).message_id;
                 return prevMessages.map(msg => {
-                    if (msg.id === messageId) {
-                        return { ...msg, is_seen_by_others: true };
+                    if (msg.id === message_id && msg.user_id === currentUser.id) {
+                         return { ...msg, is_seen_by_others: true };
                     }
                     return msg;
                 });
@@ -443,23 +433,19 @@ export default function IndividualClassPage({ params: paramsPromise }: { params:
     const handleReaction = async (messageId: string, emoji: string) => {
         if (!currentUser) return;
 
-        // Check if user already reacted with this emoji
         const existingReaction = messages
             .find(m => m.id === messageId)?.message_reactions
             .find(r => r.user_id === currentUser.id && r.emoji === emoji);
 
         if (existingReaction) {
-            // User is removing their reaction
             await supabase.from('message_reactions').delete().eq('id', existingReaction.id);
         } else {
-            // User is adding a new reaction
             await supabase.from('message_reactions').insert({
                 message_id: messageId,
                 user_id: currentUser.id,
                 emoji: emoji
             });
         }
-        // The real-time subscription will handle the UI update by refetching.
     }
 
 
@@ -719,5 +705,3 @@ export default function IndividualClassPage({ params: paramsPromise }: { params:
     </div>
   );
 }
-
-    

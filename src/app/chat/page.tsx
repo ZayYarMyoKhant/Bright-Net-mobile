@@ -72,7 +72,7 @@ export default function ChatPage() {
       setCurrentUser(user);
 
       try {
-        // This single RPC call gets all the necessary data
+        setLoading(true);
         const { data, error } = await supabase.rpc('get_user_conversations');
         
         if (error) {
@@ -98,10 +98,8 @@ export default function ChatPage() {
     }, [supabase, router, toast]);
 
   useEffect(() => {
-    setLoading(true);
     fetchUserAndConversations();
     
-    // Set up a real-time subscription to refetch data on changes
     const channel = supabase.channel('public:direct_messages')
       .on( 'postgres_changes',
         { event: '*', schema: 'public', table: 'direct_messages' },
