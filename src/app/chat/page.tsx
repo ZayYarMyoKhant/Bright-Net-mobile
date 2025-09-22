@@ -14,6 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 
+// Correctly type the nested JSON objects from the RPC function
 type OtherUser = {
   id: string;
   username: string;
@@ -72,18 +73,16 @@ export default function ChatPage() {
       setCurrentUser(user);
 
       try {
-        setLoading(true);
+        // No need to set loading here as it's handled in the initial useEffect
         const { data, error } = await supabase.rpc('get_user_conversations');
         
         if (error) {
             throw error;
         }
+        
+        // The RPC returns an array of our Conversation type directly.
+        setConversations(data || []);
 
-        if (data) {
-            setConversations(data as Conversation[]);
-        } else {
-            setConversations([]);
-        }
       } catch (error: any) {
         console.error("Error fetching user's conversations:", error);
         toast({
@@ -93,25 +92,35 @@ export default function ChatPage() {
         });
         setConversations([]);
       } finally {
-        setLoading(false);
+        // Set loading to false only after the initial fetch
+        if (loading) setLoading(false);
       }
-    }, [supabase, router, toast]);
+    }, [supabase, router, toast, loading]);
 
   useEffect(() => {
+    // Initial fetch when the component mounts
+    setLoading(true);
     fetchUserAndConversations();
     
-    const channel = supabase.channel('public:direct_messages')
-      .on( 'postgres_changes',
+    // Set up a real-time subscription to refetch data whenever a relevant change occurs
+    const channel = supabase.channel('public:chat_list_updates')
+      .on('postgres_changes',
         { event: '*', schema: 'public', table: 'direct_messages' },
         (payload) => {
           fetchUserAndConversations();
         }
-      ).on( 'postgres_changes',
+      ).on('postgres_changes',
         { event: '*', schema: 'public', table: 'direct_message_read_status' },
         (payload) => {
           fetchUserAndConversations();
         }
-      ).subscribe();
+      ).on('postgres_changes',
+        { event: '*', schema: 'public', table: 'conversation_participants' },
+        (payload) => {
+          fetchUserAndConversations();
+        }
+      )
+      .subscribe();
     
     return () => {
         supabase.removeChannel(channel);
