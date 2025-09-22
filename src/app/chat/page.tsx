@@ -14,7 +14,6 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 
-// Correctly type the nested JSON objects from the RPC function
 type OtherUser = {
   id: string;
   username: string;
@@ -68,7 +67,7 @@ export default function ChatPage() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
         router.push('/signup');
-        if (loading) setLoading(false);
+        setLoading(false);
         return;
       }
       setCurrentUser(user);
@@ -82,40 +81,33 @@ export default function ChatPage() {
         
         setConversations(data || []);
 
-      } catch (error: any) {
+      } catch (error) {
         console.error("Error fetching user's conversations:", error);
         toast({
             variant: "destructive",
             title: "Failed to load chats",
-            description: `Database error: ${error.message}`
+            description: `Database error: ${error instanceof Error ? error.message : 'Unknown error'}`
         });
         setConversations([]);
       } finally {
-        if (loading) setLoading(false);
+        setLoading(false);
       }
-    }, [supabase, router, toast, loading]);
+    }, [supabase, router, toast]);
 
   useEffect(() => {
     // Initial fetch when the component mounts
-    setLoading(true);
     fetchUserAndConversations();
     
     const channel = supabase.channel('public:chat_list_updates')
       .on('postgres_changes',
         { event: '*', schema: 'public', table: 'direct_messages' },
-        () => {
-          fetchUserAndConversations();
-        }
+        () => fetchUserAndConversations()
       ).on('postgres_changes',
         { event: '*', schema: 'public', table: 'direct_message_read_status' },
-        () => {
-          fetchUserAndConversations();
-        }
+        () => fetchUserAndConversations()
       ).on('postgres_changes',
         { event: '*', schema: 'public', table: 'conversation_participants' },
-        () => {
-          fetchUserAndConversations();
-        }
+        () => fetchUserAndConversations()
       )
       .subscribe();
     
@@ -123,7 +115,7 @@ export default function ChatPage() {
         supabase.removeChannel(channel);
     }
 
-  }, []); // Intentionally left dependency array empty to run only once and set up subscriptions.
+  }, [fetchUserAndConversations, supabase]);
 
   const handleProfileClick = (e: React.MouseEvent, userId: string) => {
     e.stopPropagation();
@@ -140,8 +132,6 @@ export default function ChatPage() {
 
     if (msg.content) {
         content = prefix + msg.content;
-    } else if (msg.media_type === 'sticker') {
-        content = prefix + 'Sent a sticker';
     } else if (msg.media_type) {
         content = prefix + `Sent a ${msg.media_type}`;
     } else {
