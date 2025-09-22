@@ -38,7 +38,7 @@ type Conversation = {
 };
 
 function PresenceIndicator({ user }: { user: OtherUser }) {
-    if (!user.show_active_status || !user.last_seen) {
+    if (!user || !user.show_active_status || !user.last_seen) {
         return null;
     }
 
@@ -63,15 +63,7 @@ export default function ChatPage() {
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
-  const fetchUserAndConversations = useCallback(async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        router.push('/signup');
-        setLoading(false);
-        return;
-      }
-      setCurrentUser(user);
-
+  const fetchUserAndConversations = useCallback(async (user: User) => {
       try {
         const { data, error } = await supabase.rpc('get_user_conversations');
         
@@ -92,22 +84,35 @@ export default function ChatPage() {
       } finally {
         setLoading(false);
       }
-    }, [supabase, router, toast]);
+    }, [supabase, toast]);
 
   useEffect(() => {
-    // Initial fetch when the component mounts
-    fetchUserAndConversations();
+    const init = async () => {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+            router.push('/signup');
+            setLoading(false);
+            return;
+        }
+        setCurrentUser(user);
+        fetchUserAndConversations(user);
+    };
+    init();
+  }, [fetchUserAndConversations, supabase.auth, router]);
+  
+  useEffect(() => {
+    if (!currentUser) return;
     
     const channel = supabase.channel('public:chat_list_updates')
       .on('postgres_changes',
         { event: '*', schema: 'public', table: 'direct_messages' },
-        () => fetchUserAndConversations()
+        () => fetchUserAndConversations(currentUser)
       ).on('postgres_changes',
         { event: '*', schema: 'public', table: 'direct_message_read_status' },
-        () => fetchUserAndConversations()
+        () => fetchUserAndConversations(currentUser)
       ).on('postgres_changes',
         { event: '*', schema: 'public', table: 'conversation_participants' },
-        () => fetchUserAndConversations()
+        () => fetchUserAndConversations(currentUser)
       )
       .subscribe();
     
@@ -115,7 +120,7 @@ export default function ChatPage() {
         supabase.removeChannel(channel);
     }
 
-  }, [fetchUserAndConversations, supabase]);
+  }, [currentUser, fetchUserAndConversations, supabase]);
 
   const handleProfileClick = (e: React.MouseEvent, userId: string) => {
     e.stopPropagation();
