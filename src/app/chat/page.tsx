@@ -68,19 +68,18 @@ export default function ChatPage() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
         router.push('/signup');
+        if (loading) setLoading(false);
         return;
       }
       setCurrentUser(user);
 
       try {
-        // No need to set loading here as it's handled in the initial useEffect
         const { data, error } = await supabase.rpc('get_user_conversations');
         
         if (error) {
             throw error;
         }
         
-        // The RPC returns an array of our Conversation type directly.
         setConversations(data || []);
 
       } catch (error: any) {
@@ -92,7 +91,6 @@ export default function ChatPage() {
         });
         setConversations([]);
       } finally {
-        // Set loading to false only after the initial fetch
         if (loading) setLoading(false);
       }
     }, [supabase, router, toast, loading]);
@@ -102,21 +100,20 @@ export default function ChatPage() {
     setLoading(true);
     fetchUserAndConversations();
     
-    // Set up a real-time subscription to refetch data whenever a relevant change occurs
     const channel = supabase.channel('public:chat_list_updates')
       .on('postgres_changes',
         { event: '*', schema: 'public', table: 'direct_messages' },
-        (payload) => {
+        () => {
           fetchUserAndConversations();
         }
       ).on('postgres_changes',
         { event: '*', schema: 'public', table: 'direct_message_read_status' },
-        (payload) => {
+        () => {
           fetchUserAndConversations();
         }
       ).on('postgres_changes',
         { event: '*', schema: 'public', table: 'conversation_participants' },
-        (payload) => {
+        () => {
           fetchUserAndConversations();
         }
       )
@@ -126,7 +123,7 @@ export default function ChatPage() {
         supabase.removeChannel(channel);
     }
 
-  }, [fetchUserAndConversations, supabase]);
+  }, []); // Intentionally left dependency array empty to run only once and set up subscriptions.
 
   const handleProfileClick = (e: React.MouseEvent, userId: string) => {
     e.stopPropagation();
