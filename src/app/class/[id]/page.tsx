@@ -112,9 +112,9 @@ const ChatMessage = ({ message, isSender, onReply, onDelete, currentUser, onReac
             <div className="group relative max-w-xs">
                 <div className={cn(
                     "rounded-lg",
-                     message.media_type && ['image', 'video', 'sticker', 'audio'].includes(message.media_type) ? "bg-transparent" : (isSender ? 'bg-primary text-primary-foreground' : 'bg-muted')
+                     message.media_type && ['sticker', 'audio'].includes(message.media_type) ? "bg-transparent" : (isSender ? 'bg-primary text-primary-foreground' : 'bg-muted')
                 )}>
-                     <div className={message.media_type && ['image', 'video', 'sticker', 'audio'].includes(message.media_type) ? "" : "px-3 py-2"}>
+                     <div className={cn(message.media_type && ['image', 'video', 'sticker', 'audio'].includes(message.media_type) ? "" : "px-3 py-2")}>
                         {!isSender && <p className="font-semibold text-xs mb-1">{message.profiles.full_name}</p>}
                         
                         {message.parent_message && (
@@ -137,6 +137,10 @@ const ChatMessage = ({ message, isSender, onReply, onDelete, currentUser, onReac
                                     <Image src={message.media_url} alt="sent image" layout="fill" objectFit="cover" data-ai-hint="photo message" />
                                 </div>
                             </Link>
+                        ) : message.media_type === 'video' && message.media_url ? (
+                             <div className="relative h-48 w-48 rounded-lg overflow-hidden">
+                                <video src={message.media_url} controls className="w-full h-full object-cover" />
+                            </div>
                         ) : message.media_type === 'sticker' && message.media_url ? (
                              <div className="relative h-32 w-32">
                                 <Image src={message.media_url} alt="sticker" layout="fill" objectFit="contain" unoptimized />
@@ -144,7 +148,7 @@ const ChatMessage = ({ message, isSender, onReply, onDelete, currentUser, onReac
                         ) : message.media_type === 'audio' && message.media_url ? (
                             <audio controls src={message.media_url} className="w-60 h-10" />
                         ) : (
-                            <p className="text-sm">{message.content}</p>
+                            message.content && <p className="text-sm">{message.content}</p>
                         )}
                      </div>
                 </div>
@@ -705,3 +709,4 @@ export default function IndividualClassPage({ params: paramsPromise }: { params:
     </div>
   );
 }
+
