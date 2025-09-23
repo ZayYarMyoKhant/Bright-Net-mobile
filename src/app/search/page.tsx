@@ -278,7 +278,7 @@ function PostResults() {
         supabase.auth.getUser().then(({ data: { user }}) => setCurrentUser(user));
     }, [supabase]);
     
-    useEffect(() => {
+    const fetchPosts = useCallback(async () => {
         if (query) {
             startTransition(async () => {
                 const { data, error } = await supabase
@@ -326,6 +326,11 @@ function PostResults() {
             setVideoPosts([]);
         }
     }, [query, supabase, toast, currentUser]);
+
+    useEffect(() => {
+        fetchPosts();
+    }, [fetchPosts]);
+
 
     if (isPending) {
          return <div className="flex justify-center items-center pt-10"><Loader2 className="h-8 w-8 animate-spin" /></div>
@@ -399,4 +404,17 @@ export default function SearchPage() {
              <TabsContent value="classes" className="mt-0">
                <Suspense fallback={<Loader2 className="m-auto mt-10 h-8 w-8 animate-spin" />}>
                   {query ? <ClassResults /> : <SearchPlaceholder />}
-               </Susp.
+               </Suspense>
+            </TabsContent>
+            <TabsContent value="users" className="mt-0">
+                 <Suspense fallback={<Loader2 className="m-auto mt-10 h-8 w-8 animate-spin" />}>
+                    {query ? <UserResults /> : <SearchPlaceholder />}
+                </Suspense>
+            </TabsContent>
+          </main>
+        </Tabs>
+      </div>
+      <BottomNav />
+    </>
+  );
+}
