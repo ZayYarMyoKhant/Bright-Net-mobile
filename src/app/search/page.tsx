@@ -25,7 +25,8 @@ import { createClient } from "@/lib/supabase/client";
 import { User } from "@supabase/supabase-js";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Post, Profile } from "@/lib/data";
-import { PostCard } from "@/components/post-card";
+import { PostFeed } from "@/components/post-feed";
+import { VideoFeed } from "@/components/video-feed";
 
 
 type SearchableClass = {
@@ -263,40 +264,12 @@ function ClassResults() {
     )
 }
 
-function PostFeed({ posts, loading }: { posts: Post[], loading: boolean }) {
-  if (loading) {
-     return (
-        <div className="flex h-full w-full items-center justify-center pt-20">
-            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-        </div>
-     )
-  }
-
-  if (posts.length === 0) {
-    return (
-        <div className="flex flex-col h-full w-full items-center justify-center pt-20 text-center text-muted-foreground">
-            <CameraOff className="h-12 w-12" />
-            <p className="mt-4 font-semibold">No Posts Found</p>
-            <p className="text-sm">Try a different search term.</p>
-        </div>
-    )
-  }
-
-  return (
-    <div className="w-full max-w-lg mx-auto py-4 space-y-4">
-      {posts.map((post) => (
-        <PostCard key={post.id} post={post} />
-      ))}
-    </div>
-  );
-}
-
-
 function PostResults() {
     const searchParams = useSearchParams();
     const query = searchParams.get("q");
     const [isPending, startTransition] = useTransition();
-    const [posts, setPosts] = useState<Post[]>([]);
+    const [imagePosts, setImagePosts] = useState<Post[]>([]);
+    const [videoPosts, setVideoPosts] = useState<Post[]>([]);
     const { toast } = useToast();
     const supabase = createClient();
     const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -316,7 +289,8 @@ function PostResults() {
 
                 if (error) {
                     toast({ variant: 'destructive', title: "Search failed", description: error.message });
-                    setPosts([]);
+                    setImagePosts([]);
+                    setVideoPosts([]);
                 } else if (data) {
                     const postIds = data.map(p => p.id);
                     let userLikes: { post_id: string }[] = [];
@@ -343,15 +317,44 @@ function PostResults() {
                         comments: post.comments[0]?.count || 0,
                         isLiked: likedPostIds.has(post.id),
                     }));
-                    setPosts(processedPosts);
+                    setImagePosts(processedPosts.filter(p => p.media_type === 'image'));
+                    setVideoPosts(processedPosts.filter(p => p.media_type === 'video'));
                 }
             });
         } else {
-            setPosts([]);
+            setImagePosts([]);
+            setVideoPosts([]);
         }
     }, [query, supabase, toast, currentUser]);
 
-    return <PostFeed posts={posts} loading={isPending} />
+    if (isPending) {
+         return <div className="flex justify-center items-center pt-10"><Loader2 className="h-8 w-8 animate-spin" /></div>
+    }
+
+    if (imagePosts.length === 0 && videoPosts.length === 0 && query) {
+        return (
+            <div className="flex flex-col items-center justify-center pt-20 text-center text-muted-foreground">
+                <CameraOff className="h-12 w-12" />
+                <p className="mt-4 text-lg">No posts found for "{query}"</p>
+                <p className="text-sm">Try a different search term.</p>
+            </div>
+        )
+    }
+
+    return (
+        <Tabs defaultValue="news" className="w-full">
+            <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="news">News</TabsTrigger>
+                <TabsTrigger value="lite">Lite</TabsTrigger>
+            </TabsList>
+            <TabsContent value="news">
+                <PostFeed posts={imagePosts} loading={isPending} />
+            </TabsContent>
+            <TabsContent value="lite">
+                <VideoFeed posts={videoPosts} loading={isPending} />
+            </TabsContent>
+        </Tabs>
+    )
 }
 
 
@@ -396,17 +399,4 @@ export default function SearchPage() {
              <TabsContent value="classes" className="mt-0">
                <Suspense fallback={<Loader2 className="m-auto mt-10 h-8 w-8 animate-spin" />}>
                   {query ? <ClassResults /> : <SearchPlaceholder />}
-               </Suspense>
-            </TabsContent>
-             <TabsContent value="users" className="mt-0">
-               <Suspense fallback={<Loader2 className="m-auto mt-10 h-8 w-8 animate-spin" />}>
-                  {query ? <UserResults /> : <SearchPlaceholder />}
-               </Suspense>
-            </TabsContent>
-          </main>
-        </Tabs>
-      </div>
-      <BottomNav />
-    </>
-  );
-}
+               </Susp.
