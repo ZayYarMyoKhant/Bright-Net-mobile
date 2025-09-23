@@ -13,7 +13,8 @@ import {
   GraduationCap,
   FileText,
   Image as ImageIcon,
-  Video
+  Video,
+  CameraOff
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import Image from "next/image";
@@ -24,6 +25,7 @@ import { createClient } from "@/lib/supabase/client";
 import { User } from "@supabase/supabase-js";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Post, Profile } from "@/lib/data";
+import { PostCard } from "@/components/post-card";
 
 
 type SearchableClass = {
@@ -261,6 +263,35 @@ function ClassResults() {
     )
 }
 
+function PostFeed({ posts, loading }: { posts: Post[], loading: boolean }) {
+  if (loading) {
+     return (
+        <div className="flex h-full w-full items-center justify-center pt-20">
+            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </div>
+     )
+  }
+
+  if (posts.length === 0) {
+    return (
+        <div className="flex flex-col h-full w-full items-center justify-center pt-20 text-center text-muted-foreground">
+            <CameraOff className="h-12 w-12" />
+            <p className="mt-4 font-semibold">No Posts Found</p>
+            <p className="text-sm">Try a different search term.</p>
+        </div>
+    )
+  }
+
+  return (
+    <div className="w-full max-w-lg mx-auto py-4 space-y-4">
+      {posts.map((post) => (
+        <PostCard key={post.id} post={post} />
+      ))}
+    </div>
+  );
+}
+
+
 function PostResults() {
     const searchParams = useSearchParams();
     const query = searchParams.get("q");
@@ -268,74 +299,59 @@ function PostResults() {
     const [posts, setPosts] = useState<Post[]>([]);
     const { toast } = useToast();
     const supabase = createClient();
+    const [currentUser, setCurrentUser] = useState<User | null>(null);
+
+    useEffect(() => {
+        supabase.auth.getUser().then(({ data: { user }}) => setCurrentUser(user));
+    }, [supabase]);
     
     useEffect(() => {
         if (query) {
             startTransition(async () => {
                 const { data, error } = await supabase
                     .from('posts')
-                    .select('*, profiles!posts_user_id_fkey(*)')
+                    .select('*, profiles!posts_user_id_fkey(*), likes:post_likes(count), comments:post_comments(count)')
                     .ilike('caption', `%${query}%`)
                     .order('created_at', { ascending: false });
 
                 if (error) {
                     toast({ variant: 'destructive', title: "Search failed", description: error.message });
-                } else {
-                    // @ts-ignore
-                    setPosts(data);
+                    setPosts([]);
+                } else if (data) {
+                    const postIds = data.map(p => p.id);
+                    let userLikes: { post_id: string }[] = [];
+
+                    if (currentUser && postIds.length > 0) {
+                        const { data: likesData } = await supabase
+                            .from('post_likes')
+                            .select('post_id')
+                            .eq('user_id', currentUser.id)
+                            .in('post_id', postIds);
+                        userLikes = likesData || [];
+                    }
+                    
+                    const likedPostIds = new Set(userLikes.map(like => like.post_id));
+
+                    const processedPosts: Post[] = data.map((post: any) => ({
+                        id: post.id,
+                        user: post.profiles,
+                        media_url: post.media_url,
+                        media_type: post.media_type,
+                        caption: post.caption,
+                        created_at: post.created_at,
+                        likes: post.likes[0]?.count || 0,
+                        comments: post.comments[0]?.count || 0,
+                        isLiked: likedPostIds.has(post.id),
+                    }));
+                    setPosts(processedPosts);
                 }
             });
         } else {
             setPosts([]);
         }
-    }, [query, supabase, toast]);
+    }, [query, supabase, toast, currentUser]);
 
-    const imagePosts = posts.filter(p => p.media_type === 'image');
-    const videoPosts = posts.filter(p => p.media_type === 'video');
-
-    if (isPending) {
-        return <div className="flex justify-center items-center pt-10"><Loader2 className="h-8 w-8 animate-spin" /></div>
-    }
-
-    if (posts.length === 0 && query) {
-        return (
-            <div className="flex flex-col items-center justify-center pt-20 text-center text-muted-foreground">
-                <FileText className="h-12 w-12" />
-                <p className="mt-4 text-lg">No posts found for "{query}"</p>
-            </div>
-        )
-    }
-
-    return (
-        <Tabs defaultValue="news" className="w-full">
-            <TabsList className="grid w-full grid-cols-2 mt-2">
-                <TabsTrigger value="news">News</TabsTrigger>
-                <TabsTrigger value="lite">Lite</TabsTrigger>
-            </TabsList>
-            <TabsContent value="news" className="mt-0">
-                <div className="grid grid-cols-3 gap-1 py-2">
-                    {imagePosts.map(post => (
-                        <Link href={`/post/${post.id}`} key={post.id} className="relative aspect-square">
-                            <Image src={post.media_url} alt={post.caption || 'post'} fill className="object-cover" />
-                        </Link>
-                    ))}
-                </div>
-            </TabsContent>
-            <TabsContent value="lite" className="mt-0">
-                 <div className="grid grid-cols-3 gap-1 py-2">
-                    {videoPosts.map(post => (
-                        <Link href={`/post/${post.id}`} key={post.id} className="relative aspect-square bg-black">
-                            <video src={post.media_url} className="object-cover h-full w-full" />
-                            <div className="absolute inset-0 flex items-center justify-center bg-black/20">
-                                <Video className="h-6 w-6 text-white/80" />
-                            </div>
-                        </Link>
-                    ))}
-                </div>
-            </TabsContent>
-        </Tabs>
-    )
-
+    return <PostFeed posts={posts} loading={isPending} />
 }
 
 

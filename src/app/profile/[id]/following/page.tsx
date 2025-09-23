@@ -146,12 +146,14 @@ export default function FollowingPage({ params: paramsPromise }: { params: Promi
                     <div className="divide-y">
                         {following.map(user => (
                             <div key={user.id} className="p-4 flex items-center gap-4">
-                               <Link href={`/profile/${user.id}`} className="flex-1 flex items-center gap-4">
+                               <Link href={`/profile/${user.id}`} className="flex-shrink-0">
                                     <Avatar className="h-12 w-12">
                                         <AvatarImage src={user.avatar_url} alt={user.username} data-ai-hint="person portrait" />
                                         <AvatarFallback>{user.username.charAt(0)}</AvatarFallback>
                                     </Avatar>
-                                    <div className="flex-1">
+                                </Link>
+                                <Link href={`/profile/${user.id}`} className="flex-1">
+                                    <div>
                                         <p className="font-semibold">{user.full_name}</p>
                                         <p className="text-sm text-muted-foreground">@{user.username}</p>
                                     </div>
