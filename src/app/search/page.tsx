@@ -369,7 +369,7 @@ export default function SearchPage() {
 
   return (
     <>
-      <div className="flex h-full flex-col bg-background text-foreground pb-16">
+      <div className="flex h-dvh flex-col bg-background text-foreground pb-16">
         <header className="flex h-16 flex-shrink-0 items-center gap-4 border-b px-4">
           <h1 className="text-xl font-bold">Search</h1>
         </header>
@@ -380,39 +380,41 @@ export default function SearchPage() {
             </Suspense>
         </div>
 
-        <Tabs defaultValue="posts" className="flex-1 flex flex-col">
-          <TabsList className="grid w-full grid-cols-3 flex-shrink-0 rounded-none">
-            <TabsTrigger value="posts" className="pb-3">
-              <FileText className="mr-2 h-4 w-4" />
-              Posts
-            </TabsTrigger>
-            <TabsTrigger value="classes" className="pb-3">
-              <GraduationCap className="mr-2 h-4 w-4" />
-              Classes
-            </TabsTrigger>
-             <TabsTrigger value="users" className="pb-3">
-              <Users className="mr-2 h-4 w-4" />
-              Users
-            </TabsTrigger>
-          </TabsList>
-          <main className="flex-1 overflow-y-auto">
-            <TabsContent value="posts" className="mt-0">
-               <Suspense fallback={<Loader2 className="m-auto mt-10 h-8 w-8 animate-spin" />}>
-                  {query ? <PostResults /> : <SearchPlaceholder />}
-               </Suspense>
-            </TabsContent>
-             <TabsContent value="classes" className="mt-0">
-               <Suspense fallback={<Loader2 className="m-auto mt-10 h-8 w-8 animate-spin" />}>
-                  {query ? <ClassResults /> : <SearchPlaceholder />}
-               </Suspense>
-            </TabsContent>
-            <TabsContent value="users" className="mt-0">
-                 <Suspense fallback={<Loader2 className="m-auto mt-10 h-8 w-8 animate-spin" />}>
-                    {query ? <UserResults /> : <SearchPlaceholder />}
-                </Suspense>
-            </TabsContent>
-          </main>
-        </Tabs>
+        <main className="flex-1 overflow-y-auto">
+            <Tabs defaultValue="posts" className="flex flex-col h-full">
+              <TabsList className="grid w-full grid-cols-3 flex-shrink-0 rounded-none">
+                <TabsTrigger value="posts" className="pb-3">
+                  <FileText className="mr-2 h-4 w-4" />
+                  Posts
+                </TabsTrigger>
+                <TabsTrigger value="classes" className="pb-3">
+                  <GraduationCap className="mr-2 h-4 w-4" />
+                  Classes
+                </TabsTrigger>
+                 <TabsTrigger value="users" className="pb-3">
+                  <Users className="mr-2 h-4 w-4" />
+                  Users
+                </TabsTrigger>
+              </TabsList>
+              
+                <TabsContent value="posts" className="mt-0 flex-1">
+                   <Suspense fallback={<Loader2 className="m-auto mt-10 h-8 w-8 animate-spin" />}>
+                      {query ? <PostResults /> : <SearchPlaceholder />}
+                   </Suspense>
+                </TabsContent>
+                 <TabsContent value="classes" className="mt-0 flex-1">
+                   <Suspense fallback={<Loader2 className="m-auto mt-10 h-8 w-8 animate-spin" />}>
+                      {query ? <ClassResults /> : <SearchPlaceholder />}
+                   </Suspense>
+                </TabsContent>
+                <TabsContent value="users" className="mt-0 flex-1">
+                     <Suspense fallback={<Loader2 className="m-auto mt-10 h-8 w-8 animate-spin" />}>
+                        {query ? <UserResults /> : <SearchPlaceholder />}
+                    </Suspense>
+                </TabsContent>
+              
+            </Tabs>
+        </main>
       </div>
       <BottomNav />
     </>
