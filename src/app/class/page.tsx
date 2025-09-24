@@ -11,6 +11,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { User } from "@supabase/supabase-js";
+import { AdBanner } from "@/components/ad-banner";
 
 // Define the type for a class, mirroring the DB structure
 type Class = {
@@ -100,6 +101,10 @@ export default function ClassPage() {
         <header className="flex h-16 flex-shrink-0 items-center justify-center border-b px-4">
           <h1 className="text-xl font-bold">Class</h1>
         </header>
+
+         <div className="p-4 border-b">
+            <AdBanner />
+          </div>
 
         <main className="flex-1 overflow-y-auto">
            {loading ? (

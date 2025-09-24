@@ -13,6 +13,7 @@ import { formatDistanceToNow, isBefore, subMinutes } from "date-fns";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
+import { AdBanner } from "@/components/ad-banner";
 
 type OtherUser = {
   id: string;
@@ -88,6 +89,7 @@ export default function ChatPage() {
 
   useEffect(() => {
     const init = async () => {
+        setLoading(true);
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) {
             router.push('/signup');
@@ -152,6 +154,10 @@ export default function ChatPage() {
         <header className="flex h-16 flex-shrink-0 items-center justify-center border-b px-4">
           <h1 className="text-xl font-bold">Chat</h1>
         </header>
+
+         <div className="p-4 border-b">
+            <AdBanner />
+          </div>
 
         <main className="flex-1 overflow-y-auto">
           {loading ? (

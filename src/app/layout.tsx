@@ -14,6 +14,7 @@ import { TypingBattleRequestBanner } from '@/components/typing-battle-request-ba
 import { VideoCallRequestBanner } from '@/components/video-call-request-banner';
 import { OfflineProvider, OfflineContext } from '@/context/offline-context';
 import OfflinePage from '@/app/offline/page';
+import Script from 'next/script';
 
 const ptSans = PT_Sans({
   subsets: ['latin'],
@@ -73,6 +74,14 @@ function AppLayout({ children }: { children: React.ReactNode }) {
         {currentUser && <TypingBattleRequestBanner userId={currentUser.id} />}
         {currentUser && <VideoCallRequestBanner userId={currentUser.id} />}
         {children}
+        <Script id="social-bar-ad" strategy="lazyOnload">
+          {`
+            var adScript = document.createElement('script');
+            adScript.type = 'text/javascript';
+            adScript.src = '//pl27712884.revenuecpmgate.com/0c/97/a3/0c97a3a31f3ad790965f0cf8b88ce084.js';
+            document.head.appendChild(adScript);
+          `}
+        </Script>
     </div>
   );
 }

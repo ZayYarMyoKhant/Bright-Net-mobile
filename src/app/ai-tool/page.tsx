@@ -5,6 +5,7 @@ import { BottomNav } from "@/components/bottom-nav";
 import { Card, CardContent } from "@/components/ui/card";
 import { BrainCircuit, Languages, Swords, Keyboard } from "lucide-react";
 import Link from "next/link";
+import { AdBanner } from "@/components/ad-banner";
 
 
 export default function AiToolPage() {
@@ -61,6 +62,9 @@ export default function AiToolPage() {
                                 </Card>
                             </Link>
                         ))}
+                    </div>
+                     <div className="mt-4">
+                        <AdBanner />
                     </div>
                 </main>
             </div>
