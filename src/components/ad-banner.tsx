@@ -27,7 +27,9 @@ export function AdBanner() {
       const invocationScript = document.createElement('script');
       invocationScript.type = 'text/javascript';
       invocationScript.src = `//www.highperformanceformat.com/${key}/invoke.js`;
-
+      
+      // Clear container before appending to avoid duplicates on fast refresh
+      container.innerHTML = '';
       container.appendChild(script);
       container.appendChild(invocationScript);
     }
@@ -55,7 +57,9 @@ export function NativeAd() {
 
             const adContainerDiv = document.createElement('div');
             adContainerDiv.id = containerId;
-
+            
+            // Clear container before appending
+            container.innerHTML = '';
             container.appendChild(script);
             container.appendChild(adContainerDiv);
         }
