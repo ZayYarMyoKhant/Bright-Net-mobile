@@ -114,7 +114,7 @@ const ChatMessage = ({ message, isSender, onReply, onDelete, currentUser, onReac
                     "rounded-lg",
                      message.media_type && ['sticker', 'audio'].includes(message.media_type) ? "bg-transparent" : (isSender ? 'bg-primary text-primary-foreground' : 'bg-muted')
                 )}>
-                     <div className={cn(message.media_type && ['image', 'video', 'sticker', 'audio'].includes(message.media_type) ? "" : "px-3 py-2")}>
+                     <div className={cn( "p-3 py-2")}>
                         {!isSender && <p className="font-semibold text-xs mb-1">{message.profiles.full_name}</p>}
                         
                         {message.parent_message && (
@@ -148,7 +148,7 @@ const ChatMessage = ({ message, isSender, onReply, onDelete, currentUser, onReac
                         ) : message.media_type === 'audio' && message.media_url ? (
                             <audio controls src={message.media_url} className="w-60 h-10" />
                         ) : (
-                            message.content && <p className="text-sm">{message.content}</p>
+                            message.content && <p className="text-sm break-words">{message.content}</p>
                         )}
                      </div>
                 </div>
@@ -262,7 +262,7 @@ export default function IndividualClassPage({ params: paramsPromise }: { params:
 
     const { data: messagesData, error: messagesError } = await supabase
       .from('class_messages')
-      .select('*, profiles(*), message_reactions(*, profiles(*)), seen_by:class_message_read_status(count), parent_message:parent_message_id(*, content, media_type, profiles(full_name))')
+      .select('*, profiles(*), message_reactions(*, profiles(*)), seen_by:class_message_read_status(user_id), parent_message:parent_message_id(*, content, media_type, profiles(full_name))')
       .eq('class_id', params.id)
       .order('created_at', { ascending: true });
 
@@ -272,7 +272,8 @@ export default function IndividualClassPage({ params: paramsPromise }: { params:
     } else {
         const processedMessages = messagesData.map(msg => ({
             ...msg,
-            is_seen_by_others: (msg.seen_by[0]?.count || 0) > (msg.user_id === user?.id ? 1 : 0),
+             // @ts-ignore
+            is_seen_by_others: msg.seen_by.some((seen: any) => seen.user_id !== user?.id)
         })) as ClassMessage[];
         setMessages(processedMessages);
     }
@@ -304,7 +305,7 @@ export default function IndividualClassPage({ params: paramsPromise }: { params:
         async (payload) => {
            const { data: fullMessage, error } = await supabase
                 .from('class_messages')
-                .select('*, profiles(*), message_reactions(*, profiles(*)), seen_by:class_message_read_status(count), parent_message:parent_message_id(*, content, media_type, profiles(full_name))')
+                .select('*, profiles(*), message_reactions(*, profiles(*)), seen_by:class_message_read_status(user_id), parent_message:parent_message_id(*, content, media_type, profiles(full_name))')
                 .eq('id', payload.new.id)
                 .single();
             if (!error && fullMessage) {
@@ -329,15 +330,13 @@ export default function IndividualClassPage({ params: paramsPromise }: { params:
       .on('postgres_changes', 
         { event: 'INSERT', schema: 'public', table: 'class_message_read_status' },
         (payload) => {
-            const { message_id, user_id } = payload.new as { message_id: string, user_id: string };
-             setMessages(prevMessages => {
-                return prevMessages.map(msg => {
-                    if (msg.id === message_id && msg.user_id === currentUser.id) {
-                         return { ...msg, is_seen_by_others: true };
-                    }
-                    return msg;
-                });
-            });
+             const { message_id, user_id } = payload.new as { message_id: string, user_id: string };
+             setMessages(prev => prev.map(msg => {
+                if (msg.user_id === currentUser.id && !msg.is_seen_by_others) {
+                    return { ...msg, is_seen_by_others: true };
+                }
+                return msg;
+            }));
         }
        )
        .on('postgres_changes', 
@@ -709,4 +708,3 @@ export default function IndividualClassPage({ params: paramsPromise }: { params:
     </div>
   );
 }
-

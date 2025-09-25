@@ -307,13 +307,13 @@ export default function IndividualChatPage({ params: paramsPromise }: { params: 
         setIsBlockedBy(blockData.some(b => b.blocked_id === user.id));
     }
 
-    const { data: otherUserData, error: otherUserError } = await supabase.from('profiles').select('*').eq('id', otherUserId).single();
+    const { data: otherUserData, error: otherUserError } = await supabase.from('profiles').select('id, username, full_name, avatar_url, last_seen, show_active_status').eq('id', otherUserId).single();
     if(otherUserError) {
         toast({variant: 'destructive', title: 'User not found'});
         router.push('/chat');
         return;
     }
-    setOtherUser(otherUserData);
+    setOtherUser(otherUserData as OtherUserWithPresence);
 
     const { data: convos } = await supabase.rpc('get_or_create_conversation', { user_2_id: otherUserId });
     if (!convos || convos.length === 0) {
@@ -326,7 +326,7 @@ export default function IndividualChatPage({ params: paramsPromise }: { params: 
 
     const { data: messagesData, error: messagesError } = await supabase
       .from('direct_messages')
-      .select('*, profiles!direct_messages_sender_id_fkey(*), direct_message_reactions(*, profiles!direct_message_reactions_user_id_fkey(*)), seen_by:direct_message_read_status(user_id), parent_message:parent_message_id(*, content, media_type, profiles(full_name))')
+      .select('*, profiles:sender_id(*), direct_message_reactions(*, profiles:user_id(*)), seen_by:direct_message_read_status(user_id), parent_message:parent_message_id(content, media_type, profiles:sender_id(full_name))')
       .eq('conversation_id', currentConvoId)
       .order('created_at', { ascending: true });
 
@@ -336,10 +336,7 @@ export default function IndividualChatPage({ params: paramsPromise }: { params: 
     } else {
         const processedMessages = messagesData.map(msg => ({
             ...msg,
-            // @ts-ignore
-            direct_message_reactions: msg.direct_message_reactions.map(r => ({ ...r, profiles: r.profiles })),
-            // @ts-ignore
-            is_seen_by_other: msg.seen_by.some(seen => seen.user_id === otherUserId)
+            is_seen_by_other: msg.seen_by.some((seen: any) => seen.user_id !== user.id)
         })) as DirectMessage[];
         setMessages(processedMessages);
     }
@@ -376,7 +373,7 @@ export default function IndividualChatPage({ params: paramsPromise }: { params: 
         async (payload) => {
            const { data: fullMessage, error } = await supabase
                 .from('direct_messages')
-                .select('*, profiles!direct_messages_sender_id_fkey(*), direct_message_reactions(*, profiles!direct_message_reactions_user_id_fkey(*)), seen_by:direct_message_read_status(user_id), parent_message:parent_message_id(*, content, media_type, profiles(full_name))')
+                .select('*, profiles:sender_id(*), direct_message_reactions(*, profiles:user_id(*)), seen_by:direct_message_read_status(user_id), parent_message:parent_message_id(content, media_type, profiles:sender_id(full_name))')
                 .eq('id', payload.new.id)
                 .single();
             if (!error && fullMessage) {
@@ -418,18 +415,13 @@ export default function IndividualChatPage({ params: paramsPromise }: { params: 
 
     const readStatusChannel = supabase.channel(`read-status-${conversationId}`)
         .on('postgres_changes',
-          { event: 'INSERT', schema: 'public', table: 'direct_message_read_status' },
+          { event: 'INSERT', schema: 'public', table: 'direct_message_read_status', filter: `user_id=eq.${params.id}` },
           (payload) => {
-             const { message_id, user_id } = payload.new as { message_id: string, user_id: string };
-             if (user_id === params.id) { // If the other user read a message
-                setMessages(prev => prev.map(msg => {
-                    const found = prev.find(m => m.id === message_id);
-                    if (found && found.sender_id === currentUser.id) {
-                        return { ...msg, is_seen_by_other: true };
-                    }
-                    return msg;
-                }));
-             }
+            setMessages(prev => prev.map(msg => 
+                (msg.sender_id === currentUser.id && !msg.is_seen_by_other)
+                ? { ...msg, is_seen_by_other: true } 
+                : msg
+            ));
           }
       ).subscribe();
 

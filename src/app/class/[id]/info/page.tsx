@@ -121,5 +121,3 @@ export default function ClassInfoPage({ params: paramsPromise }: { params: Promi
     </Suspense>
   );
 }
-
-    
