@@ -64,7 +64,7 @@ export default function ChatPage() {
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
-  const fetchUserAndConversations = useCallback(async (user: User) => {
+  const fetchUserAndConversations = useCallback(async () => {
       try {
         const { data, error } = await supabase.rpc('get_user_conversations');
         
@@ -97,7 +97,7 @@ export default function ChatPage() {
             return;
         }
         setCurrentUser(user);
-        await fetchUserAndConversations(user);
+        await fetchUserAndConversations();
     };
     init();
   }, [fetchUserAndConversations, supabase.auth, router]);
@@ -107,14 +107,11 @@ export default function ChatPage() {
     
     const channel = supabase.channel('public:chat_list_updates')
       .on('postgres_changes',
-        { event: '*', schema: 'public', table: 'direct_messages' },
-        () => fetchUserAndConversations(currentUser)
-      ).on('postgres_changes',
-        { event: '*', schema: 'public', table: 'direct_message_read_status' },
-        () => fetchUserAndConversations(currentUser)
-      ).on('postgres_changes',
-        { event: '*', schema: 'public', table: 'conversation_participants' },
-        () => fetchUserAndConversations(currentUser)
+        { event: '*', schema: 'public' },
+        (payload) => {
+            // A bit broad, but it ensures data is fresh on any related DB change.
+            fetchUserAndConversations();
+        }
       )
       .subscribe();
     

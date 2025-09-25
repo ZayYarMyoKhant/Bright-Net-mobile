@@ -5,7 +5,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { ArrowLeft, Video, Mic, Image as ImageIcon, Send, Smile, MoreVertical, MessageSquareReply, Trash2, X, Loader2, Waves, Users, Check, ThumbsUp, Heart, Laugh, Frown } from "lucide-react";
+import { ArrowLeft, Video, Mic, Image as ImageIcon, Send, Smile, MoreVertical, MessageSquareReply, Trash2, X, Loader2, Waves, Users, Check, ThumbsUp, Heart, Laugh, Frown, CheckCheck } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { use, useState, useRef, useEffect, useCallback } from "react";
@@ -205,7 +205,11 @@ const ChatMessage = ({ message, isSender, onReply, onDelete, currentUser, onReac
                 </div>
                  <div className="flex items-center justify-end gap-1.5 px-2 py-0.5 mt-1">
                     <span className="text-xs text-muted-foreground">{timeAgo}</span>
-                    {isSender && <Check className={cn("h-4 w-4", message.is_seen_by_others ? "text-blue-500" : "text-muted-foreground")} />}
+                    {isSender && (
+                        message.is_seen_by_others
+                            ? <CheckCheck className={cn("h-4 w-4 text-blue-500")} />
+                            : <Check className={cn("h-4 w-4 text-muted-foreground")} />
+                    )}
                 </div>
             </div>
         </div>
@@ -331,12 +335,14 @@ export default function IndividualClassPage({ params: paramsPromise }: { params:
         { event: 'INSERT', schema: 'public', table: 'class_message_read_status' },
         (payload) => {
              const { message_id, user_id } = payload.new as { message_id: string, user_id: string };
-             setMessages(prev => prev.map(msg => {
-                if (msg.user_id === currentUser.id && !msg.is_seen_by_others) {
-                    return { ...msg, is_seen_by_others: true };
-                }
-                return msg;
-            }));
+             if (user_id !== currentUser.id) {
+                setMessages(prev => prev.map(msg => {
+                    if (msg.id === message_id && msg.user_id === currentUser.id) {
+                        return { ...msg, is_seen_by_others: true };
+                    }
+                    return msg;
+                }));
+             }
         }
        )
        .on('postgres_changes', 

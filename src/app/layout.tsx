@@ -43,7 +43,7 @@ function AppLayout({ children }: { children: React.ReactNode }) {
 
   // Real-time user presence heartbeat
   useEffect(() => {
-    let presenceInterval: NodeJS.Timeout;
+    let presenceInterval: NodeJS.Timeout | undefined;
 
     const updatePresence = async () => {
         const { data: { user } } = await supabase.auth.getUser();

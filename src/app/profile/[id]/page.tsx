@@ -43,8 +43,8 @@ type JoinedClass = {
   avatar_url: string;
 };
 
-function PresenceIndicator({ user }: { user: ProfileData }) {
-    if (!user.show_active_status || !user.last_seen) {
+function PresenceIndicator({ user }: { user: ProfileData | null }) {
+    if (!user || !user.show_active_status || !user.last_seen) {
         return null;
     }
 

@@ -5,7 +5,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { ArrowLeft, Phone, Mic, Image as ImageIcon, Send, Smile, MoreVertical, MessageSquareReply, Trash2, X, Loader2, Waves, Heart, ThumbsUp, Laugh, Frown, Check, Ban, Share2 } from "lucide-react";
+import { ArrowLeft, Phone, Mic, Image as ImageIcon, Send, Smile, MoreVertical, MessageSquareReply, Trash2, X, Loader2, Waves, Heart, ThumbsUp, Laugh, Frown, Check, CheckCheck, Ban, Share2 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { use, useState, useRef, useEffect, useCallback } from "react";
@@ -116,7 +116,7 @@ const ChatMessage = ({ message, isSender, onReply, onDelete, onReaction, current
                 observer.unobserve(msgRef.current);
             }
         };
-    }, [isSender, message.id, message.is_seen_by_other, supabase, otherUserId, currentUser]);
+    }, [isSender, message.id, message.is_seen_by_other, supabase, currentUser]);
 
     const renderMedia = (isShared: boolean) => {
         const mediaClass = isShared ? "w-48 h-48 mt-2" : "w-48 h-48";
@@ -253,7 +253,9 @@ const ChatMessage = ({ message, isSender, onReply, onDelete, onReaction, current
                  <div className="flex items-center justify-end gap-1.5 px-2 py-0.5 mt-1">
                     <span className="text-xs text-muted-foreground">{timeAgo}</span>
                     {isSender && (
-                      <Check className={cn("h-4 w-4", message.is_seen_by_other ? "text-blue-500" : "text-muted-foreground")} />
+                      message.is_seen_by_other 
+                        ? <CheckCheck className="h-4 w-4 text-blue-500" /> 
+                        : <Check className="h-4 w-4 text-muted-foreground" />
                     )}
                 </div>
             </div>
@@ -336,6 +338,7 @@ export default function IndividualChatPage({ params: paramsPromise }: { params: 
     } else {
         const processedMessages = messagesData.map(msg => ({
             ...msg,
+            // @ts-ignore
             is_seen_by_other: msg.seen_by.some((seen: any) => seen.user_id !== user.id)
         })) as DirectMessage[];
         setMessages(processedMessages);
@@ -557,7 +560,7 @@ export default function IndividualChatPage({ params: paramsPromise }: { params: 
         // Optimistically add reaction
         setMessages(prev => prev.map(m => 
             m.id === messageId 
-                ? { ...m, direct_message_reactions: [...m.direct_message_reactions, newReaction] } 
+                ? { ...m, direct_message_reactions: [...m.direct_message_reactions, newReaction as Reaction] } 
                 : m
         ));
         await supabase.from('direct_message_reactions').insert({ message_id: messageId, user_id: currentUser.id, emoji: emoji });
@@ -692,7 +695,7 @@ export default function IndividualChatPage({ params: paramsPromise }: { params: 
             </Link>
             <div>
                 <p className="font-bold">{otherUser.full_name}</p>
-                {isOtherUserOnline && <p className="text-xs text-muted-foreground">Online</p>}
+                {isOtherUserOnline && <p className="text-xs text-green-500">Online</p>}
             </div>
         </div>
         <div className="flex items-center gap-2">
