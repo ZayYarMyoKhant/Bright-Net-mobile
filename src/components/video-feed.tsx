@@ -71,28 +71,33 @@ const VideoPost = ({ post, index }: { post: Post; index: number }) => {
     const handleLike = async (e: React.MouseEvent) => {
         e.stopPropagation();
         if (!currentUser) {
-            toast({ variant: "destructive", title: "You must be logged in to like a post." });
-            return;
+          toast({ variant: "destructive", title: "You must be logged in to like a post." });
+          return;
         }
         
+        // Optimistic update
         const newLikedState = !isLiked;
         setIsLiked(newLikedState);
-        setLikesCount(newLikedState ? likesCount + 1 : likesCount - 1);
-
+        setLikesCount(prev => newLikedState ? prev + 1 : prev - 1);
+    
         if (newLikedState) {
-            const { error } = await supabase.from('post_likes').insert({ post_id: post.id, user_id: currentUser.id });
-            if (error) {
-                toast({ variant: "destructive", title: "Failed to like post", description: error.message });
-                setIsLiked(false);
-                setLikesCount(likesCount);
-            }
+          // Like the post
+          const { error } = await supabase.from('post_likes').insert({ post_id: post.id, user_id: currentUser.id });
+          if (error) {
+            toast({ variant: "destructive", title: "Failed to like post", description: error.message });
+            // Revert optimistic update
+            setIsLiked(false);
+            setLikesCount(prev => prev - 1);
+          }
         } else {
-            const { error } = await supabase.from('post_likes').delete().match({ post_id: post.id, user_id: currentUser.id });
-            if (error) {
-                toast({ variant: "destructive", title: "Failed to unlike post", description: error.message });
-                setIsLiked(true);
-                setLikesCount(likesCount);
-            }
+          // Unlike the post
+          const { error } = await supabase.from('post_likes').delete().match({ post_id: post.id, user_id: currentUser.id });
+          if (error) {
+            toast({ variant: "destructive", title: "Failed to unlike post", description: error.message });
+            // Revert optimistic update
+            setIsLiked(true);
+            setLikesCount(prev => prev + 1);
+          }
         }
     };
 
