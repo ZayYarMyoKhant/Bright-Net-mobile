@@ -97,7 +97,7 @@ export default function ChatPage() {
             return;
         }
         setCurrentUser(user);
-        fetchUserAndConversations(user);
+        await fetchUserAndConversations(user);
     };
     init();
   }, [fetchUserAndConversations, supabase.auth, router]);

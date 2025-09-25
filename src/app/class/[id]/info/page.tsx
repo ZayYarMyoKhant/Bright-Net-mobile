@@ -23,7 +23,7 @@ type ClassDetails = {
     avatar_url: string | null;
     creator_id: string;
     profiles: Profile; // Creator's profile
-    class_members: { count: number };
+    class_members: { count: number }[];
 }
 
 
@@ -63,6 +63,8 @@ function ClassInfoContent({ params }: { params: { id: string } }) {
             </div>
         );
     }
+    
+    const memberCount = classDetails.class_members[0]?.count ?? 0;
 
     return (
          <div className="flex h-dvh flex-col bg-background text-foreground">
@@ -92,7 +94,7 @@ function ClassInfoContent({ params }: { params: { id: string } }) {
                         <Users className="h-6 w-6 text-primary" />
                         <div>
                             <p className="font-semibold">Total Members</p>
-                            <p className="text-muted-foreground">{classDetails.class_members[0].count} member(s)</p>
+                            <p className="text-muted-foreground">{memberCount} member(s)</p>
                         </div>
                     </div>
                      <div className="flex items-center gap-4">
