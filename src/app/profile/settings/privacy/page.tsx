@@ -38,7 +38,8 @@ export default function PrivacySettingsPage() {
             if (error) {
                 toast({ variant: 'destructive', title: 'Error loading settings' });
             } else if (profile) {
-                setShowActive(profile.show_active_status);
+                // If the value from the DB is not null, use it. Otherwise, default to true.
+                setShowActive(profile.show_active_status !== null ? profile.show_active_status : true);
                 // setIsPrivateAccount(profile.is_private);
             }
             setLoading(false);
