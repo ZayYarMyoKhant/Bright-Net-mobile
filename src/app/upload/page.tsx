@@ -5,11 +5,12 @@ import { BottomNav } from "@/components/bottom-nav";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { GraduationCap, PlusCircle } from "lucide-react";
 import Link from "next/link";
+import { AdBanner } from "@/components/ad-banner";
 
 export default function CreatePage() {
   return (
     <>
-      <div className="flex h-full flex-col bg-background text-foreground pb-16">
+      <div className="flex h-dvh flex-col bg-background text-foreground pb-16">
         <header className="flex h-16 flex-shrink-0 items-center justify-center border-b px-4 text-center">
           <h1 className="text-xl font-bold">Let's Create</h1>
         </header>
@@ -39,6 +40,9 @@ export default function CreatePage() {
               </CardContent>
             </Card>
           </Link>
+          <div className="pt-4">
+            <AdBanner />
+          </div>
         </main>
       </div>
       <BottomNav />

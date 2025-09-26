@@ -77,7 +77,7 @@ function AppLayout({ children }: { children: React.ReactNode }) {
         <Script 
           id="social-bar-ad" 
           strategy="lazyOnload"
-          src="//pl27712884.revenuecpmgate.com/0c/97/a3/0c97a3a31f3ad790965f0cf8b88ce084.js"
+          src="//pl27728140.revenuecpmgate.com/e0/3d/7f/e03d7fc4f51d09c85868dcd3b21365bc.js"
         />
     </div>
   );

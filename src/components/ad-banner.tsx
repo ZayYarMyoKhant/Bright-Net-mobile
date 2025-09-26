@@ -1,20 +1,20 @@
 
 "use client";
 
-import Script from 'next/script';
 import { useEffect, useRef } from 'react';
 import { Card } from './ui/card';
 
 export function AdBanner() {
   const adRef = useRef<HTMLDivElement>(null);
-  const key = 'e772f8c2482319d13453502dbb8278db';
+  // Updated key from user
+  const key = 'cc7adb1b3a072d4a1b1c04a74077b968';
 
   useEffect(() => {
     const container = adRef.current;
     if (container && container.children.length === 0) {
-      const script = document.createElement('script');
-      script.type = 'text/javascript';
-      script.innerHTML = `
+      const atOptionsScript = document.createElement('script');
+      atOptionsScript.type = 'text/javascript';
+      atOptionsScript.innerHTML = `
         atOptions = {
           'key' : '${key}',
           'format' : 'iframe',
@@ -24,14 +24,14 @@ export function AdBanner() {
         };
       `;
 
-      const invocationScript = document.createElement('script');
-      invocationScript.type = 'text/javascript';
-      invocationScript.src = `//www.highperformanceformat.com/${key}/invoke.js`;
+      const invokeScript = document.createElement('script');
+      invokeScript.type = 'text/javascript';
+      invokeScript.src = `//www.highperformanceformat.com/${key}/invoke.js`;
       
       // Clear container before appending to avoid duplicates on fast refresh
       container.innerHTML = '';
-      container.appendChild(script);
-      container.appendChild(invocationScript);
+      container.appendChild(atOptionsScript);
+      container.appendChild(invokeScript);
     }
   }, [key]);
 
@@ -44,8 +44,9 @@ export function AdBanner() {
 
 export function NativeAd() {
     const adRef = useRef<HTMLDivElement>(null);
-    const containerId = 'container-87e64407782861e951d8e4eb444a2923';
-    const scriptSrc = '//pl27709318.revenuecpmgate.com/87e64407782861e951d8e4eb444a2923/invoke.js';
+    // Updated container ID and script source from user
+    const containerId = 'container-f764a03bd8fd6d85d22e45a11c3201ba';
+    const scriptSrc = '//pl27728115.revenuecpmgate.com/f764a03bd8fd6d85d22e45a11c3201ba/invoke.js';
 
     useEffect(() => {
         const container = adRef.current;
