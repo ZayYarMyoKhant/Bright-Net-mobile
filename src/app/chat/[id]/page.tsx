@@ -1,7 +1,7 @@
 
 "use client";
 
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -148,10 +148,7 @@ const ChatMessage = ({ message, isSender, onReply, onDelete, onReaction, current
         <div ref={msgRef} className={`flex items-start gap-3 ${isSender ? 'justify-end' : 'justify-start'}`}>
             {!isSender && (
                 <Link href={`/profile/${message.profiles.id}`}>
-                    <Avatar className="h-8 w-8">
-                        <AvatarImage src={message.profiles.avatar_url} alt={message.profiles.username} data-ai-hint="person portrait" />
-                        <AvatarFallback>{message.profiles.username.charAt(0)}</AvatarFallback>
-                    </Avatar>
+                    <Avatar className="h-8 w-8" profile={message.profiles} />
                 </Link>
             )}
             <div className="group relative max-w-xs">
@@ -687,9 +684,7 @@ export default function IndividualChatPage({ params: paramsPromise }: { params: 
                 </Button>
             </Link>
             <Link href={`/profile/${otherUser.id}`} className="relative">
-                <Avatar className="h-10 w-10">
-                    <AvatarImage src={otherUser.avatar_url} alt={otherUser.username} data-ai-hint="person portrait" />
-                    <AvatarFallback>{otherUser.username.charAt(0)}</AvatarFallback>
+                <Avatar className="h-10 w-10" profile={otherUser}>
                 </Avatar>
                 <PresenceIndicator user={otherUser} />
             </Link>

@@ -7,7 +7,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Loader2, Heart, MessageCircle, Send, MoreVertical, Trash2 } from "lucide-react";
-import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar } from "@/components/ui/avatar";
 import { Card, CardHeader, CardContent, CardFooter } from "@/components/ui/card";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { CommentSheet } from "@/components/comment-sheet";
@@ -172,9 +172,7 @@ function PostViewerContent({ params }: { params: { id: string } }) {
       <Card className="rounded-xl overflow-hidden w-full max-w-lg max-h-[95dvh] flex flex-col">
         <CardHeader className="p-4 flex-row items-center gap-3">
           <Link href={`/profile/${post.user.id}`}>
-              <Avatar>
-                <AvatarImage src={post.user.avatar_url} data-ai-hint="person portrait" />
-                <AvatarFallback>{post.user.username.charAt(0).toUpperCase()}</AvatarFallback>
+              <Avatar profile={post.user}>
               </Avatar>
           </Link>
           <div className="flex-1">

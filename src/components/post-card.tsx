@@ -4,7 +4,7 @@
 import { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
+import { Avatar } from "./ui/avatar";
 import { Card, CardHeader, CardContent, CardFooter } from "./ui/card";
 import { Button } from "./ui/button";
 import { Heart, MessageCircle, Send } from "lucide-react";
@@ -74,9 +74,7 @@ export function PostCard({ post }: { post: Post }) {
     <Card className="rounded-xl overflow-hidden">
       <CardHeader className="p-4 flex-row items-center gap-3">
         <Link href={`/profile/${post.user.id}`}>
-            <Avatar>
-              <AvatarImage src={post.user.avatar_url} data-ai-hint="person portrait" />
-              <AvatarFallback>{post.user.username.charAt(0).toUpperCase()}</AvatarFallback>
+            <Avatar profile={post.user}>
             </Avatar>
         </Link>
         <div className="flex-1">

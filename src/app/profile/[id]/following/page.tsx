@@ -4,7 +4,7 @@
 import { use, useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Loader2, UserX } from "lucide-react";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import Link from "next/link";
@@ -147,9 +147,7 @@ export default function FollowingPage({ params: paramsPromise }: { params: Promi
                         {following.map(user => (
                             <div key={user.id} className="p-4 flex items-center gap-4">
                                <Link href={`/profile/${user.id}`} className="flex-shrink-0">
-                                    <Avatar className="h-12 w-12">
-                                        <AvatarImage src={user.avatar_url} alt={user.username} data-ai-hint="person portrait" />
-                                        <AvatarFallback>{user.username.charAt(0)}</AvatarFallback>
+                                    <Avatar className="h-12 w-12" profile={user}>
                                     </Avatar>
                                 </Link>
                                 <Link href={`/profile/${user.id}`} className="flex-1">

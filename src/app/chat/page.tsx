@@ -1,7 +1,7 @@
 
 "use client";
 
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar } from "@/components/ui/avatar";
 import { BottomNav } from "@/components/bottom-nav";
 import { Loader2, Users } from "lucide-react";
 import Link from "next/link";
@@ -22,6 +22,8 @@ type OtherUser = {
   full_name: string;
   last_seen: string | null;
   show_active_status: boolean;
+  win_streak_3?: boolean;
+  win_streak_10?: boolean;
 };
 
 type LastMessage = {
@@ -173,9 +175,7 @@ export default function ChatPage() {
                 <Link href={`/chat/${chat.other_user.id}`} key={chat.conversation_id}>
                   <div className="flex items-center gap-4 p-4 hover:bg-muted/50 cursor-pointer">
                     <div className="relative" onClick={(e) => handleProfileClick(e, chat.other_user.id)}>
-                      <Avatar className="h-14 w-14">
-                        <AvatarImage src={chat.other_user.avatar_url} alt={chat.other_user.username} data-ai-hint="person portrait" />
-                        <AvatarFallback>{chat.other_user.full_name?.charAt(0) || '?'}</AvatarFallback>
+                      <Avatar className="h-14 w-14" profile={chat.other_user}>
                       </Avatar>
                       <PresenceIndicator user={chat.other_user} />
                     </div>

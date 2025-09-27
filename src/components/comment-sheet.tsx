@@ -2,7 +2,7 @@
 "use client";
 
 import type { Post, Comment, Profile } from "@/lib/data";
-import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
+import { Avatar } from "./ui/avatar";
 import { Button } from "./ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "./ui/dropdown-menu";
 import { Input } from "./ui/input";
@@ -34,9 +34,7 @@ const CommentItem = ({ comment, isReply = false, onReply, onDelete, currentUser 
   return (
     <div className={cn("flex items-start gap-3", isReply && "ml-8")}>
         <Link href={`/profile/${comment.profiles.id}`}>
-            <Avatar className="h-8 w-8">
-                <AvatarImage src={comment.profiles.avatar_url} data-ai-hint="person portrait" />
-                <AvatarFallback>{comment.profiles.username.charAt(0).toUpperCase()}</AvatarFallback>
+            <Avatar className="h-8 w-8" profile={comment.profiles}>
             </Avatar>
         </Link>
         <div className="flex-1">
@@ -88,6 +86,18 @@ export function CommentSheet({ post, currentUser }: CommentSheetProps) {
   const [sending, setSending] = useState(false);
   const { toast } = useToast();
   const supabase = createClient();
+  const [currentUserProfile, setCurrentUserProfile] = useState<Profile | null>(null);
+
+
+  useEffect(() => {
+    const fetchCurrentUserProfile = async () => {
+        if(currentUser) {
+            const {data} = await supabase.from('profiles').select('*').eq('id', currentUser.id).single();
+            setCurrentUserProfile(data);
+        }
+    }
+    fetchCurrentUserProfile();
+  }, [currentUser, supabase]);
 
   const fetchComments = useCallback(async () => {
     setLoading(true);
@@ -197,10 +207,8 @@ export function CommentSheet({ post, currentUser }: CommentSheetProps) {
             </div>
         )}
         <div className="flex items-center gap-2 pt-1">
-            {currentUser ? (
-              <Avatar className="h-8 w-8">
-                  <AvatarImage src={currentUser.user_metadata.avatar_url} data-ai-hint="person portrait" />
-                  <AvatarFallback>{currentUser.user_metadata.full_name?.charAt(0).toUpperCase() || 'U'}</AvatarFallback>
+            {currentUserProfile ? (
+              <Avatar className="h-8 w-8" profile={currentUserProfile}>
               </Avatar>
             ) : (
                <Avatar className="h-8 w-8 bg-muted" />

@@ -1,7 +1,7 @@
 
 "use client";
 
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ArrowLeft, Users, Loader2 } from "lucide-react";
@@ -117,9 +117,7 @@ export default function FriendRequestPage() {
                     {incomingRequests.map((req) => (
                         <div key={req.profile_id} className="p-4 flex items-center gap-4">
                              <Link href={`/profile/${req.profile_id}`}>
-                                <Avatar className="h-14 w-14">
-                                    <AvatarImage src={req.avatar_url} alt={req.full_name} data-ai-hint="person portrait" />
-                                    <AvatarFallback>{req.full_name.charAt(0)}</AvatarFallback>
+                                <Avatar className="h-14 w-14" profile={req}>
                                 </Avatar>
                             </Link>
                             <div className="flex-1">
@@ -146,9 +144,7 @@ export default function FriendRequestPage() {
                     {outgoingRequests.map((req) => (
                         <div key={req.profile_id} className="p-4 flex items-center gap-4">
                             <Link href={`/profile/${req.profile_id}`}>
-                                <Avatar className="h-14 w-14">
-                                    <AvatarImage src={req.avatar_url} alt={req.full_name} data-ai-hint="person portrait" />
-                                    <AvatarFallback>{req.full_name.charAt(0)}</AvatarFallback>
+                                <Avatar className="h-14 w-14" profile={req}>
                                 </Avatar>
                             </Link>
                             <div className="flex-1">

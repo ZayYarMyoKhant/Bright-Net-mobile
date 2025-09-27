@@ -7,7 +7,7 @@ import { createClient } from '@/lib/supabase/client';
 import { User } from '@supabase/supabase-js';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, Swords, Send } from 'lucide-react';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Avatar } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
@@ -27,6 +27,8 @@ type PlayerProfile = {
     username: string;
     avatar_url: string;
     full_name: string;
+    win_streak_3?: boolean;
+    win_streak_10?: boolean;
 }
 
 const TypingTextDisplay = ({ text, typed, opponentTyped }: { text: string; typed: string, opponentTyped: string }) => {
@@ -67,8 +69,6 @@ export default function TypingBattleGamePage({ params: paramsPromise }: { params
 
     const me = isPlayer1 ? player1 : player2;
     const opponent = isPlayer1 ? player2 : player1;
-    const myScore = isPlayer1 ? battle?.player1_score : battle?.player2_score;
-    const opponentScore = isPlayer1 ? battle?.player2_score : battle?.player1_score;
     const myProgress = isPlayer1 ? battle?.player1_progress : battle?.player2_progress;
     const opponentProgress = isPlayer1 ? battle?.player2_progress : battle?.player1_progress;
     
@@ -174,17 +174,13 @@ export default function TypingBattleGamePage({ params: paramsPromise }: { params
         );
     }
     
-    const renderPlayer = (player: PlayerProfile, score: number, isMe: boolean) => (
+    const renderPlayer = (player: PlayerProfile, isMe: boolean) => (
         <div className="flex flex-col items-center gap-2">
-            <Avatar className={cn("h-16 w-16 md:h-20 md:w-20 border-4", isMe ? "border-primary" : "border-muted")}>
-                <AvatarImage src={player.avatar_url} />
-                <AvatarFallback>{player.username.charAt(0)}</AvatarFallback>
-            </Avatar>
+            <Avatar 
+                className={cn("h-16 w-16 md:h-20 md:w-20")}
+                profile={player}
+            />
             <p className="font-bold text-sm md:text-base">{player.full_name}</p>
-            <div className="w-full bg-muted rounded-full h-2.5">
-                <div className="bg-green-500 h-2.5 rounded-full transition-all duration-300" style={{ width: `${(score / 10) * 100}%` }}></div>
-            </div>
-            <p className="font-semibold text-base md:text-lg">{score}/10</p>
         </div>
     );
     
@@ -215,11 +211,11 @@ export default function TypingBattleGamePage({ params: paramsPromise }: { params
 
             <main className="flex-1 flex flex-col justify-around px-4">
                 <div className="grid grid-cols-3 items-center gap-4">
-                    {me && renderPlayer(me, myScore ?? 0, true)}
+                    {me && renderPlayer(me, true)}
                     <div className="text-center">
                         <p className="text-5xl font-bold text-muted-foreground">VS</p>
                     </div>
-                    {opponent && renderPlayer(opponent, opponentScore ?? 0, false)}
+                    {opponent && renderPlayer(opponent, false)}
                 </div>
 
                 <div className="space-y-4">

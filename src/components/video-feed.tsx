@@ -3,7 +3,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { VideoDescription } from '@/components/video-description';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Avatar } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Heart, MessageCircle, Send, Loader2, VideoOff, VolumeOff, Music } from 'lucide-react';
 import {
@@ -138,9 +138,7 @@ const VideoPost = ({ post, index }: { post: Post; index: number }) => {
                 </div>
             </div>
             <div className="absolute bottom-20 right-2 flex flex-col items-center gap-4">
-                <Avatar className="h-12 w-12 border-2 border-white">
-                    <AvatarImage src={post.user.avatar_url} data-ai-hint="person portrait" />
-                    <AvatarFallback>{post.user.username.charAt(0).toUpperCase()}</AvatarFallback>
+                <Avatar className="h-12 w-12 border-2 border-white" profile={post.user}>
                 </Avatar>
                 <div className="flex flex-col items-center gap-1 text-white">
                     <Button variant="ghost" size="icon" className="h-12 w-12 rounded-full hover:bg-white/20" onClick={handleLike}>
