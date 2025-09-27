@@ -35,7 +35,7 @@ export default function ProfilePage() {
   
   const [user, setUser] = useState<ProfileData | null>(null);
   const [posts, setPosts] = useState<Post[]>([]);
-  const [joinedClasses, setJoinedClasses] = useState<Class[]>([]);
+  const [createdClasses, setCreatedClasses] = useState<Class[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -57,11 +57,11 @@ export default function ProfilePage() {
             }
 
             if (profileData) {
-                 const [followersRes, followingRes, postDataRes, classMemberRes] = await Promise.all([
+                 const [followersRes, followingRes, postDataRes, createdClassesRes] = await Promise.all([
                     supabase.from('followers').select('user_id', { count: 'exact' }).eq('user_id', authUser.id),
                     supabase.from('followers').select('follower_id', { count: 'exact' }).eq('follower_id', authUser.id),
                     supabase.from('posts').select('*').eq('user_id', authUser.id).order('created_at', { ascending: false }),
-                    supabase.from('class_members').select('class_id').eq('user_id', authUser.id)
+                    supabase.from('classes').select('*').eq('creator_id', authUser.id)
                  ]);
                 
                  setUser({
@@ -76,17 +76,10 @@ export default function ProfilePage() {
                     setPosts(postDataRes.data as Post[]);
                 }
                 
-                if (classMemberRes.data && classMemberRes.data.length > 0) {
-                    const classIds = classMemberRes.data.map(cm => cm.class_id);
-                    const { data: classesData, error: classesError } = await supabase
-                        .from('classes')
-                        .select('*')
-                        .in('id', classIds);
-                    if (classesError) {
-                         toast({ variant: 'destructive', title: 'Error loading classes', description: classesError.message });
-                    } else {
-                        setJoinedClasses(classesData as Class[]);
-                    }
+                if (createdClassesRes.error) {
+                     toast({ variant: 'destructive', title: 'Error loading classes', description: createdClassesRes.error.message });
+                } else {
+                    setCreatedClasses(createdClassesRes.data as Class[]);
                 }
 
             } else {
@@ -150,7 +143,7 @@ export default function ProfilePage() {
 
         <main className="flex-1 overflow-y-auto p-4">
           <div className="flex flex-col items-center">
-            <Avatar className="h-24 w-24 border-2 border-primary">
+            <Avatar className="h-24 w-24 border-2 border-primary rounded-md">
                 <AvatarImage src={user.avatar_url} alt={user.username} data-ai-hint="person portrait" />
                 <AvatarFallback>{user.username.charAt(0).toUpperCase()}</AvatarFallback>
             </Avatar>
@@ -223,9 +216,9 @@ export default function ProfilePage() {
               )}
             </TabsContent>
             <TabsContent value="class">
-               {joinedClasses.length > 0 ? (
+               {createdClasses.length > 0 ? (
                  <div className="divide-y mt-4">
-                    {joinedClasses.map((cls) => (
+                    {createdClasses.map((cls) => (
                         <Link href={`/class/${cls.id}`} key={cls.id}>
                             <div className="p-4 flex items-center gap-4 hover:bg-muted/50 cursor-pointer">
                                 <Avatar className="h-14 w-14 rounded-md">
@@ -244,7 +237,7 @@ export default function ProfilePage() {
                ) : (
                   <div className="flex flex-col items-center justify-center pt-10">
                       <GraduationCap className="h-12 w-12 text-muted-foreground" />
-                      <p className="mt-4 text-sm text-muted-foreground">You haven't joined any classes yet.</p>
+                      <p className="mt-4 text-sm text-muted-foreground">You haven't created any classes yet.</p>
                   </div>
                )}
             </TabsContent>

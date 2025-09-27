@@ -31,7 +31,7 @@ export default function PrivacySettingsPage() {
             }
             const { data: profile, error } = await supabase
                 .from('profiles')
-                .select('show_active_status') // In a real app, add 'is_private'
+                .select('show_active_status, is_private')
                 .eq('id', user.id)
                 .single();
             
@@ -39,8 +39,8 @@ export default function PrivacySettingsPage() {
                 toast({ variant: 'destructive', title: 'Error loading settings' });
             } else if (profile) {
                 // If the value from the DB is not null, use it. Otherwise, default to true.
-                setShowActive(profile.show_active_status !== null ? profile.show_active_status : true);
-                // setIsPrivateAccount(profile.is_private);
+                setShowActive(profile.show_active_status ?? true);
+                setIsPrivateAccount(profile.is_private ?? false);
             }
             setLoading(false);
         };
@@ -61,7 +61,7 @@ export default function PrivacySettingsPage() {
             .from('profiles')
             .update({ 
                 show_active_status: showActive,
-                // is_private: isPrivateAccount
+                is_private: isPrivateAccount
             })
             .eq('id', user.id);
         
@@ -104,7 +104,7 @@ export default function PrivacySettingsPage() {
                             <Label htmlFor="private-account" className="font-semibold text-base">Private account</Label>
                             <p className="text-sm text-muted-foreground">Only approved followers can see your content.</p>
                         </div>
-                        <Switch id="private-account" checked={isPrivateAccount} onCheckedChange={setIsPrivateAccount} disabled />
+                        <Switch id="private-account" checked={isPrivateAccount} onCheckedChange={setIsPrivateAccount} />
                     </div>
                 </div>
             </main>
