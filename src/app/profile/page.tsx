@@ -143,9 +143,7 @@ export default function ProfilePage() {
 
         <main className="flex-1 overflow-y-auto p-4">
           <div className="flex flex-col items-center">
-            <Avatar className="h-24 w-24 border-2 border-primary rounded-md">
-                <AvatarImage src={user.avatar_url} alt={user.username} data-ai-hint="person portrait" />
-                <AvatarFallback>{user.username.charAt(0).toUpperCase()}</AvatarFallback>
+            <Avatar className="h-24 w-24 border-2 border-primary" profile={user}>
             </Avatar>
             <h2 className="mt-3 text-xl font-bold">{user.full_name}</h2>
             <p className="text-sm text-muted-foreground">@{user.username}</p>

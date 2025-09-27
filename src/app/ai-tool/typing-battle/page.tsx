@@ -38,19 +38,19 @@ export default function TypingBattleSetupPage() {
             }
             setCurrentUser(user);
             
-            // Placeholder: Fetching all other users as "friends"
-            const { data: profiles, error } = await supabase
-                .from('profiles')
-                .select('id, username, avatar_url, full_name')
-                .not('id', 'eq', user.id);
-            
-            if (error) {
-                console.error("Error fetching friends:", error);
+            // Fetch users that the current user is following
+            const { data: followingData, error: followingError } = await supabase
+                .from('followers')
+                .select('profiles!followers_user_id_fkey(*)')
+                .eq('follower_id', user.id);
+
+            if (followingError) {
+                console.error("Error fetching friends:", followingError);
                 toast({ variant: 'destructive', title: 'Error fetching friends' });
-            } else if (profiles) {
-                // Filter out profiles that don't have a username to prevent errors.
-                const validFriends = profiles.filter(p => p.username);
-                setFriends(validFriends as Profile[]);
+            } else if (followingData) {
+                // @ts-ignore
+                const friendProfiles = followingData.map(f => f.profiles).filter(p => p && p.username);
+                setFriends(friendProfiles as Profile[]);
             }
 
             setLoading(false);
@@ -119,7 +119,7 @@ export default function TypingBattleSetupPage() {
                     <div className="text-center p-10 text-muted-foreground flex flex-col items-center pt-20">
                         <Users className="h-12 w-12 mb-4" />
                         <p className="font-bold">No friends to battle</p>
-                        <p className="text-sm mt-1">Find some friends to start a typing battle!</p>
+                        <p className="text-sm mt-1">Follow some users to start a typing battle!</p>
                     </div>
                 )}
             </ScrollArea>
