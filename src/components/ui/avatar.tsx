@@ -18,30 +18,37 @@ const Avatar = React.forwardRef<
 >(({ className, profile, ...props }, ref) => {
     
     const borderClass = profile?.win_streak_10 
-        ? 'border-4 border-yellow-400' 
+        ? 'border-2 border-yellow-400' 
         : profile?.win_streak_3
-        ? 'border-4 border-blue-500'
+        ? 'border-2 border-blue-500'
         : '';
         
     return (
-      <div className={cn("relative", className)}>
+      <div className={cn("relative h-10 w-10", className)}>
           <AvatarPrimitive.Root
             ref={ref}
             className={cn(
               "relative flex h-full w-full shrink-0 overflow-hidden rounded-md",
-              borderClass
+               borderClass
             )}
             {...props}
           >
-            <AvatarImage src={profile?.avatar_url} alt={profile?.username} className="aspect-square h-full w-full"/>
+            <AvatarImage src={profile?.avatar_url ?? undefined} alt={profile?.username} className="aspect-square h-full w-full"/>
             <AvatarFallback className="flex h-full w-full items-center justify-center rounded-md bg-muted">
                 {profile?.username ? profile.username.charAt(0).toUpperCase() : '?'}
             </AvatarFallback>
           </AvatarPrimitive.Root>
           {profile?.win_streak_3 && !profile.win_streak_10 && (
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-full flex items-center justify-center pointer-events-none">
-                 <div className="bg-blue-500/80 p-1 rounded-full">
-                    <Swords className="h-1/3 w-1/3 text-white" />
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-auto h-auto flex items-center justify-center pointer-events-none">
+                 <div className="bg-blue-500/90 p-0.5 rounded-full">
+                    <Swords className="h-4 w-4 text-white" />
+                </div>
+            </div>
+          )}
+           {profile?.win_streak_10 && (
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-auto h-auto flex items-center justify-center pointer-events-none">
+                 <div className="bg-yellow-400/90 p-0.5 rounded-full">
+                    <Swords className="h-4 w-4 text-background" />
                 </div>
             </div>
           )}
@@ -56,7 +63,7 @@ const AvatarImage = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <AvatarPrimitive.Image
     ref={ref}
-    className={cn("aspect-square h-full w-full", className)}
+    className={cn("aspect-square h-full w-full object-cover", className)}
     {...props}
   />
 ))

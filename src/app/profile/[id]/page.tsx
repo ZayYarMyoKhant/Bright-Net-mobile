@@ -229,9 +229,7 @@ export default function UserProfilePage({ params: paramsPromise }: { params: Pro
         <main className="flex-1 overflow-y-auto p-4">
           <div className="flex flex-col items-center">
             <div className="relative">
-              <Avatar className="h-24 w-24 border-2 border-primary rounded-md">
-                <AvatarImage src={profile.avatar_url} alt={profile.username} data-ai-hint="person portrait" />
-                <AvatarFallback>{profile.username.charAt(0)}</AvatarFallback>
+              <Avatar className="h-24 w-24 border-2 border-primary" profile={profile}>
               </Avatar>
               <PresenceIndicator user={profile} />
             </div>

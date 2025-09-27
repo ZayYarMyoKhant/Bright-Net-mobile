@@ -74,7 +74,7 @@ export function PostCard({ post }: { post: Post }) {
     <Card className="rounded-xl overflow-hidden">
       <CardHeader className="p-4 flex-row items-center gap-3">
         <Link href={`/profile/${post.user.id}`}>
-            <Avatar profile={post.user}>
+            <Avatar className="h-10 w-10" profile={post.user}>
             </Avatar>
         </Link>
         <div className="flex-1">

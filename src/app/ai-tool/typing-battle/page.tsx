@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { ArrowLeft, Loader2, Users, Swords } from "lucide-react";
@@ -103,9 +103,7 @@ export default function TypingBattleSetupPage() {
                     <div className="divide-y">
                         {friends.map(friend => (
                             <div key={friend.id} className="p-4 flex items-center gap-4">
-                                <Avatar className="h-12 w-12">
-                                    <AvatarImage src={friend.avatar_url} alt={friend.username} />
-                                    <AvatarFallback>{friend.username.charAt(0).toUpperCase()}</AvatarFallback>
+                                <Avatar className="h-12 w-12" profile={friend}>
                                 </Avatar>
                                 <div className="flex-1">
                                     <p className="font-semibold">{friend.full_name}</p>
