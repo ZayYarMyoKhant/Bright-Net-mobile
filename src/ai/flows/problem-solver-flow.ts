@@ -31,7 +31,7 @@ const problemSolverFlow = ai.defineFlow(
   async (problem) => {
     
     const llmResponse = await ai.generate({
-      model: 'gemini-pro',
+      model: 'gemini-1.5-pro-latest',
       prompt: `You are a friendly and helpful chatbot. A user is asking for help with a problem. 
 First, detect the language of the user's problem. Then, respond in that SAME language.
 Your goal is to provide a simple, conversational, and easy-to-understand solution. Avoid overly technical jargon or long-winded explanations. 

@@ -5,7 +5,7 @@
  * @fileOverview A Genkit flow for translating text between languages.
  *
  * - translateText - A function that handles the text translation.
- * - TranslateTextInput - The input type for the translateText function.
+ * - TranslateTextInput - The input type for the translateText functionूं
  * - TranslateTextOutput - The return type for the translateText function.
  */
 
@@ -35,7 +35,7 @@ const translateTextFlow = ai.defineFlow(
   async ({ text, sourceLang, targetLang }) => {
     
     const llmResponse = await ai.generate({
-      model: 'gemini-pro',
+      model: 'gemini-1.5-pro-latest',
       prompt: `Translate the following text from ${sourceLang} to ${targetLang}. Provide only the translated text, with no extra explanation or introductory phrases.\n\nText to translate: "${text}"`,
     });
 

@@ -235,9 +235,9 @@ export default function ProfilePage() {
                     ))}
                  </div>
                ) : (
-                  <div className="flex flex-col items-center justify-center pt-10">
-                      <GraduationCap className="h-12 w-12 text-muted-foreground" />
-                      <p className="mt-4 text-sm text-muted-foreground">You haven't created any classes yet.</p>
+                  <div className="flex flex-col items-center justify-center pt-10 text-center text-muted-foreground">
+                      <GraduationCap className="h-12 w-12" />
+                      <p className="mt-4 text-sm">You haven't created any classes yet.</p>
                   </div>
                )}
             </TabsContent>

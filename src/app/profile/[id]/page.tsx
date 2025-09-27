@@ -5,7 +5,7 @@ import { use, useEffect, useState, useCallback } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Grid3x3, Clapperboard, ArrowLeft, MessageCircle, CameraOff, Loader2, MoreVertical, Trash2, GraduationCap } from "lucide-react";
+import { Grid3x3, Clapperboard, ArrowLeft, MessageCircle, CameraOff, Loader2, MoreVertical, Trash2, GraduationCap, Lock } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { BottomNav } from '@/components/bottom-nav';
@@ -33,6 +33,7 @@ type ProfileData = Profile & {
   following: number;
   followers: number;
   is_following: boolean;
+  is_private: boolean;
   last_seen: string | null;
   show_active_status: boolean;
 };
@@ -70,7 +71,7 @@ export default function UserProfilePage({ params: paramsPromise }: { params: Pro
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [posts, setPosts] = useState<Post[]>([]);
-  const [joinedClasses, setJoinedClasses] = useState<JoinedClass[]>([]);
+  const [createdClasses, setCreatedClasses] = useState<JoinedClass[]>([]);
   const [loading, setLoading] = useState(true);
   const [isFollowing, setIsFollowing] = useState(false);
   const [isOwnProfile, setIsOwnProfile] = useState(false);
@@ -95,11 +96,11 @@ export default function UserProfilePage({ params: paramsPromise }: { params: Pro
     setIsOwnProfile(authUser?.id === profileData.id);
 
     // Parallelize fetches for counts, posts, and classes
-    const [followersRes, followingRes, postsRes, classMemberRes, followStatusRes] = await Promise.all([
+    const [followersRes, followingRes, postsRes, createdClassesRes, followStatusRes] = await Promise.all([
         supabase.from('followers').select('follower_id', { count: 'exact' }).eq('user_id', params.id),
         supabase.from('followers').select('user_id', { count: 'exact' }).eq('follower_id', params.id),
         supabase.from('posts').select('*').eq('user_id', params.id).order('created_at', { ascending: false }),
-        supabase.from('class_members').select('class_id').eq('user_id', params.id),
+        supabase.from('classes').select('id, name, avatar_url').eq('creator_id', params.id),
         authUser && authUser.id !== params.id 
             ? supabase.from('followers').select('*').eq('user_id', params.id).eq('follower_id', authUser.id).maybeSingle() 
             : Promise.resolve({ data: null })
@@ -114,24 +115,17 @@ export default function UserProfilePage({ params: paramsPromise }: { params: Pro
       followers: followersRes.count || 0,
       following: followingRes.count || 0,
       is_following: isFollowingUser,
+      is_private: profileData.is_private || false,
       last_seen: profileData.last_seen,
       show_active_status: profileData.show_active_status,
     });
     
     setPosts(postsRes.data as Post[] || []);
-
-    // Fetch details for joined classes
-    if (classMemberRes.data && classMemberRes.data.length > 0) {
-      const classIds = classMemberRes.data.map(cm => cm.class_id);
-      const { data: classesData, error: classesError } = await supabase
-          .from('classes')
-          .select('id, name, avatar_url')
-          .in('id', classIds);
-      if (classesError) {
-           toast({ variant: 'destructive', title: 'Error loading classes', description: classesError.message });
-      } else {
-          setJoinedClasses(classesData as JoinedClass[]);
-      }
+    
+    if (createdClassesRes.error) {
+        toast({ variant: 'destructive', title: 'Error loading classes', description: createdClassesRes.error.message });
+    } else {
+        setCreatedClasses(createdClassesRes.data as JoinedClass[]);
     }
     
     setLoading(false);
@@ -213,6 +207,8 @@ export default function UserProfilePage({ params: paramsPromise }: { params: Pro
       </>
     )
   }
+  
+  const canViewContent = !profile.is_private || isFollowing || isOwnProfile;
 
   return (
     <>
@@ -233,7 +229,7 @@ export default function UserProfilePage({ params: paramsPromise }: { params: Pro
         <main className="flex-1 overflow-y-auto p-4">
           <div className="flex flex-col items-center">
             <div className="relative">
-              <Avatar className="h-24 w-24 border-2 border-primary">
+              <Avatar className="h-24 w-24 border-2 border-primary rounded-md">
                 <AvatarImage src={profile.avatar_url} alt={profile.username} data-ai-hint="person portrait" />
                 <AvatarFallback>{profile.username.charAt(0)}</AvatarFallback>
               </Avatar>
@@ -288,58 +284,72 @@ export default function UserProfilePage({ params: paramsPromise }: { params: Pro
               </TabsTrigger>
             </TabsList>
             <TabsContent value="posts">
-             {posts.length > 0 ? (
-                <div className="grid grid-cols-3 gap-1 mt-4">
-                    {posts.map((post) => (
-                    <div key={post.id} className="group relative aspect-square w-full bg-muted">
-                        <Link href={`/post/${post.id}`} className="block h-full w-full">
-                            <div className="aspect-square w-full relative h-full">
-                                <Image
-                                    src={post.media_url}
-                                    alt={`Post by ${profile.username}`}
-                                    fill
-                                    className="object-cover h-full w-full"
-                                    data-ai-hint="lifestyle content"
-                                />
-                            </div>
-                        </Link>
+             {canViewContent ? (
+                posts.length > 0 ? (
+                    <div className="grid grid-cols-3 gap-1 mt-4">
+                        {posts.map((post) => (
+                        <div key={post.id} className="group relative aspect-square w-full bg-muted">
+                            <Link href={`/post/${post.id}`} className="block h-full w-full">
+                                <div className="aspect-square w-full relative h-full">
+                                    <Image
+                                        src={post.media_url}
+                                        alt={`Post by ${profile.username}`}
+                                        fill
+                                        className="object-cover h-full w-full"
+                                        data-ai-hint="lifestyle content"
+                                    />
+                                </div>
+                            </Link>
+                        </div>
+                        ))}
                     </div>
-                    ))}
-                </div>
+                ) : (
+                    <div className="flex flex-col items-center justify-center pt-10 text-center text-muted-foreground">
+                    <CameraOff className="h-12 w-12" />
+                    <p className="mt-4 text-sm">{isOwnProfile ? "You have no posts yet." : "This user has no posts yet."}</p>
+                    </div>
+                )
              ) : (
-                <div className="flex flex-col items-center justify-center pt-10 text-center text-muted-foreground">
-                  <CameraOff className="h-12 w-12" />
-                  <p className="mt-4 text-sm">{isOwnProfile ? "You have no posts yet." : "This user has no posts yet."}</p>
+                <div className="flex flex-col items-center justify-center pt-10 text-center text-muted-foreground border-t mt-4">
+                    <Lock className="h-12 w-12 mt-4" />
+                    <p className="mt-4 font-semibold">This Account is Private</p>
+                    <p className="text-sm">Follow this account to see their photos and videos.</p>
                 </div>
              )}
             </TabsContent>
             <TabsContent value="class">
-               {joinedClasses.length > 0 ? (
-                <div className="grid grid-cols-3 gap-1 mt-4">
-                  {joinedClasses.map((cls) => (
-                    <div key={cls.id} className="group relative aspect-square w-full bg-muted">
-                      <Link href={`/class/${cls.id}`} className="block h-full w-full">
-                        <div className="aspect-square w-full relative h-full">
-                          <Avatar className="h-full w-full rounded-none">
-                            <AvatarImage src={cls.avatar_url} className="object-cover" />
-                            <AvatarFallback className="rounded-none">
-                              <GraduationCap className="h-10 w-10 text-muted-foreground" />
-                            </AvatarFallback>
-                          </Avatar>
-                           <div className="absolute inset-0 bg-black/30 flex items-end p-2">
-                                <p className="text-white font-bold text-xs line-clamp-2">{cls.name}</p>
-                           </div>
+               {canViewContent ? (
+                    createdClasses.length > 0 ? (
+                        <div className="divide-y mt-4 border-t">
+                            {createdClasses.map((cls) => (
+                                <Link href={`/class/${cls.id}`} key={cls.id}>
+                                    <div className="p-4 flex items-center gap-4 hover:bg-muted/50 cursor-pointer">
+                                        <Avatar className="h-14 w-14 rounded-md">
+                                            <AvatarImage src={cls.avatar_url} />
+                                            <AvatarFallback>
+                                                <GraduationCap/>
+                                            </AvatarFallback>
+                                        </Avatar>
+                                        <div className="flex-1">
+                                            <p className="font-semibold text-primary">{cls.name}</p>
+                                        </div>
+                                    </div>
+                                </Link>
+                            ))}
                         </div>
-                      </Link>
-                    </div>
-                  ))}
+                    ) : (
+                        <div className="flex flex-col items-center justify-center pt-10 text-center text-muted-foreground">
+                            <GraduationCap className="h-12 w-12" />
+                            <p className="mt-4 text-sm">{isOwnProfile ? "You haven't created any classes." : "This user hasn't created any classes."}</p>
+                        </div>
+                    )
+               ) : (
+                 <div className="flex flex-col items-center justify-center pt-10 text-center text-muted-foreground border-t mt-4">
+                    <Lock className="h-12 w-12 mt-4" />
+                    <p className="mt-4 font-semibold">This Account is Private</p>
+                    <p className="text-sm">Follow this account to see their classes.</p>
                 </div>
-                ) : (
-                    <div className="flex flex-col items-center justify-center pt-10 text-center text-muted-foreground">
-                        <GraduationCap className="h-12 w-12" />
-                        <p className="mt-4 text-sm">{isOwnProfile ? "You haven't joined any classes." : "This user hasn't joined any classes."}</p>
-                    </div>
-                )}
+               )}
             </TabsContent>
           </Tabs>
         </main>
