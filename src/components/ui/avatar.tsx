@@ -3,12 +3,30 @@
 
 import * as React from "react"
 import * as AvatarPrimitive from "@radix-ui/react-avatar"
-import { Swords } from "lucide-react";
+import Image from "next/image";
 import { cn } from "@/lib/utils"
 import type { Profile } from "@/lib/data";
 
 interface AvatarProps extends React.ComponentPropsWithoutRef<typeof AvatarPrimitive.Root> {
     profile?: Partial<Profile>;
+}
+
+const AvatarFrame = ({ isStreak10 }: { isStreak10?: boolean }) => {
+    const frameUrl = isStreak10 
+        ? "https://blbqaojfppwybkjqiyeb.supabase.co/storage/v1/object/public/avatars/gold_frame.png"
+        : "https://blbqaojfppwybkjqiyeb.supabase.co/storage/v1/object/public/avatars/blue_frame.png";
+
+    return (
+        <div className="absolute inset-[-11%] pointer-events-none z-10">
+            <Image
+                src={frameUrl}
+                alt={isStreak10 ? "Gold Frame" : "Blue Frame"}
+                fill
+                className="object-contain"
+                unoptimized
+            />
+        </div>
+    );
 }
 
 
@@ -17,41 +35,24 @@ const Avatar = React.forwardRef<
   AvatarProps
 >(({ className, profile, ...props }, ref) => {
     
-    const borderClass = profile?.win_streak_10 
-        ? 'border-2 border-yellow-400' 
-        : profile?.win_streak_3
-        ? 'border-2 border-blue-500'
-        : '';
+    const showFrame = profile?.win_streak_3 || profile?.win_streak_10;
         
     return (
-      <div className={cn("relative h-10 w-10", className)}>
+      <div className={cn("relative h-10 w-10 shrink-0", className)}>
           <AvatarPrimitive.Root
             ref={ref}
             className={cn(
               "relative flex h-full w-full shrink-0 overflow-hidden rounded-md",
-               borderClass
             )}
             {...props}
           >
-            <AvatarImage src={profile?.avatar_url ?? undefined} alt={profile?.username} className="aspect-square h-full w-full"/>
+            <AvatarImage src={profile?.avatar_url ?? undefined} alt={profile?.username} className="aspect-square h-full w-full object-cover"/>
             <AvatarFallback className="flex h-full w-full items-center justify-center rounded-md bg-muted">
                 {profile?.username ? profile.username.charAt(0).toUpperCase() : '?'}
             </AvatarFallback>
           </AvatarPrimitive.Root>
-          {profile?.win_streak_3 && !profile.win_streak_10 && (
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-auto h-auto flex items-center justify-center pointer-events-none">
-                 <div className="bg-blue-500/90 p-0.5 rounded-full">
-                    <Swords className="h-4 w-4 text-white" />
-                </div>
-            </div>
-          )}
-           {profile?.win_streak_10 && (
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-auto h-auto flex items-center justify-center pointer-events-none">
-                 <div className="bg-yellow-400/90 p-0.5 rounded-full">
-                    <Swords className="h-4 w-4 text-background" />
-                </div>
-            </div>
-          )}
+          
+          {showFrame && <AvatarFrame isStreak10={profile?.win_streak_10} />}
       </div>
     )
 })

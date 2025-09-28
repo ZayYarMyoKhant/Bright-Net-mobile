@@ -11,12 +11,15 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { User } from "@supabase/supabase-js";
+import { createTypingBattle } from "@/lib/database";
 
 type Profile = {
     id: string;
     username: string;
     avatar_url: string;
     full_name: string;
+    win_streak_3?: boolean;
+    win_streak_10?: boolean;
 }
 
 export default function TypingBattleSetupPage() {
@@ -38,18 +41,16 @@ export default function TypingBattleSetupPage() {
             }
             setCurrentUser(user);
             
-            // Fetch users that the current user is following
             const { data: followingData, error: followingError } = await supabase
                 .from('followers')
-                .select('profiles!followers_user_id_fkey(*)')
+                .select('profiles!followers_user_id_fkey(*, win_streak_3, win_streak_10)')
                 .eq('follower_id', user.id);
 
             if (followingError) {
                 console.error("Error fetching friends:", followingError);
                 toast({ variant: 'destructive', title: 'Error fetching friends' });
             } else if (followingData) {
-                // @ts-ignore
-                const friendProfiles = followingData.map(f => f.profiles).filter(p => p && p.username);
+                const friendProfiles = followingData.map((f: any) => f.profiles).filter(p => p && p.username);
                 setFriends(friendProfiles as Profile[]);
             }
 
@@ -62,23 +63,15 @@ export default function TypingBattleSetupPage() {
         if (!currentUser) return;
         setIsRequesting(true);
 
-        const { data, error } = await supabase
-            .from('typing_battles')
-            .insert({
-                player1_id: currentUser.id,
-                player2_id: opponentId,
-                status: 'requesting',
-            })
-            .select('id')
-            .single();
+        const result = await createTypingBattle(currentUser.id, opponentId);
         
         setIsRequesting(false);
 
-        if (error) {
-            console.error("Error creating battle:", error);
-            toast({ variant: 'destructive', title: 'Could not start battle', description: error.message });
-        } else if (data) {
-            router.push(`/ai-tool/typing-battle/${data.id}/requesting`);
+        if (result.success && result.data) {
+            router.push(`/ai-tool/typing-battle/${result.data.id}/requesting`);
+        } else {
+            console.error("Error creating battle:", result.error);
+            toast({ variant: 'destructive', title: 'Could not start battle', description: result.error });
         }
     };
 
@@ -103,8 +96,7 @@ export default function TypingBattleSetupPage() {
                     <div className="divide-y">
                         {friends.map(friend => (
                             <div key={friend.id} className="p-4 flex items-center gap-4">
-                                <Avatar className="h-12 w-12" profile={friend}>
-                                </Avatar>
+                                <Avatar className="h-12 w-12" profile={friend} />
                                 <div className="flex-1">
                                     <p className="font-semibold">{friend.full_name}</p>
                                     <p className="text-sm text-muted-foreground">@{friend.username}</p>

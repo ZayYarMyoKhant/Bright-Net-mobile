@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import type { TypingBattle } from '@/lib/data';
+import { finishTypingRound } from '@/lib/database';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -115,12 +116,6 @@ export default function TypingBattleGamePage({ params: paramsPromise }: { params
                     const newBattle = payload.new;
                     setBattle(newBattle);
                     
-                    // Reset input for new round
-                    if (newBattle.current_text !== battle?.current_text) {
-                        setMyInput("");
-                        setIsSubmitting(false);
-                    }
-
                     if (newBattle.status === 'completed') {
                         if (newBattle.winner_id === currentUser?.id) {
                             setGameResult('win');
@@ -152,13 +147,13 @@ export default function TypingBattleGamePage({ params: paramsPromise }: { params
         if (!battle || battle.status === 'completed' || myInput !== battle.current_text || isSubmitting) return;
 
         setIsSubmitting(true);
-        const { error } = await supabase.rpc('finish_typing_round', { battle_id_param: battle.id });
+        const { error } = await finishTypingRound(battle.id);
 
         if (error) {
-            toast({ variant: 'destructive', title: 'Error finishing round', description: error.message });
+            toast({ variant: 'destructive', title: 'Error finishing round', description: error });
             setIsSubmitting(false);
         }
-        // UI reset is handled by the realtime subscription
+        // UI state is handled by the realtime subscription
     };
 
     const handleEndGame = () => {
@@ -166,7 +161,7 @@ export default function TypingBattleGamePage({ params: paramsPromise }: { params
         router.push('/ai-tool/typing-battle');
     };
 
-    if (loading || !battle || !player1 || !player2) {
+    if (loading || !battle || !player1 || !player2 || !me || !opponent) {
         return (
             <div className="flex h-dvh w-full items-center justify-center bg-background">
                 <Loader2 className="h-8 w-8 animate-spin" />
@@ -177,7 +172,7 @@ export default function TypingBattleGamePage({ params: paramsPromise }: { params
     const renderPlayer = (player: PlayerProfile, isMe: boolean) => (
         <div className="flex flex-col items-center gap-2">
             <Avatar 
-                className={cn("h-16 w-16 md:h-20 md:w-20")}
+                className="h-16 w-16 md:h-20 md:w-20"
                 profile={player}
             />
             <p className="font-bold text-sm md:text-base">{player.full_name}</p>
@@ -211,11 +206,11 @@ export default function TypingBattleGamePage({ params: paramsPromise }: { params
 
             <main className="flex-1 flex flex-col justify-around px-4">
                 <div className="grid grid-cols-3 items-center gap-4">
-                    {me && renderPlayer(me, true)}
+                    {renderPlayer(me, true)}
                     <div className="text-center">
                         <p className="text-5xl font-bold text-muted-foreground">VS</p>
                     </div>
-                    {opponent && renderPlayer(opponent, false)}
+                    {renderPlayer(opponent, false)}
                 </div>
 
                 <div className="space-y-4">
