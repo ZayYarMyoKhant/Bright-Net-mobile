@@ -43,7 +43,7 @@ export default function TypingBattleSetupPage() {
             
             const { data: followingData, error: followingError } = await supabase
                 .from('followers')
-                .select('profiles!followers_user_id_fkey(*, win_streak_3, win_streak_10)')
+                .select('profiles!user_id(*, win_streak_3, win_streak_10)')
                 .eq('follower_id', user.id);
 
             if (followingError) {
