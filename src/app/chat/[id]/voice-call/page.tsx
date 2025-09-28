@@ -26,13 +26,14 @@ export default function VoiceCallPage({ params: paramsPromise }: { params: Promi
   const [facingMode, setFacingMode] = useState<'user' | 'environment'>('user');
   const [hasPermission, setHasPermission] = useState<boolean | null>(null);
   const [callId, setCallId] = useState<string | null>(null);
+  const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
 
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const peerRef = useRef<Peer.Instance | null>(null);
 
-  const handleEndCall = useCallback(async () => {
+  const handleEndCall = useCallback(async (shouldUpdateSupabase = true) => {
     if (peerRef.current) {
         peerRef.current.destroy();
         peerRef.current = null;
@@ -41,13 +42,14 @@ export default function VoiceCallPage({ params: paramsPromise }: { params: Promi
         streamRef.current.getTracks().forEach(track => track.stop());
         streamRef.current = null;
     }
-    if(callId) {
+    if(shouldUpdateSupabase && callId) {
         await supabase.from('video_calls').update({ status: 'ended' }).eq('id', callId);
     }
     if(params.id) {
        router.push(`/chat/${params.id}`);
     }
   }, [callId, supabase, router, params.id]);
+
 
   const setupPeer = useCallback((stream: MediaStream, isInitiator: boolean, currentCallId: string) => {
       if (!currentUser || peerRef.current) return;
@@ -65,12 +67,13 @@ export default function VoiceCallPage({ params: paramsPromise }: { params: Promi
       });
 
       peer.on('stream', (remoteStream) => {
+          setRemoteStream(remoteStream);
           if (remoteVideoRef.current) {
               remoteVideoRef.current.srcObject = remoteStream;
           }
       });
       
-      peer.on('close', handleEndCall);
+      peer.on('close', () => handleEndCall(false));
       peer.on('error', (err) => {
         console.error('Peer error:', err);
         toast({variant: 'destructive', title: 'Connection Error'});
@@ -155,11 +158,13 @@ export default function VoiceCallPage({ params: paramsPromise }: { params: Promi
                 filter: `id=eq.${currentCallId}`
             }, (payload) => {
                 const { signal_data, status } = payload.new;
+                
                 if (peerRef.current && !peerRef.current.destroyed && signal_data) {
                     try {
                         const parsedSignal = JSON.parse(signal_data);
-                        // Ensure we don't signal our own data back to ourselves if we're not the initiator for an offer, or not the receiver for an answer
-                        if ((parsedSignal.type === 'offer' && !isInitiator) || (parsedSignal.type === 'answer' && isInitiator) || (parsedSignal.candidate && peerRef.current.initiator !== (parsedSignal.type === 'offer'))) {
+                         if (parsedSignal.type === 'offer' && !isInitiator && !peerRef.current.destroyed) {
+                           peerRef.current.signal(parsedSignal);
+                        } else if (parsedSignal.type === 'answer' && isInitiator && !peerRef.current.destroyed) {
                            peerRef.current.signal(parsedSignal);
                         }
                     } catch (e) {
@@ -167,25 +172,25 @@ export default function VoiceCallPage({ params: paramsPromise }: { params: Promi
                     }
                 }
                 if (status === 'ended' || status === 'declined' || status === 'cancelled') {
-                    handleEndCall();
+                    handleEndCall(false);
                 }
             }).subscribe();
     };
     init();
     
     return () => {
-        if (callSubscription) {
-          supabase.removeChannel(callSubscription);
-        }
-        if (peerRef.current) {
-            peerRef.current.destroy();
-            peerRef.current = null;
-        }
-        if (streamRef.current) {
-            streamRef.current.getTracks().forEach(track => track.stop());
-            streamRef.current = null;
-        }
-    }
+      if (callSubscription) {
+        supabase.removeChannel(callSubscription);
+      }
+      if (peerRef.current) {
+          peerRef.current.destroy();
+          peerRef.current = null;
+      }
+      if (streamRef.current) {
+          streamRef.current.getTracks().forEach(track => track.stop());
+          streamRef.current = null;
+      }
+    };
   }, [params.id, router, supabase, startStream, handleEndCall]);
 
 
@@ -227,17 +232,24 @@ export default function VoiceCallPage({ params: paramsPromise }: { params: Promi
   return (
     <div className="flex h-dvh flex-col bg-gray-900 text-white">
       <main className="flex-1 relative">
-        <video ref={remoteVideoRef} className="w-full h-full object-cover bg-black" autoPlay playsInline />
-        <div className="absolute inset-0 flex items-center justify-center -z-10">
-          <div className="flex flex-col items-center text-center">
-            <Avatar className="h-32 w-32 border-4 border-white/50">
-              <AvatarImage src={otherUser.avatar_url} alt={otherUser.username} />
-              <AvatarFallback>{otherUser.username.charAt(0)}</AvatarFallback>
-            </Avatar>
-            <p className="mt-4 text-xl font-bold">{otherUser.full_name}</p>
-            <p className="text-sm text-muted-foreground">In call...</p>
-          </div>
-        </div>
+        <video ref={remoteVideoRef} className={cn("w-full h-full object-cover bg-black", !remoteStream && "hidden")} autoPlay playsInline />
+        
+        {!remoteStream && (
+            <div className="absolute inset-0 flex items-center justify-center -z-10">
+              <div className="flex flex-col items-center text-center">
+                <Avatar className="h-32 w-32 border-4 border-white/50">
+                  <AvatarImage src={otherUser.avatar_url} alt={otherUser.username} />
+                  <AvatarFallback>{otherUser.username.charAt(0)}</AvatarFallback>
+                </Avatar>
+                <p className="mt-4 text-xl font-bold">{otherUser.full_name}</p>
+                <p className="text-sm text-muted-foreground flex items-center gap-2 mt-2">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Connecting...
+                </p>
+              </div>
+            </div>
+        )}
+
         <div className="absolute top-4 right-4 h-48 w-32 rounded-lg overflow-hidden bg-black border-2 border-gray-600 z-10">
           <video ref={localVideoRef} className={cn("w-full h-full object-cover", !isCameraOn && "hidden")} autoPlay muted playsInline />
           {!isCameraOn && (
@@ -264,7 +276,7 @@ export default function VoiceCallPage({ params: paramsPromise }: { params: Promi
           <Button variant="outline" size="icon" className="h-14 w-14 rounded-full bg-white/20 hover:bg-white/30 border-0" onClick={handleFlipCamera}>
             <RefreshCw className="h-7 w-7" />
           </Button>
-          <Button variant="destructive" size="icon" className="h-14 w-14 rounded-full" onClick={handleEndCall}>
+          <Button variant="destructive" size="icon" className="h-14 w-14 rounded-full" onClick={() => handleEndCall()}>
             <PhoneOff className="h-7 w-7" />
           </Button>
         </div>
