@@ -3,8 +3,7 @@
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { AlertTriangle, ArrowLeft, Mic, MicOff, PhoneOff, Video, VideoOff, RefreshCw, Users, UserX, Loader2 } from "lucide-react";
-import Link from "next/link";
+import { AlertTriangle, ArrowLeft, Mic, MicOff, PhoneOff, Video, VideoOff, RefreshCw, Users, Loader2 } from "lucide-react";
 import { useState, useEffect, use, useRef, useCallback } from "react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
@@ -12,37 +11,36 @@ import { createClient } from "@/lib/supabase/client";
 import { User } from "@supabase/supabase-js";
 import { Profile } from "@/lib/data";
 import { useRouter } from "next/navigation";
-
+import Peer from 'simple-peer';
 
 type Participant = Profile & {
     isCurrentUser?: boolean;
     isMuted?: boolean;
     isCameraOn?: boolean;
+    stream?: MediaStream;
+    peer?: Peer.Instance;
 };
 
-const ParticipantVideo = ({ participant, stream }: { participant: Participant, stream?: MediaStream | null }) => {
+const ParticipantVideo = ({ participant }: { participant: Participant }) => {
     const videoRef = useRef<HTMLVideoElement>(null);
     
     useEffect(() => {
-        if (videoRef.current && stream) {
-            videoRef.current.srcObject = stream;
+        if (videoRef.current && participant.stream) {
+            videoRef.current.srcObject = participant.stream;
         }
-    }, [stream]);
+    }, [participant.stream]);
 
     return (
-        <div className="relative rounded-lg overflow-hidden bg-black/80 flex items-center justify-center aspect-square">
-            {participant.isCurrentUser && stream ? (
-                 <video ref={videoRef} className={cn("w-full h-full object-cover", !participant.isCameraOn && "hidden")} autoPlay muted playsInline />
-            ) : (
-                 <Avatar className={cn("h-full w-full rounded-none", !participant.isCameraOn && "hidden")}>
-                    <AvatarImage src={participant.avatar_url} alt={participant.username} className="object-cover" data-ai-hint="person talking" />
-                    <AvatarFallback className="rounded-none bg-gray-800">{participant.username.charAt(0)}</AvatarFallback>
-                </Avatar>
-            )}
+        <div className="relative rounded-lg overflow-hidden bg-gray-800 flex items-center justify-center aspect-video">
+            <video ref={videoRef} className={cn("w-full h-full object-cover", !participant.isCameraOn && "hidden")} autoPlay muted={participant.isCurrentUser} playsInline />
             
             {!participant.isCameraOn && (
                  <div className="flex flex-col items-center gap-1 text-muted-foreground">
-                    <VideoOff className="h-6 w-6" />
+                     <Avatar className={cn("h-16 w-16 rounded-full", !participant.isCameraOn ? "flex" : "hidden")}>
+                        <AvatarImage src={participant.avatar_url} alt={participant.username} className="object-cover" />
+                        <AvatarFallback className="bg-gray-700">{participant.username.charAt(0)}</AvatarFallback>
+                    </Avatar>
+                    <VideoOff className="h-6 w-6 mt-2" />
                     <p className="text-xs font-semibold">Camera Off</p>
                 </div>
             )}
@@ -50,7 +48,7 @@ const ParticipantVideo = ({ participant, stream }: { participant: Participant, s
             <div className="absolute bottom-0 left-0 right-0 p-1.5 bg-gradient-to-t from-black/70 to-transparent">
                 <div className="flex items-center gap-1.5 text-xs text-white font-medium truncate">
                     {participant.isMuted ? <MicOff className="h-3 w-3 flex-shrink-0" /> : <Mic className="h-3 w-3 flex-shrink-0" />}
-                    <span className="truncate">{participant.isCurrentUser ? "You (Host)" : participant.full_name}</span>
+                    <span className="truncate">{participant.isCurrentUser ? "You" : participant.full_name}</span>
                 </div>
             </div>
         </div>
@@ -58,7 +56,7 @@ const ParticipantVideo = ({ participant, stream }: { participant: Participant, s
 };
 
 
-export default function ClassVideoCallPage({ params: paramsPromise }: { params: Promise<{ id: string }> }) {
+export default function ClassVideoCallPage({ params: paramsPromise }: { params: Promise<{ id:string }> }) {
   const params = use(paramsPromise);
   const router = useRouter();
   const { toast } = useToast();
@@ -74,8 +72,38 @@ export default function ClassVideoCallPage({ params: paramsPromise }: { params: 
   const [facingMode, setFacingMode] = useState<'user' | 'environment'>('user');
   const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const peersRef = useRef<{[key: string]: Peer.Instance}>({});
+
+  const startStream = useCallback(async () => {
+    try {
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => track.stop());
+      }
+      
+      const newStream = await navigator.mediaDevices.getUserMedia({ 
+        video: { facingMode: facingMode },
+        audio: true
+      });
+
+      streamRef.current = newStream;
+      setHasCameraPermission(true);
+      
+      newStream.getAudioTracks().forEach(track => track.enabled = !isMuted);
+      newStream.getVideoTracks().forEach(track => track.enabled = isCameraOn);
+      
+      setParticipants(prev => prev.map(p => p.isCurrentUser ? {...p, stream: newStream} : p));
+
+      return newStream;
+    } catch (error) {
+      console.error('Error accessing camera/mic:', error);
+      setHasCameraPermission(false);
+      toast({ variant: 'destructive', title: 'Hardware Access Denied', description: 'Please enable camera and microphone permissions.' });
+      return null;
+    }
+  }, [facingMode, isMuted, isCameraOn, toast]);
   
   const fetchCallData = useCallback(async (user: User) => {
+    setLoading(true);
     const { data: classData, error: classError } = await supabase
         .from('classes')
         .select('id, name, creator_id')
@@ -111,75 +139,113 @@ export default function ClassVideoCallPage({ params: paramsPromise }: { params: 
         return;
     }
     
+    const localStream = await startStream();
+
     const allParticipants: Participant[] = profiles.map(p => ({
         ...p,
         isCurrentUser: p.id === user.id,
-        isMuted: p.id === user.id ? isMuted : Math.random() > 0.5, // Mock other's mute status
-        isCameraOn: p.id === user.id ? isCameraOn : Math.random() > 0.5 // Mock other's camera status
+        isMuted: p.id === user.id ? isMuted : false,
+        isCameraOn: p.id === user.id ? isCameraOn : false,
+        stream: p.id === user.id ? localStream || undefined : undefined
     }));
 
     setParticipants(allParticipants);
     setLoading(false);
+    return { participants: allParticipants, localStream };
 
-  }, [params.id, supabase, toast, router, isMuted, isCameraOn]);
+  }, [params.id, supabase, toast, router, isMuted, isCameraOn, startStream]);
 
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => {
+    let channel: any;
+    supabase.auth.getUser().then(async ({ data: { user } }) => {
         if (!user) {
             router.push('/signup');
             return;
         }
         setCurrentUser(user);
-        fetchCallData(user);
+        const fetchedData = await fetchCallData(user);
+
+        if (fetchedData && fetchedData.localStream) {
+            const { participants: allParticipants, localStream } = fetchedData;
+            const otherParticipants = allParticipants.filter(p => p.id !== user.id);
+
+            otherParticipants.forEach(participant => {
+                const peer = new Peer({
+                    initiator: true,
+                    trickle: false,
+                    stream: localStream,
+                });
+
+                peer.on('signal', signal => {
+                    channel.track({
+                        event: 'signal',
+                        payload: { to: participant.id, from: user.id, signal }
+                    });
+                });
+
+                peersRef.current[participant.id] = peer;
+            });
+
+            channel = supabase.channel(`class-call-${params.id}`);
+            channel.on('presence', { event: 'sync' }, () => {
+                const newState = channel.presenceState();
+            });
+            channel.on('broadcast', { event: 'signal' }, ({ payload }: {payload: any}) => {
+                if (payload.to === user.id) {
+                    if (peersRef.current[payload.from]) {
+                        peersRef.current[payload.from].signal(payload.signal);
+                    } else {
+                        const peer = new Peer({
+                            initiator: false,
+                            trickle: false,
+                            stream: localStream
+                        });
+                        peer.on('signal', signal => {
+                           channel.track({
+                                event: 'signal',
+                                payload: { to: payload.from, from: user.id, signal }
+                           });
+                        });
+                        peer.signal(payload.signal);
+                        peersRef.current[payload.from] = peer;
+                    }
+                }
+            });
+
+            Object.values(peersRef.current).forEach((peer, index) => {
+                 const peerID = Object.keys(peersRef.current)[index];
+                 peer.on('stream', stream => {
+                    setParticipants(prev => prev.map(p => p.id === peerID ? {...p, stream: stream, isCameraOn: true} : p));
+                 });
+                 peer.on('close', () => {
+                    setParticipants(prev => prev.filter(p => p.id !== peerID));
+                    delete peersRef.current[peerID];
+                 });
+            });
+
+            channel.subscribe(async (status: string) => {
+              if (status === 'SUBSCRIBED') {
+                await channel.track({ user: user.id, online_at: new Date().toISOString() });
+              }
+            });
+        }
     });
-  }, [supabase.auth, router, fetchCallData]);
-
-
-  const startStream = useCallback(async () => {
-    try {
-      if (streamRef.current) {
-        streamRef.current.getTracks().forEach(track => track.stop());
-      }
-      
-      const newStream = await navigator.mediaDevices.getUserMedia({ 
-        video: { facingMode: facingMode },
-        audio: true
-      });
-
-      streamRef.current = newStream;
-      setHasCameraPermission(true);
-      
-      newStream.getAudioTracks().forEach(track => track.enabled = !isMuted);
-      newStream.getVideoTracks().forEach(track => track.enabled = isCameraOn);
-
-    } catch (error) {
-      console.error('Error accessing camera/mic:', error);
-      setHasCameraPermission(false);
-      toast({ variant: 'destructive', title: 'Hardware Access Denied', description: 'Please enable camera and microphone permissions.' });
-    }
-  }, [facingMode, isMuted, isCameraOn, toast]);
-
-  useEffect(() => {
-    startStream();
     
     return () => {
-      if (streamRef.current) {
-        streamRef.current.getTracks().forEach(track => track.stop());
-      }
-    };
-  }, [startStream]);
-
-
-  const handleFlipCamera = () => {
-    setFacingMode(prev => prev === 'user' ? 'environment' : 'user');
-  };
+        if(channel) supabase.removeChannel(channel);
+        Object.values(peersRef.current).forEach(peer => peer.destroy());
+        if (streamRef.current) {
+          streamRef.current.getTracks().forEach(track => track.stop());
+        }
+    }
+  }, []);
 
   const handleToggleMute = () => {
     const newMutedState = !isMuted;
     setIsMuted(newMutedState);
     if (streamRef.current) {
-        streamRef.current.getAudioTracks().forEach(track => track.enabled = !newMutedState);
+      streamRef.current.getAudioTracks().forEach(track => track.enabled = !newMutedState);
     }
   };
   
@@ -187,37 +253,28 @@ export default function ClassVideoCallPage({ params: paramsPromise }: { params: 
     const newCameraState = !isCameraOn;
     setIsCameraOn(newCameraState);
      if (streamRef.current) {
-        streamRef.current.getVideoTracks().forEach(track => track.enabled = newCameraState);
+      streamRef.current.getVideoTracks().forEach(track => track.enabled = newCameraState);
     }
   };
   
   const handleEndCall = async () => {
     if (!classInfo || !currentUser) return;
-
     if (currentUser.id === classInfo.creator_id) {
-        // Creator is ending the call for everyone
-        const { error } = await supabase.from('classes')
-            .update({ is_video_call_active: false })
-            .eq('id', classInfo.id);
-
-        if (error) {
-            toast({ variant: 'destructive', title: 'Failed to end call' });
-        }
+        await supabase.from('classes').update({ is_video_call_active: false }).eq('id', classInfo.id);
     }
-    // Everyone (including creator) goes back to the class chat page
     router.push(`/class/${classInfo.id}`);
   };
 
   const host = participants.find(p => p.isCurrentUser);
-  const members = participants.filter(p => !p.isCurrentUser);
+  const otherMembers = participants.filter(p => !p.isCurrentUser);
   
-    if (loading) {
-        return (
-            <div className="flex h-dvh w-full items-center justify-center bg-gray-900">
-                <Loader2 className="h-8 w-8 animate-spin text-white" />
-            </div>
-        )
-    }
+  if (loading) {
+      return (
+          <div className="flex h-dvh w-full items-center justify-center bg-gray-900">
+              <Loader2 className="h-8 w-8 animate-spin text-white" />
+          </div>
+      )
+  }
 
   return (
       <div className="flex h-dvh flex-col bg-gray-900 text-white">
@@ -236,24 +293,20 @@ export default function ClassVideoCallPage({ params: paramsPromise }: { params: 
           </div>
         </header>
 
-        <main className="flex-1 overflow-y-auto p-2 space-y-2">
-            {host && (
-                <div className="relative rounded-lg overflow-hidden bg-black/80 flex items-center justify-center aspect-video">
-                    {hasCameraPermission === false ? (
-                        <div className="flex flex-col items-center justify-center p-2 text-center text-xs">
-                            <AlertTriangle className="h-6 w-6 text-destructive mb-1" />
-                            <p>Camera access denied.</p>
-                        </div>
-                    ) : (
-                        <ParticipantVideo participant={host} stream={streamRef.current} />
-                    )}
-                </div>
-            )}
-            <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2">
-                {members.map((member) => (
+        <main className="flex-1 overflow-y-auto p-2">
+           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
+                {host && hasCameraPermission !== false && <ParticipantVideo participant={{...host, isMuted, isCameraOn, stream: streamRef.current || undefined }} />}
+                {otherMembers.map((member) => (
                     <ParticipantVideo key={member.id} participant={member} />
                 ))}
-            </div>
+           </div>
+           {hasCameraPermission === false && (
+                <div className="flex flex-col items-center justify-center p-4 text-center text-sm rounded-lg bg-gray-800 m-2">
+                    <AlertTriangle className="h-8 w-8 text-destructive mb-2" />
+                    <p className="font-semibold">Camera and Mic Access Denied</p>
+                    <p className="text-xs text-muted-foreground">Please enable permissions in your browser settings to participate.</p>
+                </div>
+           )}
         </main>
         
         <footer className="flex-shrink-0 p-6 z-20">
@@ -264,7 +317,7 @@ export default function ClassVideoCallPage({ params: paramsPromise }: { params: 
                 <Button variant="outline" size="icon" className="h-14 w-14 rounded-full bg-white/20 hover:bg-white/30 border-0" onClick={handleToggleCamera}>
                     {isCameraOn ? <Video className="h-7 w-7" /> : <VideoOff className="h-7 w-7" />}
                 </Button>
-                <Button variant="outline" size="icon" className="h-14 w-14 rounded-full bg-white/20 hover:bg-white/30 border-0" onClick={handleFlipCamera}>
+                <Button variant="outline" size="icon" className="h-14 w-14 rounded-full bg-white/20 hover:bg-white/30 border-0" onClick={() => setFacingMode(p => p === 'user' ? 'environment' : 'user')}>
                   <RefreshCw className="h-7 w-7" />
                 </Button>
                  <Button variant="destructive" size="icon" className="h-14 w-14 rounded-full" onClick={handleEndCall}>
@@ -275,5 +328,3 @@ export default function ClassVideoCallPage({ params: paramsPromise }: { params: 
       </div>
     );
 }
-
-    
