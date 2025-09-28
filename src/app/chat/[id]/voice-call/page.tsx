@@ -44,11 +44,13 @@ export default function VoiceCallPage({ params: paramsPromise }: { params: Promi
     if(callId) {
         await supabase.from('video_calls').update({ status: 'ended' }).eq('id', callId);
     }
-    router.push(`/chat/${params.id}`);
+    if(params.id) {
+       router.push(`/chat/${params.id}`);
+    }
   }, [callId, supabase, router, params.id]);
 
   const setupPeer = useCallback((stream: MediaStream, isInitiator: boolean, currentCallId: string) => {
-      if (!currentUser) return;
+      if (!currentUser || peerRef.current) return;
 
       const peer = new Peer({
           initiator: isInitiator,
@@ -135,29 +137,30 @@ export default function VoiceCallPage({ params: paramsPromise }: { params: Promi
 
         if (callError || !callData) {
             toast({variant: 'destructive', title: 'Active call not found'});
-            router.push(`/chat/${params.id}`);
+            if(params.id) router.push(`/chat/${params.id}`);
             return;
         }
         
-        setCallId(callData.id);
+        const currentCallId = callData.id;
+        setCallId(currentCallId);
         const isInitiator = callData.caller_id === user.id;
 
-        await startStream(isInitiator, callData.id);
+        await startStream(isInitiator, currentCallId);
 
-        callSubscription = supabase.channel(`webrtc-signaling-${callData.id}`)
+        callSubscription = supabase.channel(`webrtc-signaling-${currentCallId}`)
             .on('postgres_changes', {
                 event: 'UPDATE',
                 schema: 'public',
                 table: 'video_calls',
-                filter: `id=eq.${callData.id}`
+                filter: `id=eq.${currentCallId}`
             }, (payload) => {
                 const { signal_data, status } = payload.new;
                 if (peerRef.current && !peerRef.current.destroyed && signal_data) {
                     try {
                         const parsedSignal = JSON.parse(signal_data);
-                        // Ensure we don't signal our own data back to ourselves
-                        if ((parsedSignal.type === 'offer' && !isInitiator) || (parsedSignal.type === 'answer' && isInitiator) || parsedSignal.renegotiate) {
-                             peerRef.current.signal(parsedSignal);
+                        // Ensure we don't signal our own data back to ourselves if we're not the initiator for an offer, or not the receiver for an answer
+                        if ((parsedSignal.type === 'offer' && !isInitiator) || (parsedSignal.type === 'answer' && isInitiator) || (parsedSignal.candidate && peerRef.current.initiator !== (parsedSignal.type === 'offer'))) {
+                           peerRef.current.signal(parsedSignal);
                         }
                     } catch (e) {
                         console.error("Error parsing or using signal data:", e);
@@ -174,11 +177,16 @@ export default function VoiceCallPage({ params: paramsPromise }: { params: Promi
         if (callSubscription) {
           supabase.removeChannel(callSubscription);
         }
-        // Cleanup logic moved to handleEndCall
-        handleEndCall();
+        if (peerRef.current) {
+            peerRef.current.destroy();
+            peerRef.current = null;
+        }
+        if (streamRef.current) {
+            streamRef.current.getTracks().forEach(track => track.stop());
+            streamRef.current = null;
+        }
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [params.id, router, supabase]);
+  }, [params.id, router, supabase, startStream, handleEndCall]);
 
 
   const handleFlipCamera = () => {
@@ -186,8 +194,8 @@ export default function VoiceCallPage({ params: paramsPromise }: { params: Promi
   };
 
   useEffect(() => {
-    if (streamRef.current) {
-        startStream(peerRef.current?.initiator || false, callId!);
+    if (streamRef.current && callId) {
+        startStream(peerRef.current?.initiator || false, callId);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [facingMode]);

@@ -31,23 +31,17 @@ const ParticipantVideo = ({ participant }: { participant: Participant }) => {
 
     return (
         <div className="relative rounded-lg overflow-hidden bg-gray-800 flex items-center justify-center aspect-video">
-            {participant.stream ? (
-                <video ref={videoRef} className={cn("w-full h-full object-cover", !participant.isCameraOn && "hidden")} autoPlay muted={participant.isCurrentUser} playsInline />
+            {participant.stream && participant.isCameraOn ? (
+                <video ref={videoRef} className={cn("w-full h-full object-cover")} autoPlay muted={participant.isCurrentUser} playsInline />
             ) : (
-                 <div className="flex flex-col items-center gap-1 text-muted-foreground">
-                    <Loader2 className="h-6 w-6 animate-spin"/>
-                    <p className="text-xs">Connecting...</p>
-                 </div>
-            )}
-            
-            {!participant.isCameraOn && (
                  <div className="absolute inset-0 flex flex-col items-center justify-center gap-1 text-muted-foreground bg-gray-800">
                      <Avatar className={cn("h-16 w-16 rounded-full")}>
                         <AvatarImage src={participant.avatar_url} alt={participant.username} className="object-cover" />
                         <AvatarFallback className="bg-gray-700">{participant.username.charAt(0)}</AvatarFallback>
                     </Avatar>
                     <p className="text-sm font-semibold mt-2">{participant.isCurrentUser ? "You" : participant.full_name}</p>
-                    <div className="flex items-center gap-1 text-xs"><VideoOff className="h-4 w-4" /> Camera Off</div>
+                    {!participant.stream && <div className="flex items-center gap-1 text-xs"><Loader2 className="h-4 w-4 animate-spin" /> Connecting...</div>}
+                    {!participant.isCameraOn && participant.stream && <div className="flex items-center gap-1 text-xs"><VideoOff className="h-4 w-4" /> Camera Off</div>}
                 </div>
             )}
             
@@ -99,7 +93,8 @@ export default function ClassVideoCallPage({ params: paramsPromise }: { params: 
         await supabase.from('classes').update({ is_video_call_active: false }).eq('id', classInfo.id);
     }
     
-    router.push(`/class/${params.id}`);
+    if (params.id) router.push(`/class/${params.id}`);
+
   }, [classInfo, currentUser, params.id, router, supabase]);
   
 
@@ -122,6 +117,16 @@ export default function ClassVideoCallPage({ params: paramsPromise }: { params: 
       
       setParticipants(prev => prev.map(p => p.isCurrentUser ? {...p, stream: newStream, isCameraOn: isCameraOn, isMuted: isMuted} : p));
 
+      // For existing peers, replace the track
+      Object.values(peersRef.current).forEach(({ peer }) => {
+        const oldTrack = peer.streams[0].getVideoTracks()[0];
+        const newTrack = newStream.getVideoTracks()[0];
+        if (oldTrack && newTrack) {
+          peer.replaceTrack(oldTrack, newTrack, peer.streams[0]);
+        }
+      });
+
+
       return newStream;
     } catch (error) {
       console.error('Error accessing camera/mic:', error);
@@ -132,6 +137,7 @@ export default function ClassVideoCallPage({ params: paramsPromise }: { params: 
   }, [facingMode, isMuted, isCameraOn, toast]);
 
   useEffect(() => {
+    let isMounted = true;
     const init = async () => {
         setLoading(true);
         const { data: { user } } = await supabase.auth.getUser();
@@ -171,11 +177,12 @@ export default function ClassVideoCallPage({ params: paramsPromise }: { params: 
         presenceRef.current = supabase.channel(`class-call-presence-${params.id}`);
 
         presenceRef.current.on('presence', { event: 'sync' }, () => {
+            if (!isMounted) return;
             const newState = presenceRef.current.presenceState();
             const otherUsers = Object.keys(newState).map(id => newState[id][0].user_profile).filter(p => p.id !== user.id);
             
             otherUsers.forEach((otherUser: Profile) => {
-                if (!peersRef.current[otherUser.id]) {
+                if (!peersRef.current[otherUser.id] && localStream) {
                     const peer = new Peer({ initiator: true, trickle: false, stream: localStream });
                     
                     peer.on('signal', signal => {
@@ -189,7 +196,7 @@ export default function ClassVideoCallPage({ params: paramsPromise }: { params: 
                     peersRef.current[otherUser.id] = { peer, user: otherUser };
                     setParticipants(prev => {
                         if (!prev.find(p => p.id === otherUser.id)) {
-                           return [...prev, {...otherUser, isCameraOn: false, isMuted: true}];
+                           return [...prev, {...otherUser, isCameraOn: true, isMuted: true}];
                         }
                         return prev;
                     });
@@ -198,6 +205,7 @@ export default function ClassVideoCallPage({ params: paramsPromise }: { params: 
         });
 
         presenceRef.current.on('presence', { event: 'leave' }, ({ leftPresences }: {leftPresences: any[]}) => {
+             if (!isMounted) return;
              leftPresences.forEach(presence => {
                 const leftUserId = presence.user_profile.id;
                 if (peersRef.current[leftUserId]) {
@@ -209,40 +217,45 @@ export default function ClassVideoCallPage({ params: paramsPromise }: { params: 
         });
         
         presenceRef.current.on('broadcast', { event: 'signal-offer' }, ({ payload }: {payload: any}) => {
-            if (payload.from !== user.id && !peersRef.current[payload.from]) {
-                const peer = new Peer({ initiator: false, trickle: false, stream: localStream });
-                
-                peer.on('signal', signal => {
-                    presenceRef.current.send({
-                        type: 'broadcast',
-                        event: 'signal-answer',
-                        payload: { to: payload.from, from: user.id, signal }
-                    });
+            if (!isMounted || payload.from === user.id || peersRef.current[payload.from] || !localStream) return;
+            
+            const peer = new Peer({ initiator: false, trickle: false, stream: localStream });
+            
+            peer.on('signal', signal => {
+                presenceRef.current.send({
+                    type: 'broadcast',
+                    event: 'signal-answer',
+                    payload: { to: payload.from, from: user.id, signal }
                 });
-                
-                peer.on('stream', (remoteStream) => {
-                     setParticipants(prev => prev.map(p => p.id === payload.from ? {...p, stream: remoteStream, isCameraOn: true} : p));
-                });
-                
-                peer.signal(payload.signal);
-                const fromUser = presenceRef.current.presenceState()[payload.from][0].user_profile;
-                peersRef.current[payload.from] = { peer, user: fromUser };
-                 setParticipants(prev => {
-                    if (!prev.find(p => p.id === fromUser.id)) {
-                        return [...prev, {...fromUser, isCameraOn: false, isMuted: true}];
-                    }
-                    return prev;
-                });
-            }
+            });
+            
+            peer.on('stream', (remoteStream) => {
+                 setParticipants(prev => prev.map(p => p.id === payload.from ? {...p, stream: remoteStream, isCameraOn: true} : p));
+            });
+
+            peer.on('close', () => {
+                delete peersRef.current[payload.from];
+                setParticipants(prev => prev.filter(p => p.id !== payload.from));
+            });
+            
+            peer.signal(payload.signal);
+            const fromUser = presenceRef.current.presenceState()[payload.from][0].user_profile;
+            peersRef.current[payload.from] = { peer, user: fromUser };
+             setParticipants(prev => {
+                if (!prev.find(p => p.id === fromUser.id)) {
+                    return [...prev, {...fromUser, isCameraOn: true, isMuted: true}];
+                }
+                return prev;
+            });
         });
 
         presenceRef.current.on('broadcast', { event: 'signal-answer' }, ({ payload }: {payload: any}) => {
-            if (payload.to === user.id && peersRef.current[payload.from]) {
-                peersRef.current[payload.from].peer.on('stream', (remoteStream) => {
-                    setParticipants(prev => prev.map(p => p.id === payload.from ? {...p, stream: remoteStream, isCameraOn: true} : p));
-                });
-                peersRef.current[payload.from].peer.signal(payload.signal);
-            }
+            if (!isMounted || payload.to !== user.id || !peersRef.current[payload.from]) return;
+
+            peersRef.current[payload.from].peer.on('stream', (remoteStream) => {
+                setParticipants(prev => prev.map(p => p.id === payload.from ? {...p, stream: remoteStream, isCameraOn: true} : p));
+            });
+            peersRef.current[payload.from].peer.signal(payload.signal);
         });
 
         presenceRef.current.subscribe(async (status: string) => {
@@ -256,10 +269,24 @@ export default function ClassVideoCallPage({ params: paramsPromise }: { params: 
     init();
 
     return () => {
-       handleEndCall();
+        isMounted = false;
+        if (presenceRef.current) {
+            presenceRef.current.untrack();
+            supabase.removeChannel(presenceRef.current);
+        }
+        Object.values(peersRef.current).forEach(({ peer }) => peer.destroy());
+        peersRef.current = {};
+        if (streamRef.current) {
+            streamRef.current.getTracks().forEach(track => track.stop());
+        }
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [params.id, router, supabase, startStream]);
+
+
+  useEffect(() => {
+    startStream();
+  }, [startStream, facingMode]);
+
 
   const handleToggleMute = () => {
     const newMutedState = !isMuted;
