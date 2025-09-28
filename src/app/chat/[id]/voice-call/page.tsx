@@ -32,40 +32,23 @@ export default function VoiceCallPage({ params: paramsPromise }: { params: Promi
   const streamRef = useRef<MediaStream | null>(null);
   const peerRef = useRef<Peer.Instance | null>(null);
 
-  const startStream = useCallback(async (isInitiator: boolean) => {
-    try {
-      if (streamRef.current) {
-        streamRef.current.getTracks().forEach(track => track.stop());
-      }
-
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode },
-        audio: true
-      });
-      streamRef.current = stream;
-      setHasPermission(true);
-
-      if (localVideoRef.current) {
-        localVideoRef.current.srcObject = stream;
-      }
-      stream.getAudioTracks().forEach(track => track.enabled = !isMuted);
-      stream.getVideoTracks().forEach(track => track.enabled = isCameraOn);
-      
-      setupPeer(stream, isInitiator);
-
-    } catch (error) {
-      console.error('Error accessing camera/mic:', error);
-      setHasPermission(false);
-      toast({
-        variant: 'destructive',
-        title: 'Hardware Access Denied',
-        description: 'Please enable camera and microphone permissions in your browser settings.',
-      });
+  const handleEndCall = useCallback(async () => {
+    if (peerRef.current) {
+        peerRef.current.destroy();
+        peerRef.current = null;
     }
-  }, [facingMode, isMuted, isCameraOn, toast, callId, currentUser]);
+    if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => track.stop());
+        streamRef.current = null;
+    }
+    if(callId) {
+        await supabase.from('video_calls').update({ status: 'ended' }).eq('id', callId);
+    }
+    router.push(`/chat/${params.id}`);
+  }, [callId, supabase, router, params.id]);
 
-  const setupPeer = (stream: MediaStream, isInitiator: boolean) => {
-      if (!callId || !currentUser) return;
+  const setupPeer = useCallback((stream: MediaStream, isInitiator: boolean, currentCallId: string) => {
+      if (!currentUser) return;
 
       const peer = new Peer({
           initiator: isInitiator,
@@ -74,7 +57,9 @@ export default function VoiceCallPage({ params: paramsPromise }: { params: Promi
       });
 
       peer.on('signal', (data) => {
-          supabase.from('video_calls').update({ signal_data: JSON.stringify(data) }).eq('id', callId).then();
+          supabase.from('video_calls').update({ signal_data: JSON.stringify(data) }).eq('id', currentCallId).then(({error}) => {
+              if (error) console.error("Signal update error:", error);
+          });
       });
 
       peer.on('stream', (remoteStream) => {
@@ -91,9 +76,45 @@ export default function VoiceCallPage({ params: paramsPromise }: { params: Promi
       });
 
       peerRef.current = peer;
-  }
+  }, [currentUser, supabase, handleEndCall, toast]);
+  
+  const startStream = useCallback(async (isInitiator: boolean, currentCallId: string) => {
+    try {
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => track.stop());
+      }
+
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode },
+        audio: true
+      });
+      streamRef.current = stream;
+      setHasPermission(true);
+
+      if (localVideoRef.current) {
+        localVideoRef.current.srcObject = stream;
+      }
+      
+      stream.getAudioTracks().forEach(track => track.enabled = !isMuted);
+      stream.getVideoTracks().forEach(track => track.enabled = isCameraOn);
+      
+      setupPeer(stream, isInitiator, currentCallId);
+
+    } catch (error) {
+      console.error('Error accessing camera/mic:', error);
+      setHasPermission(false);
+      toast({
+        variant: 'destructive',
+        title: 'Hardware Access Denied',
+        description: 'Please enable camera and microphone permissions in your browser settings.',
+      });
+    }
+  }, [facingMode, isMuted, isCameraOn, setupPeer, toast]);
+
 
   useEffect(() => {
+    let callSubscription: any = null;
+
     const init = async () => {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) {
@@ -102,15 +123,15 @@ export default function VoiceCallPage({ params: paramsPromise }: { params: Promi
         }
         setCurrentUser(user);
 
-        const { data: otherUserData, error } = await supabase.from('profiles').select('*').eq('id', params.id).single();
-        if (error || !otherUserData) {
+        const { data: otherUserData, error: userError } = await supabase.from('profiles').select('*').eq('id', params.id).single();
+        if (userError || !otherUserData) {
             toast({ variant: 'destructive', title: 'User not found' });
             router.push('/chat');
             return;
         }
         setOtherUser(otherUserData);
 
-        const { data: callData, error: callError } = await supabase.from('video_calls').select('*').or(`caller_id.eq.${user.id},callee_id.eq.${user.id}`).eq('status', 'accepted').order('created_at', {ascending: false}).limit(1).single();
+        const { data: callData, error: callError } = await supabase.from('video_calls').select('*').or(`and(caller_id.eq.${user.id},callee_id.eq.${params.id}),and(caller_id.eq.${params.id},callee_id.eq.${user.id})`).in('status', ['requesting', 'accepted']).order('created_at', {ascending: false}).limit(1).single();
 
         if (callError || !callData) {
             toast({variant: 'destructive', title: 'Active call not found'});
@@ -120,55 +141,56 @@ export default function VoiceCallPage({ params: paramsPromise }: { params: Promi
         
         setCallId(callData.id);
         const isInitiator = callData.caller_id === user.id;
-        startStream(isInitiator);
+
+        await startStream(isInitiator, callData.id);
+
+        callSubscription = supabase.channel(`webrtc-signaling-${callData.id}`)
+            .on('postgres_changes', {
+                event: 'UPDATE',
+                schema: 'public',
+                table: 'video_calls',
+                filter: `id=eq.${callData.id}`
+            }, (payload) => {
+                const { signal_data, status } = payload.new;
+                if (peerRef.current && !peerRef.current.destroyed && signal_data) {
+                    try {
+                        const parsedSignal = JSON.parse(signal_data);
+                        // Ensure we don't signal our own data back to ourselves
+                        if ((parsedSignal.type === 'offer' && !isInitiator) || (parsedSignal.type === 'answer' && isInitiator) || parsedSignal.renegotiate) {
+                             peerRef.current.signal(parsedSignal);
+                        }
+                    } catch (e) {
+                        console.error("Error parsing or using signal data:", e);
+                    }
+                }
+                if (status === 'ended' || status === 'declined' || status === 'cancelled') {
+                    handleEndCall();
+                }
+            }).subscribe();
     };
     init();
     
     return () => {
-        if (streamRef.current) {
-            streamRef.current.getTracks().forEach(track => track.stop());
+        if (callSubscription) {
+          supabase.removeChannel(callSubscription);
         }
-        if (peerRef.current) {
-            peerRef.current.destroy();
-        }
+        // Cleanup logic moved to handleEndCall
+        handleEndCall();
     }
-  }, [params.id, router, supabase, toast, startStream]);
-
-  useEffect(() => {
-    if (!callId) return;
-    const channel = supabase.channel(`webrtc-signaling-${callId}`)
-        .on('postgres_changes', {
-            event: 'UPDATE',
-            schema: 'public',
-            table: 'video_calls',
-            filter: `id=eq.${callId}`
-        }, (payload) => {
-            const { signal_data, status } = payload.new;
-            if (signal_data && peerRef.current && !peerRef.current.destroyed) {
-                try {
-                    const parsedSignal = JSON.parse(signal_data);
-                    // Only signal if the data is not from ourselves
-                    if ((parsedSignal.type === 'offer' && peerRef.current.initiator === false) || (parsedSignal.type === 'answer' && peerRef.current.initiator === true)) {
-                        peerRef.current.signal(parsedSignal);
-                    }
-                } catch (e) {
-                    console.error("Error parsing signal data:", e);
-                }
-            }
-            if (status === 'ended' || status === 'declined' || status === 'cancelled') {
-                handleEndCall();
-            }
-        }).subscribe();
-        
-     return () => {
-         supabase.removeChannel(channel);
-     }
-  }, [callId, supabase]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [params.id, router, supabase]);
 
 
   const handleFlipCamera = () => {
     setFacingMode(prev => prev === 'user' ? 'environment' : 'user');
   };
+
+  useEffect(() => {
+    if (streamRef.current) {
+        startStream(peerRef.current?.initiator || false, callId!);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [facingMode]);
 
   const handleToggleMute = () => {
     const newMutedState = !isMuted;
@@ -184,19 +206,6 @@ export default function VoiceCallPage({ params: paramsPromise }: { params: Promi
     if (streamRef.current) {
       streamRef.current.getVideoTracks().forEach(track => track.enabled = newCameraState);
     }
-  };
-
-  const handleEndCall = async () => {
-    if (peerRef.current) {
-        peerRef.current.destroy();
-    }
-    if (streamRef.current) {
-        streamRef.current.getTracks().forEach(track => track.stop());
-    }
-    if(callId) {
-        await supabase.from('video_calls').update({ status: 'ended' }).eq('id', callId);
-    }
-    router.push(`/chat/${params.id}`);
   };
 
   if (!otherUser) {

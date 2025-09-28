@@ -18,7 +18,6 @@ type Participant = Profile & {
     isMuted?: boolean;
     isCameraOn?: boolean;
     stream?: MediaStream;
-    peer?: Peer.Instance;
 };
 
 const ParticipantVideo = ({ participant }: { participant: Participant }) => {
@@ -32,16 +31,23 @@ const ParticipantVideo = ({ participant }: { participant: Participant }) => {
 
     return (
         <div className="relative rounded-lg overflow-hidden bg-gray-800 flex items-center justify-center aspect-video">
-            <video ref={videoRef} className={cn("w-full h-full object-cover", !participant.isCameraOn && "hidden")} autoPlay muted={participant.isCurrentUser} playsInline />
+            {participant.stream ? (
+                <video ref={videoRef} className={cn("w-full h-full object-cover", !participant.isCameraOn && "hidden")} autoPlay muted={participant.isCurrentUser} playsInline />
+            ) : (
+                 <div className="flex flex-col items-center gap-1 text-muted-foreground">
+                    <Loader2 className="h-6 w-6 animate-spin"/>
+                    <p className="text-xs">Connecting...</p>
+                 </div>
+            )}
             
             {!participant.isCameraOn && (
-                 <div className="flex flex-col items-center gap-1 text-muted-foreground">
-                     <Avatar className={cn("h-16 w-16 rounded-full", !participant.isCameraOn ? "flex" : "hidden")}>
+                 <div className="absolute inset-0 flex flex-col items-center justify-center gap-1 text-muted-foreground bg-gray-800">
+                     <Avatar className={cn("h-16 w-16 rounded-full")}>
                         <AvatarImage src={participant.avatar_url} alt={participant.username} className="object-cover" />
                         <AvatarFallback className="bg-gray-700">{participant.username.charAt(0)}</AvatarFallback>
                     </Avatar>
-                    <VideoOff className="h-6 w-6 mt-2" />
-                    <p className="text-xs font-semibold">Camera Off</p>
+                    <p className="text-sm font-semibold mt-2">{participant.isCurrentUser ? "You" : participant.full_name}</p>
+                    <div className="flex items-center gap-1 text-xs"><VideoOff className="h-4 w-4" /> Camera Off</div>
                 </div>
             )}
             
@@ -54,7 +60,6 @@ const ParticipantVideo = ({ participant }: { participant: Participant }) => {
         </div>
     );
 };
-
 
 export default function ClassVideoCallPage({ params: paramsPromise }: { params: Promise<{ id:string }> }) {
   const params = use(paramsPromise);
@@ -72,7 +77,31 @@ export default function ClassVideoCallPage({ params: paramsPromise }: { params: 
   const [facingMode, setFacingMode] = useState<'user' | 'environment'>('user');
   const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
-  const peersRef = useRef<{[key: string]: Peer.Instance}>({});
+  const peersRef = useRef<{[key: string]: {peer: Peer.Instance, user: Profile}}>({});
+  const presenceRef = useRef<any>(null);
+
+  const handleEndCall = useCallback(async () => {
+    if (presenceRef.current) {
+        presenceRef.current.untrack();
+        supabase.removeChannel(presenceRef.current);
+        presenceRef.current = null;
+    }
+    
+    Object.values(peersRef.current).forEach(({peer}) => peer.destroy());
+    peersRef.current = {};
+
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop());
+      streamRef.current = null;
+    }
+    
+    if (classInfo && currentUser && currentUser.id === classInfo.creator_id) {
+        await supabase.from('classes').update({ is_video_call_active: false }).eq('id', classInfo.id);
+    }
+    
+    router.push(`/class/${params.id}`);
+  }, [classInfo, currentUser, params.id, router, supabase]);
+  
 
   const startStream = useCallback(async () => {
     try {
@@ -91,7 +120,7 @@ export default function ClassVideoCallPage({ params: paramsPromise }: { params: 
       newStream.getAudioTracks().forEach(track => track.enabled = !isMuted);
       newStream.getVideoTracks().forEach(track => track.enabled = isCameraOn);
       
-      setParticipants(prev => prev.map(p => p.isCurrentUser ? {...p, stream: newStream} : p));
+      setParticipants(prev => prev.map(p => p.isCurrentUser ? {...p, stream: newStream, isCameraOn: isCameraOn, isMuted: isMuted} : p));
 
       return newStream;
     } catch (error) {
@@ -101,144 +130,135 @@ export default function ClassVideoCallPage({ params: paramsPromise }: { params: 
       return null;
     }
   }, [facingMode, isMuted, isCameraOn, toast]);
-  
-  const fetchCallData = useCallback(async (user: User) => {
-    setLoading(true);
-    const { data: classData, error: classError } = await supabase
-        .from('classes')
-        .select('id, name, creator_id')
-        .eq('id', params.id)
-        .single();
-    
-    if (classError) {
-        toast({ variant: 'destructive', title: 'Error', description: "Could not load class details." });
-        router.push('/class');
-        return;
-    }
-    setClassInfo(classData);
-
-    const { data: memberIds, error: memberError } = await supabase
-        .from('class_members')
-        .select('user_id')
-        .eq('class_id', params.id);
-        
-    if (memberError) {
-        toast({ variant: 'destructive', title: 'Error', description: "Could not load members." });
-        setLoading(false);
-        return;
-    }
-    
-    const { data: profiles, error: profilesError } = await supabase
-        .from('profiles')
-        .select('*')
-        .in('id', memberIds.map(m => m.user_id));
-
-    if (profilesError) {
-        toast({ variant: 'destructive', title: 'Error', description: "Could not load member profiles." });
-        setLoading(false);
-        return;
-    }
-    
-    const localStream = await startStream();
-
-    const allParticipants: Participant[] = profiles.map(p => ({
-        ...p,
-        isCurrentUser: p.id === user.id,
-        isMuted: p.id === user.id ? isMuted : false,
-        isCameraOn: p.id === user.id ? isCameraOn : false,
-        stream: p.id === user.id ? localStream || undefined : undefined
-    }));
-
-    setParticipants(allParticipants);
-    setLoading(false);
-    return { participants: allParticipants, localStream };
-
-  }, [params.id, supabase, toast, router, isMuted, isCameraOn, startStream]);
-
 
   useEffect(() => {
-    let channel: any;
-    supabase.auth.getUser().then(async ({ data: { user } }) => {
+    const init = async () => {
+        setLoading(true);
+        const { data: { user } } = await supabase.auth.getUser();
         if (!user) {
             router.push('/signup');
             return;
         }
         setCurrentUser(user);
-        const fetchedData = await fetchCallData(user);
 
-        if (fetchedData && fetchedData.localStream) {
-            const { participants: allParticipants, localStream } = fetchedData;
-            const otherParticipants = allParticipants.filter(p => p.id !== user.id);
+        const { data: classData, error: classError } = await supabase.from('classes').select('id, name, creator_id').eq('id', params.id).single();
+        if (classError) {
+            toast({ variant: 'destructive', title: 'Error', description: "Could not load class details." });
+            router.push('/class');
+            return;
+        }
+        setClassInfo(classData);
 
-            otherParticipants.forEach(participant => {
-                const peer = new Peer({
-                    initiator: true,
-                    trickle: false,
-                    stream: localStream,
-                });
+        const localStream = await startStream();
+        if (!localStream) {
+            setLoading(false);
+            return;
+        }
 
-                peer.on('signal', signal => {
-                    channel.track({
-                        event: 'signal',
-                        payload: { to: participant.id, from: user.id, signal }
+        const {data: myProfile} = await supabase.from('profiles').select('*').eq('id', user.id).single();
+        if (myProfile) {
+            setParticipants([{
+                ...myProfile,
+                isCurrentUser: true,
+                stream: localStream,
+                isCameraOn: isCameraOn,
+                isMuted: isMuted,
+            }]);
+        }
+        
+        setLoading(false);
+        
+        presenceRef.current = supabase.channel(`class-call-presence-${params.id}`);
+
+        presenceRef.current.on('presence', { event: 'sync' }, () => {
+            const newState = presenceRef.current.presenceState();
+            const otherUsers = Object.keys(newState).map(id => newState[id][0].user_profile).filter(p => p.id !== user.id);
+            
+            otherUsers.forEach((otherUser: Profile) => {
+                if (!peersRef.current[otherUser.id]) {
+                    const peer = new Peer({ initiator: true, trickle: false, stream: localStream });
+                    
+                    peer.on('signal', signal => {
+                        presenceRef.current.send({
+                            type: 'broadcast',
+                            event: 'signal-offer',
+                            payload: { from: user.id, signal }
+                        });
                     });
-                });
 
-                peersRef.current[participant.id] = peer;
-            });
-
-            channel = supabase.channel(`class-call-${params.id}`);
-            channel.on('presence', { event: 'sync' }, () => {
-                const newState = channel.presenceState();
-            });
-            channel.on('broadcast', { event: 'signal' }, ({ payload }: {payload: any}) => {
-                if (payload.to === user.id) {
-                    if (peersRef.current[payload.from]) {
-                        peersRef.current[payload.from].signal(payload.signal);
-                    } else {
-                        const peer = new Peer({
-                            initiator: false,
-                            trickle: false,
-                            stream: localStream
-                        });
-                        peer.on('signal', signal => {
-                           channel.track({
-                                event: 'signal',
-                                payload: { to: payload.from, from: user.id, signal }
-                           });
-                        });
-                        peer.signal(payload.signal);
-                        peersRef.current[payload.from] = peer;
-                    }
+                    peersRef.current[otherUser.id] = { peer, user: otherUser };
+                    setParticipants(prev => {
+                        if (!prev.find(p => p.id === otherUser.id)) {
+                           return [...prev, {...otherUser, isCameraOn: false, isMuted: true}];
+                        }
+                        return prev;
+                    });
                 }
             });
+        });
 
-            Object.values(peersRef.current).forEach((peer, index) => {
-                 const peerID = Object.keys(peersRef.current)[index];
-                 peer.on('stream', stream => {
-                    setParticipants(prev => prev.map(p => p.id === peerID ? {...p, stream: stream, isCameraOn: true} : p));
-                 });
-                 peer.on('close', () => {
-                    setParticipants(prev => prev.filter(p => p.id !== peerID));
-                    delete peersRef.current[peerID];
-                 });
+        presenceRef.current.on('presence', { event: 'leave' }, ({ leftPresences }: {leftPresences: any[]}) => {
+             leftPresences.forEach(presence => {
+                const leftUserId = presence.user_profile.id;
+                if (peersRef.current[leftUserId]) {
+                    peersRef.current[leftUserId].peer.destroy();
+                    delete peersRef.current[leftUserId];
+                }
+                setParticipants(prev => prev.filter(p => p.id !== leftUserId));
             });
+        });
+        
+        presenceRef.current.on('broadcast', { event: 'signal-offer' }, ({ payload }: {payload: any}) => {
+            if (payload.from !== user.id && !peersRef.current[payload.from]) {
+                const peer = new Peer({ initiator: false, trickle: false, stream: localStream });
+                
+                peer.on('signal', signal => {
+                    presenceRef.current.send({
+                        type: 'broadcast',
+                        event: 'signal-answer',
+                        payload: { to: payload.from, from: user.id, signal }
+                    });
+                });
+                
+                peer.on('stream', (remoteStream) => {
+                     setParticipants(prev => prev.map(p => p.id === payload.from ? {...p, stream: remoteStream, isCameraOn: true} : p));
+                });
+                
+                peer.signal(payload.signal);
+                const fromUser = presenceRef.current.presenceState()[payload.from][0].user_profile;
+                peersRef.current[payload.from] = { peer, user: fromUser };
+                 setParticipants(prev => {
+                    if (!prev.find(p => p.id === fromUser.id)) {
+                        return [...prev, {...fromUser, isCameraOn: false, isMuted: true}];
+                    }
+                    return prev;
+                });
+            }
+        });
 
-            channel.subscribe(async (status: string) => {
-              if (status === 'SUBSCRIBED') {
-                await channel.track({ user: user.id, online_at: new Date().toISOString() });
-              }
-            });
-        }
-    });
-    
+        presenceRef.current.on('broadcast', { event: 'signal-answer' }, ({ payload }: {payload: any}) => {
+            if (payload.to === user.id && peersRef.current[payload.from]) {
+                peersRef.current[payload.from].peer.on('stream', (remoteStream) => {
+                    setParticipants(prev => prev.map(p => p.id === payload.from ? {...p, stream: remoteStream, isCameraOn: true} : p));
+                });
+                peersRef.current[payload.from].peer.signal(payload.signal);
+            }
+        });
+
+        presenceRef.current.subscribe(async (status: string) => {
+          if (status === 'SUBSCRIBED') {
+            await presenceRef.current.track({ user_profile: myProfile });
+          }
+        });
+
+    };
+
+    init();
+
     return () => {
-        if(channel) supabase.removeChannel(channel);
-        Object.values(peersRef.current).forEach(peer => peer.destroy());
-        if (streamRef.current) {
-          streamRef.current.getTracks().forEach(track => track.stop());
-        }
+       handleEndCall();
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleToggleMute = () => {
@@ -247,6 +267,7 @@ export default function ClassVideoCallPage({ params: paramsPromise }: { params: 
     if (streamRef.current) {
       streamRef.current.getAudioTracks().forEach(track => track.enabled = !newMutedState);
     }
+    setParticipants(prev => prev.map(p => p.isCurrentUser ? {...p, isMuted: newMutedState} : p));
   };
   
   const handleToggleCamera = () => {
@@ -255,18 +276,8 @@ export default function ClassVideoCallPage({ params: paramsPromise }: { params: 
      if (streamRef.current) {
       streamRef.current.getVideoTracks().forEach(track => track.enabled = newCameraState);
     }
+     setParticipants(prev => prev.map(p => p.isCurrentUser ? {...p, isCameraOn: newCameraState} : p));
   };
-  
-  const handleEndCall = async () => {
-    if (!classInfo || !currentUser) return;
-    if (currentUser.id === classInfo.creator_id) {
-        await supabase.from('classes').update({ is_video_call_active: false }).eq('id', classInfo.id);
-    }
-    router.push(`/class/${classInfo.id}`);
-  };
-
-  const host = participants.find(p => p.isCurrentUser);
-  const otherMembers = participants.filter(p => !p.isCurrentUser);
   
   if (loading) {
       return (
@@ -295,9 +306,8 @@ export default function ClassVideoCallPage({ params: paramsPromise }: { params: 
 
         <main className="flex-1 overflow-y-auto p-2">
            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
-                {host && hasCameraPermission !== false && <ParticipantVideo participant={{...host, isMuted, isCameraOn, stream: streamRef.current || undefined }} />}
-                {otherMembers.map((member) => (
-                    <ParticipantVideo key={member.id} participant={member} />
+                {participants.map((participant) => (
+                    <ParticipantVideo key={participant.id} participant={participant} />
                 ))}
            </div>
            {hasCameraPermission === false && (
