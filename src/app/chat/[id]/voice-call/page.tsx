@@ -119,6 +119,7 @@ export default function VoiceCallPage({ params: paramsPromise }: { params: Promi
 
   useEffect(() => {
     let callSubscription: any = null;
+    let isMounted = true;
 
     const init = async () => {
         const { data: { user } } = await supabase.auth.getUser();
@@ -126,6 +127,7 @@ export default function VoiceCallPage({ params: paramsPromise }: { params: Promi
             router.push('/signup');
             return;
         }
+        if(!isMounted) return;
         setCurrentUser(user);
 
         const { data: otherUserData, error: userError } = await supabase.from('profiles').select('*').eq('id', params.id).single();
@@ -134,6 +136,7 @@ export default function VoiceCallPage({ params: paramsPromise }: { params: Promi
             router.push('/chat');
             return;
         }
+        if(!isMounted) return;
         setOtherUser(otherUserData);
 
         const { data: callData, error: callError } = await supabase.from('video_calls').select('*').or(`and(caller_id.eq.${user.id},callee_id.eq.${params.id}),and(caller_id.eq.${params.id},callee_id.eq.${user.id})`).in('status', ['requesting', 'accepted']).order('created_at', {ascending: false}).limit(1).single();
@@ -144,6 +147,7 @@ export default function VoiceCallPage({ params: paramsPromise }: { params: Promi
             return;
         }
         
+        if(!isMounted) return;
         const currentCallId = callData.id;
         setCallId(currentCallId);
         const isInitiator = callData.caller_id === user.id;
@@ -157,15 +161,14 @@ export default function VoiceCallPage({ params: paramsPromise }: { params: Promi
                 table: 'video_calls',
                 filter: `id=eq.${currentCallId}`
             }, (payload) => {
+                 if (!isMounted) return;
                 const { signal_data, status } = payload.new;
                 
                 if (peerRef.current && !peerRef.current.destroyed && signal_data) {
                     try {
                         const parsedSignal = JSON.parse(signal_data);
-                         if (parsedSignal.type === 'offer' && !isInitiator && !peerRef.current.destroyed) {
-                           peerRef.current.signal(parsedSignal);
-                        } else if (parsedSignal.type === 'answer' && isInitiator && !peerRef.current.destroyed) {
-                           peerRef.current.signal(parsedSignal);
+                         if ((parsedSignal.type === 'offer' && !isInitiator) || (parsedSignal.type === 'answer' && isInitiator)) {
+                           if (!peerRef.current.destroyed) peerRef.current.signal(parsedSignal);
                         }
                     } catch (e) {
                         console.error("Error parsing or using signal data:", e);
@@ -179,19 +182,20 @@ export default function VoiceCallPage({ params: paramsPromise }: { params: Promi
     init();
     
     return () => {
-      if (callSubscription) {
-        supabase.removeChannel(callSubscription);
-      }
-      if (peerRef.current) {
-          peerRef.current.destroy();
-          peerRef.current = null;
-      }
-      if (streamRef.current) {
-          streamRef.current.getTracks().forEach(track => track.stop());
-          streamRef.current = null;
-      }
+        isMounted = false;
+        if (callSubscription) {
+          supabase.removeChannel(callSubscription);
+        }
+        if (peerRef.current) {
+            peerRef.current.destroy();
+            peerRef.current = null;
+        }
+        if (streamRef.current) {
+            streamRef.current.getTracks().forEach(track => track.stop());
+            streamRef.current = null;
+        }
     };
-  }, [params.id, router, supabase, startStream, handleEndCall]);
+  }, [params.id]);
 
 
   const handleFlipCamera = () => {
@@ -202,8 +206,7 @@ export default function VoiceCallPage({ params: paramsPromise }: { params: Promi
     if (streamRef.current && callId) {
         startStream(peerRef.current?.initiator || false, callId);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [facingMode]);
+  }, [facingMode, startStream, callId]);
 
   const handleToggleMute = () => {
     const newMutedState = !isMuted;
@@ -237,9 +240,7 @@ export default function VoiceCallPage({ params: paramsPromise }: { params: Promi
         {!remoteStream && (
             <div className="absolute inset-0 flex items-center justify-center -z-10">
               <div className="flex flex-col items-center text-center">
-                <Avatar className="h-32 w-32 border-4 border-white/50">
-                  <AvatarImage src={otherUser.avatar_url} alt={otherUser.username} />
-                  <AvatarFallback>{otherUser.username.charAt(0)}</AvatarFallback>
+                <Avatar className="h-32 w-32 border-4 border-white/50" profile={otherUser}>
                 </Avatar>
                 <p className="mt-4 text-xl font-bold">{otherUser.full_name}</p>
                 <p className="text-sm text-muted-foreground flex items-center gap-2 mt-2">
@@ -284,3 +285,5 @@ export default function VoiceCallPage({ params: paramsPromise }: { params: Promi
     </div>
   );
 }
+
+    

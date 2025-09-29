@@ -83,7 +83,10 @@ export default function ClassPage() {
     const channel = supabase.channel('class-changes')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'class_members' }, (payload) => {
         // Re-fetch classes when membership changes
-        console.log('Class membership changed, refetching...');
+        fetchUserAndClasses();
+      })
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'classes' }, (payload) => {
+        // Re-fetch classes when class info (like avatar) changes
         fetchUserAndClasses();
       })
       .subscribe();
@@ -117,8 +120,8 @@ export default function ClassPage() {
                     <Link href={`/class/${cls.id}`} key={cls.id}>
                         <div className="p-4 flex items-center gap-4 hover:bg-muted/50 cursor-pointer">
                             <Avatar className="h-14 w-14 rounded-md">
-                                <AvatarImage src={cls.avatar_url} />
-                                <AvatarFallback>
+                                <AvatarImage src={cls.avatar_url ?? undefined} />
+                                <AvatarFallback className="rounded-md">
                                     <GraduationCap/>
                                 </AvatarFallback>
                             </Avatar>
@@ -147,3 +150,5 @@ export default function ClassPage() {
     </>
   );
 }
+
+    

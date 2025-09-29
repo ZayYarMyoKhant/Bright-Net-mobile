@@ -39,10 +39,7 @@ const ParticipantVideo = ({ participant, isMainView }: { participant: Participan
                 <video ref={videoRef} className={cn("w-full h-full object-cover")} autoPlay muted={participant.isCurrentUser} playsInline />
             ) : (
                  <div className="absolute inset-0 flex flex-col items-center justify-center gap-1 text-muted-foreground bg-gray-800">
-                     <Avatar className={cn(isMainView ? "h-24 w-24" : "h-12 w-12")}>
-                        <AvatarImage src={participant.avatar_url} alt={participant.username} className="object-cover" />
-                        <AvatarFallback className="bg-gray-700">{participant.username.charAt(0)}</AvatarFallback>
-                    </Avatar>
+                     <Avatar className={cn(isMainView ? "h-24 w-24" : "h-12 w-12")} profile={participant} />
                     <p className={cn("text-sm font-semibold mt-2", isMainView ? "text-base" : "text-xs")}>{participant.isCurrentUser ? "You" : participant.full_name}</p>
                     {!participant.stream && <div className="flex items-center gap-1 text-xs"><Loader2 className="h-4 w-4 animate-spin" /> Connecting...</div>}
                     {!participant.isCameraOn && participant.stream && <div className="flex items-center gap-1 text-xs"><VideoOff className="h-4 w-4" /> Camera Off</div>}
@@ -152,6 +149,7 @@ export default function ClassVideoCallPage({ params: paramsPromise }: { params: 
             router.push('/signup');
             return;
         }
+        if (!isMounted) return;
         setCurrentUser(user);
 
         const { data: classData, error: classError } = await supabase.from('classes').select('id, name, creator_id').eq('id', params.id).single();
@@ -160,6 +158,7 @@ export default function ClassVideoCallPage({ params: paramsPromise }: { params: 
             router.push('/class');
             return;
         }
+        if (!isMounted) return;
         setClassInfo(classData);
 
         const localStream = await startStream();
@@ -169,7 +168,7 @@ export default function ClassVideoCallPage({ params: paramsPromise }: { params: 
         }
 
         const {data: myProfile} = await supabase.from('profiles').select('*').eq('id', user.id).single();
-        if (!myProfile) {
+        if (!myProfile || !isMounted) {
             setLoading(false);
             return;
         }
@@ -200,6 +199,7 @@ export default function ClassVideoCallPage({ params: paramsPromise }: { params: 
                     });
                     
                     peer.on('stream', remoteStream => {
+                        if (!isMounted) return;
                         setParticipants(prev => prev.map(p => p.id === otherUser.id ? {...p, stream: remoteStream} : p));
                     });
                     
@@ -240,6 +240,7 @@ export default function ClassVideoCallPage({ params: paramsPromise }: { params: 
                  });
 
                  peer.on('stream', remoteStream => {
+                     if(!isMounted) return;
                      setParticipants(prev => prev.map(p => p.id === fromUser.id ? {...p, stream: remoteStream} : p));
                  });
 
@@ -272,7 +273,7 @@ export default function ClassVideoCallPage({ params: paramsPromise }: { params: 
 
   useEffect(() => {
     startStream();
-  }, [facingMode]);
+  }, [facingMode, startStream]);
 
 
   const handleToggleMute = () => {
@@ -371,3 +372,5 @@ export default function ClassVideoCallPage({ params: paramsPromise }: { params: 
       </div>
     );
 }
+
+    

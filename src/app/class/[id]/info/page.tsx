@@ -4,7 +4,7 @@
 import { use, Suspense, useEffect, useState, useCallback } from "react";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, User, Users, Crown, Loader2, ImageOff } from "lucide-react";
+import { ArrowLeft, User, Users, Crown, Loader2, ImageOff, GraduationCap } from "lucide-react";
 import { useRouter } from "next/navigation";
 import {
   Avatar,
@@ -80,7 +80,7 @@ function ClassInfoContent({ params }: { params: { id: string } }) {
                     <Avatar className="h-24 w-24 border-2 border-primary rounded-md">
                         <AvatarImage src={classDetails.avatar_url ?? undefined} alt={classDetails.name} />
                         <AvatarFallback className="rounded-md">
-                            <ImageOff />
+                            <GraduationCap className="h-10 w-10" />
                         </AvatarFallback>
                     </Avatar>
                     <div>
@@ -123,3 +123,5 @@ export default function ClassInfoPage({ params: paramsPromise }: { params: Promi
     </Suspense>
   );
 }
+
+    
