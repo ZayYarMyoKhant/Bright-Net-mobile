@@ -83,14 +83,14 @@ export default function VoiceCallPage({ params: paramsPromise }: { params: Promi
       peerRef.current = peer;
   }, [currentUser, supabase, handleEndCall, toast]);
   
-  const startStream = useCallback(async (isInitiator: boolean, currentCallId: string) => {
+  const startStream = useCallback(async (isInitiator: boolean, currentCallId: string, currentFacingMode: 'user' | 'environment') => {
     try {
       if (streamRef.current) {
         streamRef.current.getTracks().forEach(track => track.stop());
       }
 
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode },
+        video: { facingMode: currentFacingMode },
         audio: true
       });
       streamRef.current = stream;
@@ -103,7 +103,15 @@ export default function VoiceCallPage({ params: paramsPromise }: { params: Promi
       stream.getAudioTracks().forEach(track => track.enabled = !isMuted);
       stream.getVideoTracks().forEach(track => track.enabled = isCameraOn);
       
-      setupPeer(stream, isInitiator, currentCallId);
+      if (peerRef.current) {
+         const oldVideoTrack = peerRef.current.streams[0]?.getVideoTracks()[0];
+         const newVideoTrack = stream.getVideoTracks()[0];
+         if(oldVideoTrack && newVideoTrack) {
+            peerRef.current.replaceTrack(oldVideoTrack, newVideoTrack, peerRef.current.streams[0]);
+         }
+      } else {
+        setupPeer(stream, isInitiator, currentCallId);
+      }
 
     } catch (error) {
       console.error('Error accessing camera/mic:', error);
@@ -114,7 +122,7 @@ export default function VoiceCallPage({ params: paramsPromise }: { params: Promi
         description: 'Please enable camera and microphone permissions in your browser settings.',
       });
     }
-  }, [facingMode, isMuted, isCameraOn, setupPeer, toast]);
+  }, [isMuted, isCameraOn, setupPeer, toast]);
 
 
   useEffect(() => {
@@ -152,7 +160,7 @@ export default function VoiceCallPage({ params: paramsPromise }: { params: Promi
         setCallId(currentCallId);
         const isInitiator = callData.caller_id === user.id;
 
-        await startStream(isInitiator, currentCallId);
+        await startStream(isInitiator, currentCallId, facingMode);
 
         callSubscription = supabase.channel(`webrtc-signaling-${currentCallId}`)
             .on('postgres_changes', {
@@ -167,9 +175,12 @@ export default function VoiceCallPage({ params: paramsPromise }: { params: Promi
                 if (peerRef.current && !peerRef.current.destroyed && signal_data) {
                     try {
                         const parsedSignal = JSON.parse(signal_data);
-                         if ((parsedSignal.type === 'offer' && !isInitiator) || (parsedSignal.type === 'answer' && isInitiator)) {
-                           if (!peerRef.current.destroyed) peerRef.current.signal(parsedSignal);
-                        }
+                         // Prevent initiator from processing their own offer signal
+                         if (isInitiator && parsedSignal.type === 'offer') return;
+                         // Prevent callee from processing their own answer signal
+                         if (!isInitiator && parsedSignal.type === 'answer') return;
+
+                         if (!peerRef.current.destroyed) peerRef.current.signal(parsedSignal);
                     } catch (e) {
                         console.error("Error parsing or using signal data:", e);
                     }
@@ -186,27 +197,20 @@ export default function VoiceCallPage({ params: paramsPromise }: { params: Promi
         if (callSubscription) {
           supabase.removeChannel(callSubscription);
         }
-        if (peerRef.current) {
-            peerRef.current.destroy();
-            peerRef.current = null;
-        }
-        if (streamRef.current) {
-            streamRef.current.getTracks().forEach(track => track.stop());
-            streamRef.current = null;
-        }
+        // Cleanup happens in handleEndCall
+        handleEndCall();
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params.id]);
 
 
   const handleFlipCamera = () => {
-    setFacingMode(prev => prev === 'user' ? 'environment' : 'user');
-  };
-
-  useEffect(() => {
-    if (streamRef.current && callId) {
-        startStream(peerRef.current?.initiator || false, callId);
+    const newFacingMode = facingMode === 'user' ? 'environment' : 'user';
+    setFacingMode(newFacingMode);
+    if(callId) {
+       startStream(peerRef.current?.initiator || false, callId, newFacingMode);
     }
-  }, [facingMode, startStream, callId]);
+  };
 
   const handleToggleMute = () => {
     const newMutedState = !isMuted;
@@ -285,5 +289,3 @@ export default function VoiceCallPage({ params: paramsPromise }: { params: Promi
     </div>
   );
 }
-
-    

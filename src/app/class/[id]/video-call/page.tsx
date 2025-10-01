@@ -99,14 +99,14 @@ export default function ClassVideoCallPage({ params: paramsPromise }: { params: 
   }, [classInfo, currentUser, params.id, router, supabase]);
   
 
-  const startStream = useCallback(async () => {
+  const startStream = useCallback(async (currentFacingMode: 'user' | 'environment') => {
     try {
       if (streamRef.current) {
         streamRef.current.getTracks().forEach(track => track.stop());
       }
       
       const newStream = await navigator.mediaDevices.getUserMedia({ 
-        video: { facingMode: facingMode },
+        video: { facingMode: currentFacingMode },
         audio: true
       });
 
@@ -128,6 +128,8 @@ export default function ClassVideoCallPage({ params: paramsPromise }: { params: 
             const oldVideoTrack = peer.streams[0].getVideoTracks()[0];
             const newVideoTrack = newStream.getVideoTracks()[0];
             if (oldVideoTrack && newVideoTrack) peer.replaceTrack(oldVideoTrack, newVideoTrack, peer.streams[0]);
+        } else {
+             peer.addStream(newStream);
         }
       });
 
@@ -138,7 +140,7 @@ export default function ClassVideoCallPage({ params: paramsPromise }: { params: 
       toast({ variant: 'destructive', title: 'Hardware Access Denied', description: 'Please enable camera and microphone permissions.' });
       return null;
     }
-  }, [facingMode, isMuted, isCameraOn, toast]);
+  }, [isMuted, isCameraOn, toast]);
 
   useEffect(() => {
     let isMounted = true;
@@ -161,7 +163,7 @@ export default function ClassVideoCallPage({ params: paramsPromise }: { params: 
         if (!isMounted) return;
         setClassInfo(classData);
 
-        const localStream = await startStream();
+        const localStream = await startStream(facingMode);
         if (!localStream) {
             setLoading(false);
             return;
@@ -268,12 +270,8 @@ export default function ClassVideoCallPage({ params: paramsPromise }: { params: 
         isMounted = false;
         handleEndCall();
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params.id]);
-
-
-  useEffect(() => {
-    startStream();
-  }, [facingMode, startStream]);
 
 
   const handleToggleMute = () => {
@@ -294,6 +292,12 @@ export default function ClassVideoCallPage({ params: paramsPromise }: { params: 
      setParticipants(prev => prev.map(p => p.isCurrentUser ? {...p, isCameraOn: newCameraState} : p));
   };
   
+   const handleFlipCamera = () => {
+    const newFacingMode = facingMode === 'user' ? 'environment' : 'user';
+    setFacingMode(newFacingMode);
+    startStream(newFacingMode);
+  };
+
   if (loading) {
       return (
           <div className="flex h-dvh w-full items-center justify-center bg-gray-900">
@@ -361,7 +365,7 @@ export default function ClassVideoCallPage({ params: paramsPromise }: { params: 
                 <Button variant="outline" size="icon" className="h-14 w-14 rounded-full bg-white/20 hover:bg-white/30 border-0" onClick={handleToggleCamera}>
                     {isCameraOn ? <Video className="h-7 w-7" /> : <VideoOff className="h-7 w-7" />}
                 </Button>
-                <Button variant="outline" size="icon" className="h-14 w-14 rounded-full bg-white/20 hover:bg-white/30 border-0" onClick={() => setFacingMode(p => p === 'user' ? 'environment' : 'user')}>
+                <Button variant="outline" size="icon" className="h-14 w-14 rounded-full bg-white/20 hover:bg-white/30 border-0" onClick={handleFlipCamera}>
                   <RefreshCw className="h-7 w-7" />
                 </Button>
                  <Button variant="destructive" size="icon" className="h-14 w-14 rounded-full" onClick={handleEndCall}>
@@ -372,5 +376,3 @@ export default function ClassVideoCallPage({ params: paramsPromise }: { params: 
       </div>
     );
 }
-
-    

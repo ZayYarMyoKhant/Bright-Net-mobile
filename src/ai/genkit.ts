@@ -1,6 +1,6 @@
 import {genkit} from 'genkit';
-import {googleAI} from '@genkit-ai/googleai';
+import {mistral} from '@genkit-ai/mistral';
 
 export const ai = genkit({
-  plugins: [googleAI()],
+  plugins: [mistral({apiKey: process.env.MISTRAL_API_KEY})],
 });

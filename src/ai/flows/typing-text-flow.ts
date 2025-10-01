@@ -26,7 +26,7 @@ const typingTextFlow = ai.defineFlow(
   async () => {
     
     const llmResponse = await ai.generate({
-      model: 'gemini-1.0-pro',
+      model: 'mistral-7b-instruct',
       prompt: `Generate a single, interesting, and easy-to-type paragraph of about 40 to 50 words. The paragraph should be suitable for a typing speed test. Do not include any introductory phrases, just the paragraph itself.`,
     });
 
