@@ -9,7 +9,6 @@ import { useRouter } from "next/navigation";
 import {
   Avatar,
   AvatarFallback,
-  AvatarImage,
 } from "@/components/ui/avatar";
 import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -77,8 +76,7 @@ function ClassInfoContent({ params }: { params: { id: string } }) {
             </header>
             <main className="flex-1 overflow-y-auto p-4 space-y-6">
                  <div className="flex flex-col items-center gap-4 text-center">
-                    <Avatar className="h-24 w-24 border-2 border-primary rounded-md">
-                        <AvatarImage src={classDetails.avatar_url ?? undefined} alt={classDetails.name} />
+                    <Avatar className="h-24 w-24 border-2 border-primary rounded-md" src={classDetails.avatar_url} alt={classDetails.name}>
                         <AvatarFallback className="rounded-md">
                             <GraduationCap className="h-10 w-10" />
                         </AvatarFallback>
@@ -123,5 +121,3 @@ export default function ClassInfoPage({ params: paramsPromise }: { params: Promi
     </Suspense>
   );
 }
-
-    

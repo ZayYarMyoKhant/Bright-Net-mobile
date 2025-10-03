@@ -4,7 +4,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { BottomNav } from "@/components/bottom-nav";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { GraduationCap, Loader2 } from "lucide-react";
 import Link from "next/link";
@@ -18,7 +18,7 @@ type Class = {
   id: string;
   name: string;
   creator_id: string;
-  avatar_url: string;
+  avatar_url: string | null;
 };
 
 export default function ClassPage() {
@@ -119,8 +119,7 @@ export default function ClassPage() {
                 {classes.map((cls) => (
                     <Link href={`/class/${cls.id}`} key={cls.id}>
                         <div className="p-4 flex items-center gap-4 hover:bg-muted/50 cursor-pointer">
-                            <Avatar className="h-14 w-14 rounded-md">
-                                <AvatarImage src={cls.avatar_url ?? undefined} />
+                            <Avatar className="h-14 w-14 rounded-md" src={cls.avatar_url} alt={cls.name}>
                                 <AvatarFallback className="rounded-md">
                                     <GraduationCap/>
                                 </AvatarFallback>
@@ -150,5 +149,3 @@ export default function ClassPage() {
     </>
   );
 }
-
-    

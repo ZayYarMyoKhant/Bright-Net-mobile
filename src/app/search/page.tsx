@@ -23,7 +23,7 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { createClient } from "@/lib/supabase/client";
 import { User } from "@supabase/supabase-js";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Post, Profile } from "@/lib/data";
 import { PostFeed } from "@/components/post-feed";
 import { VideoFeed } from "@/components/video-feed";
@@ -143,9 +143,7 @@ function UserResults() {
         {users.map((user) => (
             <div key={user.id} className="p-4 flex items-center gap-4">
                 <Link href={`/profile/${user.id}`}>
-                    <Avatar className="h-12 w-12">
-                        <AvatarImage src={user.avatar_url} />
-                        <AvatarFallback>{user.username.charAt(0).toUpperCase()}</AvatarFallback>
+                    <Avatar className="h-12 w-12" profile={user}>
                     </Avatar>
                 </Link>
                 <div className="flex-1">
@@ -245,8 +243,7 @@ function ClassResults() {
             {classes.map(cls => (
                 <div key={cls.id} className="p-4 flex items-center gap-4">
                     <Link href={`/class/${cls.id}`} className="flex-1 flex items-center gap-4">
-                        <Avatar className="h-14 w-14 rounded-md">
-                            <AvatarImage src={cls.avatar_url ?? undefined} />
+                        <Avatar className="h-14 w-14 rounded-md" src={cls.avatar_url} alt={cls.name}>
                             <AvatarFallback><GraduationCap /></AvatarFallback>
                         </Avatar>
                         <div className="flex-1">

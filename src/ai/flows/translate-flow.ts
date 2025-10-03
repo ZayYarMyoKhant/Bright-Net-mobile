@@ -35,7 +35,7 @@ const translateTextFlow = ai.defineFlow(
   async ({ text, sourceLang, targetLang }) => {
     
     const llmResponse = await ai.generate({
-      model: 'mistral-7b-instruct',
+      model: 'gemini-1.5-flash',
       prompt: `Translate the following text from ${sourceLang} to ${targetLang}. Provide only the translated text, with no extra explanation or introductory phrases.\n\nText to translate: "${text}"`,
     });
 

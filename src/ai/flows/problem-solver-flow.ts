@@ -2,7 +2,7 @@
 'use server';
 
 /**
- * @fileOverview A Genkit flow for solving user-described problems.
+ * @fileOverview A Genkit flow for solving user-described problems using a Google AI model.
  *
  * - solveProblem - A function that takes a problem description and returns a step-by-step solution.
  * - ProblemInput - The input type for the solveProblem function.
@@ -31,13 +31,13 @@ const problemSolverFlow = ai.defineFlow(
   async (problem) => {
     
     const llmResponse = await ai.generate({
-      model: 'mistral-7b-instruct',
-      prompt: `You are a friendly and helpful chatbot. A user is asking for help with a problem. 
-First, detect the language of the user's problem. Then, respond in that SAME language.
-Your goal is to provide a simple, conversational, and easy-to-understand solution. Avoid overly technical jargon or long-winded explanations. 
-Keep your answers concise and straight to the point, as if you were explaining it to a friend.
+      model: 'gemini-1.5-flash',
+      prompt: `You are a friendly and helpful chatbot acting as an expert problem solver. A user is asking for help.
+Your goal is to provide a simple, conversational, and easy-to-understand solution, like ChatGPT. 
+First, detect the user's language and respond in that same language.
+Avoid overly technical jargon. Keep your answers concise, straight to the point, and formatted clearly with steps or bullet points if applicable.
 
-Problem: "${problem}"`,
+Here is the user's problem: "${problem}"`,
     });
 
     return llmResponse.text;

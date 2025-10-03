@@ -9,6 +9,8 @@ import type { Profile } from "@/lib/data";
 
 interface AvatarProps extends React.ComponentPropsWithoutRef<typeof AvatarPrimitive.Root> {
     profile?: Partial<Profile>;
+    src?: string | null;
+    alt?: string;
 }
 
 const AvatarFrame = ({ isStreak10 }: { isStreak10?: boolean }) => {
@@ -33,9 +35,11 @@ const AvatarFrame = ({ isStreak10 }: { isStreak10?: boolean }) => {
 const Avatar = React.forwardRef<
   React.ElementRef<typeof AvatarPrimitive.Root>,
   AvatarProps
->(({ className, profile, ...props }, ref) => {
+>(({ className, profile, src, alt, ...props }, ref) => {
     
     const showFrame = profile?.win_streak_3 || profile?.win_streak_10;
+    const imageUrl = src ?? profile?.avatar_url;
+    const username = profile?.username;
         
     return (
       <div className={cn("relative h-10 w-10 shrink-0", className)}>
@@ -46,9 +50,9 @@ const Avatar = React.forwardRef<
             )}
             {...props}
           >
-            <AvatarImage src={profile?.avatar_url ?? undefined} alt={profile?.username} className="aspect-square h-full w-full object-cover"/>
+            <AvatarImage src={imageUrl ?? undefined} alt={alt ?? username} className="aspect-square h-full w-full object-cover"/>
             <AvatarFallback className="flex h-full w-full items-center justify-center rounded-md bg-muted">
-                {profile?.username ? profile.username.charAt(0).toUpperCase() : '?'}
+                {username ? username.charAt(0).toUpperCase() : '?'}
             </AvatarFallback>
           </AvatarPrimitive.Root>
           
