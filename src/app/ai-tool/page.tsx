@@ -1,74 +1,157 @@
 
 "use client";
 
-import { BottomNav } from "@/components/bottom-nav";
-import { Card, CardContent } from "@/components/ui/card";
-import { BrainCircuit, Languages, Swords, Keyboard } from "lucide-react";
+import { useState, useRef, useEffect, useCallback } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Languages, Swords, Send, User, Loader2, BrainCircuit, Mic, Image as ImageIcon, Sparkles, AlignLeft, CircleDashed } from "lucide-react";
 import Link from "next/link";
+import { Card, CardContent } from "@/components/ui/card";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { useToast } from "@/hooks/use-toast";
+import { brightNetBot } from "@/ai/flows/bright-net-bot-flow";
 import { AdBanner } from "@/components/ad-banner";
 
+type Message = {
+    role: 'user' | 'assistant';
+    content: string;
+}
 
 export default function AiToolPage() {
-
-    const tools = [
+    const [messages, setMessages] = useState<Message[]>([
         {
-            title: "AI Problem Solver",
-            href: "/ai-tool/problem-solver",
-            icon: <BrainCircuit className="h-10 w-10 text-primary" />,
-            bgColor: "bg-blue-100/20",
-            description: "Get step-by-step solutions"
-        },
-        {
-            title: "AI Translator",
-            href: "/ai-tool/translator",
-            icon: <Languages className="h-10 w-10 text-green-500" />,
-            bgColor: "bg-green-100/20",
-            description: "Translate text accurately"
-        },
-        {
-            title: "Typing Battle",
-            href: "/ai-tool/typing-battle",
-            icon: (
-                <div className="flex items-center gap-2">
-                    <Swords className="h-10 w-10 text-red-500" />
-                    <Keyboard className="h-10 w-10 text-gray-400" />
-                </div>
-            ),
-            bgColor: "bg-red-100/20",
-            description: "Test your typing speed against AI",
-            fullWidth: true
+            role: 'assistant',
+            content: "What can I help with?"
         }
-    ]
+    ]);
+    const [input, setInput] = useState("");
+    const [isLoading, setIsLoading] = useState(false);
+    const { toast } = useToast();
+    const scrollAreaRef = useRef<HTMLDivElement>(null);
+
+    const handleSendMessage = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!input.trim() || isLoading) return;
+
+        const newMessages: Message[] = [...messages, { role: 'user', content: input }];
+        setMessages(newMessages);
+        const currentInput = input;
+        setInput("");
+        setIsLoading(true);
+
+        try {
+            const result = await brightNetBot(currentInput);
+            setMessages(prev => [...prev, { role: 'assistant', content: result }]);
+        } catch (error) {
+            console.error("AI chat failed:", error);
+            const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
+            toast({ variant: "destructive", title: "An Error Occurred", description: errorMessage });
+             setMessages(prev => [...prev, { role: 'assistant', content: "Sorry, I ran into an issue. Please try again." }]);
+        } finally {
+            setIsLoading(false);
+        }
+    }
+
+    useEffect(() => {
+        if (scrollAreaRef.current) {
+            scrollAreaRef.current.scrollTo({
+                top: scrollAreaRef.current.scrollHeight,
+                behavior: 'smooth'
+            });
+        }
+    }, [messages]);
 
     return (
-        <>
-            <div className="flex h-full flex-col bg-background text-foreground pb-16">
-                <header className="flex h-16 flex-shrink-0 items-center justify-center border-b px-4 text-center">
-                    <h1 className="text-xl font-bold">Welcome to <span className="text-primary">Bright-Net AI</span></h1>
-                </header>
+        <div className="flex h-dvh flex-col bg-background text-foreground">
+            <header className="flex h-16 flex-shrink-0 items-center justify-between border-b px-4">
+                <Link href="/ai-tool/translator" legacyBehavior>
+                    <Button variant="ghost" size="icon">
+                        <AlignLeft className="h-6 w-6" />
+                    </Button>
+                </Link>
+                <div className="flex flex-col items-center">
+                    <h1 className="text-lg font-bold">Bright-Net AI</h1>
+                    <Button variant="link" className="h-auto p-0 text-xs text-primary">
+                        <Sparkles className="mr-1 h-3 w-3" />
+                        Get Plus
+                    </Button>
+                </div>
+                <Link href="/ai-tool/typing-battle" legacyBehavior>
+                    <Button variant="ghost" size="icon">
+                        <CircleDashed className="h-6 w-6" />
+                    </Button>
+                </Link>
+            </header>
 
-                <main className="flex-1 overflow-y-auto p-4">
-                    <div className="grid grid-cols-2 gap-4">
-                        {tools.map(tool => (
-                            <Link href={tool.href} key={tool.title} className={tool.fullWidth ? 'col-span-2' : ''}>
-                                 <Card className={`w-full cursor-pointer hover:bg-muted/50 h-full flex flex-col ${tool.bgColor}`}>
-                                     <CardContent className="p-6 flex-1 flex flex-col items-center justify-center text-center gap-4">
-                                        {tool.icon}
-                                        <div className="mt-2">
-                                            <h2 className="font-semibold text-lg">{tool.title}</h2>
-                                            <p className="text-sm text-muted-foreground">{tool.description}</p>
-                                        </div>
-                                    </CardContent>
-                                </Card>
-                            </Link>
-                        ))}
-                    </div>
-                     <div className="mt-4">
+            <ScrollArea className="flex-1" ref={scrollAreaRef}>
+                <main className="p-4 flex flex-col gap-4">
+                    <div className="pt-4">
                         <AdBanner />
                     </div>
+                    {messages.map((msg, index) => (
+                        msg.role === 'assistant' ? (
+                             <Card key={index} className="bg-transparent border-0 shadow-none">
+                                <CardContent className="p-0">
+                                    <div className="flex items-start gap-3">
+                                        <Avatar className="h-8 w-8 border-2 border-primary">
+                                            <AvatarFallback>
+                                                <BrainCircuit className="h-4 w-4" />
+                                            </AvatarFallback>
+                                        </Avatar>
+                                        <div className="bg-muted rounded-lg p-3">
+                                            <p className="font-semibold text-primary">Bright-Net AI</p>
+                                            <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+                                        </div>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        ) : (
+                             <div key={index} className="flex items-start gap-3 justify-end">
+                                <div className="bg-primary text-primary-foreground rounded-lg p-3 max-w-sm">
+                                    <p className="text-sm">{msg.content}</p>
+                                </div>
+                                <Avatar className="h-8 w-8">
+                                   <AvatarFallback>
+                                        <User className="h-4 w-4" />
+                                    </AvatarFallback>
+                                </Avatar>
+                            </div>
+                        )
+                    ))}
+                     {isLoading && (
+                        <div className="flex items-start gap-3">
+                             <Avatar className="h-8 w-8 border-2 border-primary">
+                                <AvatarFallback>
+                                    <BrainCircuit className="h-4 w-4" />
+                                </AvatarFallback>
+                            </Avatar>
+                            <div className="flex items-center gap-2 bg-muted rounded-lg p-3">
+                                <Loader2 className="h-5 w-5 text-primary animate-spin" />
+                                <p className="text-sm text-muted-foreground">AI is thinking...</p>
+                            </div>
+                        </div>
+                    )}
                 </main>
-            </div>
-            <BottomNav />
-        </>
+            </ScrollArea>
+
+             <footer className="flex-shrink-0 border-t p-2">
+                <form onSubmit={handleSendMessage} className="flex items-center gap-2 pt-1">
+                    <Button variant="ghost" size="icon">
+                        <ImageIcon className="h-5 w-5" />
+                    </Button>
+                    <Input 
+                        placeholder="Ask me anything..." 
+                        className="flex-1 rounded-full bg-muted focus-visible:ring-1 focus-visible:ring-primary"
+                        value={input}
+                        onChange={(e) => setInput(e.target.value)}
+                        disabled={isLoading}
+                    />
+                    <Button variant="ghost" size="icon">
+                        <Mic className="h-5 w-5" />
+                    </Button>
+                </form>
+            </footer>
+        </div>
     );
 }
