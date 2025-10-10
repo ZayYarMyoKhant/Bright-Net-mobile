@@ -552,17 +552,21 @@ export default function IndividualClassPage({ params: paramsPromise }: { params:
     const handleVideoCallClick = async () => {
         if (!classInfo) return;
         if (isCreator) {
+            // As creator, start the call
              const { error } = await supabase.from('classes')
                 .update({ is_video_call_active: true })
                 .eq('id', classInfo.id);
+
             if (error) {
                 toast({ variant: 'destructive', title: 'Could not start call' });
             } else {
                  router.push(`/class/${classInfo.id}/video-call`);
             }
         } else {
-            // Join call
-            router.push(`/class/${classInfo.id}/video-call`);
+            // As member, join the call if active
+            if (classInfo.is_video_call_active) {
+                router.push(`/class/${classInfo.id}/video-call`);
+            }
         }
     };
 
@@ -581,7 +585,7 @@ export default function IndividualClassPage({ params: paramsPromise }: { params:
         </div>
         <div className="flex items-center gap-2">
             <Button variant="ghost" size="icon" onClick={handleVideoCallClick} disabled={!isCreator && !classInfo?.is_video_call_active}>
-              <Video className="h-5 w-5" />
+              <Video className={cn("h-5 w-5", classInfo?.is_video_call_active && "text-green-500 animate-pulse")} />
             </Button>
            <DropdownMenu>
             <DropdownMenuTrigger asChild>
