@@ -7,6 +7,7 @@ export type Profile = {
   bio?: string;
   win_streak_3?: boolean;
   win_streak_10?: boolean;
+  is_in_relationship?: boolean;
 };
 
 export type Comment = {
@@ -162,3 +163,29 @@ export const countries: Country[] = [
     { name: "Slovakia", code: "421", flag: "🇸🇰" },
     { name: "Norway", code: "47", flag: "🇳🇴" },
 ];
+
+export type Couple = {
+  id: string;
+  user1_id: string;
+  user2_id: string;
+  first_loving_day: string | null;
+  status: 'requesting' | 'accepted' | 'broken_up';
+  created_at: string;
+  updated_at: string;
+};
+
+export type XOState = ('X' | 'O' | null)[];
+
+export type XOGame = {
+  id: string;
+  player1_id: string;
+  player2_id: string;
+  player1_score: number;
+  player2_score: number;
+  current_turn: string; // user id
+  board_state: XOState;
+  winner: 'X' | 'O' | 'draw' | null;
+  status: 'requesting' | 'accepted' | 'declined' | 'in-progress' | 'completed' | 'cancelled';
+  updated_at: string;
+  match_winner_id: string | null;
+};

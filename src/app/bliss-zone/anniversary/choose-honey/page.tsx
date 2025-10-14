@@ -1,28 +1,26 @@
 
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, use } from "react";
 import { useRouter } from "next/navigation";
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { ArrowLeft, Loader2, Users, Swords } from "lucide-react";
+import { ArrowLeft, Loader2, Users, Heart } from "lucide-react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { User } from "@supabase/supabase-js";
-import { createTypingBattle } from "@/lib/database";
 
 type Profile = {
     id: string;
     username: string;
     avatar_url: string;
     full_name: string;
-    win_streak_3?: boolean;
-    win_streak_10?: boolean;
+    is_in_relationship: boolean;
 }
 
-export default function TypingBattleSetupPage() {
+export default function ChooseHoneyPage() {
     const [friends, setFriends] = useState<Profile[]>([]);
     const [currentUser, setCurrentUser] = useState<User | null>(null);
     const [loading, setLoading] = useState(true);
@@ -43,7 +41,7 @@ export default function TypingBattleSetupPage() {
             
             const { data: followingData, error: followingError } = await supabase
                 .from('followers')
-                .select('profiles!followers_user_id_fkey(*)')
+                .select('profiles!followers_user_id_fkey(id, username, avatar_url, full_name, is_in_relationship)')
                 .eq('follower_id', user.id);
 
             if (followingError) {
@@ -59,31 +57,38 @@ export default function TypingBattleSetupPage() {
         fetchUserAndFriends();
     }, [supabase, router, toast]);
 
-    const handleRequestBattle = async (opponentId: string) => {
+    const handleRequest = async (partnerId: string) => {
         if (!currentUser) return;
         setIsRequesting(true);
 
-        const result = await createTypingBattle(currentUser.id, opponentId);
+        const { data, error } = await supabase
+            .from('couples')
+            .insert({
+                user1_id: currentUser.id,
+                user2_id: partnerId,
+                status: 'requesting'
+            })
+            .select('id')
+            .single();
         
         setIsRequesting(false);
 
-        if (result.success && result.data) {
-            router.push(`/ai-tool/typing-battle/${result.data.id}/requesting`);
+        if (error) {
+             toast({ variant: 'destructive', title: 'Could not send request', description: error.message });
         } else {
-            console.error("Error creating battle:", result.error);
-            toast({ variant: 'destructive', title: 'Could not start battle', description: result.error });
+            router.push(`/bliss-zone/anniversary/requesting/${data.id}`);
         }
     };
 
     return (
         <div className="flex h-dvh flex-col bg-background text-foreground">
             <header className="flex h-16 flex-shrink-0 items-center border-b px-4 relative">
-                <Link href="/ai-tool" className="p-2 -ml-2 absolute left-4">
+                <Link href="/bliss-zone/anniversary" className="p-2 -ml-2 absolute left-4">
                     <ArrowLeft className="h-5 w-5" />
                 </Link>
                 <div className="flex items-center gap-3 mx-auto">
-                    <Swords className="h-6 w-6 text-primary" />
-                    <h1 className="text-xl font-bold">Choose your opponent</h1>
+                    <Heart className="h-6 w-6 text-pink-500" />
+                    <h1 className="text-xl font-bold">Choose your honey</h1>
                 </div>
             </header>
 
@@ -101,8 +106,11 @@ export default function TypingBattleSetupPage() {
                                     <p className="font-semibold">{friend.full_name}</p>
                                     <p className="text-sm text-muted-foreground">@{friend.username}</p>
                                 </div>
-                                <Button onClick={() => handleRequestBattle(friend.id)} disabled={isRequesting}>
-                                    {isRequesting ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Battle'}
+                                <Button 
+                                    onClick={() => handleRequest(friend.id)} 
+                                    disabled={isRequesting || friend.is_in_relationship}
+                                >
+                                    {isRequesting ? <Loader2 className="h-4 w-4 animate-spin" /> : friend.is_in_relationship ? 'Taken' : 'Invite'}
                                 </Button>
                             </div>
                         ))}
@@ -110,8 +118,8 @@ export default function TypingBattleSetupPage() {
                 ) : (
                     <div className="text-center p-10 text-muted-foreground flex flex-col items-center pt-20">
                         <Users className="h-12 w-12 mb-4" />
-                        <p className="font-bold">No friends to battle</p>
-                        <p className="text-sm mt-1">Follow some users to start a typing battle!</p>
+                        <p className="font-bold">No friends found</p>
+                        <p className="text-sm mt-1">Follow some people to find your honey!</p>
                     </div>
                 )}
             </ScrollArea>

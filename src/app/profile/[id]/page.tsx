@@ -2,7 +2,7 @@
 "use client";
 
 import { use, useEffect, useState, useCallback } from "react";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Grid3x3, Clapperboard, ArrowLeft, MessageCircle, CameraOff, Loader2, MoreVertical, Trash2, GraduationCap, Lock } from "lucide-react";
@@ -36,6 +36,7 @@ type ProfileData = Profile & {
   is_private: boolean;
   last_seen: string | null;
   show_active_status: boolean;
+  is_in_relationship: boolean;
 };
 
 type JoinedClass = {
@@ -118,6 +119,7 @@ export default function UserProfilePage({ params: paramsPromise }: { params: Pro
       is_private: profileData.is_private || false,
       last_seen: profileData.last_seen,
       show_active_status: profileData.show_active_status,
+      is_in_relationship: profileData.is_in_relationship,
     });
     
     setPosts(postsRes.data as Post[] || []);
@@ -322,12 +324,7 @@ export default function UserProfilePage({ params: paramsPromise }: { params: Pro
                             {createdClasses.map((cls) => (
                                 <Link href={`/class/${cls.id}`} key={cls.id}>
                                     <div className="p-4 flex items-center gap-4 hover:bg-muted/50 cursor-pointer">
-                                        <Avatar className="h-14 w-14 rounded-md">
-                                            <AvatarImage src={cls.avatar_url} />
-                                            <AvatarFallback>
-                                                <GraduationCap/>
-                                            </AvatarFallback>
-                                        </Avatar>
+                                        <Avatar className="h-14 w-14 rounded-md" src={cls.avatar_url} />
                                         <div className="flex-1">
                                             <p className="font-semibold text-primary">{cls.name}</p>
                                         </div>
