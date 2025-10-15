@@ -15,7 +15,8 @@ export default function BlissZonePage() {
             description: "Keep track of your special anniversary.",
             icon: <Heart className="h-8 w-8 text-red-500" />,
             href: "/bliss-zone/anniversary",
-            color: "border-red-500/20 bg-red-500/10"
+            color: "border-red-500/20 bg-red-500/10",
+            disabled: false,
         },
         {
             title: "Checker Game",

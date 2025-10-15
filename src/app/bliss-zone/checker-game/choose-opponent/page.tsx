@@ -11,6 +11,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { User } from "@supabase/supabase-js";
+import { CheckerBoardState } from "@/lib/data";
 
 type Profile = {
     id: string;
@@ -18,6 +19,27 @@ type Profile = {
     avatar_url: string;
     full_name: string;
 }
+
+const createInitialBoard = (): CheckerBoardState => {
+    const board: CheckerBoardState = Array(8).fill(null).map(() => Array(8).fill(null));
+
+    for (let i = 0; i < 3; i++) {
+        for (let j = 0; j < 8; j++) {
+            if ((i + j) % 2 === 1) {
+                board[i][j] = { player: 'black', isKing: false };
+            }
+        }
+    }
+
+    for (let i = 5; i < 8; i++) {
+        for (let j = 0; j < 8; j++) {
+            if ((i + j) % 2 === 1) {
+                board[i][j] = { player: 'red', isKing: false };
+            }
+        }
+    }
+    return board;
+};
 
 export default function CheckerChooseOpponentPage() {
     const [friends, setFriends] = useState<Profile[]>([]);
@@ -47,6 +69,7 @@ export default function CheckerChooseOpponentPage() {
                 console.error("Error fetching friends:", followingError);
                 toast({ variant: 'destructive', title: 'Error fetching friends' });
             } else if (followingData) {
+                // @ts-ignore
                 const friendProfiles = followingData.map((f: any) => f.profiles).filter(p => p && p.username);
                 setFriends(friendProfiles as Profile[]);
             }
@@ -60,30 +83,26 @@ export default function CheckerChooseOpponentPage() {
         if (!currentUser) return;
         setIsRequesting(opponentId);
 
-        // NOTE: This part needs to be implemented. 
-        // We will create a 'checker_games' table and a request flow similar to XO Game.
-        toast({ title: "Coming Soon!", description: "Checker game is under construction."});
-        console.log(`Requesting checker game with ${opponentId}`);
-        // Example of what it would look like:
-        /*
+        const initialBoard = createInitialBoard();
+
         const { data, error } = await supabase
             .from('checker_games')
             .insert({
                 player1_id: currentUser.id,
                 player2_id: opponentId,
                 status: 'requesting',
+                board_state: initialBoard,
+                current_turn: currentUser.id
             })
             .select('id')
             .single();
         
         if (error) {
             toast({ variant: 'destructive', title: 'Could not start game', description: error.message });
+             setIsRequesting(null);
         } else if (data) {
             router.push(`/bliss-zone/checker-game/requesting/${data.id}`);
         }
-        */
-        setIsRequesting(null);
-
     };
 
     return (

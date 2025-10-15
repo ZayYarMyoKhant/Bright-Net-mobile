@@ -24,7 +24,7 @@ export default function ChooseHoneyPage() {
     const [friends, setFriends] = useState<Profile[]>([]);
     const [currentUser, setCurrentUser] = useState<User | null>(null);
     const [loading, setLoading] = useState(true);
-    const [isRequesting, setIsRequesting] = useState(false);
+    const [isRequesting, setIsRequesting] = useState<string | null>(null);
     const supabase = createClient();
     const router = useRouter();
     const { toast } = useToast();
@@ -42,7 +42,7 @@ export default function ChooseHoneyPage() {
             // Fetch users that the current user is following
             const { data: followingData, error: followingError } = await supabase
                 .from('followers')
-                .select('profiles!followers_user_id_fkey(id, username, avatar_url, full_name, is_in_relationship)')
+                .select('profiles!followers_user_id_fkey(*, is_in_relationship)')
                 .eq('follower_id', user.id);
 
             if (followingError) {
@@ -61,7 +61,7 @@ export default function ChooseHoneyPage() {
 
     const handleRequest = async (partnerId: string) => {
         if (!currentUser) return;
-        setIsRequesting(true);
+        setIsRequesting(partnerId);
 
         const { data, error } = await supabase
             .from('couples')
@@ -73,7 +73,7 @@ export default function ChooseHoneyPage() {
             .select('id')
             .single();
         
-        setIsRequesting(false);
+        setIsRequesting(null);
 
         if (error) {
              toast({ variant: 'destructive', title: 'Could not send request', description: error.message });
@@ -110,9 +110,9 @@ export default function ChooseHoneyPage() {
                                 </div>
                                 <Button 
                                     onClick={() => handleRequest(friend.id)} 
-                                    disabled={isRequesting || friend.is_in_relationship}
+                                    disabled={!!isRequesting || friend.is_in_relationship}
                                 >
-                                    {isRequesting ? <Loader2 className="h-4 w-4 animate-spin" /> : friend.is_in_relationship ? 'Taken' : 'Invite'}
+                                    {isRequesting === friend.id ? <Loader2 className="h-4 w-4 animate-spin" /> : friend.is_in_relationship ? 'Taken' : 'Invite'}
                                 </Button>
                             </div>
                         ))}
