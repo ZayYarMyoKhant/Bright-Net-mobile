@@ -2,13 +2,12 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
-import { getTypingText } from "@/ai/flows/typing-text-flow";
 
 export async function createTypingBattle(player1Id: string, player2Id: string) {
     const supabase = createClient();
 
     try {
-        const text = await getTypingText();
+        const text = "This is a sample typing text for the battle.";
 
         const { data, error } = await supabase
             .from('typing_battles')
