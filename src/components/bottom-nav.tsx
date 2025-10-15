@@ -3,7 +3,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Search, PlusSquare, User, MessageCircle, Heart, Gamepad2 } from "lucide-react";
+import { Home, Search, PlusSquare, User, MessageCircle, Heart, GraduationCap } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTranslation } from "@/context/language-context";
 import { useEffect, useState } from "react";
@@ -23,7 +23,7 @@ export function BottomNav() {
       const { data, error } = await supabase.rpc('get_user_conversations');
       
       if (!error && data) {
-          const totalUnread = data.reduce((acc, convo) => acc + convo.unread_count, 0);
+          const totalUnread = data.reduce((acc: number, convo: any) => acc + convo.unread_count, 0);
           setHasUnread(totalUnread > 0);
       }
     };
@@ -46,6 +46,7 @@ export function BottomNav() {
     { href: "/search", label: t('bottomNav.search'), icon: Search },
     { href: "/bliss-zone", label: t('bottomNav.blissZone'), icon: Heart },
     { href: "/upload", label: t('bottomNav.upload'), icon: PlusSquare, isSpecial: true },
+    { href: "/class", label: t('bottomNav.class'), icon: GraduationCap },
     { href: "/chat", label: t('bottomNav.chat'), icon: MessageCircle, notification: hasUnread },
     { href: "/profile", label: t('bottomNav.profile'), icon: User },
   ];
@@ -60,7 +61,7 @@ export function BottomNav() {
     <footer className="fixed bottom-0 left-0 right-0 z-10 border-t bg-background/80 backdrop-blur-sm md:hidden">
       <nav className="flex h-14 items-center justify-around">
         {leftItems.map((item) => {
-          const isActive = (item.href === "/" && pathname === "/") || (item.href !== "/" && pathname.startsWith(item.href));
+          const isActive = (item.href === "/home" && pathname === "/home") || (item.href !== "/home" && pathname.startsWith(item.href));
           return (
             <Link
               key={item.label}
