@@ -39,15 +39,17 @@ export default function ChooseHoneyPage() {
             }
             setCurrentUser(user);
             
+            // Fetch users that the current user is following
             const { data: followingData, error: followingError } = await supabase
                 .from('followers')
                 .select('profiles!followers_user_id_fkey(id, username, avatar_url, full_name, is_in_relationship)')
                 .eq('follower_id', user.id);
 
             if (followingError) {
-                console.error("Error fetching friends:", followingError);
+                console.error("Error fetching following list:", followingError);
                 toast({ variant: 'destructive', title: 'Error fetching friends' });
             } else if (followingData) {
+                // @ts-ignore
                 const friendProfiles = followingData.map((f: any) => f.profiles).filter(p => p && p.username);
                 setFriends(friendProfiles as Profile[]);
             }
