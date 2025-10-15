@@ -21,9 +21,9 @@ export default function BlissZonePage() {
             title: "Checker Game",
             description: "Challenge your friends to a game of checkers.",
             icon: <Swords className="h-8 w-8 text-blue-500" />,
-            href: "#", // To be implemented
+            href: "/bliss-zone/checker-game/choose-opponent",
             color: "border-blue-500/20 bg-blue-500/10",
-            disabled: true
+            disabled: false
         },
         {
             title: "XO Game",
