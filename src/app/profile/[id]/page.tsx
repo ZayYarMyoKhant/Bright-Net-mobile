@@ -59,7 +59,7 @@ function PresenceIndicator({ user }: { user: ProfileData | null }) {
          )
     }
 
-    return null; // Don't show "last seen" on profile, only green dot for online
+    return null;
 }
 
 
@@ -211,6 +211,8 @@ export default function UserProfilePage({ params: paramsPromise }: { params: Pro
   }
   
   const canViewContent = !profile.is_private || isFollowing || isOwnProfile;
+  const isProfileOnline = profile?.show_active_status && profile?.last_seen && isBefore(subMinutes(new Date(), 2), new Date(profile.last_seen));
+  const profileLastSeen = profile?.show_active_status && profile?.last_seen ? formatDistanceToNow(new Date(profile.last_seen), { addSuffix: true }) : null;
 
   return (
     <>
@@ -231,12 +233,18 @@ export default function UserProfilePage({ params: paramsPromise }: { params: Pro
         <main className="flex-1 overflow-y-auto p-4">
           <div className="flex flex-col items-center">
             <div className="relative">
-              <Avatar className="h-24 w-24 border-2 border-primary" profile={profile}>
-              </Avatar>
+                <Link href={`/search/image/${encodeURIComponent(profile.avatar_url)}`}>
+                    <Avatar className="h-24 w-24 border-2 border-primary" profile={profile}>
+                    </Avatar>
+                </Link>
               <PresenceIndicator user={profile} />
             </div>
             <h2 className="mt-3 text-xl font-bold">{profile.full_name}</h2>
             <p className="text-sm text-muted-foreground">@{profile.username}</p>
+            {isProfileOnline 
+                ? <p className="text-xs text-green-500 mt-1">Online</p>
+                : profileLastSeen && <p className="text-xs text-muted-foreground mt-1">Active {profileLastSeen}</p>
+            }
             <p className="mt-2 text-center text-sm">{profile.bio}</p>
           </div>
 

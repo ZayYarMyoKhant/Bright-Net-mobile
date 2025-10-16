@@ -90,6 +90,7 @@ export default function ProfileSetupPage() {
         bio: bio,
         avatar_url: publicAvatarUrl,
         updated_at: new Date().toISOString(),
+        show_active_status: true, // Default active status to true
     });
 
     if (profileError) {

@@ -673,6 +673,8 @@ export default function IndividualChatPage({ params: paramsPromise }: { params: 
 
   const isChatDisabled = isBlocked || isBlockedBy;
   const isOtherUserOnline = otherUser?.show_active_status && otherUser?.last_seen && isBefore(subMinutes(new Date(), 2), new Date(otherUser.last_seen));
+  const otherUserLastSeen = otherUser?.show_active_status && otherUser?.last_seen ? formatDistanceToNow(new Date(otherUser.last_seen), { addSuffix: true }) : null;
+
 
   return (
     <div className="flex h-dvh flex-col bg-background text-foreground">
@@ -690,7 +692,10 @@ export default function IndividualChatPage({ params: paramsPromise }: { params: 
             </Link>
             <div>
                 <p className="font-bold">{otherUser.full_name}</p>
-                {isOtherUserOnline && <p className="text-xs text-green-500">Online</p>}
+                {isOtherUserOnline 
+                    ? <p className="text-xs text-green-500">Online</p>
+                    : otherUserLastSeen && <p className="text-xs text-muted-foreground">Active {otherUserLastSeen}</p>
+                }
             </div>
         </div>
         <div className="flex items-center gap-2">
@@ -743,7 +748,7 @@ export default function IndividualChatPage({ params: paramsPromise }: { params: 
        <footer className="sticky bottom-0 bg-background border-t">
         {isChatDisabled && (
             <div className="bg-muted p-3 text-center text-sm text-muted-foreground">
-                {isBlocked ? `You have blocked this user.` : `You cannot reply to this conversation.`}
+                {isBlocked ? `You have blocked this user. You cannot send messages.` : `You cannot reply to this conversation.`}
             </div>
         )}
         <div className="p-2">
