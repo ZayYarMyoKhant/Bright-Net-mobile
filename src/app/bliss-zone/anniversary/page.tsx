@@ -47,8 +47,8 @@ export default function AnniversaryPage() {
         const { data, error } = await supabase
             .rpc('get_couple_details', { user_id_param: user.id });
 
-        if (error) {
-            console.error("Error fetching couple data:", error);
+        if (error || !data || data.length === 0) {
+             if (error) console.error("Error fetching couple data:", error);
             // This error is expected if user is not in a couple, so fetch friends instead.
             const { data: followingData, error: followingError } = await supabase
                 .from('followers')
@@ -272,4 +272,3 @@ export default function AnniversaryPage() {
         </div>
     );
 }
-
