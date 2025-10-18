@@ -5,7 +5,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { User } from '@supabase/supabase-js';
-import { Loader2, Heart, Calendar as CalendarIcon, Users } from 'lucide-react';
+import { Loader2, Heart, Calendar as CalendarIcon, Users, ArrowLeft } from 'lucide-react';
 import { Avatar } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -15,6 +15,7 @@ import { format, differenceInDays } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import Link from 'next/link';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 type CoupleData = {
     id: string;
@@ -22,6 +23,14 @@ type CoupleData = {
     user1: { id: string; full_name: string; avatar_url: string; };
     user2: { id: string; full_name: string; avatar_url: string; };
 };
+
+type Profile = {
+    id: string;
+    username: string;
+    avatar_url: string;
+    full_name: string;
+    is_in_relationship: boolean;
+}
 
 export default function AnniversaryPage() {
     const router = useRouter();
@@ -31,15 +40,30 @@ export default function AnniversaryPage() {
     const [couple, setCouple] = useState<CoupleData | null>(null);
     const [loading, setLoading] = useState(true);
     const [date, setDate] = useState<Date | undefined>(undefined);
+    const [friends, setFriends] = useState<Profile[]>([]);
+    const [isRequesting, setIsRequesting] = useState<string | null>(null);
 
     const fetchCoupleData = useCallback(async (user: User) => {
-        setLoading(true);
         const { data, error } = await supabase
             .rpc('get_couple_details', { user_id_param: user.id });
 
         if (error) {
             console.error("Error fetching couple data:", error);
-            // This error is expected if user is not in a couple, so don't toast
+            // This error is expected if user is not in a couple, so fetch friends instead.
+            const { data: followingData, error: followingError } = await supabase
+                .from('followers')
+                .select('profiles!followers_user_id_fkey(*, is_in_relationship)')
+                .eq('follower_id', user.id);
+
+            if (followingError) {
+                console.error("Error fetching following list:", followingError);
+                toast({ variant: 'destructive', title: 'Error fetching friends' });
+            } else if (followingData) {
+                // @ts-ignore
+                const friendProfiles = followingData.map((f: any) => f.profiles).filter(p => p && p.username);
+                setFriends(friendProfiles as Profile[]);
+            }
+
         } else if (data && data.length > 0) {
             setCouple(data[0]);
             if (data[0].first_loving_day) {
@@ -47,7 +71,7 @@ export default function AnniversaryPage() {
             }
         }
         setLoading(false);
-    }, [supabase]);
+    }, [supabase, toast]);
 
     useEffect(() => {
         supabase.auth.getUser().then(({ data: { user }}) => {
@@ -59,6 +83,30 @@ export default function AnniversaryPage() {
             }
         });
     }, [supabase, router, fetchCoupleData]);
+    
+    const handleRequest = async (partnerId: string) => {
+        if (!currentUser) return;
+        setIsRequesting(partnerId);
+
+        const { data, error } = await supabase
+            .from('couples')
+            .insert({
+                user1_id: currentUser.id,
+                user2_id: partnerId,
+                status: 'requesting'
+            })
+            .select('id')
+            .single();
+        
+        setIsRequesting(null);
+
+        if (error) {
+             toast({ variant: 'destructive', title: 'Could not send request', description: error.message });
+        } else {
+            router.push(`/bliss-zone/anniversary/requesting/${data.id}`);
+        }
+    };
+
 
     const handleDateSave = async () => {
         if (!date || !couple) return;
@@ -86,7 +134,7 @@ export default function AnniversaryPage() {
             toast({ title: "Relationship ended" });
             setCouple(null);
             setDate(undefined);
-            router.refresh(); // To update profile avatars
+            if (currentUser) fetchCoupleData(currentUser); // Re-fetch data
         }
     };
     
@@ -98,97 +146,130 @@ export default function AnniversaryPage() {
         );
     }
     
-    if (!couple) {
+    // If user has a couple, show anniversary page
+    if (couple) {
+        const partner = couple.user1.id === currentUser?.id ? couple.user2 : couple.user1;
+        const you = couple.user1.id === currentUser?.id ? couple.user1 : couple.user2;
+        const daysTogether = couple.first_loving_day ? differenceInDays(new Date(), new Date(couple.first_loving_day)) + 1 : null;
+
         return (
-             <div className="flex h-dvh flex-col items-center justify-center bg-background text-foreground text-center p-4">
-                <Users className="h-20 w-20 text-muted-foreground mb-4" />
-                <h2 className="text-2xl font-bold">You are not in a relationship yet.</h2>
-                <p className="text-muted-foreground mt-2">Find your honey and start your journey!</p>
-                <Link href="/bliss-zone/anniversary/choose-honey" className="mt-8">
-                    <Button>Choose Your Honey</Button>
-                </Link>
-            </div>
-        )
+             <div className="flex h-dvh flex-col items-center justify-center bg-pink-50 text-foreground p-4">
+                <Card className="w-full max-w-sm shadow-2xl rounded-3xl">
+                    <CardContent className="p-6 text-center">
+                        <p className="font-bold text-lg text-pink-500">Loving Couple</p>
+                        <div className="flex justify-around items-center mt-4">
+                            <div className="flex flex-col items-center gap-2">
+                                <Avatar className="h-20 w-20 border-4 border-pink-200" profile={you} />
+                                <p className="font-semibold">{you.full_name}</p>
+                            </div>
+                            <div className="flex flex-col items-center">
+                                <Heart className="h-10 w-10 text-red-500 fill-red-500" />
+                                {daysTogether !== null && <p className="font-bold text-xl text-red-500 mt-1">{daysTogether} Days</p>}
+                                <p className="text-xs text-muted-foreground">loving</p>
+                            </div>
+                             <div className="flex flex-col items-center gap-2">
+                                <Avatar className="h-20 w-20 border-4 border-pink-200" profile={partner} />
+                                <p className="font-semibold">{partner.full_name}</p>
+                            </div>
+                        </div>
+                        
+                        <div className="text-left mt-8 space-y-4">
+                            <div>
+                                <label className="text-sm font-medium text-muted-foreground">First Loving Day</label>
+                                 <Popover>
+                                    <PopoverTrigger asChild>
+                                        <Button
+                                        variant={"outline"}
+                                        className="w-full justify-start text-left font-normal mt-1"
+                                        >
+                                        <CalendarIcon className="mr-2 h-4 w-4" />
+                                        {date ? format(date, "PPP") : <span>Pick a date</span>}
+                                        </Button>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-auto p-0">
+                                        <Calendar
+                                        mode="single"
+                                        selected={date}
+                                        onSelect={setDate}
+                                        initialFocus
+                                        />
+                                    </PopoverContent>
+                                </Popover>
+                            </div>
+                            <div>
+                                <label className="text-sm font-medium text-muted-foreground">Today</label>
+                                <p className="font-semibold text-lg">{format(new Date(), "PPP")}</p>
+                            </div>
+                        </div>
+
+                        <div className="mt-6 flex flex-col gap-2">
+                            <Button onClick={handleDateSave} className="bg-pink-500 hover:bg-pink-600" disabled={!date}>Save Date</Button>
+                            <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                    <Button variant="destructive">Break Up</Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                        <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                        <AlertDialogDescription>
+                                            This action will end your relationship with {partner.full_name}. This cannot be undone.
+                                        </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                        <AlertDialogAction onClick={handleBreakUp} className="bg-destructive hover:bg-destructive/90">Confirm Break Up</AlertDialogAction>
+                                    </AlertDialogFooter>
+                                </AlertDialogContent>
+                            </AlertDialog>
+                        </div>
+
+                    </CardContent>
+                </Card>
+             </div>
+        );
     }
-
-    const partner = couple.user1.id === currentUser?.id ? couple.user2 : couple.user1;
-    const you = couple.user1.id === currentUser?.id ? couple.user1 : couple.user2;
-
-    const daysTogether = couple.first_loving_day ? differenceInDays(new Date(), new Date(couple.first_loving_day)) + 1 : null;
-
+    
+    // If no couple, show "Choose your honey" page
     return (
-         <div className="flex h-dvh flex-col items-center justify-center bg-pink-50 text-foreground p-4">
-            <Card className="w-full max-w-sm shadow-2xl rounded-3xl">
-                <CardContent className="p-6 text-center">
-                    <p className="font-bold text-lg text-pink-500">Loving Couple</p>
-                    <div className="flex justify-around items-center mt-4">
-                        <div className="flex flex-col items-center gap-2">
-                            <Avatar className="h-20 w-20 border-4 border-pink-200" profile={you} />
-                            <p className="font-semibold">{you.full_name}</p>
-                        </div>
-                        <div className="flex flex-col items-center">
-                            <Heart className="h-10 w-10 text-red-500 fill-red-500" />
-                            {daysTogether !== null && <p className="font-bold text-xl text-red-500 mt-1">{daysTogether} Days</p>}
-                            <p className="text-xs text-muted-foreground">loving</p>
-                        </div>
-                         <div className="flex flex-col items-center gap-2">
-                            <Avatar className="h-20 w-20 border-4 border-pink-200" profile={partner} />
-                            <p className="font-semibold">{partner.full_name}</p>
-                        </div>
-                    </div>
-                    
-                    <div className="text-left mt-8 space-y-4">
-                        <div>
-                            <label className="text-sm font-medium text-muted-foreground">First Loving Day</label>
-                             <Popover>
-                                <PopoverTrigger asChild>
-                                    <Button
-                                    variant={"outline"}
-                                    className="w-full justify-start text-left font-normal mt-1"
-                                    >
-                                    <CalendarIcon className="mr-2 h-4 w-4" />
-                                    {date ? format(date, "PPP") : <span>Pick a date</span>}
-                                    </Button>
-                                </PopoverTrigger>
-                                <PopoverContent className="w-auto p-0">
-                                    <Calendar
-                                    mode="single"
-                                    selected={date}
-                                    onSelect={setDate}
-                                    initialFocus
-                                    />
-                                </PopoverContent>
-                            </Popover>
-                        </div>
-                        <div>
-                            <label className="text-sm font-medium text-muted-foreground">Today</label>
-                            <p className="font-semibold text-lg">{format(new Date(), "PPP")}</p>
-                        </div>
-                    </div>
+        <div className="flex h-dvh flex-col bg-background text-foreground">
+            <header className="flex h-16 flex-shrink-0 items-center border-b px-4 relative">
+                <Link href="/bliss-zone" className="p-2 -ml-2 absolute left-4">
+                    <ArrowLeft className="h-5 w-5" />
+                </Link>
+                <div className="flex items-center gap-3 mx-auto">
+                    <Heart className="h-6 w-6 text-pink-500" />
+                    <h1 className="text-xl font-bold">Choose your honey</h1>
+                </div>
+            </header>
 
-                    <div className="mt-6 flex flex-col gap-2">
-                        <Button onClick={handleDateSave} className="bg-pink-500 hover:bg-pink-600" disabled={!date}>Save Date</Button>
-                        <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                                <Button variant="destructive">Break Up</Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                                <AlertDialogHeader>
-                                    <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                                    <AlertDialogDescription>
-                                        This action will end your relationship with {partner.full_name}. This cannot be undone.
-                                    </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                    <AlertDialogAction onClick={handleBreakUp} className="bg-destructive hover:bg-destructive/90">Confirm Break Up</AlertDialogAction>
-                                </AlertDialogFooter>
-                            </AlertDialogContent>
-                        </AlertDialog>
+            <ScrollArea className="flex-1">
+                {friends.length > 0 ? (
+                    <div className="divide-y">
+                        {friends.map(friend => (
+                            <div key={friend.id} className="p-4 flex items-center gap-4">
+                                <Avatar className="h-12 w-12" profile={friend} />
+                                <div className="flex-1">
+                                    <p className="font-semibold">{friend.full_name}</p>
+                                    <p className="text-sm text-muted-foreground">@{friend.username}</p>
+                                </div>
+                                <Button 
+                                    onClick={() => handleRequest(friend.id)} 
+                                    disabled={!!isRequesting || friend.is_in_relationship}
+                                >
+                                    {isRequesting === friend.id ? <Loader2 className="h-4 w-4 animate-spin" /> : friend.is_in_relationship ? 'Taken' : 'Invite'}
+                                </Button>
+                            </div>
+                        ))}
                     </div>
-
-                </CardContent>
-            </Card>
-         </div>
+                ) : (
+                    <div className="text-center p-10 text-muted-foreground flex flex-col items-center pt-20">
+                        <Users className="h-12 w-12 mb-4" />
+                        <p className="font-bold">No friends found</p>
+                        <p className="text-sm mt-1">Follow some people to find your honey!</p>
+                    </div>
+                )}
+            </ScrollArea>
+        </div>
     );
 }
+
