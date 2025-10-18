@@ -14,12 +14,10 @@ import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
+  AlertDialogFooter
 } from "@/components/ui/alert-dialog";
-import { Badge } from '@/components/ui/badge';
 
 type Move = { row: number, col: number };
 
@@ -231,7 +229,7 @@ export default function CheckerGamePage({ params: paramsPromise }: { params: Pro
                  <button onClick={() => router.back()} className="p-2 text-white"><ArrowLeft /></button>
                 <h1 className="text-2xl font-bold flex items-center justify-center gap-2 text-white">
                     <Swords className="h-6 w-6" />
-                    Checker Game
+                    Checker
                 </h1>
                 <div className="w-9"></div>
             </header>
@@ -239,14 +237,14 @@ export default function CheckerGamePage({ params: paramsPromise }: { params: Pro
             <main className="flex-1 flex flex-col justify-around items-center px-2">
                  <div className="flex items-center justify-between w-full max-w-md">
                     <div className={cn("flex flex-col items-center gap-1 p-2 rounded-lg", game.current_turn === me.id && "bg-green-500/20")}>
-                        <Avatar className="h-12 w-12" profile={me} />
+                        <Avatar className="h-16 w-16 border-2" profile={me} />
                         <p className="font-bold text-sm text-white">{me.full_name}</p>
                     </div>
                      <div className="text-center">
                         <p className="text-4xl font-bold text-white">VS</p>
                     </div>
                      <div className={cn("flex flex-col items-center gap-1 p-2 rounded-lg", game.current_turn === opponent.id && "bg-green-500/20")}>
-                        <Avatar className="h-12 w-12" profile={opponent} />
+                        <Avatar className="h-16 w-16 border-2" profile={opponent} />
                         <p className="font-bold text-sm text-white">{opponent.full_name}</p>
                     </div>
                 </div>
@@ -273,7 +271,7 @@ export default function CheckerGamePage({ params: paramsPromise }: { params: Pro
                     ))}
                 </div>
 
-                 <p className="text-white font-semibold mt-2">{isMyTurn ? "Your Turn" : `Waiting for ${opponent.full_name}...`}</p>
+                 <p className="text-white font-semibold mt-2">{game.winner ? 'Game Over' : isMyTurn ? "Your Turn" : `Waiting for ${opponent.full_name}...`}</p>
             </main>
         </div>
     );

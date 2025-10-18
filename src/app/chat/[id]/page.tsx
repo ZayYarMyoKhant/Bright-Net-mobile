@@ -296,6 +296,7 @@ export default function IndividualChatPage({ params: paramsPromise }: { params: 
   const fetchChatData = useCallback(async (user: User, otherUserId: string) => {
     setLoading(true);
     
+    // Fetch block status in both directions
     const { data: blockData, error: blockError } = await supabase
       .from('blocks')
       .select('*')
@@ -443,14 +444,39 @@ export default function IndividualChatPage({ params: paramsPromise }: { params: 
         }
       )
       .subscribe();
+      
+    const blockChannel = supabase.channel(`blocks-${conversationId}`)
+      .on('postgres_changes',
+          { event: '*', schema: 'public', table: 'blocks' },
+          (payload) => {
+              if (currentUser && otherUser) {
+                  // Re-fetch block status when something changes in the blocks table
+                  if(payload.new.blocker_id === currentUser.id && payload.new.blocked_id === otherUser.id) {
+                    setIsBlocked(true);
+                  }
+                  if(payload.new.blocker_id === otherUser.id && payload.new.blocked_id === currentUser.id) {
+                    setIsBlockedBy(true);
+                  }
+                   if(payload.eventType === "DELETE") {
+                    if(payload.old.blocker_id === currentUser.id && payload.old.blocked_id === otherUser.id) {
+                        setIsBlocked(false);
+                    }
+                    if(payload.old.blocker_id === otherUser.id && payload.old.blocked_id === currentUser.id) {
+                        setIsBlockedBy(false);
+                    }
+                  }
+              }
+          }
+      ).subscribe();
     
     return () => {
       supabase.removeChannel(messageChannel);
       supabase.removeChannel(reactionChannel);
       supabase.removeChannel(readStatusChannel);
       supabase.removeChannel(presenceChannel);
+      supabase.removeChannel(blockChannel);
     };
-  }, [conversationId, supabase, currentUser, params.id]);
+  }, [conversationId, supabase, currentUser, params.id, otherUser]);
 
 
   const handleReply = (message: any) => {
