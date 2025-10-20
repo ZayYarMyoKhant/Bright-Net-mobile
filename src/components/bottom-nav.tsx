@@ -44,7 +44,7 @@ export function BottomNav() {
   const navItems = [
     { href: "/home", label: t('bottomNav.home'), icon: Home },
     { href: "/search", label: t('bottomNav.search'), icon: Search },
-    { href: "/bliss-zone", label: t('bottomNav.blissZone'), icon: Heart },
+    { href: "/bliss-zone", label: t('bottomNav.loveZone'), icon: Heart },
     { href: "/upload", label: t('bottomNav.upload'), icon: PlusSquare, isSpecial: true },
     { href: "/class", label: t('bottomNav.class'), icon: GraduationCap },
     { href: "/chat", label: t('bottomNav.chat'), icon: MessageCircle, notification: hasUnread },

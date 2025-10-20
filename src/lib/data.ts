@@ -169,41 +169,7 @@ export type Couple = {
   user1_id: string;
   user2_id: string;
   first_loving_day: string | null;
-  status: 'requesting' | 'accepted' | 'broken_up' | 'declined';
+  status: 'requesting' | 'accepted' | 'declined';
   created_at: string;
-  updated_at: string;
-};
-
-export type XOState = ('X' | 'O' | null)[];
-
-export type XOGame = {
-  id: string;
-  player1_id: string;
-  player2_id: string;
-  player1_score: number;
-  player2_score: number;
-  current_turn: string; // user id
-  board_state: XOState;
-  winner: 'X' | 'O' | 'draw' | null;
-  status: 'requesting' | 'accepted' | 'declined' | 'in-progress' | 'completed' | 'cancelled';
-  updated_at: string;
-  match_winner_id: string | null;
-};
-
-export type CheckerPiece = {
-  player: 'red' | 'black';
-  isKing: boolean;
-};
-
-export type CheckerBoardState = (CheckerPiece | null)[][];
-
-export type CheckerGame = {
-  id: string;
-  player1_id: string; // Always 'red'
-  player2_id: string; // Always 'black'
-  board_state: CheckerBoardState;
-  current_turn: string; // user id
-  winner: string | null; // user id
-  status: 'requesting' | 'accepted' | 'declined' | 'in-progress' | 'completed' | 'cancelled';
   updated_at: string;
 };

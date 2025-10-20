@@ -13,8 +13,6 @@ import { User } from '@supabase/supabase-js';
 import { TypingBattleRequestBanner } from '@/components/typing-battle-request-banner';
 import { VideoCallRequestBanner } from '@/components/video-call-request-banner';
 import { CoupleRequestBanner } from '@/components/couple-request-banner';
-import { XORequestBanner } from '@/components/xo-game-request-banner';
-import { CheckerGameRequestBanner } from '@/components/checker-game-request-banner';
 import { OfflineProvider, OfflineContext } from '@/context/offline-context';
 import OfflinePage from '@/app/offline/page';
 import Script from 'next/script';
@@ -77,8 +75,6 @@ function AppLayout({ children }: { children: React.ReactNode }) {
         {currentUser && <TypingBattleRequestBanner userId={currentUser.id} />}
         {currentUser && <VideoCallRequestBanner userId={currentUser.id} />}
         {currentUser && <CoupleRequestBanner userId={currentUser.id} />}
-        {currentUser && <XORequestBanner userId={currentUser.id} />}
-        {currentUser && <CheckerGameRequestBanner userId={currentUser.id} />}
         {children}
     </div>
   );

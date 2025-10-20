@@ -3,11 +3,11 @@
 
 import { BottomNav } from "@/components/bottom-nav";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
-import { Heart, CheckSquare, X, Swords } from "lucide-react";
+import { Heart } from "lucide-react";
 import Link from "next/link";
 import { AdBanner } from "@/components/ad-banner";
 
-export default function BlissZonePage() {
+export default function LoveZonePage() {
     
     const features = [
         {
@@ -17,29 +17,14 @@ export default function BlissZonePage() {
             href: "/bliss-zone/anniversary",
             color: "border-red-500/20 bg-red-500/10",
             disabled: false,
-        },
-        {
-            title: "Checker Game",
-            description: "Challenge your friends to a game of checkers.",
-            icon: <Swords className="h-8 w-8 text-blue-500" />,
-            href: "/bliss-zone/checker-game/choose-opponent",
-            color: "border-blue-500/20 bg-blue-500/10",
-            disabled: false
-        },
-        {
-            title: "XO Game",
-            description: "Play a classic game of Tic-Tac-Toe.",
-            icon: <div className="h-8 w-8 flex items-center justify-center gap-0.5"><X className="h-6 w-6 text-green-500" /><CheckSquare className="h-6 w-6 text-green-500" /></div>,
-            href: "/bliss-zone/xo-game/choose-opponent",
-             color: "border-green-500/20 bg-green-500/10"
-        },
+        }
     ]
 
     return (
         <>
             <div className="flex h-dvh flex-col bg-background text-foreground pb-16">
                 <header className="flex h-16 flex-shrink-0 items-center justify-center border-b px-4">
-                    <h1 className="text-xl font-bold text-primary">Bliss Zone</h1>
+                    <h1 className="text-xl font-bold text-primary">Love Zone</h1>
                 </header>
 
                 <main className="flex-1 overflow-y-auto p-4 space-y-4">
@@ -49,7 +34,7 @@ export default function BlissZonePage() {
                         </CardHeader>
                         <CardContent>
                             <p className="text-muted-foreground">
-                                Connect with your loved ones and play fun games together.
+                                Connect with your loved one and build your journey.
                             </p>
                         </CardContent>
                     </Card>
