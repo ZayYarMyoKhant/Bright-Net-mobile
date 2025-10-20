@@ -48,19 +48,30 @@ export default function AnniversaryPage() {
             .rpc('get_couple_details', { user_id_param: user.id });
 
         if (error || !data || data.length === 0) {
-             if (error) console.error("Error fetching couple data:", error);
+             if (error && error.code !== 'PGRST116') console.error("Error fetching couple data:", error);
             // This error is expected if user is not in a couple, so fetch friends instead.
             const { data: followingData, error: followingError } = await supabase
                 .from('followers')
-                .select('profiles!followers_user_id_fkey(*, is_in_relationship)')
+                .select('profiles!followers_user_id_fkey(*, couples!couples_user1_id_fkey(status), couples_user2:couples!couples_user2_id_fkey(status))')
                 .eq('follower_id', user.id);
+
 
             if (followingError) {
                 console.error("Error fetching following list:", followingError);
                 toast({ variant: 'destructive', title: 'Error fetching friends' });
             } else if (followingData) {
-                // @ts-ignore
-                const friendProfiles = followingData.map((f: any) => f.profiles).filter(p => p && p.username);
+                const friendProfiles = followingData.map((f: any) => {
+                    const profile = f.profiles;
+                    if (!profile) return null;
+                    
+                    // Check if there is any existing relationship (accepted or requesting)
+                    const isTaken = profile.is_in_relationship || 
+                                    profile.couples?.some((c: any) => c.status === 'requesting' || c.status === 'accepted') ||
+                                    profile.couples_user2?.some((c: any) => c.status === 'requesting' || c.status === 'accepted');
+
+                    return { ...profile, is_in_relationship: !!isTaken };
+                }).filter(p => p);
+                
                 setFriends(friendProfiles as Profile[]);
             }
 
@@ -72,6 +83,7 @@ export default function AnniversaryPage() {
         }
         setLoading(false);
     }, [supabase, toast]);
+
 
     useEffect(() => {
         supabase.auth.getUser().then(({ data: { user }}) => {
