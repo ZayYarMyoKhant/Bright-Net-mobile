@@ -80,11 +80,6 @@ function AppLayout({ children }: { children: React.ReactNode }) {
         {currentUser && <XORequestBanner userId={currentUser.id} />}
         {currentUser && <CheckerGameRequestBanner userId={currentUser.id} />}
         {children}
-        <Script 
-          id="social-bar-ad" 
-          strategy="lazyOnload"
-          src="//pl27728140.revenuecpmgate.com/e0/3d/7f/e03d7fc4f51d09c85868dcd3b21365bc.js"
-        />
     </div>
   );
 }
