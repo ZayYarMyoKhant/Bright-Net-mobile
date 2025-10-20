@@ -59,6 +59,7 @@ export function CoupleRequestBanner({ userId }: { userId: string }) {
                     filter: `user2_id=eq.${userId}`
                 },
                 (payload) => {
+                    // When the request is cancelled or declined (deleted from table)
                     if (request && payload.old.id === request.id) {
                         setRequest(null);
                     }
@@ -74,10 +75,11 @@ export function CoupleRequestBanner({ userId }: { userId: string }) {
     const handleResponse = async (accept: boolean) => {
         if (!request) return;
 
+        const currentRequest = request; // Capture before clearing state
         setRequest(null); // Hide banner immediately
 
         if (accept) {
-             const { error } = await supabase.rpc('accept_couple_request', { couple_id_param: request.id });
+             const { error } = await supabase.rpc('accept_couple_request', { couple_id_param: currentRequest.id });
              if (error) {
                 toast({ variant: 'destructive', title: 'Failed to accept request' });
              } else {
@@ -86,10 +88,11 @@ export function CoupleRequestBanner({ userId }: { userId: string }) {
                 router.refresh();
              }
         } else {
+            // Decline is handled by deleting the request row
             const { error } = await supabase
                 .from('couples')
                 .delete()
-                .eq('id', request.id);
+                .eq('id', currentRequest.id);
             if (error) {
                 toast({ variant: 'destructive', title: 'Failed to decline request' });
             }

@@ -54,6 +54,7 @@ export function XORequestBanner({ userId }: { userId: string }) {
                     filter: `player2_id=eq.${userId}`
                 },
                 (payload) => {
+                    // Hide banner if request is cancelled or declined
                     if (request && payload.old.id === request.id && (payload.new.status === 'cancelled' || payload.new.status === 'declined')) {
                         setRequest(null);
                     }
