@@ -48,7 +48,9 @@ export default function AnniversaryPage() {
             .rpc('get_couple_details', { user_id_param: user.id });
 
         if (error || !data || data.length === 0) {
-             if (error && error.code !== 'PGRST116') console.error("Error fetching couple data:", error);
+             if (error && error.code !== 'PGRST116') { // PGRST116 is "No rows returned", which is expected for users not in a couple.
+                console.error("Error fetching couple data:", error);
+             }
             // This error is expected if user is not in a couple, so fetch friends instead.
             const { data: followingData, error: followingError } = await supabase
                 .from('followers')
@@ -70,7 +72,7 @@ export default function AnniversaryPage() {
                                     profile.couples_user2?.some((c: any) => c.status === 'requesting' || c.status === 'accepted');
 
                     return { ...profile, is_in_relationship: !!isTaken };
-                }).filter(p => p);
+                }).filter(Boolean);
                 
                 setFriends(friendProfiles as Profile[]);
             }
@@ -113,7 +115,11 @@ export default function AnniversaryPage() {
         setIsRequesting(null);
 
         if (error) {
-             toast({ variant: 'destructive', title: 'Could not send request', description: error.message });
+             if (error.code === '23505') { // duplicate key error
+                toast({ variant: 'destructive', title: 'Request already exists', description: 'You may have already sent or received a request from this person.' });
+             } else {
+                toast({ variant: 'destructive', title: 'Could not send request', description: error.message });
+             }
         } else {
             router.push(`/bliss-zone/anniversary/requesting/${data.id}`);
         }
