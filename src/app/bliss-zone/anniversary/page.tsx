@@ -44,19 +44,19 @@ export default function AnniversaryPage() {
     const [isRequesting, setIsRequesting] = useState<string | null>(null);
 
     const fetchCoupleData = useCallback(async (user: User) => {
+        setLoading(true);
         const { data, error } = await supabase
             .rpc('get_couple_details', { user_id_param: user.id });
 
         if (error || !data || data.length === 0) {
-             if (error && error.code !== 'PGRST116') { // PGRST116 is "No rows returned", which is expected for users not in a couple.
+             if (error && error.code !== 'PGRST116') { 
                 console.error("Error fetching couple data:", error);
              }
-            // This error is expected if user is not in a couple, so fetch friends instead.
+            
             const { data: followingData, error: followingError } = await supabase
                 .from('followers')
                 .select('profiles!followers_user_id_fkey(*, couples!couples_user1_id_fkey(status), couples_user2:couples!couples_user2_id_fkey(status))')
                 .eq('follower_id', user.id);
-
 
             if (followingError) {
                 console.error("Error fetching following list:", followingError);
@@ -66,7 +66,6 @@ export default function AnniversaryPage() {
                     const profile = f.profiles;
                     if (!profile) return null;
                     
-                    // Check if there is any existing relationship (accepted or requesting)
                     const isTaken = profile.is_in_relationship || 
                                     profile.couples?.some((c: any) => c.status === 'requesting' || c.status === 'accepted') ||
                                     profile.couples_user2?.some((c: any) => c.status === 'requesting' || c.status === 'accepted');
@@ -76,6 +75,7 @@ export default function AnniversaryPage() {
                 
                 setFriends(friendProfiles as Profile[]);
             }
+             setCouple(null);
 
         } else if (data && data.length > 0) {
             setCouple(data[0]);
@@ -115,7 +115,7 @@ export default function AnniversaryPage() {
         setIsRequesting(null);
 
         if (error) {
-             if (error.code === '23505') { // duplicate key error
+             if (error.code === '23505') { 
                 toast({ variant: 'destructive', title: 'Request already exists', description: 'You may have already sent or received a request from this person.' });
              } else {
                 toast({ variant: 'destructive', title: 'Could not send request', description: error.message });
@@ -152,7 +152,7 @@ export default function AnniversaryPage() {
             toast({ title: "Relationship ended" });
             setCouple(null);
             setDate(undefined);
-            if (currentUser) fetchCoupleData(currentUser); // Re-fetch data
+            if (currentUser) fetchCoupleData(currentUser); 
         }
     };
     
@@ -290,3 +290,5 @@ export default function AnniversaryPage() {
         </div>
     );
 }
+
+    
