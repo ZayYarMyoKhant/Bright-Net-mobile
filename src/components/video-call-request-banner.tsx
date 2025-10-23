@@ -65,7 +65,7 @@ export function VideoCallRequestBanner({ userId }: { userId: string }) {
                 },
                 (payload) => {
                     // Hide banner if call is cancelled or missed
-                    if (payload.new.status === 'cancelled' || payload.new.status === 'missed') {
+                    if (payload.new.status === 'cancelled' || payload.new.status === 'ended') {
                          if (request && payload.new.id === request.id) {
                             setRequest(null);
                         }
@@ -83,14 +83,15 @@ export function VideoCallRequestBanner({ userId }: { userId: string }) {
         if (!request) return;
 
         const newStatus = accept ? 'accepted' : 'declined';
-        const { error } = await supabase
-            .from('video_calls')
-            .update({ status: newStatus })
-            .eq('id', request.id);
         
         const currentRequest = request;
         setRequest(null); // Hide banner immediately
 
+        const { error } = await supabase
+            .from('video_calls')
+            .update({ status: newStatus })
+            .eq('id', currentRequest.id);
+        
         if (error) {
             toast({ variant: 'destructive', title: 'Failed to respond to call' });
         } else {
