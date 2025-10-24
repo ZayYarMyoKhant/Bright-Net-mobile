@@ -65,10 +65,8 @@ export function VideoCallRequestBanner({ userId }: { userId: string }) {
                 },
                 (payload) => {
                     // Hide banner if call is cancelled or missed
-                    if (payload.new.status === 'cancelled' || payload.new.status === 'ended') {
-                         if (request && payload.new.id === request.id) {
-                            setRequest(null);
-                        }
+                    if (request && payload.new.id === request.id && (payload.new.status === 'cancelled' || payload.new.status === 'declined' || payload.new.status === 'ended')) {
+                        setRequest(null);
                     }
                 }
             )
@@ -109,9 +107,7 @@ export function VideoCallRequestBanner({ userId }: { userId: string }) {
         <div className="fixed top-0 left-0 right-0 z-50 bg-primary/90 backdrop-blur-sm p-2 text-primary-foreground animate-in slide-in-from-top-full duration-500">
             <div className="container mx-auto flex items-center justify-between gap-4">
                 <div className="flex items-center gap-3">
-                    <Avatar className="h-10 w-10 border-2 border-primary-foreground">
-                        <AvatarImage src={request.caller.avatar_url} />
-                        <AvatarFallback>{request.caller.username.charAt(0)}</AvatarFallback>
+                    <Avatar className="h-10 w-10 border-2 border-primary-foreground" profile={request.caller}>
                     </Avatar>
                     <div>
                         <p className="font-bold">{request.caller.full_name}</p>
