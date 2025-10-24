@@ -53,6 +53,7 @@ export function VideoCallRequestBanner({ userId }: { userId: string }) {
                     filter: `callee_id=eq.${userId}`
                 },
                 (payload) => {
+                    // Check if the deleted request is the one currently displayed
                     if (request && payload.old.id === request.id) {
                         setRequest(null);
                     }
@@ -63,7 +64,7 @@ export function VideoCallRequestBanner({ userId }: { userId: string }) {
         return () => {
             supabase.removeChannel(channel);
         };
-    }, [userId, supabase, request]);
+    }, [userId, supabase, request]); // Added 'request' to dependency array to re-subscribe with correct state
 
     const handleAccept = async () => {
         if (!request) return;
@@ -83,15 +84,20 @@ export function VideoCallRequestBanner({ userId }: { userId: string }) {
     const handleDecline = async () => {
         if (!request) return;
         
+        // Optimistically hide the banner
+        const tempRequest = request;
+        setRequest(null);
+
         const { error } = await supabase
             .from('call_requests')
             .delete()
-            .eq('id', request.id);
-
-        setRequest(null);
+            .eq('id', tempRequest.id);
         
         if (error) {
+            // If decline fails, show banner again (or a toast message)
             toast({ variant: 'destructive', title: 'Failed to decline call' });
+            // Optionally, you could restore the request to the UI
+            // setRequest(tempRequest); 
         }
     };
 
