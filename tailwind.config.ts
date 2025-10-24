@@ -65,6 +65,7 @@ export default {
           border: 'hsl(var(--sidebar-border))',
           ring: 'hsl(var(--sidebar-ring))',
         },
+        'ivory-50': '#FFFFF0',
       },
       borderRadius: {
         lg: 'var(--radius)',

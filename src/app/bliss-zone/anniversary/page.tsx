@@ -250,8 +250,8 @@ export default function AnniversaryPage() {
         const daysTogether = couple.first_loving_day ? differenceInDays(new Date(), new Date(couple.first_loving_day)) + 1 : null;
 
         return (
-             <div className="flex h-dvh flex-col items-center justify-center bg-pink-50 text-foreground p-4">
-                <Card className="w-full max-w-sm shadow-2xl rounded-3xl">
+             <div className="flex h-dvh flex-col items-center justify-center bg-sky-100 text-foreground p-4">
+                <Card className="w-full max-w-sm shadow-2xl rounded-3xl bg-ivory-50">
                     <CardContent className="p-6 text-center">
                         <p className="font-bold text-lg text-pink-500">Loving Couple</p>
                         <div className="flex justify-around items-center mt-4">

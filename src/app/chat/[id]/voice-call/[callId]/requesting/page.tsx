@@ -4,7 +4,7 @@
 import { useEffect, useState, use } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Avatar } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Loader2, PhoneOff } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
@@ -48,9 +48,13 @@ export default function VideoCallRequestingPage({ params: paramsPromise }: { par
         const callSessionChannel = supabase
             .channel(`active-call-for-${otherUserId}`)
             .on('postgres_changes', 
-                { event: 'INSERT', schema: 'public', table: 'video_calls', filter: `caller_id=eq.${otherUserId}` },
+                { event: 'INSERT', schema: 'public', table: 'video_calls' },
                 (payload) => {
-                     router.push(`/chat/${otherUserId}/voice-call/${payload.new.id}`);
+                    const { caller_id, id: newCallId } = payload.new as { caller_id: string, id: string };
+                    // Ensure this is the call we initiated
+                    if (caller_id === otherUserId) {
+                         router.push(`/chat/${otherUserId}/voice-call/${newCallId}`);
+                    }
                 }
             )
             .subscribe();
@@ -95,10 +99,8 @@ export default function VideoCallRequestingPage({ params: paramsPromise }: { par
     }
 
     return (
-        <div className="flex h-dvh flex-col items-center justify-center bg-gray-900 text-white text-center p-4">
-            <Avatar className="h-32 w-32 border-4 border-primary">
-                <AvatarImage src={callee.avatar_url} alt={callee.username} />
-                <AvatarFallback>{callee.username.charAt(0).toUpperCase()}</AvatarFallback>
+        <div className="flex h-dvh flex-col items-center justify-center bg-sky-100 text-foreground text-center p-4">
+            <Avatar className="h-32 w-32 border-4 border-primary" profile={callee}>
             </Avatar>
             <h2 className="mt-4 text-2xl font-bold">Calling</h2>
             <h3 className="text-xl text-primary">{callee.full_name}</h3>
