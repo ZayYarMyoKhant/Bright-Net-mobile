@@ -250,8 +250,8 @@ export default function AnniversaryPage() {
         const daysTogether = couple.first_loving_day ? differenceInDays(new Date(), new Date(couple.first_loving_day)) + 1 : null;
 
         return (
-             <div className="flex h-dvh flex-col items-center justify-center bg-sky-100 text-foreground p-4">
-                <Card className="w-full max-w-sm shadow-2xl rounded-3xl bg-ivory-50">
+             <div className="flex h-dvh flex-col items-center justify-center bg-gradient-to-b from-blue-500 to-sky-400 text-foreground p-4">
+                <Card className="w-full max-w-sm shadow-2xl rounded-3xl bg-ivory-50 text-gray-900">
                     <CardContent className="p-6 text-center">
                         <p className="font-bold text-lg text-pink-500">Loving Couple</p>
                         <div className="flex justify-around items-center mt-4">
@@ -272,12 +272,12 @@ export default function AnniversaryPage() {
                         
                         <div className="text-left mt-8 space-y-4">
                             <div>
-                                <label className="text-sm font-medium text-muted-foreground">First Loving Day</label>
+                                <label className="text-sm font-medium text-gray-500">First Loving Day</label>
                                  <Popover>
                                     <PopoverTrigger asChild>
                                         <Button
                                         variant={"outline"}
-                                        className="w-full justify-start text-left font-normal mt-1"
+                                        className="w-full justify-start text-left font-normal mt-1 bg-white"
                                         >
                                         <CalendarIcon className="mr-2 h-4 w-4" />
                                         {date ? format(date, "PPP") : <span>Pick a date</span>}
@@ -294,7 +294,7 @@ export default function AnniversaryPage() {
                                 </Popover>
                             </div>
                             <div>
-                                <label className="text-sm font-medium text-muted-foreground">Today</label>
+                                <label className="text-sm font-medium text-gray-500">Today</label>
                                 <p className="font-semibold text-lg">{format(new Date(), "PPP")}</p>
                             </div>
                         </div>

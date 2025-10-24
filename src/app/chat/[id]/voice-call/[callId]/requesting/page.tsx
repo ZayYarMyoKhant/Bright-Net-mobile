@@ -99,12 +99,12 @@ export default function VideoCallRequestingPage({ params: paramsPromise }: { par
     }
 
     return (
-        <div className="flex h-dvh flex-col items-center justify-center bg-sky-100 text-foreground text-center p-4">
-            <Avatar className="h-32 w-32 border-4 border-primary" profile={callee}>
+        <div className="flex h-dvh flex-col items-center justify-center bg-gradient-to-b from-blue-500 to-sky-400 text-foreground text-center p-4">
+            <Avatar className="h-32 w-32 border-4 border-white" profile={callee}>
             </Avatar>
-            <h2 className="mt-4 text-2xl font-bold">Calling</h2>
-            <h3 className="text-xl text-primary">{callee.full_name}</h3>
-            <p className="text-muted-foreground mt-2 flex items-center gap-2">
+            <h2 className="mt-4 text-2xl font-bold text-white">Calling</h2>
+            <h3 className="text-xl text-primary-foreground">{callee.full_name}</h3>
+            <p className="text-white/80 mt-2 flex items-center gap-2">
                 <Loader2 className="h-4 w-4 animate-spin" />
                 Ringing...
             </p>
