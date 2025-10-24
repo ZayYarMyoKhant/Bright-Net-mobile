@@ -4,24 +4,18 @@
 import { useState, useEffect } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { Avatar, AvatarImage, AvatarFallback } from './ui/avatar';
+import { Avatar } from './ui/avatar';
 import { Button } from './ui/button';
 import { Phone } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import type { Profile } from '@/lib/data';
 
-type VideoCall = {
+type CallRequest = {
     id: string;
     caller_id: string;
     callee_id: string;
-    status: string;
-    created_at: string;
-    updated_at: string;
+    caller: Profile;
 };
-
-type CallRequest = VideoCall & {
-    caller: Profile
-}
 
 export function VideoCallRequestBanner({ userId }: { userId: string }) {
     const [request, setRequest] = useState<CallRequest | null>(null);
@@ -31,41 +25,35 @@ export function VideoCallRequestBanner({ userId }: { userId: string }) {
 
     useEffect(() => {
         const channel = supabase
-            .channel(`video-calls-for-${userId}`)
-            .on<VideoCall>(
-                'postgres_changes',
+            .channel(`call-requests-for-${userId}`)
+            .on('postgres_changes',
                 { 
                     event: 'INSERT', 
                     schema: 'public', 
-                    table: 'video_calls',
+                    table: 'call_requests',
                     filter: `callee_id=eq.${userId}`
                 },
                 async (payload) => {
-                    // Only show banner for new requests
-                    if (payload.new.status === 'requesting') {
-                         const { data: callerProfile, error } = await supabase
-                            .from('profiles')
-                            .select('*')
-                            .eq('id', payload.new.caller_id)
-                            .single();
-                        
-                        if (!error && callerProfile) {
-                            setRequest({ ...payload.new, caller: callerProfile });
-                        }
+                    const { data: callerProfile, error } = await supabase
+                        .from('profiles')
+                        .select('*')
+                        .eq('id', payload.new.caller_id)
+                        .single();
+                    
+                    if (!error && callerProfile) {
+                        setRequest({ ...payload.new, caller: callerProfile } as CallRequest);
                     }
                 }
             )
-            .on<VideoCall>(
-                'postgres_changes',
+            .on('postgres_changes',
                 {
-                    event: 'UPDATE',
+                    event: 'DELETE',
                     schema: 'public',
-                    table: 'video_calls',
+                    table: 'call_requests',
                     filter: `callee_id=eq.${userId}`
                 },
                 (payload) => {
-                    // Hide banner if call is cancelled or missed
-                    if (request && payload.new.id === request.id && (payload.new.status === 'cancelled' || payload.new.status === 'declined' || payload.new.status === 'ended')) {
+                    if (request && payload.old.id === request.id) {
                         setRequest(null);
                     }
                 }
@@ -77,25 +65,33 @@ export function VideoCallRequestBanner({ userId }: { userId: string }) {
         };
     }, [userId, supabase, request]);
 
-    const handleResponse = async (accept: boolean) => {
+    const handleAccept = async () => {
         if (!request) return;
 
-        const newStatus = accept ? 'accepted' : 'declined';
-        
         const currentRequest = request;
-        setRequest(null); // Hide banner immediately
+        setRequest(null);
 
+        const { data, error } = await supabase.rpc('accept_call', { request_id_param: currentRequest.id });
+
+        if (error) {
+            toast({ variant: 'destructive', title: 'Failed to accept call', description: error.message });
+        } else {
+            router.push(`/chat/${currentRequest.caller_id}/voice-call/${data}`);
+        }
+    };
+
+    const handleDecline = async () => {
+        if (!request) return;
+        
         const { error } = await supabase
-            .from('video_calls')
-            .update({ status: newStatus })
-            .eq('id', currentRequest.id);
+            .from('call_requests')
+            .delete()
+            .eq('id', request.id);
+
+        setRequest(null);
         
         if (error) {
-            toast({ variant: 'destructive', title: 'Failed to respond to call' });
-        } else {
-            if (accept) {
-                router.push(`/chat/${currentRequest.caller_id}/voice-call`);
-            }
+            toast({ variant: 'destructive', title: 'Failed to decline call' });
         }
     };
 
@@ -115,8 +111,8 @@ export function VideoCallRequestBanner({ userId }: { userId: string }) {
                     </div>
                 </div>
                 <div className="flex gap-2">
-                    <Button variant="destructive" size="sm" onClick={() => handleResponse(false)}>Decline</Button>
-                    <Button variant="secondary" size="sm" onClick={() => handleResponse(true)}>Accept</Button>
+                    <Button variant="destructive" size="sm" onClick={handleDecline}>Decline</Button>
+                    <Button variant="secondary" size="sm" onClick={handleAccept}>Accept</Button>
                 </div>
             </div>
         </div>

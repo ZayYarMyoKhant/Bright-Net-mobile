@@ -8,19 +8,18 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Loader2, PhoneOff } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import type { Profile, TypingBattle } from '@/lib/data';
+import type { Profile } from '@/lib/data';
 
-type VideoCall = {
+type CallRequest = {
     id: string;
     caller_id: string;
     callee_id: string;
-    status: string;
 }
 
 export default function VideoCallRequestingPage({ params: paramsPromise }: { params: Promise<{ id: string, callId: string }> }) {
     const params = use(paramsPromise);
     const otherUserId = params.id;
-    const callId = params.callId;
+    const callRequestId = params.callId;
     const router = useRouter();
     const supabase = createClient();
     const { toast } = useToast();
@@ -45,36 +44,40 @@ export default function VideoCallRequestingPage({ params: paramsPromise }: { par
         };
         fetchCalleeData();
 
-        const channel = supabase
-            .channel(`video-call-${callId}`)
-            .on<VideoCall>(
-                'postgres_changes',
-                { event: 'UPDATE', schema: 'public', table: 'video_calls', filter: `id=eq.${callId}` },
+        // Listen for the request to be accepted (i.e., a new video_call session is created)
+        const callSessionChannel = supabase
+            .channel(`active-call-for-${otherUserId}`)
+            .on('postgres_changes', 
+                { event: 'INSERT', schema: 'public', table: 'video_calls', filter: `caller_id=eq.${otherUserId}` },
                 (payload) => {
-                    const call = payload.new;
-                    if (call.status === 'accepted') {
-                        router.push(`/chat/${otherUserId}/voice-call`);
-                    } else if (call.status === 'declined') {
-                        toast({ variant: 'destructive', title: 'Call Declined', description: `${callee?.full_name} declined your call.` });
-                        router.push(`/chat/${otherUserId}`);
-                    } else if (call.status === 'cancelled') {
-                        toast({ variant: 'destructive', title: 'Call Cancelled'});
-                        router.push(`/chat/${otherUserId}`);
-                    }
+                     router.push(`/chat/${otherUserId}/voice-call/${payload.new.id}`);
+                }
+            )
+            .subscribe();
+
+        // Listen for the request to be deleted (declined or cancelled)
+        const requestChannel = supabase
+            .channel(`call-request-status-${callRequestId}`)
+            .on('postgres_changes',
+                { event: 'DELETE', schema: 'public', table: 'call_requests', filter: `id=eq.${callRequestId}` },
+                (payload) => {
+                    toast({ variant: 'destructive', title: 'Call Declined', description: `${callee?.full_name} is unavailable.` });
+                    router.push(`/chat/${otherUserId}`);
                 }
             )
             .subscribe();
 
         return () => {
-            supabase.removeChannel(channel);
+            supabase.removeChannel(callSessionChannel);
+            supabase.removeChannel(requestChannel);
         };
-    }, [callId, router, supabase, toast, otherUserId, callee?.full_name]);
+    }, [callRequestId, router, supabase, toast, otherUserId, callee?.full_name]);
 
     const handleCancel = async () => {
         const { error } = await supabase
-            .from('video_calls')
-            .update({ status: 'cancelled' })
-            .eq('id', callId);
+            .from('call_requests')
+            .delete()
+            .eq('id', callRequestId);
         
         if (error) {
             toast({ variant: 'destructive', title: 'Failed to cancel call' });
@@ -101,7 +104,7 @@ export default function VideoCallRequestingPage({ params: paramsPromise }: { par
             <h3 className="text-xl text-primary">{callee.full_name}</h3>
             <p className="text-muted-foreground mt-2 flex items-center gap-2">
                 <Loader2 className="h-4 w-4 animate-spin" />
-                Requesting...
+                Ringing...
             </p>
             <Button variant="destructive" size="icon" className="mt-12 h-16 w-16 rounded-full" onClick={handleCancel}>
                 <PhoneOff className="h-8 w-8" />
@@ -109,5 +112,3 @@ export default function VideoCallRequestingPage({ params: paramsPromise }: { par
         </div>
     );
 }
-
-    

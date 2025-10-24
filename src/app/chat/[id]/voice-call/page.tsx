@@ -13,15 +13,16 @@ import { Profile } from "@/lib/data";
 import Peer from 'simple-peer';
 import { User } from "@supabase/supabase-js";
 
-export default function VoiceCallPage({ params: paramsPromise }: { params: Promise<{ id: string }> }) {
+export default function VoiceCallPage({ params: paramsPromise }: { params: Promise<{ id: string, callId: string }> }) {
   const params = use(paramsPromise);
+  const otherUserId = params.id;
+  const callId = params.callId;
   const router = useRouter();
   const supabase = createClient();
   const { toast } = useToast();
 
   const [otherUser, setOtherUser] = useState<Profile | null>(null);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [callId, setCallId] = useState<string | null>(null);
   const [isMuted, setIsMuted] = useState(false);
   const [isCameraOn, setIsCameraOn] = useState(true);
   const [facingMode, setFacingMode] = useState<'user' | 'environment'>('user');
@@ -33,8 +34,7 @@ export default function VoiceCallPage({ params: paramsPromise }: { params: Promi
   const peerRef = useRef<Peer.Instance | null>(null);
   const callSubscriptionRef = useRef<any>(null);
 
-  const handleEndCall = useCallback(async (shouldUpdateDb = true) => {
-    console.log('Ending call. Should update DB:', shouldUpdateDb);
+  const handleEndCall = useCallback(async () => {
     if (callSubscriptionRef.current) {
         supabase.removeChannel(callSubscriptionRef.current);
         callSubscriptionRef.current = null;
@@ -47,27 +47,29 @@ export default function VoiceCallPage({ params: paramsPromise }: { params: Promi
         streamRef.current.getTracks().forEach(track => track.stop());
         streamRef.current = null;
     }
-    if (shouldUpdateDb && callId) {
-        await supabase.from('video_calls').update({ status: 'ended' }).eq('id', callId);
+    // The call record will be deleted from the active calls table, 
+    // which triggers the logging function on the backend.
+    if (callId) {
+        await supabase.from('video_calls').delete().eq('id', callId);
     }
-    if (params.id) {
-       router.push(`/chat/${params.id}`);
+    if (otherUserId) {
+       router.push(`/chat/${otherUserId}`);
     }
-  }, [callId, supabase, router, params.id]);
+  }, [callId, supabase, router, otherUserId]);
 
 
-  const setupPeer = useCallback((stream: MediaStream, isInitiator: boolean, currentCallId: string, user: User) => {
-    if (peerRef.current) return; // Avoid re-creating peer
+  const setupPeer = useCallback((stream: MediaStream, isInitiator: boolean) => {
+    if (peerRef.current || !callId) return;
 
     const peer = new Peer({
         initiator: isInitiator,
-        trickle: false, // Simplifies signaling
+        trickle: false,
         stream: stream,
     });
 
     peer.on('signal', async (data) => {
         const signalColumn = isInitiator ? 'caller_signal' : 'callee_signal';
-        const { error } = await supabase.from('video_calls').update({ [signalColumn]: JSON.stringify(data) }).eq('id', currentCallId);
+        const { error } = await supabase.from('video_calls').update({ [signalColumn]: JSON.stringify(data) }).eq('id', callId);
         if (error) console.error("Signal update error:", error);
     });
 
@@ -77,15 +79,15 @@ export default function VoiceCallPage({ params: paramsPromise }: { params: Promi
         }
     });
     
-    peer.on('close', () => handleEndCall(false));
+    peer.on('close', () => handleEndCall());
     peer.on('error', (err) => {
       console.error('Peer error:', err);
       toast({variant: 'destructive', title: 'Connection Error'});
-      handleEndCall(true);
+      handleEndCall();
     });
 
     peerRef.current = peer;
-  }, [supabase, handleEndCall, toast]);
+  }, [supabase, handleEndCall, toast, callId]);
   
   const startStream = useCallback(async (currentFacingMode: 'user' | 'environment') => {
     try {
@@ -107,7 +109,6 @@ export default function VoiceCallPage({ params: paramsPromise }: { params: Promi
       stream.getAudioTracks().forEach(track => track.enabled = !isMuted);
       stream.getVideoTracks().forEach(track => track.enabled = isCameraOn);
       
-      // If peer exists, replace tracks. This is for flipping camera.
       if (peerRef.current) {
          const oldVideoTrack = peerRef.current.streams[0]?.getVideoTracks()[0];
          const newVideoTrack = stream.getVideoTracks()[0];
@@ -135,65 +136,59 @@ export default function VoiceCallPage({ params: paramsPromise }: { params: Promi
 
     const initCall = async () => {
         const { data: { user } } = await supabase.auth.getUser();
-        if (!user) { router.push('/signup'); return; }
-        if (!isMounted) return;
+        if (!user || !isMounted) { router.push('/signup'); return; }
         setCurrentUser(user);
 
-        const { data: otherUserData } = await supabase.from('profiles').select('*').eq('id', params.id).single();
+        const { data: otherUserData } = await supabase.from('profiles').select('*').eq('id', otherUserId).single();
         if (!otherUserData || !isMounted) { router.push('/chat'); return; }
         setOtherUser(otherUserData);
 
         const { data: callData, error: callError } = await supabase.from('video_calls')
           .select('*')
-          .or(`and(caller_id.eq.${user.id},callee_id.eq.${params.id}),and(caller_id.eq.${params.id},callee_id.eq.${user.id})`)
-          .in('status', ['requesting', 'accepted'])
-          .order('created_at', { ascending: false })
-          .limit(1).single();
+          .eq('id', callId)
+          .single();
 
-        if (callError || !callData) {
+        if (callError || !callData || !isMounted) {
             toast({variant: 'destructive', title: 'Active call not found'});
-            if(isMounted) router.push(`/chat/${params.id}`);
+            router.push(`/chat/${otherUserId}`);
             return;
         }
 
-        if (!isMounted) return;
-        const currentCallId = callData.id;
-        setCallId(currentCallId);
         const isInitiator = callData.caller_id === user.id;
-
-        // If callee accepts, update status.
-        if (!isInitiator && callData.status === 'requesting') {
-            await supabase.from('video_calls').update({ status: 'accepted' }).eq('id', currentCallId);
-        }
 
         const localStream = await startStream(facingMode);
         if (!localStream || !isMounted) return;
 
-        setupPeer(localStream, isInitiator, currentCallId, user);
+        setupPeer(localStream, isInitiator);
         
-        callSubscriptionRef.current = supabase.channel(`webrtc-signaling-${currentCallId}`)
+        callSubscriptionRef.current = supabase.channel(`webrtc-signaling-${callId}`)
             .on('postgres_changes', {
-                event: 'UPDATE',
+                event: '*', // Listen for both UPDATE and DELETE
                 schema: 'public',
                 table: 'video_calls',
-                filter: `id=eq.${currentCallId}`
+                filter: `id=eq.${callId}`
             }, (payload) => {
-                if (!isMounted || !peerRef.current || peerRef.current.destroyed) return;
-                
-                const { caller_signal, callee_signal, status } = payload.new;
-                const signalData = isInitiator ? callee_signal : caller_signal;
-                
-                if (signalData && !peerRef.current.destroyed) {
-                    try {
-                        const parsedSignal = typeof signalData === 'string' ? JSON.parse(signalData) : signalData;
-                        peerRef.current.signal(parsedSignal);
-                    } catch (e) {
-                        console.error("Signal error:", e);
-                    }
+                if (!isMounted || (peerRef.current && peerRef.current.destroyed)) return;
+
+                if (payload.eventType === 'DELETE') {
+                    handleEndCall();
+                    return;
                 }
-                
-                if (status === 'ended' || status === 'declined' || status === 'cancelled') {
-                    handleEndCall(false);
+
+                if (payload.eventType === 'UPDATE') {
+                    const { caller_signal, callee_signal } = payload.new;
+                    const signalData = isInitiator ? callee_signal : caller_signal;
+                    
+                    if (signalData && !peerRef.current.destroyed) {
+                        try {
+                            const parsedSignal = typeof signalData === 'string' ? JSON.parse(signalData) : signalData;
+                            if (parsedSignal.type === 'answer' || parsedSignal.type === 'offer') {
+                                peerRef.current.signal(parsedSignal);
+                            }
+                        } catch (e) {
+                            console.error("Signal error:", e);
+                        }
+                    }
                 }
             }).subscribe();
     };
@@ -202,10 +197,10 @@ export default function VoiceCallPage({ params: paramsPromise }: { params: Promi
     
     return () => {
         isMounted = false;
-        handleEndCall(true);
+        handleEndCall();
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [params.id]);
+  }, [otherUserId, callId]);
 
 
   const handleFlipCamera = async () => {
@@ -243,7 +238,7 @@ export default function VoiceCallPage({ params: paramsPromise }: { params: Promi
       <main className="flex-1 relative">
         <video ref={remoteVideoRef} className="w-full h-full object-cover bg-black" autoPlay playsInline />
         
-        {!remoteVideoRef.current?.srcObject && (
+        {(!remoteVideoRef.current?.srcObject || remoteVideoRef.current?.paused) && (
             <div className="absolute inset-0 flex items-center justify-center -z-10">
               <div className="flex flex-col items-center text-center">
                 <Avatar className="h-32 w-32 border-4 border-white/50" profile={otherUser}>
@@ -283,7 +278,7 @@ export default function VoiceCallPage({ params: paramsPromise }: { params: Promi
           <Button variant="outline" size="icon" className="h-14 w-14 rounded-full bg-white/20 hover:bg-white/30 border-0" onClick={handleFlipCamera}>
             <RefreshCw className="h-7 w-7" />
           </Button>
-          <Button variant="destructive" size="icon" className="h-14 w-14 rounded-full" onClick={() => handleEndCall(true)}>
+          <Button variant="destructive" size="icon" className="h-14 w-14 rounded-full" onClick={() => handleEndCall()}>
             <PhoneOff className="h-7 w-7" />
           </Button>
         </div>

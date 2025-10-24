@@ -649,8 +649,8 @@ export default function IndividualChatPage({ params: paramsPromise }: { params: 
 
     setIsCalling(true);
     const { data, error } = await supabase
-        .from('video_calls')
-        .insert({ caller_id: currentUser.id, callee_id: otherUser.id, status: 'requesting' })
+        .from('call_requests')
+        .insert({ caller_id: currentUser.id, callee_id: otherUser.id })
         .select('id')
         .single();
     
