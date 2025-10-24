@@ -648,11 +648,10 @@ export default function IndividualChatPage({ params: paramsPromise }: { params: 
     if (!currentUser || !otherUser) return;
     setIsCalling(true);
     
-    // First, check if a request already exists
     const { data: existingRequest, error: checkError } = await supabase
       .from('call_requests')
       .select('id')
-      .or(`(caller_id.eq.${currentUser.id},callee_id.eq.${otherUser.id}),(caller_id.eq.${otherUser.id},callee_id.eq.${currentUser.id})`)
+      .or(`and(caller_id.eq.${currentUser.id},callee_id.eq.${otherUser.id}),and(caller_id.eq.${otherUser.id},callee_id.eq.${currentUser.id})`)
       .maybeSingle();
 
     if (checkError) {
@@ -662,13 +661,10 @@ export default function IndividualChatPage({ params: paramsPromise }: { params: 
     }
 
     if (existingRequest) {
-      // If a request already exists, just navigate to the requesting page
       router.push(`/chat/${otherUser.id}/voice-call/${existingRequest.id}/requesting`);
-      setIsCalling(false);
       return;
     }
 
-    // If no request exists, create a new one
     const { data, error } = await supabase
         .from('call_requests')
         .insert({ caller_id: currentUser.id, callee_id: otherUser.id })
@@ -895,3 +891,5 @@ export default function IndividualChatPage({ params: paramsPromise }: { params: 
     </div>
   );
 }
+
+    
