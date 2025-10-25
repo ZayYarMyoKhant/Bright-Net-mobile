@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Loader2, PhoneOff } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import type { Profile } from '@/lib/data';
+import { User } from '@supabase/supabase-js';
 
 type CallRequest = {
     id: string;
@@ -25,46 +26,57 @@ export default function VideoCallRequestingPage({ params: paramsPromise }: { par
     const { toast } = useToast();
     const [callee, setCallee] = useState<Profile | null>(null);
     const [loading, setLoading] = useState(true);
+    const [currentUser, setCurrentUser] = useState<User | null>(null);
 
     useEffect(() => {
-        const fetchCalleeData = async () => {
-            const { data, error } = await supabase
+        const fetchInitialData = async () => {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) { router.push('/signup'); return; }
+            setCurrentUser(user);
+            
+            const { data: calleeData, error } = await supabase
                 .from('profiles')
                 .select('*')
                 .eq('id', otherUserId)
                 .single();
 
-            if (error || !data) {
+            if (error || !calleeData) {
                 toast({ variant: 'destructive', title: 'User not found' });
                 router.push('/chat');
                 return;
             }
-            setCallee(data);
+            setCallee(calleeData);
             setLoading(false);
         };
-        fetchCalleeData();
+        fetchInitialData();
+    }, [otherUserId, router, supabase, toast]);
 
-        // Listen for the request to be accepted (i.e., a new video_call session is created)
-        const callSessionChannel = supabase
-            .channel(`active-call-for-${otherUserId}`)
+    useEffect(() => {
+        if (!currentUser) return;
+
+        // --- Subscription 1: Listen for the call being ACCEPTED ---
+        // This happens when a new row is created in `video_calls` for this caller.
+        const acceptedCallChannel = supabase
+            .channel(`accepted-call-for-${currentUser.id}`)
             .on('postgres_changes', 
-                { event: 'INSERT', schema: 'public', table: 'video_calls' },
+                { event: 'INSERT', schema: 'public', table: 'video_calls', filter: `caller_id=eq.${currentUser.id}` },
                 (payload) => {
-                    const { caller_id, id: newCallId } = payload.new as { caller_id: string, id: string };
-                    // Ensure this is the call we initiated
-                    if (caller_id === otherUserId) {
-                         router.push(`/chat/${otherUserId}/voice-call/${newCallId}`);
-                    }
+                    const { id: newCallId } = payload.new as { id: string };
+                    // The call was accepted, navigate to the active call page.
+                    router.push(`/chat/${otherUserId}/voice-call/${newCallId}`);
                 }
             )
             .subscribe();
 
-        // Listen for the request to be deleted (declined or cancelled)
-        const requestChannel = supabase
+        // --- Subscription 2: Listen for the call being DECLINED or CANCELLED ---
+        // This happens when the original request is deleted from `call_requests`.
+        const requestStatusChannel = supabase
             .channel(`call-request-status-${callRequestId}`)
             .on('postgres_changes',
                 { event: 'DELETE', schema: 'public', table: 'call_requests', filter: `id=eq.${callRequestId}` },
                 (payload) => {
+                    // Since this channel only fires on DELETE, and we already handle the ACCEPT case above,
+                    // any deletion here means it was declined or cancelled.
                     toast({ variant: 'destructive', title: 'Call Declined', description: `${callee?.full_name} is unavailable.` });
                     router.push(`/chat/${otherUserId}`);
                 }
@@ -72,10 +84,10 @@ export default function VideoCallRequestingPage({ params: paramsPromise }: { par
             .subscribe();
 
         return () => {
-            supabase.removeChannel(callSessionChannel);
-            supabase.removeChannel(requestChannel);
+            supabase.removeChannel(acceptedCallChannel);
+            supabase.removeChannel(requestStatusChannel);
         };
-    }, [callRequestId, router, supabase, toast, otherUserId, callee?.full_name]);
+    }, [callRequestId, router, supabase, toast, otherUserId, callee?.full_name, currentUser]);
 
     const handleCancel = async () => {
         const { error } = await supabase
@@ -86,7 +98,8 @@ export default function VideoCallRequestingPage({ params: paramsPromise }: { par
         if (error) {
             toast({ variant: 'destructive', title: 'Failed to cancel call' });
         } else {
-            router.push(`/chat/${otherUserId}`);
+            // The subscription will catch the delete and redirect.
+            // router.push(`/chat/${otherUserId}`); 
         }
     };
 
