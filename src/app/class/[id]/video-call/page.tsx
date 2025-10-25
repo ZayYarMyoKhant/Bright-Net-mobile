@@ -75,9 +75,9 @@ export default function ClassVideoCallPage({ params: paramsPromise }: { params: 
   const peersRef = useRef<{[key: string]: {peer: Peer.Instance, user: Profile}}>({});
   const presenceChannelRef = useRef<any>(null);
 
-  const handleEndCall = useCallback(async () => {
+ const cleanupCall = useCallback(() => {
     if (presenceChannelRef.current) {
-        await supabase.removeChannel(presenceChannelRef.current);
+        supabase.removeChannel(presenceChannelRef.current);
         presenceChannelRef.current = null;
     }
     
@@ -88,13 +88,19 @@ export default function ClassVideoCallPage({ params: paramsPromise }: { params: 
       streamRef.current.getTracks().forEach(track => track.stop());
       streamRef.current = null;
     }
-    
+}, [supabase]);
+
+
+  const handleEndCall = useCallback(async () => {
+    // Only the creator can set the active status to false
     if (classInfo && currentUser && currentUser.id === classInfo.creator_id) {
         await supabase.from('classes').update({ is_video_call_active: false }).eq('id', classInfo.id);
     }
     
+    cleanupCall();
+
     if (params.id) router.push(`/class/${params.id}`);
-  }, [classInfo, currentUser, params.id, router, supabase]);
+  }, [classInfo, currentUser, params.id, router, supabase, cleanupCall]);
   
 
   const startStream = useCallback(async (currentFacingMode: 'user' | 'environment') => {
@@ -267,7 +273,7 @@ export default function ClassVideoCallPage({ params: paramsPromise }: { params: 
 
     return () => {
         isMounted = false;
-        handleEndCall();
+        cleanupCall();
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params.id]);
