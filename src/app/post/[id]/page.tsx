@@ -219,8 +219,8 @@ function PostViewerContent({ params }: { params: { id: string } }) {
           </div>
         </CardHeader>
         
-        <CardContent className="p-0 flex-1 min-h-0">
-           <div className="relative w-full h-full bg-muted">
+        <CardContent className="p-0 flex-shrink flex-grow-0 basis-auto">
+           <div className="relative w-full aspect-[4/3] bg-muted flex-1">
             {post.media_type === 'video' ? (
                 <video src={post.media_url} controls autoPlay loop className="w-full h-full object-contain" />
             ) : (
