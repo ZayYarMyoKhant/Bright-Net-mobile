@@ -24,12 +24,13 @@ export function VideoCallRequestBanner({ userId }: { userId: string }) {
     const { toast } = useToast();
 
     useEffect(() => {
-        const channel = supabase
-            .channel(`call-requests-for-${userId}`)
+        if (!userId) return;
+
+        const channel = supabase.channel(`call-requests-for-${userId}`)
             .on('postgres_changes',
-                { 
-                    event: 'INSERT', 
-                    schema: 'public', 
+                {
+                    event: 'INSERT',
+                    schema: 'public',
                     table: 'call_requests',
                     filter: `callee_id=eq.${userId}`
                 },
@@ -49,8 +50,7 @@ export function VideoCallRequestBanner({ userId }: { userId: string }) {
                 {
                     event: 'DELETE',
                     schema: 'public',
-                    table: 'call_requests',
-                    filter: `callee_id=eq.${userId}`
+                    table: 'call_requests'
                 },
                 (payload) => {
                     // Check if the deleted request is the one currently displayed
@@ -64,7 +64,7 @@ export function VideoCallRequestBanner({ userId }: { userId: string }) {
         return () => {
             supabase.removeChannel(channel);
         };
-    }, [userId, supabase, request]); // Added 'request' to dependency array to re-subscribe with correct state
+    }, [userId, supabase, toast, router, request]);
 
     const handleAccept = async () => {
         if (!request) return;
@@ -84,7 +84,6 @@ export function VideoCallRequestBanner({ userId }: { userId: string }) {
     const handleDecline = async () => {
         if (!request) return;
         
-        // Optimistically hide the banner
         const tempRequest = request;
         setRequest(null);
 
@@ -94,10 +93,7 @@ export function VideoCallRequestBanner({ userId }: { userId: string }) {
             .eq('id', tempRequest.id);
         
         if (error) {
-            // If decline fails, show banner again (or a toast message)
             toast({ variant: 'destructive', title: 'Failed to decline call' });
-            // Optionally, you could restore the request to the UI
-            // setRequest(tempRequest); 
         }
     };
 
