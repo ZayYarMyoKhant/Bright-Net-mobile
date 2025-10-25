@@ -26,40 +26,37 @@ export function VideoCallRequestBanner({ userId }: { userId: string }) {
     useEffect(() => {
         if (!userId) return;
 
-        const channel = supabase.channel(`call-requests-for-${userId}`)
-            .on('postgres_changes',
-                {
-                    event: 'INSERT',
-                    schema: 'public',
-                    table: 'call_requests',
-                    filter: `callee_id=eq.${userId}`
+        const handleInsert = async (payload: any) => {
+            const { data: callerProfile, error } = await supabase
+                .from('profiles')
+                .select('*')
+                .eq('id', payload.new.caller_id)
+                .single();
+            
+            if (!error && callerProfile) {
+                setRequest({ ...payload.new, caller: callerProfile } as CallRequest);
+            }
+        };
+
+        const handleDelete = (payload: any) => {
+            if (request && payload.old.id === request.id) {
+                setRequest(null);
+            }
+        };
+
+        const channel = supabase.channel(`call-requests-for-${userId}`, {
+            config: {
+                presence: {
+                    key: userId,
                 },
-                async (payload) => {
-                    const { data: callerProfile, error } = await supabase
-                        .from('profiles')
-                        .select('*')
-                        .eq('id', payload.new.caller_id)
-                        .single();
-                    
-                    if (!error && callerProfile) {
-                        setRequest({ ...payload.new, caller: callerProfile } as CallRequest);
-                    }
-                }
-            )
-            .on('postgres_changes',
-                {
-                    event: 'DELETE',
-                    schema: 'public',
-                    table: 'call_requests'
-                },
-                (payload) => {
-                    // Check if the deleted request is the one currently displayed
-                    if (request && payload.old.id === request.id) {
-                        setRequest(null);
-                    }
-                }
-            )
-            .subscribe();
+            },
+        });
+
+        channel.on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'call_requests', filter: `callee_id=eq.${userId}` }, handleInsert);
+        channel.on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'call_requests', filter: `callee_id=eq.${userId}` }, handleDelete);
+        
+        channel.subscribe();
+
 
         return () => {
             supabase.removeChannel(channel);
