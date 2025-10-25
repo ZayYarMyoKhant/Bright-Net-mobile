@@ -72,36 +72,31 @@ export default function ClassVideoCallPage({ params: paramsPromise }: { params: 
   const [facingMode, setFacingMode] = useState<'user' | 'environment'>('user');
   const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
-  const peersRef = useRef<{[key: string]: {peer: Peer.Instance, user: Profile}}>({});
+  const peersRef = useRef<{[key: string]: Peer.Instance}>({});
   const presenceChannelRef = useRef<any>(null);
 
- const cleanupCall = useCallback(() => {
+  const cleanupCall = useCallback(() => {
     if (presenceChannelRef.current) {
         supabase.removeChannel(presenceChannelRef.current);
         presenceChannelRef.current = null;
     }
     
-    Object.values(peersRef.current).forEach(({peer}) => peer.destroy());
+    Object.values(peersRef.current).forEach((peer) => peer.destroy());
     peersRef.current = {};
 
     if (streamRef.current) {
       streamRef.current.getTracks().forEach(track => track.stop());
       streamRef.current = null;
     }
-}, [supabase]);
-
+  }, [supabase]);
 
   const handleEndCall = useCallback(async () => {
-    // Only the creator can set the active status to false
     if (classInfo && currentUser && currentUser.id === classInfo.creator_id) {
         await supabase.from('classes').update({ is_video_call_active: false }).eq('id', classInfo.id);
     }
-    
     cleanupCall();
-
     if (params.id) router.push(`/class/${params.id}`);
   }, [classInfo, currentUser, params.id, router, supabase, cleanupCall]);
-  
 
   const startStream = useCallback(async (currentFacingMode: 'user' | 'environment') => {
     try {
@@ -122,7 +117,7 @@ export default function ClassVideoCallPage({ params: paramsPromise }: { params: 
       
       setParticipants(prev => prev.map(p => p.isCurrentUser ? {...p, stream: newStream, isCameraOn: isCameraOn, isMuted: isMuted} : p));
 
-      Object.values(peersRef.current).forEach(({ peer }) => {
+      Object.values(peersRef.current).forEach((peer) => {
         const oldStream = peer.streams[0];
         if (oldStream) {
             const oldAudioTrack = oldStream.getAudioTracks()[0];
@@ -146,78 +141,94 @@ export default function ClassVideoCallPage({ params: paramsPromise }: { params: 
     }
   }, [isMuted, isCameraOn, toast]);
 
+    const createPeer = useCallback((otherUserId: string, otherUserProfile: Profile, initiator: boolean) => {
+        if (!streamRef.current || !currentUser) return null;
+        
+        const peer = new Peer({
+            initiator: initiator,
+            trickle: false,
+            stream: streamRef.current,
+        });
+
+        peer.on('signal', (signal) => {
+            presenceChannelRef.current?.send({
+                type: 'broadcast',
+                event: 'signal',
+                payload: { from: currentUser.id, to: otherUserId, signal },
+            });
+        });
+
+        peer.on('stream', (remoteStream: MediaStream) => {
+            setParticipants(prev => {
+                const userExists = prev.some(p => p.id === otherUserId);
+                if (userExists) {
+                    return prev.map(p => p.id === otherUserId ? { ...p, stream: remoteStream } : p);
+                } else {
+                    return [...prev, { ...otherUserProfile, stream: remoteStream, isCameraOn: true, isMuted: false }];
+                }
+            });
+        });
+        
+        peer.on('close', () => {
+             if (peersRef.current[otherUserId]) {
+                delete peersRef.current[otherUserId];
+             }
+             setParticipants(prev => prev.filter(p => p.id !== otherUserId));
+        });
+
+        peer.on('error', (err) => {
+            console.error(`Peer error with ${otherUserId}:`, err);
+            // Optionally attempt to reconnect or just clean up
+            if (peersRef.current[otherUserId]) {
+                peersRef.current[otherUserId].destroy();
+                delete peersRef.current[otherUserId];
+            }
+            setParticipants(prev => prev.filter(p => p.id !== otherUserId));
+        });
+        
+        peersRef.current[otherUserId] = peer;
+        return peer;
+
+    }, [currentUser]);
+
+
   useEffect(() => {
     let isMounted = true;
     const init = async () => {
         setLoading(true);
         const { data: { user } } = await supabase.auth.getUser();
-        if (!user) {
-            router.push('/signup');
-            return;
-        }
+        if (!user) { router.push('/signup'); return; }
         if (!isMounted) return;
         setCurrentUser(user);
 
         const { data: classData, error: classError } = await supabase.from('classes').select('id, name, creator_id').eq('id', params.id).single();
         if (classError) {
             toast({ variant: 'destructive', title: 'Error', description: "Could not load class details." });
-            router.push('/class');
-            return;
+            router.push('/class'); return;
         }
         if (!isMounted) return;
         setClassInfo(classData);
 
         const localStream = await startStream(facingMode);
-        if (!localStream || !isMounted) {
-            setLoading(false);
-            return;
-        }
+        if (!localStream || !isMounted) { setLoading(false); return; }
 
         const {data: myProfile} = await supabase.from('profiles').select('*').eq('id', user.id).single();
-        if (!myProfile || !isMounted) {
-            setLoading(false);
-            return;
-        }
+        if (!myProfile || !isMounted) { setLoading(false); return; }
 
-        setParticipants([{
-            ...myProfile,
-            isCurrentUser: true,
-            stream: localStream,
-            isCameraOn: isCameraOn,
-            isMuted: isMuted,
-        }]);
-        
+        setParticipants([{ ...myProfile, isCurrentUser: true, stream: localStream, isCameraOn: isCameraOn, isMuted: isMuted }]);
         setLoading(false);
         
         presenceChannelRef.current = supabase.channel(`class-call-${params.id}`);
 
         presenceChannelRef.current
         .on('presence', { event: 'sync' }, () => {
-            if (!isMounted || !streamRef.current) return;
+            if (!isMounted || !streamRef.current || !currentUser) return;
             const state = presenceChannelRef.current.presenceState();
             for (const id in state) {
-                if (id === user.id) continue;
+                if (id === user.id || peersRef.current[id]) continue;
                 const otherUser = state[id][0].user_profile;
-                if (!peersRef.current[otherUser.id]) {
-                    const peer = new Peer({ initiator: true, trickle: false, stream: streamRef.current });
-                    
-                    peer.on('signal', signal => {
-                       presenceChannelRef.current.send({ type: 'broadcast', event: 'signal', payload: { from: user.id, to: otherUser.id, signal } });
-                    });
-                    
-                    peer.on('stream', remoteStream => {
-                        if (!isMounted) return;
-                        setParticipants(prev => prev.map(p => p.id === otherUser.id ? {...p, stream: remoteStream} : p));
-                    });
-                    
-                    peersRef.current[otherUser.id] = { peer, user: otherUser };
-                    setParticipants(prev => {
-                        if (!prev.find(p => p.id === otherUser.id)) {
-                           return [...prev, {...otherUser, isCameraOn: true, isMuted: false}];
-                        }
-                        return prev;
-                    });
-                }
+                const isInitiator = currentUser.id > otherUser.id; // Deterministic initiator
+                createPeer(otherUser.id, otherUser, isInitiator);
             }
         })
         .on('presence', { event: 'leave' }, ({ leftPresences }: {leftPresences: any[]}) => {
@@ -225,41 +236,24 @@ export default function ClassVideoCallPage({ params: paramsPromise }: { params: 
              leftPresences.forEach(presence => {
                 const leftUserId = presence.user_profile.id;
                 if (peersRef.current[leftUserId]) {
-                    peersRef.current[leftUserId].peer.destroy();
+                    peersRef.current[leftUserId].destroy();
                     delete peersRef.current[leftUserId];
                 }
                 setParticipants(prev => prev.filter(p => p.id !== leftUserId));
             });
         })
         .on('broadcast', { event: 'signal' }, ({ payload }: {payload: any}) => {
-            if (!isMounted || payload.to !== user.id) return;
-
-            const fromUser = presenceChannelRef.current.presenceState()[payload.from]?.[0]?.user_profile;
-            if(!fromUser) return;
-
-            const peerInfo = peersRef.current[payload.from];
-            if (peerInfo && !peerInfo.peer.destroyed) {
-                peerInfo.peer.signal(payload.signal);
-            } else if (!peerInfo && streamRef.current) {
-                 const peer = new Peer({ initiator: false, trickle: false, stream: streamRef.current });
-                 
-                 peer.on('signal', signal => {
-                     presenceChannelRef.current.send({ type: 'broadcast', event: 'signal', payload: { from: user.id, to: fromUser.id, signal } });
-                 });
-
-                 peer.on('stream', remoteStream => {
-                     if(!isMounted) return;
-                     setParticipants(prev => prev.map(p => p.id === fromUser.id ? {...p, stream: remoteStream} : p));
-                 });
-
-                 peer.signal(payload.signal);
-                 peersRef.current[fromUser.id] = { peer, user: fromUser };
-                 setParticipants(prev => {
-                    if (!prev.find(p => p.id === fromUser.id)) {
-                        return [...prev, {...fromUser, isCameraOn: true, isMuted: false}];
-                    }
-                    return prev;
-                });
+            if (!isMounted || payload.to !== user.id || !currentUser) return;
+            
+            const peer = peersRef.current[payload.from];
+            if (peer) {
+                peer.signal(payload.signal);
+            } else {
+                const fromUser = presenceChannelRef.current.presenceState()[payload.from]?.[0]?.user_profile;
+                if (!fromUser) return;
+                const isInitiator = currentUser.id > fromUser.id;
+                const newPeer = createPeer(fromUser.id, fromUser, isInitiator);
+                newPeer?.signal(payload.signal);
             }
         })
         .subscribe(async (status: string) => {
@@ -271,10 +265,7 @@ export default function ClassVideoCallPage({ params: paramsPromise }: { params: 
 
     init();
 
-    return () => {
-        isMounted = false;
-        cleanupCall();
-    }
+    return () => { isMounted = false; cleanupCall(); }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params.id]);
 
