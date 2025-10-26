@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useEffect, useState, use } from 'react';
@@ -96,10 +97,10 @@ export default function VideoCallRequestingPage({ params: paramsPromise }: { par
             .eq('id', callRequestId);
         
         if (error) {
-            toast({ variant: 'destructive', title: 'Failed to cancel call' });
+            toast({ variant: 'destructive', title: 'Failed to cancel call', description: error.message });
         } else {
             // The subscription will catch the delete and redirect.
-            // router.push(`/chat/${otherUserId}`); 
+            router.push(`/chat/${otherUserId}`); 
         }
     };
 

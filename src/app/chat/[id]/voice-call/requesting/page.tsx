@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useEffect, useState, use } from 'react';
@@ -54,7 +55,7 @@ export default function VideoCallRequestingPage({ params: paramsPromise }: { par
                     const call = payload.new;
                     if (call.status === 'accepted') {
                         // Navigate to the correct call page
-                        router.push(`/chat/${otherUserId}/voice-call`);
+                        router.push(`/chat/${otherUserId}/voice-call/${call.id}`);
                     } else if (call.status === 'declined' || call.status === 'cancelled') {
                         toast({ variant: 'destructive', title: call.status === 'declined' ? 'Call Declined' : 'Call Cancelled', description: `${callee?.full_name} is unavailable.` });
                         router.push(`/chat/${otherUserId}`);

@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { Avatar } from "@/components/ui/avatar";
@@ -648,23 +649,26 @@ export default function IndividualChatPage({ params: paramsPromise }: { params: 
     if (!currentUser || !otherUser) return;
     setIsCalling(true);
     
+    // Check if a call request already exists between these two users
     const { data: existingRequest, error: checkError } = await supabase
       .from('call_requests')
       .select('id')
-      .or(`and(caller_id.eq.${currentUser.id},callee_id.eq.${otherUser.id}),and(caller_id.eq.${otherUser.id},callee_id.eq.${currentUser.id})`)
+      .or(`(caller_id.eq.${currentUser.id},callee_id.eq.${otherUser.id}),(caller_id.eq.${otherUser.id},callee_id.eq.${currentUser.id})`)
       .maybeSingle();
 
     if (checkError) {
       setIsCalling(false);
-      toast({ variant: 'destructive', title: 'Could not start call', description: checkError.message });
+      toast({ variant: 'destructive', title: 'Could not start call', description: `Database Error: ${checkError.message}` });
       return;
     }
-
+    
+    // If a request already exists, go to the requesting page directly
     if (existingRequest) {
       router.push(`/chat/${otherUser.id}/voice-call/${existingRequest.id}/requesting`);
       return;
     }
 
+    // If no existing request, create a new one
     const { data, error } = await supabase
         .from('call_requests')
         .insert({ caller_id: currentUser.id, callee_id: otherUser.id })
@@ -674,7 +678,7 @@ export default function IndividualChatPage({ params: paramsPromise }: { params: 
     setIsCalling(false);
 
     if (error) {
-        toast({ variant: 'destructive', title: 'Could not start call', description: error.message });
+        toast({ variant: 'destructive', title: 'Could not start call', description: `Database Error: ${error.message}` });
     } else {
         router.push(`/chat/${otherUser.id}/voice-call/${data.id}/requesting`);
     }

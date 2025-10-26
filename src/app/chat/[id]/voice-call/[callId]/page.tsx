@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { Avatar } from "@/components/ui/avatar";
@@ -179,7 +180,7 @@ export default function VoiceCallPage({ params: paramsPromise }: { params: Promi
                     const { caller_signal, callee_signal } = payload.new;
                     const signalData = isInitiator ? callee_signal : caller_signal;
                     
-                    if (signalData && !peerRef.current.destroyed) {
+                    if (signalData && peerRef.current && !peerRef.current.destroyed) {
                         try {
                             const parsedSignal = typeof signalData === 'string' ? JSON.parse(signalData) : signalData;
                             if (parsedSignal.type === 'answer' || parsedSignal.type === 'offer') {
