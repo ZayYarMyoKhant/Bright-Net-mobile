@@ -73,12 +73,12 @@ export function VideoCallRequestBanner({ userId }: { userId: string }) {
         const currentRequest = request;
         setRequest(null);
 
-        const { data, error } = await supabase.rpc('accept_call', { request_id_param: currentRequest.id });
+        const { data: newCallId, error } = await supabase.rpc('accept_call', { request_id_param: currentRequest.id });
 
         if (error) {
             toast({ variant: 'destructive', title: 'Failed to accept call', description: error.message });
         } else {
-            router.push(`/chat/${currentRequest.caller_id}/voice-call/${data}`);
+            router.push(`/chat/${currentRequest.caller_id}/voice-call/${newCallId}`);
         }
     };
 

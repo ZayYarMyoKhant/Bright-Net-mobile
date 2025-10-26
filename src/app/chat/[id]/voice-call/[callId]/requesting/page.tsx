@@ -28,6 +28,22 @@ export default function VideoCallRequestingPage({ params: paramsPromise }: { par
     const [loading, setLoading] = useState(true);
     const [currentUser, setCurrentUser] = useState<User | null>(null);
 
+    const handleCancel = async (reason: 'cancelled' | 'Missed call') => {
+        const { error } = await supabase
+            .from('call_requests')
+            .delete()
+            .eq('id', callRequestId);
+        
+        if (error && error.code !== 'PGRST116') { // Ignore "No rows found" error, as the callee might have accepted.
+            toast({ variant: 'destructive', title: 'Failed to cancel call', description: error.message });
+        } else {
+             if (reason === 'Missed call') {
+                 toast({ variant: 'destructive', title: 'No Answer', description: `${callee?.full_name} did not answer the call.` });
+             }
+            router.push(`/chat/${otherUserId}`); 
+        }
+    };
+
     useEffect(() => {
         const fetchInitialData = async () => {
             const { data: { user } } = await supabase.auth.getUser();
@@ -51,7 +67,7 @@ export default function VideoCallRequestingPage({ params: paramsPromise }: { par
         fetchInitialData();
     }, [otherUserId, router, supabase, toast]);
 
-    // This handles the timeout for the missed call
+    // This handles the timeout for the missed call on the CALLER's side
     useEffect(() => {
         if (!callRequestId || !currentUser) return;
 
@@ -64,15 +80,17 @@ export default function VideoCallRequestingPage({ params: paramsPromise }: { par
     }, [callRequestId, currentUser]);
 
     useEffect(() => {
-        if (!currentUser) return;
+        if (!currentUser || !callRequestId) return;
 
         // --- Subscription 1: Listen for the call being ACCEPTED ---
+        // When callee accepts, a new row is created in `video_calls`. We listen for that.
         const acceptedCallChannel = supabase
             .channel(`accepted-call-for-${currentUser.id}`)
             .on('postgres_changes', 
                 { event: 'INSERT', schema: 'public', table: 'video_calls', filter: `caller_id=eq.${currentUser.id}` },
                 (payload) => {
                     const { id: newCallId } = payload.new as { id: string };
+                    // The original request is now fulfilled, navigate to the active call page.
                     router.push(`/chat/${otherUserId}/voice-call/${newCallId}`);
                 }
             )
@@ -84,7 +102,7 @@ export default function VideoCallRequestingPage({ params: paramsPromise }: { par
             .on('postgres_changes',
                 { event: 'DELETE', schema: 'public', table: 'call_requests', filter: `id=eq.${callRequestId}` },
                 (payload) => {
-                    // This could be triggered by the callee's banner timing out.
+                    // This could be triggered if the callee's banner times out and they never accepted.
                     toast({ variant: 'destructive', title: 'Call Unavailable', description: `${callee?.full_name} did not answer.` });
                     router.push(`/chat/${otherUserId}`);
                 }
@@ -97,21 +115,6 @@ export default function VideoCallRequestingPage({ params: paramsPromise }: { par
         };
     }, [callRequestId, router, supabase, otherUserId, callee?.full_name, currentUser]);
 
-    const handleCancel = async (reason: 'cancelled' | 'Missed call') => {
-        const { error } = await supabase
-            .from('call_requests')
-            .delete()
-            .eq('id', callRequestId);
-        
-        if (error && error.code !== 'PGRST116') { // Ignore "No rows found" error
-            toast({ variant: 'destructive', title: 'Failed to cancel call', description: error.message });
-        } else {
-             if (reason === 'Missed call') {
-                 toast({ variant: 'destructive', title: 'No Answer', description: `${callee?.full_name} did not answer the call.` });
-             }
-            router.push(`/chat/${otherUserId}`); 
-        }
-    };
 
     if (loading || !callee) {
         return (

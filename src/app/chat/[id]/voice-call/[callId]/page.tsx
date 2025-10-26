@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import { Avatar } from "@/components/ui/avatar";
@@ -34,6 +33,8 @@ export default function VoiceCallPage({ params: paramsPromise }: { params: Promi
   const streamRef = useRef<MediaStream | null>(null);
   const peerRef = useRef<Peer.Instance | null>(null);
   const callSubscriptionRef = useRef<any>(null);
+  const originalCallRequestIdRef = useRef<string | null>(null);
+
 
   const handleEndCall = useCallback(async () => {
     if (callSubscriptionRef.current) {
@@ -48,11 +49,15 @@ export default function VoiceCallPage({ params: paramsPromise }: { params: Promi
         streamRef.current.getTracks().forEach(track => track.stop());
         streamRef.current = null;
     }
-    // The call record will be deleted from the active calls table, 
-    // which triggers the logging function on the backend.
+    
+    // Clean up both the active call and the original request
     if (callId) {
         await supabase.from('video_calls').delete().eq('id', callId);
     }
+    if (originalCallRequestIdRef.current) {
+         await supabase.from('call_requests').delete().eq('id', originalCallRequestIdRef.current);
+    }
+
     if (otherUserId) {
        router.push(`/chat/${otherUserId}`);
     }
@@ -145,14 +150,22 @@ export default function VoiceCallPage({ params: paramsPromise }: { params: Promi
         setOtherUser(otherUserData);
 
         const { data: callData, error: callError } = await supabase.from('video_calls')
-          .select('*')
+          .select('*, call_requests(id)')
           .eq('id', callId)
-          .single();
+          .maybeSingle();
 
         if (callError || !callData || !isMounted) {
             toast({variant: 'destructive', title: 'Active call not found'});
             router.push(`/chat/${otherUserId}`);
             return;
+        }
+        
+        // Store the original request ID for cleanup later
+        if (Array.isArray(callData.call_requests) && callData.call_requests.length > 0) {
+            originalCallRequestIdRef.current = callData.call_requests[0].id;
+        } else if (callData.call_requests && typeof callData.call_requests === 'object') {
+            // @ts-ignore
+             originalCallRequestIdRef.current = callData.call_requests.id;
         }
 
         const isInitiator = callData.caller_id === user.id;
@@ -183,9 +196,9 @@ export default function VoiceCallPage({ params: paramsPromise }: { params: Promi
                     if (signalData && peerRef.current && !peerRef.current.destroyed) {
                         try {
                             const parsedSignal = typeof signalData === 'string' ? JSON.parse(signalData) : signalData;
-                            if (parsedSignal.type === 'answer' || parsedSignal.type === 'offer') {
+                             if (!peerRef.current.destroyed && peerRef.current.writable) {
                                 peerRef.current.signal(parsedSignal);
-                            }
+                             }
                         } catch (e) {
                             console.error("Signal error:", e);
                         }
