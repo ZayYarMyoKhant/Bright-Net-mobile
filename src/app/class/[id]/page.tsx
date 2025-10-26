@@ -23,8 +23,12 @@ type ClassInfo = {
   id: string;
   name: string;
   creator_id: string;
-  is_video_call_active: boolean;
 };
+
+type ActiveCall = {
+    id: string;
+    class_id: string;
+} | null;
 
 type MessageReaction = {
     id: string;
@@ -222,6 +226,7 @@ export default function IndividualClassPage({ params: paramsPromise }: { params:
   
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [classInfo, setClassInfo] = useState<ClassInfo | null>(null);
+  const [activeCall, setActiveCall] = useState<ActiveCall>(null);
   const [messages, setMessages] = useState<ClassMessage[]>([]);
   const [loading, setLoading] = useState(true);
   const [isCreator, setIsCreator] = useState(false);
@@ -247,7 +252,7 @@ export default function IndividualClassPage({ params: paramsPromise }: { params:
     setLoading(true);
     const { data: classData, error: classError } = await supabase
       .from('classes')
-      .select('id, name, creator_id, is_video_call_active')
+      .select('id, name, creator_id')
       .eq('id', params.id)
       .single();
 
@@ -260,6 +265,9 @@ export default function IndividualClassPage({ params: paramsPromise }: { params:
     }
     setClassInfo(classData);
     setIsCreator(user?.id === classData.creator_id);
+
+    const { data: activeCallData } = await supabase.from('class_video_calls').select('id, class_id').eq('class_id', params.id).single();
+    setActiveCall(activeCallData);
 
     const { data: messagesData, error: messagesError } = await supabase
       .from('class_messages')
@@ -342,11 +350,14 @@ export default function IndividualClassPage({ params: paramsPromise }: { params:
              }
         }
        )
-       .on('postgres_changes', 
-        { event: 'UPDATE', schema: 'public', table: 'classes', filter: `id=eq.${params.id}` },
-        (payload) => {
-            setClassInfo(prev => prev ? { ...prev, is_video_call_active: (payload.new as ClassInfo).is_video_call_active } : null);
-        }
+       .on('postgres_changes', { event: '*', schema: 'public', table: 'class_video_calls', filter: `class_id=eq.${params.id}`},
+            (payload) => {
+                if (payload.eventType === 'INSERT') {
+                    setActiveCall(payload.new as ActiveCall);
+                } else if (payload.eventType === 'DELETE') {
+                    setActiveCall(null);
+                }
+            }
        )
       .subscribe();
     
@@ -550,21 +561,24 @@ export default function IndividualClassPage({ params: paramsPromise }: { params:
     };
 
     const handleVideoCallClick = async () => {
-        if (!classInfo) return;
+        if (!classInfo || !currentUser) return;
         if (isCreator) {
-            // As creator, start the call
-             const { error } = await supabase.from('classes')
-                .update({ is_video_call_active: true })
-                .eq('id', classInfo.id);
+            const { data, error } = await supabase.from('class_video_calls').insert({
+                class_id: classInfo.id,
+                creator_id: currentUser.id
+            }).select().single();
 
             if (error) {
-                toast({ variant: 'destructive', title: 'Could not start call' });
+                if (error.code === '23505') { // unique constraint violation
+                     router.push(`/class/${classInfo.id}/video-call`);
+                } else {
+                    toast({ variant: 'destructive', title: 'Could not start call', description: error.message });
+                }
             } else {
                  router.push(`/class/${classInfo.id}/video-call`);
             }
         } else {
-            // As member, join the call if active
-            if (classInfo.is_video_call_active) {
+            if (activeCall) {
                 router.push(`/class/${classInfo.id}/video-call`);
             }
         }
@@ -584,8 +598,8 @@ export default function IndividualClassPage({ params: paramsPromise }: { params:
             </Link>
         </div>
         <div className="flex items-center gap-2">
-            <Button variant="ghost" size="icon" onClick={handleVideoCallClick} disabled={!isCreator && !classInfo?.is_video_call_active}>
-              <Video className={cn("h-5 w-5", classInfo?.is_video_call_active && "text-green-500 animate-pulse")} />
+            <Button variant="ghost" size="icon" onClick={handleVideoCallClick} disabled={!isCreator && !activeCall}>
+              <Video className={cn("h-5 w-5", activeCall && "text-green-500 animate-pulse")} />
             </Button>
            <DropdownMenu>
             <DropdownMenuTrigger asChild>

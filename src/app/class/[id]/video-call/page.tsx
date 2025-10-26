@@ -91,9 +91,9 @@ export default function ClassVideoCallPage({ params: paramsPromise }: { params: 
   }, [supabase]);
 
   const handleEndCall = useCallback(async () => {
-    // Only the creator can end the call for everyone
+    // Only the creator can end the call for everyone by deleting the record
     if (classInfo && currentUser && currentUser.id === classInfo.creator_id) {
-        await supabase.from('classes').update({ is_video_call_active: false }).eq('id', classInfo.id);
+        await supabase.from('class_video_calls').delete().eq('class_id', classInfo.id);
     }
     cleanupCall();
     if (params.id) router.push(`/class/${params.id}`);
@@ -142,7 +142,7 @@ export default function ClassVideoCallPage({ params: paramsPromise }: { params: 
     }
   }, [isMuted, isCameraOn, toast]);
 
-    const createPeer = useCallback((otherUserId: string, otherUserProfile: Profile, initiator: boolean) => {
+    const createPeer = useCallback((otherUserId: string, initiator: boolean) => {
         if (!streamRef.current || !currentUser || peersRef.current[otherUserId]) return null;
         
         const peer = new Peer({
@@ -178,7 +178,6 @@ export default function ClassVideoCallPage({ params: paramsPromise }: { params: 
                 peersRef.current[otherUserId].destroy();
                 delete peersRef.current[otherUserId];
             }
-            setParticipants(prev => prev.filter(p => p.id !== otherUserId));
         });
         
         peersRef.current[otherUserId] = peer;
@@ -224,7 +223,6 @@ export default function ClassVideoCallPage({ params: paramsPromise }: { params: 
                 
                 const otherUser = state[id][0].user_profile as Profile;
                  
-                // Add participant to UI immediately
                 setParticipants(prev => {
                   if (prev.some(p => p.id === otherUser.id)) return prev;
                   return [...prev, { ...otherUser, isCameraOn: true, isMuted: false }];
@@ -232,8 +230,8 @@ export default function ClassVideoCallPage({ params: paramsPromise }: { params: 
                 
                 if (peersRef.current[id]) continue;
                 
-                const isInitiator = currentUser.id > otherUser.id; // Deterministic initiator
-                createPeer(otherUser.id, otherUser, isInitiator);
+                const isInitiator = currentUser.id > otherUser.id;
+                createPeer(otherUser.id, isInitiator);
             }
         })
         .on('presence', { event: 'leave' }, ({ leftPresences }: {leftPresences: any[]}) => {
@@ -248,8 +246,26 @@ export default function ClassVideoCallPage({ params: paramsPromise }: { params: 
             });
         })
         .on('broadcast', { event: 'signal' }, ({ payload }: {payload: any}) => {
-            if (!isMounted || payload.to !== user.id || !currentUser || !peersRef.current[payload.from]) return;
-            peersRef.current[payload.from].signal(payload.signal);
+            if (!isMounted || !currentUser || !payload.to || payload.to !== currentUser.id ) return;
+            
+            const peer = peersRef.current[payload.from];
+            if (peer && !peer.destroyed) {
+                peer.signal(payload.signal);
+            } else {
+                 const isInitiator = currentUser.id > payload.from;
+                 if(!isInitiator){
+                    const {data: fromProfile } = presenceChannelRef.current.presenceState()[payload.from][0];
+                    if(fromProfile){
+                         createPeer(payload.from, false);
+                         // We have to wait for the peer to be created. A bit of a hack.
+                         setTimeout(() => {
+                            if(peersRef.current[payload.from]){
+                                peersRef.current[payload.from].signal(payload.signal);
+                            }
+                         }, 100);
+                    }
+                 }
+            }
         })
         .subscribe(async (status: string) => {
           if (status === 'SUBSCRIBED') {
