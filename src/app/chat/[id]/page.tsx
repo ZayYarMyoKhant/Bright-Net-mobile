@@ -653,7 +653,7 @@ export default function IndividualChatPage({ params: paramsPromise }: { params: 
     const { data: existingRequest, error: checkError } = await supabase
       .from('call_requests')
       .select('id')
-      .or(`(caller_id.eq.${currentUser.id},callee_id.eq.${otherUser.id}),(caller_id.eq.${otherUser.id},callee_id.eq.${currentUser.id})`)
+      .or(`and(caller_id.eq.${currentUser.id},callee_id.eq.${otherUser.id}),and(caller_id.eq.${otherUser.id},callee_id.eq.${currentUser.id})`)
       .maybeSingle();
 
     if (checkError) {
