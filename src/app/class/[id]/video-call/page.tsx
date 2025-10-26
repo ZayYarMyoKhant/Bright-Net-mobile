@@ -71,27 +71,34 @@ export default function ClassVideoCallPage({ params: paramsPromise }: { params: 
   const [isCameraOn, setIsCameraOn] = useState(true);
   const [facingMode, setFacingMode] = useState<'user' | 'environment'>('user');
   const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
+  
   const streamRef = useRef<MediaStream | null>(null);
   const peersRef = useRef<{[key: string]: Peer.Instance}>({});
   const presenceChannelRef = useRef<any>(null);
+  const callStatusChannelRef = useRef<any>(null);
 
   const cleanupCall = useCallback(() => {
-    if (presenceChannelRef.current) {
-        supabase.removeChannel(presenceChannelRef.current);
-        presenceChannelRef.current = null;
-    }
-    
-    Object.values(peersRef.current).forEach((peer) => peer.destroy());
+    Object.values(peersRef.current).forEach((peer) => {
+      if (!peer.destroyed) peer.destroy();
+    });
     peersRef.current = {};
 
     if (streamRef.current) {
       streamRef.current.getTracks().forEach(track => track.stop());
       streamRef.current = null;
     }
+    
+    if (presenceChannelRef.current) {
+        supabase.removeChannel(presenceChannelRef.current);
+        presenceChannelRef.current = null;
+    }
+     if (callStatusChannelRef.current) {
+        supabase.removeChannel(callStatusChannelRef.current);
+        callStatusChannelRef.current = null;
+    }
   }, [supabase]);
 
   const handleEndCall = useCallback(async () => {
-    // Only the creator can end the call for everyone by deleting the record
     if (classInfo && currentUser && currentUser.id === classInfo.creator_id) {
         await supabase.from('class_video_calls').delete().eq('class_id', classInfo.id);
     }
@@ -132,7 +139,6 @@ export default function ClassVideoCallPage({ params: paramsPromise }: { params: 
              peer.addStream(newStream);
         }
       });
-
       return newStream;
     } catch (error) {
       console.error('Error accessing camera/mic:', error);
@@ -142,21 +148,23 @@ export default function ClassVideoCallPage({ params: paramsPromise }: { params: 
     }
   }, [isMuted, isCameraOn, toast]);
 
-    const createPeer = useCallback((otherUserId: string, initiator: boolean) => {
-        if (!streamRef.current || !currentUser || peersRef.current[otherUserId]) return null;
+    const createPeer = useCallback((otherUserId: string, isInitiator: boolean) => {
+        if (!streamRef.current || !currentUser || peersRef.current[otherUserId]) return;
         
         const peer = new Peer({
-            initiator: initiator,
+            initiator: isInitiator,
             trickle: false,
             stream: streamRef.current,
         });
 
         peer.on('signal', (signal) => {
-            presenceChannelRef.current?.send({
-                type: 'broadcast',
-                event: 'signal',
-                payload: { from: currentUser.id, to: otherUserId, signal },
-            });
+            if (presenceChannelRef.current) {
+                presenceChannelRef.current.send({
+                    type: 'broadcast',
+                    event: 'signal',
+                    payload: { from: currentUser.id, to: otherUserId, signal },
+                });
+            }
         });
 
         peer.on('stream', (remoteStream: MediaStream) => {
@@ -166,23 +174,18 @@ export default function ClassVideoCallPage({ params: paramsPromise }: { params: 
         });
         
         peer.on('close', () => {
-             if (peersRef.current[otherUserId]) {
-                delete peersRef.current[otherUserId];
+             if (peersRef.current[otherUserId] && !peersRef.current[otherUserId].destroyed) {
+                peersRef.current[otherUserId].destroy();
              }
+             delete peersRef.current[otherUserId];
              setParticipants(prev => prev.filter(p => p.id !== otherUserId));
         });
 
         peer.on('error', (err) => {
             console.error(`Peer error with ${otherUserId}:`, err);
-            if (peersRef.current[otherUserId]) {
-                peersRef.current[otherUserId].destroy();
-                delete peersRef.current[otherUserId];
-            }
         });
         
         peersRef.current[otherUserId] = peer;
-        return peer;
-
     }, [currentUser]);
 
 
@@ -212,25 +215,29 @@ export default function ClassVideoCallPage({ params: paramsPromise }: { params: 
         setParticipants([{ ...myProfile, isCurrentUser: true, stream: localStream, isCameraOn: isCameraOn, isMuted: isMuted }]);
         setLoading(false);
         
-        presenceChannelRef.current = supabase.channel(`class-call-${params.id}`);
+        // Channel for presence and WebRTC signaling
+        presenceChannelRef.current = supabase.channel(`class-call-presence-${params.id}`);
+        
+        // Channel to listen for call ending
+        callStatusChannelRef.current = supabase.channel(`class-call-status-${params.id}`);
 
         presenceChannelRef.current
         .on('presence', { event: 'sync' }, () => {
             if (!isMounted || !streamRef.current || !currentUser) return;
             const state = presenceChannelRef.current.presenceState();
+
+            // Add new participants
             for (const id in state) {
                 if (id === user.id) continue;
-                
                 const otherUser = state[id][0].user_profile as Profile;
-                 
+                
                 setParticipants(prev => {
                   if (prev.some(p => p.id === otherUser.id)) return prev;
                   return [...prev, { ...otherUser, isCameraOn: true, isMuted: false }];
                 });
                 
                 if (peersRef.current[id]) continue;
-                
-                const isInitiator = currentUser.id > otherUser.id;
+                const isInitiator = user.id > otherUser.id;
                 createPeer(otherUser.id, isInitiator);
             }
         })
@@ -248,23 +255,17 @@ export default function ClassVideoCallPage({ params: paramsPromise }: { params: 
         .on('broadcast', { event: 'signal' }, ({ payload }: {payload: any}) => {
             if (!isMounted || !currentUser || !payload.to || payload.to !== currentUser.id ) return;
             
-            const peer = peersRef.current[payload.from];
+            let peer = peersRef.current[payload.from];
+            if (!peer) {
+                const isInitiator = currentUser.id > payload.from;
+                if (!isInitiator) {
+                   createPeer(payload.from, false);
+                   peer = peersRef.current[payload.from];
+                }
+            }
+
             if (peer && !peer.destroyed) {
                 peer.signal(payload.signal);
-            } else {
-                 const isInitiator = currentUser.id > payload.from;
-                 if(!isInitiator){
-                    const {data: fromProfile } = presenceChannelRef.current.presenceState()[payload.from][0];
-                    if(fromProfile){
-                         createPeer(payload.from, false);
-                         // We have to wait for the peer to be created. A bit of a hack.
-                         setTimeout(() => {
-                            if(peersRef.current[payload.from]){
-                                peersRef.current[payload.from].signal(payload.signal);
-                            }
-                         }, 100);
-                    }
-                 }
             }
         })
         .subscribe(async (status: string) => {
@@ -272,6 +273,20 @@ export default function ClassVideoCallPage({ params: paramsPromise }: { params: 
             await presenceChannelRef.current.track({ user_profile: myProfile });
           }
         });
+
+        callStatusChannelRef.current
+            .on('postgres_changes', {
+                event: 'DELETE',
+                schema: 'public',
+                table: 'class_video_calls',
+                filter: `class_id=eq.${params.id}`
+            }, () => {
+                if (isMounted) {
+                    toast({ title: "Call Ended", description: "The creator has ended the call." });
+                    handleEndCall();
+                }
+            })
+            .subscribe();
     };
 
     init();
@@ -313,8 +328,8 @@ export default function ClassVideoCallPage({ params: paramsPromise }: { params: 
       )
   }
   
-  const creator = participants.find(p => p.id === classInfo?.creator_id);
-  const otherParticipants = participants.filter(p => p.id !== classInfo?.creator_id);
+  const mainParticipant = participants.find(p => p.id === classInfo?.creator_id) || participants.find(p => p.isCurrentUser);
+  const otherParticipants = participants.filter(p => p.id !== mainParticipant?.id);
 
   return (
       <div className="flex h-dvh flex-col bg-gray-900 text-white">
@@ -335,8 +350,8 @@ export default function ClassVideoCallPage({ params: paramsPromise }: { params: 
 
         <main className="flex-1 flex flex-col min-h-0">
            <div className="flex-1 relative">
-                {creator ? (
-                    <ParticipantVideo participant={creator} isMainView={true} />
+                {mainParticipant ? (
+                    <ParticipantVideo participant={mainParticipant} isMainView={true} />
                 ) : (
                     <div className="w-full h-full bg-gray-800 flex items-center justify-center text-muted-foreground">
                         Creator has not joined yet.
