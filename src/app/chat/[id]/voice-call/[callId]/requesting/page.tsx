@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import { useEffect, useState, use } from 'react';
@@ -52,33 +51,41 @@ export default function VideoCallRequestingPage({ params: paramsPromise }: { par
         fetchInitialData();
     }, [otherUserId, router, supabase, toast]);
 
+    // This handles the timeout for the missed call
+    useEffect(() => {
+        if (!callRequestId || !currentUser) return;
+
+        const timer = setTimeout(() => {
+            handleCancel('Missed call');
+        }, 30000); // 30 seconds timeout
+
+        return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [callRequestId, currentUser]);
+
     useEffect(() => {
         if (!currentUser) return;
 
         // --- Subscription 1: Listen for the call being ACCEPTED ---
-        // This happens when a new row is created in `video_calls` for this caller.
         const acceptedCallChannel = supabase
             .channel(`accepted-call-for-${currentUser.id}`)
             .on('postgres_changes', 
                 { event: 'INSERT', schema: 'public', table: 'video_calls', filter: `caller_id=eq.${currentUser.id}` },
                 (payload) => {
                     const { id: newCallId } = payload.new as { id: string };
-                    // The call was accepted, navigate to the active call page.
                     router.push(`/chat/${otherUserId}/voice-call/${newCallId}`);
                 }
             )
             .subscribe();
 
-        // --- Subscription 2: Listen for the call being DECLINED or CANCELLED ---
-        // This happens when the original request is deleted from `call_requests`.
+        // --- Subscription 2: Listen for the request being DELETED (cancelled by callee implicitly) ---
         const requestStatusChannel = supabase
             .channel(`call-request-status-${callRequestId}`)
             .on('postgres_changes',
                 { event: 'DELETE', schema: 'public', table: 'call_requests', filter: `id=eq.${callRequestId}` },
                 (payload) => {
-                    // Since this channel only fires on DELETE, and we already handle the ACCEPT case above,
-                    // any deletion here means it was declined or cancelled.
-                    toast({ variant: 'destructive', title: 'Call Declined', description: `${callee?.full_name} is unavailable.` });
+                    // This could be triggered by the callee's banner timing out.
+                    toast({ variant: 'destructive', title: 'Call Unavailable', description: `${callee?.full_name} did not answer.` });
                     router.push(`/chat/${otherUserId}`);
                 }
             )
@@ -88,18 +95,20 @@ export default function VideoCallRequestingPage({ params: paramsPromise }: { par
             supabase.removeChannel(acceptedCallChannel);
             supabase.removeChannel(requestStatusChannel);
         };
-    }, [callRequestId, router, supabase, toast, otherUserId, callee?.full_name, currentUser]);
+    }, [callRequestId, router, supabase, otherUserId, callee?.full_name, currentUser]);
 
-    const handleCancel = async () => {
+    const handleCancel = async (reason: 'cancelled' | 'Missed call') => {
         const { error } = await supabase
             .from('call_requests')
             .delete()
             .eq('id', callRequestId);
         
-        if (error) {
+        if (error && error.code !== 'PGRST116') { // Ignore "No rows found" error
             toast({ variant: 'destructive', title: 'Failed to cancel call', description: error.message });
         } else {
-            // The subscription will catch the delete and redirect.
+             if (reason === 'Missed call') {
+                 toast({ variant: 'destructive', title: 'No Answer', description: `${callee?.full_name} did not answer the call.` });
+             }
             router.push(`/chat/${otherUserId}`); 
         }
     };
@@ -116,13 +125,13 @@ export default function VideoCallRequestingPage({ params: paramsPromise }: { par
         <div className="flex h-dvh flex-col items-center justify-center bg-gradient-to-b from-blue-500 to-sky-400 text-foreground text-center p-4">
             <Avatar className="h-32 w-32 border-4 border-white" profile={callee}>
             </Avatar>
-            <h2 className="mt-4 text-2xl font-bold text-white">Calling</h2>
+            <h2 className="mt-4 text-2xl font-bold text-white">Calling...</h2>
             <h3 className="text-xl text-primary-foreground">{callee.full_name}</h3>
             <p className="text-white/80 mt-2 flex items-center gap-2">
                 <Loader2 className="h-4 w-4 animate-spin" />
                 Ringing...
             </p>
-            <Button variant="destructive" size="icon" className="mt-12 h-16 w-16 rounded-full" onClick={handleCancel}>
+            <Button variant="destructive" size="icon" className="mt-12 h-16 w-16 rounded-full" onClick={() => handleCancel('cancelled')}>
                 <PhoneOff className="h-8 w-8" />
             </Button>
         </div>

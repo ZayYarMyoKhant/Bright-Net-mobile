@@ -44,13 +44,7 @@ export function VideoCallRequestBanner({ userId }: { userId: string }) {
             }
         };
 
-        const channel = supabase.channel(`call-requests-for-${userId}`, {
-            config: {
-                presence: {
-                    key: userId,
-                },
-            },
-        });
+        const channel = supabase.channel(`call-requests-for-${userId}`);
 
         channel.on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'call_requests', filter: `callee_id=eq.${userId}` }, handleInsert);
         channel.on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'call_requests', filter: `callee_id=eq.${userId}` }, handleDelete);
@@ -62,6 +56,16 @@ export function VideoCallRequestBanner({ userId }: { userId: string }) {
             supabase.removeChannel(channel);
         };
     }, [userId, supabase, toast, router, request]);
+
+    // Timeout for the banner itself
+    useEffect(() => {
+        if (request) {
+            const timer = setTimeout(() => {
+                setRequest(null); // Hide banner after 30s if not answered
+            }, 30000);
+            return () => clearTimeout(timer);
+        }
+    }, [request]);
 
     const handleAccept = async () => {
         if (!request) return;
@@ -78,21 +82,6 @@ export function VideoCallRequestBanner({ userId }: { userId: string }) {
         }
     };
 
-    const handleDecline = async () => {
-        if (!request) return;
-        
-        const tempRequest = request;
-        setRequest(null);
-
-        const { error } = await supabase
-            .from('call_requests')
-            .delete()
-            .eq('id', tempRequest.id);
-        
-        if (error) {
-            toast({ variant: 'destructive', title: 'Failed to decline call' });
-        }
-    };
 
     if (!request) {
         return null;
@@ -110,7 +99,6 @@ export function VideoCallRequestBanner({ userId }: { userId: string }) {
                     </div>
                 </div>
                 <div className="flex gap-2">
-                    <Button variant="destructive" size="sm" onClick={handleDecline}>Decline</Button>
                     <Button variant="secondary" size="sm" onClick={handleAccept}>Accept</Button>
                 </div>
             </div>
