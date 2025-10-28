@@ -99,8 +99,10 @@ export default function ClassVideoCallPage({ params: paramsPromise }: { params: 
   }, [supabase]);
 
   const handleEndCall = useCallback(async () => {
+    // Only the creator can end the call for everyone by deleting the start record.
+    // This triggers the cascade delete on the active call record.
     if (classInfo && currentUser && currentUser.id === classInfo.creator_id) {
-        await supabase.from('class_video_calls').delete().eq('class_id', classInfo.id);
+        await supabase.from('class_video_call_starts').delete().eq('class_id', classInfo.id);
     }
     cleanupCall();
     if (params.id) router.push(`/class/${params.id}`);
@@ -216,7 +218,8 @@ export default function ClassVideoCallPage({ params: paramsPromise }: { params: 
         setLoading(false);
         
         // Channel for presence and WebRTC signaling
-        presenceChannelRef.current = supabase.channel(`class-call-presence-${params.id}`);
+        const callTopic = `class-call-presence-${params.id}`;
+        presenceChannelRef.current = supabase.channel(callTopic);
         
         // Channel to listen for call ending
         callStatusChannelRef.current = supabase.channel(`class-call-status-${params.id}`);
@@ -225,21 +228,29 @@ export default function ClassVideoCallPage({ params: paramsPromise }: { params: 
         .on('presence', { event: 'sync' }, () => {
             if (!isMounted || !streamRef.current || !currentUser) return;
             const state = presenceChannelRef.current.presenceState();
+            const presenceUserIds = Object.keys(state);
 
-            // Add new participants
-            for (const id in state) {
-                if (id === user.id) continue;
-                const otherUser = state[id][0].user_profile as Profile;
-                
-                setParticipants(prev => {
-                  if (prev.some(p => p.id === otherUser.id)) return prev;
-                  return [...prev, { ...otherUser, isCameraOn: true, isMuted: false }];
-                });
-                
-                if (peersRef.current[id]) continue;
-                const isInitiator = user.id > otherUser.id;
-                createPeer(otherUser.id, isInitiator);
-            }
+            // Add new participants to the UI first
+            setParticipants(prev => {
+                const existingIds = new Set(prev.map(p => p.id));
+                const newParticipants = presenceUserIds
+                    .filter(id => id !== currentUser.id && !existingIds.has(id))
+                    .map(id => {
+                        const profile = state[id][0].user_profile as Profile;
+                        return { ...profile, isCameraOn: true, isMuted: false };
+                    });
+                return [...prev, ...newParticipants];
+            });
+
+            // Then create peer connections for them
+            presenceUserIds.forEach(id => {
+                if (id === user.id || peersRef.current[id]) return;
+                 // Determine initiator to avoid race conditions
+                const isInitiator = user.id > id;
+                if(isInitiator) {
+                   createPeer(id, true);
+                }
+            });
         })
         .on('presence', { event: 'leave' }, ({ leftPresences }: {leftPresences: any[]}) => {
              if (!isMounted) return;
@@ -257,11 +268,12 @@ export default function ClassVideoCallPage({ params: paramsPromise }: { params: 
             
             let peer = peersRef.current[payload.from];
             if (!peer) {
-                const isInitiator = currentUser.id > payload.from;
-                if (!isInitiator) {
+               // If a non-initiator receives a signal, they create their peer instance
+               const isInitiator = currentUser.id > payload.from;
+               if (!isInitiator) {
                    createPeer(payload.from, false);
                    peer = peersRef.current[payload.from];
-                }
+               }
             }
 
             if (peer && !peer.destroyed) {
@@ -274,11 +286,12 @@ export default function ClassVideoCallPage({ params: paramsPromise }: { params: 
           }
         });
 
+        // This channel listens for the original start record to be deleted.
         callStatusChannelRef.current
             .on('postgres_changes', {
                 event: 'DELETE',
                 schema: 'public',
-                table: 'class_video_calls',
+                table: 'class_video_call_starts',
                 filter: `class_id=eq.${params.id}`
             }, () => {
                 if (isMounted) {
@@ -335,7 +348,7 @@ export default function ClassVideoCallPage({ params: paramsPromise }: { params: 
       <div className="flex h-dvh flex-col bg-gray-900 text-white">
         <header className="flex h-16 flex-shrink-0 items-center justify-between px-4 z-20">
           <div className="flex items-center gap-3">
-             <Button variant="ghost" size="icon" className="text-white hover:bg-white/20" onClick={handleEndCall}>
+             <Button variant="ghost" size="icon" className="text-white hover:bg-white/20" onClick={() => router.push(`/class/${params.id}`)}>
                 <ArrowLeft />
             </Button>
             <div>

@@ -266,8 +266,8 @@ export default function IndividualClassPage({ params: paramsPromise }: { params:
     setClassInfo(classData);
     setIsCreator(user?.id === classData.creator_id);
 
-    const { data: activeCallData } = await supabase.from('class_video_calls').select('id, class_id').eq('class_id', params.id).single();
-    setActiveCall(activeCallData);
+    const { data: activeCallData } = await supabase.from('class_video_calls').select('id, class_id').eq('class_id', params.id).maybeSingle();
+    setActiveCall(activeCallData as ActiveCall);
 
     const { data: messagesData, error: messagesError } = await supabase
       .from('class_messages')
@@ -563,17 +563,12 @@ export default function IndividualClassPage({ params: paramsPromise }: { params:
     const handleVideoCallClick = async () => {
         if (!classInfo || !currentUser) return;
         if (isCreator) {
-            const { data, error } = await supabase.from('class_video_calls').insert({
+             const { error } = await supabase.from('class_video_call_starts').insert({
                 class_id: classInfo.id,
                 creator_id: currentUser.id
-            }).select().single();
-
-            if (error) {
-                if (error.code === '23505') { // unique constraint violation
-                     router.push(`/class/${classInfo.id}/video-call`);
-                } else {
-                    toast({ variant: 'destructive', title: 'Could not start call', description: error.message });
-                }
+            });
+            if (error && error.code !== '23505') { // Ignore unique constraint violation
+                toast({ variant: 'destructive', title: 'Could not start call', description: error.message });
             } else {
                  router.push(`/class/${classInfo.id}/video-call`);
             }
