@@ -40,7 +40,7 @@ const Avatar = React.forwardRef<
     
     const showFrame = profile?.win_streak_3 || profile?.win_streak_10;
     const imageUrl = src ?? profile?.avatar_url;
-    const username = profile?.username;
+    const username = alt ?? profile?.username;
         
     return (
       <div className={cn("relative h-10 w-10 shrink-0", className)}>

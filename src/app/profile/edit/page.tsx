@@ -1,10 +1,9 @@
 
-
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from 'next/navigation';
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -12,6 +11,7 @@ import { Camera, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { createClient } from "@/lib/supabase/client";
 import { User } from "@supabase/supabase-js";
+import { PhotoCropper } from "@/components/photo-cropper";
 
 export default function EditProfilePage() {
   const router = useRouter();
@@ -25,8 +25,12 @@ export default function EditProfilePage() {
   const [fullName, setFullName] = useState("");
   const [username, setUsername] = useState("");
   const [bio, setBio] = useState("");
-  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [cropperImageSrc, setCropperImageSrc] = useState<string | null>(null);
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
    useEffect(() => {
     const fetchProfile = async () => {
@@ -43,7 +47,7 @@ export default function EditProfilePage() {
                 setFullName(profile.full_name || '');
                 setUsername(profile.username || '');
                 setBio(profile.bio || '');
-                setAvatarUrl(profile.avatar_url || null);
+                setPreviewUrl(profile.avatar_url || null);
             } else if (error && error.code !== 'PGRST116') {
                  toast({ variant: 'destructive', title: 'Error', description: 'Failed to load profile data.' });
             }
@@ -58,9 +62,20 @@ export default function EditProfilePage() {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
-      setAvatarFile(file);
-      setAvatarUrl(URL.createObjectURL(file));
+      const reader = new FileReader();
+      reader.onload = () => {
+        setCropperImageSrc(reader.result as string);
+      };
+      reader.readAsDataURL(file);
     }
+    // Reset file input to allow re-selection of the same file
+    e.target.value = "";
+  };
+  
+  const handleCropComplete = (croppedImageFile: File) => {
+    setAvatarFile(croppedImageFile);
+    setPreviewUrl(URL.createObjectURL(croppedImageFile));
+    setCropperImageSrc(null);
   };
 
   const handleSave = async (e: React.FormEvent) => {
@@ -68,7 +83,7 @@ export default function EditProfilePage() {
     if (!user) return;
     setSaving(true);
     
-    let publicAvatarUrl = avatarUrl;
+    let publicAvatarUrl = previewUrl; // Keep old URL if no new file
 
     if (avatarFile) {
         const filePath = `${user.id}/${Date.now()}_${avatarFile.name}`;
@@ -100,8 +115,8 @@ export default function EditProfilePage() {
         toast({ variant: "destructive", title: "Profile Error", description: profileError.message });
     } else {
         toast({ title: 'Profile Updated!', description: 'Your changes have been saved.' });
-        router.push(`/profile/${user.id}`); // Go to the updated profile page by ID
-        router.refresh(); // Refresh to show new data
+        router.push(`/profile/${user.id}`);
+        router.refresh();
     }
   }
 
@@ -114,50 +129,55 @@ export default function EditProfilePage() {
   }
 
   return (
-    <div className="flex h-full flex-col bg-background text-foreground">
-      <header className="flex h-16 flex-shrink-0 items-center justify-center border-b px-4">
-        <h1 className="mx-auto font-bold text-xl">Edit your profile</h1>
-      </header>
+    <>
+      <PhotoCropper 
+        imageSrc={cropperImageSrc}
+        onCropComplete={handleCropComplete}
+        onClose={() => setCropperImageSrc(null)}
+      />
+      <div className="flex h-full flex-col bg-background text-foreground">
+        <header className="flex h-16 flex-shrink-0 items-center justify-center border-b px-4">
+          <h1 className="mx-auto font-bold text-xl">Edit your profile</h1>
+        </header>
 
-      <main className="flex-1 overflow-y-auto p-4">
-        <form onSubmit={handleSave} className="space-y-6">
-            <div className="flex flex-col items-center space-y-4">
-              <div className="relative">
-                 <label htmlFor="avatar-upload" className="cursor-pointer">
-                    <Avatar className="relative h-32 w-32 border-2 border-primary">
-                        <AvatarImage src={avatarUrl ?? undefined} alt="Avatar" data-ai-hint="person portrait"/>
-                        <AvatarFallback>{username ? username.charAt(0).toUpperCase() : '?'}</AvatarFallback>
-                        <div className="absolute inset-0 bg-black bg-opacity-40 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
-                            <Camera className="h-8 w-8 text-white" />
-                        </div>
-                    </Avatar>
-                 </label>
-                 <input id="avatar-upload" name="avatar_file" type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
+        <main className="flex-1 overflow-y-auto p-4">
+          <form onSubmit={handleSave} className="space-y-6">
+              <div className="flex flex-col items-center space-y-4">
+                <div className="relative">
+                  <label htmlFor="avatar-upload" className="cursor-pointer">
+                      <Avatar className="relative h-32 w-32 border-2 border-primary" src={previewUrl} alt={username}>
+                          <div className="absolute inset-0 bg-black bg-opacity-40 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
+                              <Camera className="h-8 w-8 text-white" />
+                          </div>
+                      </Avatar>
+                  </label>
+                  <input id="avatar-upload" name="avatar_file" type="file" accept="image/*" className="hidden" onChange={handleFileChange} ref={fileInputRef} />
+                </div>
               </div>
-            </div>
-            
-            <div className="space-y-4">
-                <div>
-                    <label className="text-sm font-medium" htmlFor="full_name">Name</label>
-                    <Input id="full_name" name="full_name" value={fullName} onChange={(e) => setFullName(e.target.value)} className="mt-1"/>
-                </div>
-                 <div>
-                    <label className="text-sm font-medium" htmlFor="username">Username</label>
-                    <Input id="username" name="username" value={username} onChange={(e) => setUsername(e.target.value)} className="mt-1"/>
-                </div>
-                 <div>
-                    <label className="text-sm font-medium" htmlFor="bio">Bio</label>
-                    <Textarea id="bio" name="bio" value={bio} onChange={(e) => setBio(e.target.value)} className="mt-1"/>
-                </div>
-            </div>
-            
-            <Button type="submit" className="w-full" disabled={saving}>
-              {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Save Change
-            </Button>
-        </form>
+              
+              <div className="space-y-4">
+                  <div>
+                      <label className="text-sm font-medium" htmlFor="full_name">Name</label>
+                      <Input id="full_name" name="full_name" value={fullName} onChange={(e) => setFullName(e.target.value)} className="mt-1"/>
+                  </div>
+                  <div>
+                      <label className="text-sm font-medium" htmlFor="username">Username</label>
+                      <Input id="username" name="username" value={username} onChange={(e) => setUsername(e.target.value)} className="mt-1"/>
+                  </div>
+                  <div>
+                      <label className="text-sm font-medium" htmlFor="bio">Bio</label>
+                      <Textarea id="bio" name="bio" value={bio} onChange={(e) => setBio(e.target.value)} className="mt-1"/>
+                  </div>
+              </div>
+              
+              <Button type="submit" className="w-full" disabled={saving}>
+                {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Save Change
+              </Button>
+          </form>
 
-      </main>
-    </div>
+        </main>
+      </div>
+    </>
   );
 }
