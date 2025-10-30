@@ -300,7 +300,7 @@ export default function AnniversaryPage() {
                         </div>
 
                         <div className="mt-6 flex flex-col gap-2">
-                            <Button onClick={handleDateSave} className="bg-pink-500 hover:bg-pink-600" disabled={!date}>Save Date</Button>
+                            <Button onClick={handleDateSave} className="bg-primary text-primary-foreground" disabled={!date}>Save Date</Button>
                             <AlertDialog>
                                 <AlertDialogTrigger asChild>
                                     <Button variant="destructive">Break Up</Button>

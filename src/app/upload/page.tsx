@@ -17,25 +17,25 @@ export default function CreatePage() {
 
         <main className="flex-1 overflow-y-auto p-4 space-y-4">
           <Link href="/upload/post">
-            <Card className="w-full cursor-pointer hover:bg-muted/50">
+            <Card className="w-full cursor-pointer bg-primary text-primary-foreground hover:bg-primary/90">
               <CardHeader>
                 <CardTitle className="text-lg">Create post</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="flex justify-center items-center h-24">
-                  <PlusCircle className="h-12 w-12 text-muted-foreground" />
+                  <PlusCircle className="h-12 w-12 text-primary-foreground/70" />
                 </div>
               </CardContent>
             </Card>
           </Link>
            <Link href="/class/create">
-            <Card className="w-full cursor-pointer hover:bg-muted/50">
+            <Card className="w-full cursor-pointer bg-primary text-primary-foreground hover:bg-primary/90">
               <CardHeader>
                 <CardTitle className="text-lg">Create class</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="flex justify-center items-center h-24">
-                  <GraduationCap className="h-12 w-12 text-muted-foreground" />
+                  <GraduationCap className="h-12 w-12 text-primary-foreground/70" />
                 </div>
               </CardContent>
             </Card>

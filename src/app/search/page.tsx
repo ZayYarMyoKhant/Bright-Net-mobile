@@ -367,7 +367,7 @@ export default function SearchPage() {
   return (
     <>
       <div className="flex h-dvh flex-col bg-background text-foreground pb-16">
-        <header className="flex h-16 flex-shrink-0 items-center gap-4 border-b px-4">
+        <header className="flex h-16 flex-shrink-0 items-center justify-center bg-primary text-primary-foreground px-4">
           <h1 className="text-xl font-bold">Search</h1>
         </header>
 

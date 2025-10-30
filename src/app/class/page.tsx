@@ -101,7 +101,7 @@ export default function ClassPage() {
   return (
     <>
       <div className="flex h-full flex-col bg-background text-foreground pb-16">
-        <header className="flex h-16 flex-shrink-0 items-center justify-center border-b px-4">
+        <header className="flex h-16 flex-shrink-0 items-center justify-center bg-primary text-primary-foreground px-4">
           <h1 className="text-xl font-bold">Class</h1>
         </header>
 
