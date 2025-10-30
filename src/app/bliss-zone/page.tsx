@@ -13,9 +13,9 @@ export default function LoveZonePage() {
         {
             title: "Loving Couple",
             description: "Keep track of your special anniversary.",
-            icon: <Heart className="h-8 w-8 text-red-500" />,
+            icon: <Heart className="h-8 w-8 text-pink-500" />,
             href: "/bliss-zone/anniversary",
-            color: "border-red-500/20 bg-red-500/10",
+            color: "bg-primary/10 border-primary/20",
             disabled: false,
         }
     ]
@@ -43,7 +43,7 @@ export default function LoveZonePage() {
                         <div className="space-y-4">
                             {features.map((feature) => (
                                  <Link key={feature.title} href={feature.disabled ? "#" : feature.href} className={feature.disabled ? "pointer-events-none" : ""}>
-                                    <Card className={`hover:bg-muted/50 ${feature.disabled && "opacity-50"}`}>
+                                    <Card className={`hover:bg-muted/50 ${feature.disabled && "opacity-50"} ${feature.color}`}>
                                         <CardHeader className="flex flex-row items-center gap-4 space-y-0 pb-2">
                                             {feature.icon}
                                             <CardTitle>{feature.title}</CardTitle>
