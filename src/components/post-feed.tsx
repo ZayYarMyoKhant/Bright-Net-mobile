@@ -2,7 +2,6 @@
 import { PostCard } from "./post-card";
 import type { Post } from "@/lib/data";
 import { CameraOff, Loader2 } from "lucide-react";
-import { NativeAd } from "./ad-banner";
 import React from "react";
 
 export function PostFeed({ posts, loading }: { posts: Post[], loading: boolean }) {
@@ -31,7 +30,6 @@ export function PostFeed({ posts, loading }: { posts: Post[], loading: boolean }
       {posts.map((post, index) => (
         <React.Fragment key={post.id}>
           <PostCard post={post} />
-          {(index + 1) % 3 === 0 && <NativeAd />}
         </React.Fragment>
       ))}
     </div>

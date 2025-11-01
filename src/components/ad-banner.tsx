@@ -41,30 +41,3 @@ export function AdBanner() {
     </Card>
   );
 }
-
-export function NativeAd() {
-    const adRef = useRef<HTMLDivElement>(null);
-    // Updated container ID and script source from user
-    const containerId = 'container-f764a03bd8fd6d85d22e45a11c3201ba';
-    const scriptSrc = '//pl27728115.revenuecpmgate.com/f764a03bd8fd6d85d22e45a11c3201ba/invoke.js';
-
-    useEffect(() => {
-        const container = adRef.current;
-        if (container && container.children.length === 0) {
-            const script = document.createElement('script');
-            script.async = true;
-            script.setAttribute('data-cfasync', 'false');
-            script.src = scriptSrc;
-
-            const adContainerDiv = document.createElement('div');
-            adContainerDiv.id = containerId;
-            
-            // Clear container before appending
-            container.innerHTML = '';
-            container.appendChild(script);
-            container.appendChild(adContainerDiv);
-        }
-    }, []);
-
-    return <div ref={adRef} className="w-full my-4" />;
-}
