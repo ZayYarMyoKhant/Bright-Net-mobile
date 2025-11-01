@@ -28,13 +28,14 @@ export default function VideoCallRequestingPage({ params: paramsPromise }: { par
     const [loading, setLoading] = useState(true);
     const [currentUser, setCurrentUser] = useState<User | null>(null);
 
-    const handleCancel = async (reason: 'cancelled' | 'Missed call') => {
+    const handleCancel = useCallback(async (reason: 'cancelled' | 'Missed call') => {
+        // This function is now primarily for the caller's side timeout or manual cancel.
         const { error } = await supabase
             .from('call_requests')
             .delete()
             .eq('id', callRequestId);
         
-        if (error && error.code !== 'PGRST116') { // Ignore "No rows found" error, as the callee might have accepted.
+        if (error && error.code !== 'PGRST116') { // Ignore "No rows found" if callee already accepted.
             toast({ variant: 'destructive', title: 'Failed to cancel call', description: error.message });
         } else {
              if (reason === 'Missed call') {
@@ -42,7 +43,7 @@ export default function VideoCallRequestingPage({ params: paramsPromise }: { par
              }
             router.push(`/chat/${otherUserId}`); 
         }
-    };
+    }, [callRequestId, supabase, toast, router, otherUserId, callee?.full_name]);
 
     useEffect(() => {
         const fetchInitialData = async () => {
@@ -76,8 +77,7 @@ export default function VideoCallRequestingPage({ params: paramsPromise }: { par
         }, 30000); // 30 seconds timeout
 
         return () => clearTimeout(timer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [callRequestId, currentUser]);
+    }, [callRequestId, currentUser, handleCancel]);
 
     useEffect(() => {
         if (!currentUser || !callRequestId) return;
@@ -85,13 +85,16 @@ export default function VideoCallRequestingPage({ params: paramsPromise }: { par
         // --- Subscription 1: Listen for the call being ACCEPTED ---
         // When callee accepts, a new row is created in `video_calls`. We listen for that.
         const acceptedCallChannel = supabase
-            .channel(`accepted-call-for-${currentUser.id}`)
+            .channel(`accepted-call-for-${callRequestId}`)
             .on('postgres_changes', 
-                { event: 'INSERT', schema: 'public', table: 'video_calls', filter: `caller_id=eq.${currentUser.id}` },
+                { event: 'INSERT', schema: 'public', table: 'video_calls' },
                 (payload) => {
-                    const { id: newCallId } = payload.new as { id: string };
-                    // The original request is now fulfilled, navigate to the active call page.
-                    router.push(`/chat/${otherUserId}/voice-call/${newCallId}`);
+                    const newCall = payload.new as { caller_id: string, id: string };
+                    // Ensure this new call corresponds to our request
+                    if (newCall.caller_id === currentUser.id) {
+                         // The original request is now fulfilled, navigate to the active call page.
+                        router.push(`/chat/${otherUserId}/voice-call/${newCall.id}`);
+                    }
                 }
             )
             .subscribe();
