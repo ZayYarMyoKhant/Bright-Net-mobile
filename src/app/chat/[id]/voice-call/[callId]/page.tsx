@@ -42,7 +42,9 @@ export default function VoiceCallPage({ params: paramsPromise }: { params: Promi
         callSubscriptionRef.current = null;
     }
     if (peerRef.current) {
-        peerRef.current.destroy();
+        if (!peerRef.current.destroyed) {
+            peerRef.current.destroy();
+        }
         peerRef.current = null;
     }
     if (streamRef.current) {
@@ -54,9 +56,11 @@ export default function VoiceCallPage({ params: paramsPromise }: { params: Promi
     if (callId) {
         await supabase.from('video_calls').delete().eq('id', callId);
     }
-    if (originalCallRequestIdRef.current) {
-         await supabase.from('call_requests').delete().eq('id', originalCallRequestIdRef.current);
-    }
+    // The request should be deleted automatically by the database via ON DELETE CASCADE
+    // but we can also do it manually if needed, though it's better to rely on DB constraints.
+    // if (originalCallRequestIdRef.current) {
+    //      await supabase.from('call_requests').delete().eq('id', originalCallRequestIdRef.current);
+    // }
 
     if (otherUserId) {
        router.push(`/chat/${otherUserId}`);
@@ -150,23 +154,17 @@ export default function VoiceCallPage({ params: paramsPromise }: { params: Promi
         setOtherUser(otherUserData);
 
         const { data: callData, error: callError } = await supabase.from('video_calls')
-          .select('*, call_requests(id)')
+          .select('*, request_id')
           .eq('id', callId)
           .maybeSingle();
-
+        
         if (callError || !callData || !isMounted) {
             toast({variant: 'destructive', title: 'Active call not found'});
-            router.push(`/chat/${otherUserId}`);
+            if(otherUserId) router.push(`/chat/${otherUserId}`);
             return;
         }
         
-        // Store the original request ID for cleanup later
-        if (Array.isArray(callData.call_requests) && callData.call_requests.length > 0) {
-            originalCallRequestIdRef.current = callData.call_requests[0].id;
-        } else if (callData.call_requests && typeof callData.call_requests === 'object') {
-            // @ts-ignore
-             originalCallRequestIdRef.current = callData.call_requests.id;
-        }
+        originalCallRequestIdRef.current = callData.request_id;
 
         const isInitiator = callData.caller_id === user.id;
 
@@ -177,7 +175,7 @@ export default function VoiceCallPage({ params: paramsPromise }: { params: Promi
         
         callSubscriptionRef.current = supabase.channel(`webrtc-signaling-${callId}`)
             .on('postgres_changes', {
-                event: '*', // Listen for both UPDATE and DELETE
+                event: '*', 
                 schema: 'public',
                 table: 'video_calls',
                 filter: `id=eq.${callId}`
@@ -185,6 +183,7 @@ export default function VoiceCallPage({ params: paramsPromise }: { params: Promi
                 if (!isMounted || (peerRef.current && peerRef.current.destroyed)) return;
 
                 if (payload.eventType === 'DELETE') {
+                    toast({title: 'Call Ended'});
                     handleEndCall();
                     return;
                 }
@@ -193,10 +192,10 @@ export default function VoiceCallPage({ params: paramsPromise }: { params: Promi
                     const { caller_signal, callee_signal } = payload.new;
                     const signalData = isInitiator ? callee_signal : caller_signal;
                     
-                    if (signalData && peerRef.current && !peerRef.current.destroyed) {
+                    if (signalData && peerRef.current && !peerRef.current.destroyed && !peerRef.current.connected) {
                         try {
                             const parsedSignal = typeof signalData === 'string' ? JSON.parse(signalData) : signalData;
-                             if (!peerRef.current.destroyed && peerRef.current.writable) {
+                             if (!peerRef.current.destroyed) {
                                 peerRef.current.signal(parsedSignal);
                              }
                         } catch (e) {
