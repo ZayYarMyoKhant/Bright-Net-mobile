@@ -39,6 +39,7 @@ export function VideoCallRequestBanner({ userId }: { userId: string }) {
         };
 
         const handleDelete = (payload: any) => {
+            // If the request we are showing is deleted (cancelled by caller), hide banner
             if (request && payload.old.id === request.id) {
                 setRequest(null);
             }
@@ -51,18 +52,19 @@ export function VideoCallRequestBanner({ userId }: { userId: string }) {
         
         channel.subscribe();
 
-
         return () => {
             supabase.removeChannel(channel);
         };
-    }, [userId, supabase, toast, router, request]);
+    }, [userId, supabase, request]); // Added 'request' dependency
 
     // Timeout for the banner itself
     useEffect(() => {
         if (request) {
             const timer = setTimeout(() => {
-                setRequest(null); // Hide banner after 30s if not answered
-            }, 30000);
+                if (request) { // Check if request still exists before declining
+                    handleDecline();
+                }
+            }, 30000); // 30 seconds
             return () => clearTimeout(timer);
         }
     }, [request]);
@@ -70,16 +72,28 @@ export function VideoCallRequestBanner({ userId }: { userId: string }) {
     const handleAccept = async () => {
         if (!request) return;
 
-        const currentRequest = request;
-        setRequest(null);
+        const currentRequest = request; // Capture request object
+        setRequest(null); // Hide banner immediately
 
+        // Call the RPC function to create the active call record.
         const { data: newCallId, error } = await supabase.rpc('accept_call', { request_id_param: currentRequest.id });
 
         if (error) {
             toast({ variant: 'destructive', title: 'Failed to accept call', description: error.message });
         } else {
+            // Navigate to the call room, now with the active call ID
             router.push(`/chat/${currentRequest.caller_id}/voice-call/${newCallId}`);
         }
+    };
+    
+    const handleDecline = async () => {
+        if (!request) return;
+        
+        const requestId = request.id;
+        setRequest(null); // Hide banner immediately
+        
+        // Decline by deleting the request record.
+        await supabase.from('call_requests').delete().eq('id', requestId);
     };
 
 
@@ -99,6 +113,7 @@ export function VideoCallRequestBanner({ userId }: { userId: string }) {
                     </div>
                 </div>
                 <div className="flex gap-2">
+                    <Button variant="destructive" size="sm" onClick={handleDecline}>Decline</Button>
                     <Button variant="secondary" size="sm" onClick={handleAccept}>Accept</Button>
                 </div>
             </div>
