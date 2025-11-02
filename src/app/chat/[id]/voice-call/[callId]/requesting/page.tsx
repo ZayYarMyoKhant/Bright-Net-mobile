@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useEffect, useState, use } from 'react';
+import { useEffect, useState, use, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { Avatar } from '@/components/ui/avatar';
@@ -135,7 +135,7 @@ export default function VideoCallRequestingPage({ params: paramsPromise }: { par
             <h3 className="text-xl text-primary-foreground">{callee.full_name}</h3>
             <p className="text-white/80 mt-2 flex items-center gap-2">
                 <Loader2 className="h-4 w-4 animate-spin" />
-                Ringing...
+                Calling...
             </p>
             <Button variant="destructive" size="icon" className="mt-12 h-16 w-16 rounded-full" onClick={() => handleCancel('cancelled')}>
                 <PhoneOff className="h-8 w-8" />
