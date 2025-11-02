@@ -29,13 +29,12 @@ export default function VideoCallRequestingPage({ params: paramsPromise }: { par
     const [currentUser, setCurrentUser] = useState<User | null>(null);
 
     const handleCancel = useCallback(async (reason: 'cancelled' | 'Missed call') => {
-        // This function is now primarily for the caller's side timeout or manual cancel.
         const { error } = await supabase
             .from('call_requests')
             .delete()
             .eq('id', callRequestId);
         
-        if (error && error.code !== 'PGRST116') { // Ignore "No rows found" if callee already accepted.
+        if (error && error.code !== 'PGRST116') {
             toast({ variant: 'destructive', title: 'Failed to cancel call', description: error.message });
         } else {
              if (reason === 'Missed call') {
@@ -68,13 +67,12 @@ export default function VideoCallRequestingPage({ params: paramsPromise }: { par
         fetchInitialData();
     }, [otherUserId, router, supabase, toast]);
 
-    // This handles the timeout for the missed call on the CALLER's side
     useEffect(() => {
         if (!callRequestId || !currentUser) return;
 
         const timer = setTimeout(() => {
             handleCancel('Missed call');
-        }, 30000); // 30 seconds timeout
+        }, 30000);
 
         return () => clearTimeout(timer);
     }, [callRequestId, currentUser, handleCancel]);
@@ -82,30 +80,24 @@ export default function VideoCallRequestingPage({ params: paramsPromise }: { par
     useEffect(() => {
         if (!currentUser || !callRequestId) return;
 
-        // --- Subscription 1: Listen for the call being ACCEPTED ---
-        // When callee accepts, a new row is created in `video_calls`. We listen for that.
         const acceptedCallChannel = supabase
             .channel(`accepted-call-for-${callRequestId}`)
             .on('postgres_changes', 
-                { event: 'INSERT', schema: 'public', table: 'video_calls' },
+                { event: 'INSERT', schema: 'public', table: 'video_calls', filter: `request_id=eq.${callRequestId}` },
                 (payload) => {
                     const newCall = payload.new as { caller_id: string, id: string };
-                    // Ensure this new call corresponds to our request
                     if (newCall.caller_id === currentUser.id) {
-                         // The original request is now fulfilled, navigate to the active call page.
                         router.push(`/chat/${otherUserId}/voice-call/${newCall.id}`);
                     }
                 }
             )
             .subscribe();
 
-        // --- Subscription 2: Listen for the request being DELETED (cancelled by callee implicitly) ---
         const requestStatusChannel = supabase
             .channel(`call-request-status-${callRequestId}`)
             .on('postgres_changes',
                 { event: 'DELETE', schema: 'public', table: 'call_requests', filter: `id=eq.${callRequestId}` },
                 (payload) => {
-                    // This could be triggered if the callee's banner times out and they never accepted.
                     toast({ variant: 'destructive', title: 'Call Unavailable', description: `${callee?.full_name} did not answer.` });
                     router.push(`/chat/${otherUserId}`);
                 }

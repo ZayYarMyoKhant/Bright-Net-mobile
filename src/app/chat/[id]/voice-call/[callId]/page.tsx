@@ -52,20 +52,16 @@ export default function VoiceCallPage({ params: paramsPromise }: { params: Promi
         streamRef.current = null;
     }
     
-    // Clean up both the active call and the original request
-    if (callId) {
-        await supabase.from('video_calls').delete().eq('id', callId);
+    // Clean up by deleting the original request.
+    // The `video_calls` record will be deleted automatically via `ON DELETE CASCADE`.
+    if (originalCallRequestIdRef.current) {
+         await supabase.from('call_requests').delete().eq('id', originalCallRequestIdRef.current);
     }
-    // The request should be deleted automatically by the database via ON DELETE CASCADE
-    // but we can also do it manually if needed, though it's better to rely on DB constraints.
-    // if (originalCallRequestIdRef.current) {
-    //      await supabase.from('call_requests').delete().eq('id', originalCallRequestIdRef.current);
-    // }
 
     if (otherUserId) {
        router.push(`/chat/${otherUserId}`);
     }
-  }, [callId, supabase, router, otherUserId]);
+  }, [supabase, router, otherUserId]);
 
 
   const setupPeer = useCallback((stream: MediaStream, isInitiator: boolean) => {
