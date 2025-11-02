@@ -2,7 +2,7 @@
 
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -14,6 +14,7 @@ import { BottomNav } from '@/components/bottom-nav';
 import { useToast } from '@/hooks/use-toast';
 import { createClient } from '@/lib/supabase/client';
 import type { Post, Profile } from '@/lib/data';
+import { Badge } from '@/components/ui/badge';
 
 type Class = {
   id: string;
@@ -37,65 +38,84 @@ export default function ProfilePage() {
   const [posts, setPosts] = useState<Post[]>([]);
   const [createdClasses, setCreatedClasses] = useState<Class[]>([]);
   const [loading, setLoading] = useState(true);
+  const [requestCount, setRequestCount] = useState(0);
 
-  useEffect(() => {
-    const fetchUserData = async () => {
-        setLoading(true);
-        const { data: { user: authUser } } = await supabase.auth.getUser();
+  const fetchUserData = useCallback(async () => {
+    const { data: { user: authUser } } = await supabase.auth.getUser();
 
-        if (authUser) {
-            const { data: profileData, error } = await supabase
-                .from('profiles')
-                .select('*')
-                .eq('id', authUser.id)
-                .single();
+    if (!authUser) {
+      router.push('/signup');
+      setLoading(false);
+      return;
+    }
 
-            if (error && error.code !== 'PGRST116') {
-                toast({ variant: 'destructive', title: 'Error loading profile', description: error.message });
-                setLoading(false);
-                return;
-            }
+    const { data: profileData, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', authUser.id)
+      .single();
 
-            if (profileData) {
-                 const [followersRes, followingRes, postDataRes, createdClassesRes] = await Promise.all([
-                    supabase.from('followers').select('user_id', { count: 'exact' }).eq('user_id', authUser.id),
-                    supabase.from('followers').select('follower_id', { count: 'exact' }).eq('follower_id', authUser.id),
-                    supabase.from('posts').select('*').eq('user_id', authUser.id).order('created_at', { ascending: false }),
-                    supabase.from('classes').select('*').eq('creator_id', authUser.id)
-                 ]);
-                
-                 setUser({
-                    ...profileData,
-                    followers: followersRes.count || 0,
-                    following: followingRes.count || 0,
-                });
-                
-                if (postDataRes.error) {
-                    toast({ variant: 'destructive', title: 'Error loading posts', description: postDataRes.error.message });
-                } else {
-                    setPosts(postDataRes.data as Post[]);
-                }
-                
-                if (createdClassesRes.error) {
-                     toast({ variant: 'destructive', title: 'Error loading classes', description: createdClassesRes.error.message });
-                } else {
-                    setCreatedClasses(createdClassesRes.data as Class[]);
-                }
+    if (error && error.code !== 'PGRST116') {
+      toast({ variant: 'destructive', title: 'Error loading profile', description: error.message });
+      setLoading(false);
+      return;
+    }
 
-            } else {
-                router.push('/profile/setup');
-                return; 
-            }
+    if (profileData) {
+      const [followersRes, followingRes, postDataRes, createdClassesRes, requestCountRes] = await Promise.all([
+        supabase.from('followers').select('user_id', { count: 'exact' }).eq('user_id', authUser.id).eq('is_accepted', true),
+        supabase.from('followers').select('follower_id', { count: 'exact' }).eq('follower_id', authUser.id).eq('is_accepted', true),
+        supabase.from('posts').select('*').eq('user_id', authUser.id).order('created_at', { ascending: false }),
+        supabase.from('classes').select('*').eq('creator_id', authUser.id),
+        supabase.from('followers').select('*', { count: 'exact', head: true }).eq('user_id', authUser.id).eq('is_accepted', false)
+      ]);
+      
+      setUser({
+        ...profileData,
+        followers: followersRes.count || 0,
+        following: followingRes.count || 0,
+      });
 
-        } else {
-            router.push('/signup');
-            return;
-        }
-        setLoading(false);
-    };
+      setRequestCount(requestCountRes.count || 0);
+      
+      if (postDataRes.error) {
+        toast({ variant: 'destructive', title: 'Error loading posts', description: postDataRes.error.message });
+      } else {
+        setPosts(postDataRes.data as Post[]);
+      }
+      
+      if (createdClassesRes.error) {
+        toast({ variant: 'destructive', title: 'Error loading classes', description: createdClassesRes.error.message });
+      } else {
+        setCreatedClasses(createdClassesRes.data as Class[]);
+      }
+    } else {
+      router.push('/profile/setup');
+      return; 
+    }
 
-    fetchUserData();
+    setLoading(false);
   }, [router, supabase, toast]);
+  
+  useEffect(() => {
+    setLoading(true);
+    fetchUserData();
+
+    const channel = supabase.channel('profile-page-realtime')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'followers'
+      }, (payload) => {
+        // Re-fetch all data on any change in followers table for simplicity
+        fetchUserData();
+      })
+      .subscribe();
+      
+    return () => {
+        supabase.removeChannel(channel);
+    }
+  }, [fetchUserData, supabase]);
 
 
   if (loading) {
@@ -126,11 +146,16 @@ export default function ProfilePage() {
     <>
       <div className="flex h-full flex-col bg-background text-foreground pb-16">
         <header className="flex h-16 flex-shrink-0 items-center justify-between border-b px-4">
-          <Link href="/profile/friend-request">
+          <Link href="/profile/friend-request" className="relative">
             <Button variant="ghost" size="icon">
               <UserPlus className="h-5 w-5" />
               <span className="sr-only">Add Friend</span>
             </Button>
+            {requestCount > 0 && (
+                <Badge variant="destructive" className="absolute -top-1 -right-1 h-5 w-5 justify-center rounded-full p-0 text-xs">
+                    {requestCount}
+                </Badge>
+            )}
           </Link>
           <h1 className="font-bold">{user.username}</h1>
           <Link href="/profile/settings">
@@ -246,3 +271,4 @@ export default function ProfilePage() {
     </>
   );
 }
+
