@@ -3,7 +3,7 @@
 
 import { BottomNav } from "@/components/bottom-nav";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
-import { Heart } from "lucide-react";
+import { Heart, Swords } from "lucide-react";
 import Link from "next/link";
 import { AdBanner } from "@/components/ad-banner";
 
@@ -16,6 +16,14 @@ export default function LoveZonePage() {
             icon: <Heart className="h-8 w-8 text-pink-500" />,
             href: "/bliss-zone/anniversary",
             color: "bg-primary/10 border-primary/20",
+            disabled: false,
+        },
+        {
+            title: "Checker Game",
+            description: "Play a classic game of Checkers together.",
+            icon: <Swords className="h-8 w-8 text-blue-500" />,
+            href: "/bliss-zone/checker-game/choose-opponent",
+            color: "bg-blue-500/10 border-blue-500/20",
             disabled: false,
         }
     ]
