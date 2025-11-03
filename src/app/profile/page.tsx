@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import { useState, useEffect, useCallback } from 'react';
@@ -49,49 +48,58 @@ export default function ProfilePage() {
       return;
     }
 
-    const { data: profileData, error } = await supabase
+    // First, get the profile data
+    const { data: profileData, error: profileError } = await supabase
       .from('profiles')
       .select('*')
       .eq('id', authUser.id)
       .single();
 
-    if (error && error.code !== 'PGRST116') {
-      toast({ variant: 'destructive', title: 'Error loading profile', description: error.message });
+    if (profileError || !profileData) {
+      if (profileError && profileError.code !== 'PGRST116') {
+        toast({ variant: 'destructive', title: 'Error loading profile', description: profileError.message });
+      } else {
+        // This means the user is authenticated but has no profile entry yet.
+        router.push('/profile/setup');
+      }
       setLoading(false);
       return;
     }
 
-    if (profileData) {
-      const [followersRes, followingRes, postDataRes, createdClassesRes, requestCountRes] = await Promise.all([
-        supabase.from('followers').select('*', { count: 'exact', head: false }).eq('user_id', authUser.id).eq('is_accepted', true),
-        supabase.from('followers').select('*', { count: 'exact', head: false }).eq('follower_id', authUser.id).eq('is_accepted', true),
+    // Now, fetch stats using the new RPC and other data in parallel
+    const [statsRes, postDataRes, createdClassesRes] = await Promise.all([
+        supabase.rpc('get_user_stats', { user_id_param: authUser.id }).single(),
         supabase.from('posts').select('*').eq('user_id', authUser.id).order('created_at', { ascending: false }),
-        supabase.from('classes').select('*').eq('creator_id', authUser.id),
-        supabase.from('followers').select('*', { count: 'exact', head: false }).eq('user_id', authUser.id).eq('is_accepted', false)
-      ]);
-      
-      setUser({
-        ...profileData,
-        followers: followersRes.count || 0,
-        following: followingRes.count || 0,
-      });
-
-      setRequestCount(requestCountRes.count || 0);
-      
-      if (postDataRes.error) {
-        toast({ variant: 'destructive', title: 'Error loading posts', description: postDataRes.error.message });
-      } else {
-        setPosts(postDataRes.data as Post[]);
-      }
-      
-      if (createdClassesRes.error) {
-        toast({ variant: 'destructive', title: 'Error loading classes', description: createdClassesRes.error.message });
-      } else {
-        setCreatedClasses(createdClassesRes.data as Class[]);
-      }
+        supabase.from('classes').select('*').eq('creator_id', authUser.id)
+    ]);
+    
+    if (statsRes.error) {
+        toast({ variant: 'destructive', title: 'Error loading stats', description: statsRes.error.message });
+        setUser({
+            ...profileData,
+            followers: 0,
+            following: 0,
+        });
+        setRequestCount(0);
     } else {
-      router.push('/profile/setup');
-      return; 
+        setUser({
+            ...profileData,
+            followers: statsRes.data.followers_count || 0,
+            following: statsRes.data.following_count || 0,
+        });
+        setRequestCount(statsRes.data.pending_request_count || 0);
+    }
+      
+    if (postDataRes.error) {
+      toast({ variant: 'destructive', title: 'Error loading posts', description: postDataRes.error.message });
+    } else {
+      setPosts(postDataRes.data as Post[]);
+    }
+    
+    if (createdClassesRes.error) {
+      toast({ variant: 'destructive', title: 'Error loading classes', description: createdClassesRes.error.message });
+    } else {
+      setCreatedClasses(createdClassesRes.data as Class[]);
     }
 
     setLoading(false);
