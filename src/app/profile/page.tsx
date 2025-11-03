@@ -62,13 +62,12 @@ export default function ProfilePage() {
     }
 
     if (profileData) {
-      // Correct queries for follower/following counts
       const [followersRes, followingRes, postDataRes, createdClassesRes, requestCountRes] = await Promise.all([
-        supabase.from('followers').select('*', { count: 'exact' }).eq('user_id', authUser.id).eq('is_accepted', true),
-        supabase.from('followers').select('*', { count: 'exact' }).eq('follower_id', authUser.id).eq('is_accepted', true),
+        supabase.from('followers').select('*', { count: 'exact', head: false }).eq('user_id', authUser.id).eq('is_accepted', true),
+        supabase.from('followers').select('*', { count: 'exact', head: false }).eq('follower_id', authUser.id).eq('is_accepted', true),
         supabase.from('posts').select('*').eq('user_id', authUser.id).order('created_at', { ascending: false }),
         supabase.from('classes').select('*').eq('creator_id', authUser.id),
-        supabase.from('followers').select('*', { count: 'exact' }).eq('user_id', authUser.id).eq('is_accepted', false)
+        supabase.from('followers').select('*', { count: 'exact', head: false }).eq('user_id', authUser.id).eq('is_accepted', false)
       ]);
       
       setUser({
