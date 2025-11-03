@@ -1,11 +1,12 @@
 
+
 "use client";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { ArrowLeft, Video, Mic, Image as ImageIcon, Send, Smile, MoreVertical, MessageSquareReply, Trash2, X, Loader2, Waves, Users, Check, ThumbsUp, Heart, Laugh, Frown, CheckCheck } from "lucide-react";
+import { ArrowLeft, Mic, Image as ImageIcon, Send, Smile, MoreVertical, MessageSquareReply, Trash2, X, Loader2, Waves, Users, Check, ThumbsUp, Heart, Laugh, Frown, CheckCheck } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { use, useState, useRef, useEffect, useCallback } from "react";
@@ -24,11 +25,6 @@ type ClassInfo = {
   name: string;
   creator_id: string;
 };
-
-type ActiveCall = {
-    id: string;
-    class_id: string;
-} | null;
 
 type MessageReaction = {
     id: string;
@@ -226,7 +222,6 @@ export default function IndividualClassPage({ params: paramsPromise }: { params:
   
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [classInfo, setClassInfo] = useState<ClassInfo | null>(null);
-  const [activeCall, setActiveCall] = useState<ActiveCall>(null);
   const [messages, setMessages] = useState<ClassMessage[]>([]);
   const [loading, setLoading] = useState(true);
   const [isCreator, setIsCreator] = useState(false);
@@ -265,9 +260,6 @@ export default function IndividualClassPage({ params: paramsPromise }: { params:
     }
     setClassInfo(classData);
     setIsCreator(user?.id === classData.creator_id);
-
-    const { data: activeCallData } = await supabase.from('class_video_calls').select('id, class_id').eq('class_id', params.id).maybeSingle();
-    setActiveCall(activeCallData as ActiveCall);
 
     const { data: messagesData, error: messagesError } = await supabase
       .from('class_messages')
@@ -349,15 +341,6 @@ export default function IndividualClassPage({ params: paramsPromise }: { params:
                 }));
              }
         }
-       )
-       .on('postgres_changes', { event: '*', schema: 'public', table: 'class_video_calls', filter: `class_id=eq.${params.id}`},
-            (payload) => {
-                if (payload.eventType === 'INSERT') {
-                    setActiveCall(payload.new as ActiveCall);
-                } else if (payload.eventType === 'DELETE') {
-                    setActiveCall(null);
-                }
-            }
        )
       .subscribe();
     
@@ -560,24 +543,6 @@ export default function IndividualClassPage({ params: paramsPromise }: { params:
         }
     };
 
-    const handleVideoCallClick = async () => {
-        if (!classInfo || !currentUser) return;
-        if (isCreator) {
-             const { error } = await supabase.from('class_video_call_starts').insert({
-                class_id: classInfo.id,
-                creator_id: currentUser.id
-            });
-            if (error && error.code !== '23505') { // Ignore unique constraint violation
-                toast({ variant: 'destructive', title: 'Could not start call', description: error.message });
-            } else {
-                 router.push(`/class/${classInfo.id}/video-call`);
-            }
-        } else {
-            if (activeCall) {
-                router.push(`/class/${classInfo.id}/video-call`);
-            }
-        }
-    };
 
   return (
     <div className="flex h-dvh flex-col bg-background text-foreground">
@@ -593,9 +558,6 @@ export default function IndividualClassPage({ params: paramsPromise }: { params:
             </Link>
         </div>
         <div className="flex items-center gap-2">
-            <Button variant="ghost" size="icon" onClick={handleVideoCallClick} disabled={!isCreator && !activeCall}>
-              <Video className={cn("h-5 w-5", activeCall && "text-green-500 animate-pulse")} />
-            </Button>
            <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="icon">

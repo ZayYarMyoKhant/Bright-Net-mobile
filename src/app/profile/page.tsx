@@ -62,7 +62,7 @@ export default function ProfilePage() {
     }
 
     if (profileData) {
-      // FIX: Removed `head: true` from count queries to get the actual count.
+      // Correct queries for follower/following counts
       const [followersRes, followingRes, postDataRes, createdClassesRes, requestCountRes] = await Promise.all([
         supabase.from('followers').select('*', { count: 'exact' }).eq('user_id', authUser.id).eq('is_accepted', true),
         supabase.from('followers').select('*', { count: 'exact' }).eq('follower_id', authUser.id).eq('is_accepted', true),

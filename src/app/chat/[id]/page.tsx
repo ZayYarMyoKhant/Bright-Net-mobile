@@ -6,7 +6,7 @@ import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { ArrowLeft, Phone, Mic, Image as ImageIcon, Send, Smile, MoreVertical, MessageSquareReply, Trash2, X, Loader2, Waves, Heart, ThumbsUp, Laugh, Frown, Check, CheckCheck, Ban, Share2 } from "lucide-react";
+import { ArrowLeft, Mic, Image as ImageIcon, Send, Smile, MoreVertical, MessageSquareReply, Trash2, X, Loader2, Waves, Heart, ThumbsUp, Laugh, Frown, Check, CheckCheck, Ban, Share2 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { use, useState, useRef, useEffect, useCallback } from "react";
@@ -273,7 +273,6 @@ export default function IndividualChatPage({ params: paramsPromise }: { params: 
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [messages, setMessages] = useState<DirectMessage[]>([]);
   const [loading, setLoading] = useState(true);
-  const [isCalling, setIsCalling] = useState(false);
   const [isBlocked, setIsBlocked] = useState(false);
   const [isBlockedBy, setIsBlockedBy] = useState(false);
 
@@ -644,45 +643,6 @@ export default function IndividualChatPage({ params: paramsPromise }: { params: 
     const seconds = time % 60;
     return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
   };
-
-  const handleInitiateCall = async () => {
-    if (!currentUser || !otherUser) return;
-    setIsCalling(true);
-    
-    // Check if a call request already exists between these two users
-    const { data: existingRequest, error: checkError } = await supabase
-      .from('call_requests')
-      .select('id')
-      .or(`and(caller_id.eq.${currentUser.id},callee_id.eq.${otherUser.id}),and(caller_id.eq.${otherUser.id},callee_id.eq.${currentUser.id})`)
-      .maybeSingle();
-
-    if (checkError) {
-      setIsCalling(false);
-      toast({ variant: 'destructive', title: 'Could not start call', description: `Database Error: ${checkError.message}` });
-      return;
-    }
-    
-    // If a request already exists, go to the requesting page directly
-    if (existingRequest) {
-      router.push(`/chat/${otherUser.id}/voice-call/${existingRequest.id}/requesting`);
-      return;
-    }
-
-    // If no existing request, create a new one
-    const { data, error } = await supabase
-        .from('call_requests')
-        .insert({ caller_id: currentUser.id, callee_id: otherUser.id })
-        .select('id')
-        .single();
-    
-    setIsCalling(false);
-
-    if (error) {
-        toast({ variant: 'destructive', title: 'Could not start call', description: `Database Error: ${error.message}` });
-    } else {
-        router.push(`/chat/${otherUser.id}/voice-call/${data.id}/requesting`);
-    }
-  };
   
   const handleBlockUser = async () => {
     if (!currentUser || !otherUser) return;
@@ -746,9 +706,6 @@ export default function IndividualChatPage({ params: paramsPromise }: { params: 
             </div>
         </div>
         <div className="flex items-center gap-2">
-            <Button variant="ghost" size="icon" onClick={handleInitiateCall} disabled={isCalling}>
-                {isCalling ? <Loader2 className="h-5 w-5 animate-spin" /> : <Phone className="h-5 w-5" />}
-            </Button>
            <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="icon">

@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import type { Metadata } from 'next';
@@ -11,7 +12,6 @@ import { useEffect, useState, useContext } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { User } from '@supabase/supabase-js';
 import { TypingBattleRequestBanner } from '@/components/typing-battle-request-banner';
-import { VideoCallRequestBanner } from '@/components/video-call-request-banner';
 import { CoupleRequestBanner } from '@/components/couple-request-banner';
 import { OfflineProvider, OfflineContext } from '@/context/offline-context';
 import OfflinePage from '@/app/offline/page';
@@ -73,7 +73,6 @@ function AppLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="relative h-dvh w-full md:h-screen overflow-hidden">
         {currentUser && <TypingBattleRequestBanner userId={currentUser.id} />}
-        {currentUser && <VideoCallRequestBanner userId={currentUser.id} />}
         {currentUser && <CoupleRequestBanner userId={currentUser.id} />}
         {children}
     </div>
