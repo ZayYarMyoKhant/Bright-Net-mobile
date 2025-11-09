@@ -101,12 +101,6 @@ export default function RootLayout({
             <Toaster />
           </LanguageProvider>
         </OfflineProvider>
-        <Script
-          async
-          src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-2750761696337886"
-          crossOrigin="anonymous"
-          strategy="afterInteractive"
-        />
       </body>
     </html>
   );
