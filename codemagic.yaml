@@ -29,3 +29,5 @@ workflows:
     artifacts:
       # ထုတ်ပြီးသား APK ဖိုင်ကို Codemagic Dashboard မှာ မြင်ရအောင် ညွှန်းဆိုခြင်း
       - android/app/build/outputs/**/*.apk
+group:
+ -supabase_keys
