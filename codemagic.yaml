@@ -6,12 +6,20 @@ workflows:
       # Build အတွက် လိုအပ်သော နည်းပညာများ သတ်မှတ်ခြင်း
       node: 18 # Node.js version
       java: 17 # Java version (Android Build အတွက် လိုအပ်)
+      groups:
+        - supabase_keys # Supabase key တွေအတွက် group
       
     scripts:
       - name: Install dependencies
         # package.json ထဲက dependencies များကို download လုပ်ခြင်း
         script: npm install
         
+      - name: Create .env file
+        # Codemagic ကနေရလာတဲ့ key တွေကို .env file ထဲကို ရေးထည့်ခြင်း
+        script: |
+          echo "NEXT_PUBLIC_SUPABASE_URL=$NEXT_PUBLIC_SUPABASE_URL" >> .env
+          echo "NEXT_PUBLIC_SUPABASE_ANON_KEY=$NEXT_PUBLIC_SUPABASE_ANON_KEY" >> .env
+
       - name: Build Web Assets
         # Web Code (Next.js/React) များကို Production အတွက် Build လုပ်ခြင်း
         script: npm run build
@@ -27,3 +35,5 @@ workflows:
           ./gradlew assembleRelease
           
     artifacts:
+      # ထုတ်ပြီးသား APK ဖိုင်ကို Codemagic Dashboard မှာ မြင်ရအောင် ညွှန်းဆိုခြင်း
+      - android/app/build/outputs/**/*.apk
