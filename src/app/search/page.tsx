@@ -372,7 +372,7 @@ export default function SearchPage() {
         </header>
 
          <div className="p-4 border-b">
-            <Suspense fallback={<div>Loading...</div>}>
+            <Suspense fallback={<div className="h-10 w-full bg-muted rounded-md animate-pulse" />}>
                 <SearchBar />
             </Suspense>
         </div>
