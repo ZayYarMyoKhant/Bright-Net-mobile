@@ -359,8 +359,7 @@ function PostResults() {
     )
 }
 
-
-export default function SearchPage() {
+function SearchPageContent() {
   const searchParams = useSearchParams();
   const query = searchParams.get("q");
 
@@ -372,9 +371,7 @@ export default function SearchPage() {
         </header>
 
          <div className="p-4 border-b">
-            <Suspense fallback={<div className="h-10 w-full bg-muted rounded-md animate-pulse" />}>
-                <SearchBar />
-            </Suspense>
+            <SearchBar />
         </div>
 
         <main className="flex-1 overflow-y-auto">
@@ -395,19 +392,13 @@ export default function SearchPage() {
               </TabsList>
               
                 <TabsContent value="posts" className="mt-0 flex-1">
-                   <Suspense fallback={<Loader2 className="m-auto mt-10 h-8 w-8 animate-spin" />}>
-                      {query ? <PostResults /> : <SearchPlaceholder />}
-                   </Suspense>
+                   {query ? <PostResults /> : <SearchPlaceholder />}
                 </TabsContent>
                  <TabsContent value="classes" className="mt-0 flex-1">
-                   <Suspense fallback={<Loader2 className="m-auto mt-10 h-8 w-8 animate-spin" />}>
-                      {query ? <ClassResults /> : <SearchPlaceholder />}
-                   </Suspense>
+                   {query ? <ClassResults /> : <SearchPlaceholder />}
                 </TabsContent>
                 <TabsContent value="users" className="mt-0 flex-1">
-                     <Suspense fallback={<Loader2 className="m-auto mt-10 h-8 w-8 animate-spin" />}>
-                        {query ? <UserResults /> : <SearchPlaceholder />}
-                    </Suspense>
+                     {query ? <UserResults /> : <SearchPlaceholder />}
                 </TabsContent>
               
             </Tabs>
@@ -416,4 +407,31 @@ export default function SearchPage() {
       <BottomNav />
     </>
   );
+}
+
+function SearchPageFallback() {
+    return (
+        <>
+            <div className="flex h-dvh flex-col bg-background text-foreground pb-16">
+                <header className="flex h-16 flex-shrink-0 items-center justify-center bg-primary text-primary-foreground px-4">
+                    <h1 className="text-xl font-bold">Search</h1>
+                </header>
+                <div className="p-4 border-b">
+                    <div className="h-10 w-full bg-muted rounded-md animate-pulse" />
+                </div>
+                <main className="flex-1 overflow-y-auto flex items-center justify-center">
+                    <Loader2 className="h-8 w-8 animate-spin" />
+                </main>
+            </div>
+            <BottomNav />
+        </>
+    );
+}
+
+export default function SearchPage() {
+    return (
+        <Suspense fallback={<SearchPageFallback />}>
+            <SearchPageContent />
+        </Suspense>
+    )
 }
