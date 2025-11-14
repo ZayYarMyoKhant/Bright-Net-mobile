@@ -17,6 +17,11 @@ type Profile = {
     full_name: string;
 };
 
+// This function is required for static export
+export async function generateStaticParams() {
+  return [];
+}
+
 export default function XORequestingPage({ params: paramsPromise }: { params: Promise<{ id: string }> }) {
     const params = use(paramsPromise);
     const gameId = params.id;

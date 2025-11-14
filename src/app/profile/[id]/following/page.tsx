@@ -13,6 +13,11 @@ import { Profile } from "@/lib/data";
 import { useToast } from "@/hooks/use-toast";
 import { User } from "@supabase/supabase-js";
 
+// This function is required for static export
+export async function generateStaticParams() {
+  return [];
+}
+
 type FollowingProfile = Profile & { is_also_following: boolean };
 
 export default function FollowingPage({ params: paramsPromise }: { params: Promise<{ id: string }> }) {

@@ -17,14 +17,6 @@ export default function LoveZonePage() {
             href: "/bliss-zone/anniversary",
             color: "bg-primary/10 border-primary/20",
             disabled: false,
-        },
-        {
-            title: "Checker Game",
-            description: "Play a classic game of Checkers together.",
-            icon: <Swords className="h-8 w-8 text-blue-500" />,
-            href: "/bliss-zone/checker-game/choose-opponent",
-            color: "bg-blue-500/10 border-blue-500/20",
-            disabled: false,
         }
     ]
 

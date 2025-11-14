@@ -11,8 +11,6 @@ import { useEffect, useState, useContext } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { User } from '@supabase/supabase-js';
 import { TypingBattleRequestBanner } from '@/components/typing-battle-request-banner';
-import { CheckerGameRequestBanner } from '@/components/checker-game-request-banner';
-import { XORequestBanner } from '@/components/xo-game-request-banner';
 import { CoupleRequestBanner } from '@/components/couple-request-banner';
 import { OfflineProvider, OfflineContext } from '@/context/offline-context';
 import OfflinePage from '@/app/offline/page';
@@ -75,8 +73,6 @@ function AppLayout({ children }: { children: React.ReactNode }) {
     <div className="relative h-dvh w-full md:h-screen overflow-hidden">
         {currentUser && <TypingBattleRequestBanner userId={currentUser.id} />}
         {currentUser && <CoupleRequestBanner userId={currentUser.id} />}
-        {currentUser && <CheckerGameRequestBanner userId={currentUser.id} />}
-        {currentUser && <XORequestBanner userId={currentUser.id} />}
         {children}
     </div>
   );

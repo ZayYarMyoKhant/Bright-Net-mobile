@@ -14,6 +14,11 @@ import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Profile } from "@/lib/data";
 
+// This function is required for static export
+export async function generateStaticParams() {
+  return [];
+}
+
 
 type ClassDetails = {
     id: string;

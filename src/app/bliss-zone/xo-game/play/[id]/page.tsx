@@ -22,6 +22,11 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Badge } from '@/components/ui/badge';
 
+// This function is required for static export
+export async function generateStaticParams() {
+  return [];
+}
+
 
 const XoCell = ({ value, onCellClick }: { value: 'X' | 'O' | null, onCellClick: () => void }) => {
     return (
@@ -209,7 +214,7 @@ export default function XOGamePage({ params: paramsPromise }: { params: Promise<
 
             <header className="flex-shrink-0 text-center p-4">
                 <h1 className="text-3xl font-bold flex items-center justify-center gap-2">
-                    <div className="h-8 w-8 flex items-center justify-center gap-0.5"><X className="h-6 w-6 text-primary" /><CheckSquare className="h-6 w-6 text-primary" /></div>
+                    <div className="h-8 w-8 flex items-center justify-center gap-0.5"><X className="h-6 w-6 text-primary" /><Check className="h-6 w-6 text-primary" /></div>
                     XO Game
                 </h1>
                 <p className="text-muted-foreground">{isMyTurn ? "Your Turn" : `Waiting for ${opponent.full_name}...`}</p>

@@ -21,6 +21,11 @@ import { formatDistanceToNow, isBefore, subMinutes } from "date-fns";
 import { useRouter } from "next/navigation";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 
+// This function is required for static export
+export async function generateStaticParams() {
+  return [];
+}
+
 
 type Reaction = {
   id: string;
@@ -852,5 +857,3 @@ export default function IndividualChatPage({ params: paramsPromise }: { params: 
     </div>
   );
 }
-
-    
