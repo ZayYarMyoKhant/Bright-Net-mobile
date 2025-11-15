@@ -17,11 +17,6 @@ type Profile = {
     full_name: string;
 };
 
-// This function is required for static export
-export async function generateStaticParams() {
-  return [];
-}
-
 export default function AnniversaryRequestingPage({ params: paramsPromise }: { params: Promise<{ id: string }> }) {
     const params = use(paramsPromise);
     const coupleId = params.id;

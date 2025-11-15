@@ -20,11 +20,6 @@ import { Profile } from "@/lib/data";
 import { formatDistanceToNow } from 'date-fns';
 import { useRouter } from "next/navigation";
 
-// This function is required for static export
-export async function generateStaticParams() {
-  return [];
-}
-
 type ClassInfo = {
   id: string;
   name: string;

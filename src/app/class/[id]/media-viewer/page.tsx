@@ -7,11 +7,6 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft, Download } from "lucide-react";
 import { Suspense } from "react";
 
-// This function is required for static export
-export async function generateStaticParams() {
-  return [];
-}
-
 function MediaViewerContent() {
   const router = useRouter();
   const searchParams = useSearchParams();

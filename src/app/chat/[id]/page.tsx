@@ -1,7 +1,7 @@
 
 
 "use client";
-
+export const dynamic = 'force-dynamic';
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,10 +21,6 @@ import { formatDistanceToNow, isBefore, subMinutes } from "date-fns";
 import { useRouter } from "next/navigation";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 
-// This function is required for static export
-export async function generateStaticParams() {
-  return [];
-}
 
 
 type Reaction = {
@@ -264,10 +260,8 @@ const ChatMessage = ({ message, isSender, onReply, onDelete, onReaction, current
             </div>
         </div>
     )
-};
-
-
-export default function IndividualChatPage({ params: paramsPromise }: { params: Promise<{ id: string }> }) {
+}
+export default function ChatPage({ params: paramsPromise }: { params: Promise<{ id: string }> }) {
   const params = use(paramsPromise);
   const router = useRouter();
   const { toast } = useToast();

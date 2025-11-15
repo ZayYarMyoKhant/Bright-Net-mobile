@@ -13,11 +13,6 @@ import { Profile } from "@/lib/data";
 import { useToast } from "@/hooks/use-toast";
 import { User } from "@supabase/supabase-js";
 
-// This function is required for static export
-export async function generateStaticParams() {
-  return [];
-}
-
 type FollowerProfile = Profile & { is_following_back: boolean };
 
 export default function FollowersPage({ params: paramsPromise }: { params: Promise<{ id: string }> }) {

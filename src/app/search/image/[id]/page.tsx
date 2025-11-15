@@ -7,11 +7,6 @@ import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Download } from "lucide-react";
 
-// This function is required for static export
-export async function generateStaticParams() {
-  return [];
-}
-
 export default function ImageViewerPage({ params: paramsPromise }: { params: Promise<{ id: string }> }) {
   const params = use(paramsPromise);
   const router = useRouter();

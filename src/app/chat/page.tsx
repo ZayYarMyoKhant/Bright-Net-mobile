@@ -1,6 +1,6 @@
 
 "use client";
-
+export const dynamic = 'force-dynamic';
 import { Avatar } from "@/components/ui/avatar";
 import { BottomNav } from "@/components/bottom-nav";
 import { Loader2, Users } from "lucide-react";

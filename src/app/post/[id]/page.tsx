@@ -21,12 +21,6 @@ import { useToast } from "@/hooks/use-toast";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 
-// This function is required for static export
-export async function generateStaticParams() {
-  return [];
-}
-
-
 function PostViewerContent({ params }: { params: { id: string } }) {
   const router = useRouter();
   const { toast } = useToast();
