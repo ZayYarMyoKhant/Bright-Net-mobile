@@ -28,6 +28,11 @@ import {
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { formatDistanceToNow, isBefore, subMinutes } from "date-fns";
 
+// This function is required for static export
+export async function generateStaticParams() {
+  return [];
+}
+
 type ProfileData = Profile & {
   following: number;
   followers: number;

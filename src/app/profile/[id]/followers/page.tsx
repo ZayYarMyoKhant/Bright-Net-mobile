@@ -15,6 +15,11 @@ import { User } from "@supabase/supabase-js";
 
 type FollowerProfile = Profile & { is_following_back: boolean };
 
+// This function is required for static export
+export async function generateStaticParams() {
+  return [];
+}
+
 export default function FollowersPage({ params: paramsPromise }: { params: Promise<{ id: string }> }) {
     const params = use(paramsPromise);
     const router = useRouter();

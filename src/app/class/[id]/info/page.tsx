@@ -24,6 +24,11 @@ type ClassDetails = {
     class_members: { count: number }[];
 }
 
+// This function is required for static export
+export async function generateStaticParams() {
+  return [];
+}
+
 
 function ClassInfoContent({ params }: { params: { id: string } }) {
     const router = useRouter();

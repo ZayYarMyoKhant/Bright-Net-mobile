@@ -6,6 +6,11 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Download, Loader2 } from "lucide-react";
 
+// This function is required for static export
+export async function generateStaticParams() {
+  return [];
+}
+
 function VideoPlayerPageContent({ params }: { params: { id: string } }) {
   const router = useRouter();
   const videoUrl = decodeURIComponent(params.id);

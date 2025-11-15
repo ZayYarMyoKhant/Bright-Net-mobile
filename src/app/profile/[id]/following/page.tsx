@@ -15,6 +15,11 @@ import { User } from "@supabase/supabase-js";
 
 type FollowingProfile = Profile & { is_also_following: boolean };
 
+// This function is required for static export
+export async function generateStaticParams() {
+  return [];
+}
+
 export default function FollowingPage({ params: paramsPromise }: { params: Promise<{ id: string }> }) {
     const params = use(paramsPromise);
     const router = useRouter();

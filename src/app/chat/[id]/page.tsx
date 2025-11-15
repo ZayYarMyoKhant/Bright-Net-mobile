@@ -1,7 +1,6 @@
 
 
 "use client";
-export const dynamic = 'force-dynamic';
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,6 +21,10 @@ import { useRouter } from "next/navigation";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 
 
+// This function is required for static export
+export async function generateStaticParams() {
+  return [];
+}
 
 type Reaction = {
   id: string;
