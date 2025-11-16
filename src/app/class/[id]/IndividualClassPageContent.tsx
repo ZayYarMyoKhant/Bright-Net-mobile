@@ -213,8 +213,7 @@ const ChatMessage = ({ message, isSender, onReply, onDelete, currentUser, onReac
 };
 
 
-export default function IndividualClassPageContent({ params: paramsPromise }: { params: Promise<{ id: string }> }) {
-  const params = use(paramsPromise);
+export default function IndividualClassPageContent({ params }: { params: { id: string } }) {
   const router = useRouter();
   const { toast } = useToast();
   const supabase = createClient();
