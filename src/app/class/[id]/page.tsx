@@ -3,9 +3,7 @@ import { Suspense } from "react";
 import IndividualClassPageContent from "./IndividualClassPageContent";
 import { Loader2 } from "lucide-react";
 
-export async function generateStaticParams() {
-  return [];
-}
+export const dynamic = 'force-dynamic';
 
 export default function IndividualClassPage({ params }: { params: { id: string } }) {
   return (
