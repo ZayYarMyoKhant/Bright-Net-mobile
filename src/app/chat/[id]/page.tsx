@@ -3,12 +3,12 @@ import { Suspense } from "react";
 import ChatPageContent from "./ChatPageContent";
 import { Loader2 } from "lucide-react";
 
-// This function is required for static export with dynamic routes
+export const dynamic = 'force-dynamic';
+
+// This function is required for static export with dynamic routes.
+// Returning an empty array means no pages will be pre-rendered at build time.
+// They will be generated on-demand on the client-side.
 export async function generateStaticParams() {
-  // In a real app, you might fetch popular user IDs to pre-render.
-  // For `output: 'export'`, returning an empty array tells Next.js
-  // not to pre-render any specific pages at build time.
-  // The pages will be generated on the client-side on first visit.
   return [];
 }
 
