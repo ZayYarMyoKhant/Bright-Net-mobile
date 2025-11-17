@@ -3,8 +3,6 @@ import { Suspense } from "react";
 import ChatPageContent from "./ChatPageContent";
 import { Loader2 } from "lucide-react";
 
-export const dynamic = 'force-dynamic';
-
 // This function is required for static export with dynamic routes.
 // Returning an empty array means no pages will be pre-rendered at build time.
 // They will be generated on-demand on the client-side.
