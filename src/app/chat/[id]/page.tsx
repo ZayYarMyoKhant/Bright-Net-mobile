@@ -6,7 +6,7 @@ import { Loader2 } from "lucide-react";
 // This function is required for static export with dynamic routes.
 // Returning an empty array means no pages will be pre-rendered at build time.
 // They will be generated on-demand on the client-side.
-export async function generateStaticParams() {
+export function generateStaticParams() {
   return [];
 }
 
@@ -17,3 +17,4 @@ export default function ChatPage({ params }: { params: { id: string } }) {
     </Suspense>
   );
 }
+
