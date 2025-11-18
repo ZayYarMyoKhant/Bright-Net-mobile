@@ -24,7 +24,7 @@ export default function LoveZonePage() {
         <>
             <div className="flex h-dvh flex-col bg-background text-foreground pb-16">
                 <header className="flex h-16 flex-shrink-0 items-center justify-center bg-primary text-primary-foreground px-4">
-                    <h1 className="text-xl font-bold">Love Zone</h1>
+                    <h1 className="text-xl font-bold">Bliss Zone</h1>
                 </header>
 
                 <main className="flex-1 overflow-y-auto p-4 flex flex-col">
