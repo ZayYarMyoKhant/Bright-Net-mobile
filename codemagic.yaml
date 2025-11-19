@@ -23,6 +23,10 @@ workflows:
       - name: Build Web Assets
         # Web Code (Next.js/React) များကို Production အတွက် Build လုပ်ခြင်း
         script: npm run build
+      
+      - name: Create out directory
+        # Capacitor sync အတွက် လိုအပ်သော out folder ကို ကြိုတင်ဖန်တီးခြင်း
+        script: mkdir -p out
         
       - name: Add Android Platform
         # Capacitor အတွက် Android platform ကို ထည့်သွင်းခြင်း
