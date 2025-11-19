@@ -7,7 +7,7 @@ import { Heart } from "lucide-react";
 import Link from "next/link";
 import { AdBanner } from "@/components/ad-banner";
 
-export default function LoveZonePage() {
+export default function BlissZonePage() {
     
     const features = [
         {

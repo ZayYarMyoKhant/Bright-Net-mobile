@@ -9,10 +9,8 @@ import {
   Search,
   Loader2,
   Users,
-  FileText,
-  CameraOff
+  MessageCircle,
 } from "lucide-react";
-import Image from "next/image";
 import Link from "next/link";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
@@ -20,8 +18,6 @@ import { createClient } from "@/lib/supabase/client";
 import { User } from "@supabase/supabase-js";
 import { Avatar } from "@/components/ui/avatar";
 import { Post, Profile } from "@/lib/data";
-import { PostFeed } from "@/components/post-feed";
-import { VideoFeed } from "@/components/video-feed";
 
 
 function SearchBar() {
@@ -48,7 +44,7 @@ function SearchBar() {
       <div className="relative flex-1">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
         <Input
-          placeholder="Search for posts or users..."
+          placeholder="Search for users..."
           className="w-full pl-10"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
@@ -65,8 +61,8 @@ function SearchPlaceholder() {
   return (
      <div className="flex flex-col items-center justify-center pt-20 text-center text-muted-foreground">
         <Search className="h-12 w-12" />
-        <p className="mt-4 text-lg">Search for anything</p>
-        <p className="text-sm">Find posts and other users.</p>
+        <p className="mt-4 text-lg">Search for other users</p>
+        <p className="text-sm">Find and connect with friends.</p>
       </div>
   )
 }
@@ -86,7 +82,7 @@ function UserResults() {
         const { data, error } = await supabase
             .from('profiles')
             .select('*')
-            .ilike('username', `%${query}%`); // Case-insensitive search
+            .or(`username.ilike.%${query}%,full_name.ilike.%${query}%`);
         
         if (error) {
             toast({ variant: 'destructive', title: "Search failed", description: error.message });
@@ -126,101 +122,18 @@ function UserResults() {
                         <p className="text-sm text-muted-foreground">@{user.username}</p>
                     </Link>
                 </div>
+                <Button asChild size="sm" variant="outline">
+                    <Link href={`/chat/${user.id}`}>
+                        <MessageCircle className="mr-2 h-4 w-4" />
+                        Message
+                    </Link>
+                </Button>
             </div>
         ))}
       </div>
   )
 }
 
-function PostResults() {
-    const searchParams = useSearchParams();
-    const query = searchParams.get("q");
-    const [isPending, startTransition] = useTransition();
-    const [imagePosts, setImagePosts] = useState<Post[]>([]);
-    const [videoPosts, setVideoPosts] = useState<Post[]>([]);
-    const { toast } = useToast();
-    const supabase = createClient();
-    const [currentUser, setCurrentUser] = useState<User | null>(null);
-
-    useEffect(() => {
-        supabase.auth.getUser().then(({ data: { user }}) => setCurrentUser(user));
-    }, [supabase]);
-    
-    const fetchPosts = useCallback(async () => {
-        if (query) {
-            startTransition(async () => {
-                const { data, error } = await supabase
-                    .from('posts')
-                    .select('*, profiles!posts_user_id_fkey(*), likes:post_likes(count), comments:post_comments(count)')
-                    .ilike('caption', `%${query}%`)
-                    .order('created_at', { ascending: false });
-
-                if (error) {
-                    toast({ variant: 'destructive', title: "Search failed", description: error.message });
-                    setImagePosts([]);
-                    setVideoPosts([]);
-                } else if (data) {
-                    const postIds = data.map(p => p.id);
-                    let userLikes: { post_id: string }[] = [];
-
-                    if (currentUser && postIds.length > 0) {
-                        const { data: likesData } = await supabase
-                            .from('post_likes')
-                            .select('post_id')
-                            .eq('user_id', currentUser.id)
-                            .in('post_id', postIds);
-                        userLikes = likesData || [];
-                    }
-                    
-                    const likedPostIds = new Set(userLikes.map(like => like.post_id));
-
-                    const processedPosts: Post[] = data.map((post: any) => ({
-                        id: post.id,
-                        user: post.profiles,
-                        media_url: post.media_url,
-                        media_type: post.media_type,
-                        caption: post.caption,
-                        created_at: post.created_at,
-                        likes: post.likes[0]?.count || 0,
-                        comments: post.comments[0]?.count || 0,
-                        isLiked: likedPostIds.has(post.id),
-                    }));
-                    setImagePosts(processedPosts.filter(p => p.media_type === 'image'));
-                    setVideoPosts(processedPosts.filter(p => p.media_type === 'video'));
-                }
-            });
-        } else {
-            setImagePosts([]);
-            setVideoPosts([]);
-        }
-    }, [query, supabase, toast, currentUser]);
-
-    useEffect(() => {
-        fetchPosts();
-    }, [fetchPosts]);
-
-
-    if (isPending) {
-         return <div className="flex justify-center items-center pt-10"><Loader2 className="h-8 w-8 animate-spin" /></div>
-    }
-
-    if (imagePosts.length === 0 && videoPosts.length === 0 && query) {
-        return (
-            <div className="flex flex-col items-center justify-center pt-20 text-center text-muted-foreground">
-                <CameraOff className="h-12 w-12" />
-                <p className="mt-4 text-lg">No posts found for "{query}"</p>
-                <p className="text-sm">Try a different search term.</p>
-            </div>
-        )
-    }
-
-    return (
-        <div className="w-full">
-            <PostFeed posts={imagePosts} loading={isPending} />
-            <VideoFeed posts={videoPosts} loading={isPending} />
-        </div>
-    )
-}
 
 function SearchPageContent() {
   const searchParams = useSearchParams();
@@ -239,7 +152,7 @@ function SearchPageContent() {
 
         <main className="flex-1 overflow-y-auto">
             <div className="flex flex-col h-full">
-               {query ? <PostResults /> : <SearchPlaceholder />}
+               {query ? <UserResults /> : <SearchPlaceholder />}
             </div>
         </main>
       </div>

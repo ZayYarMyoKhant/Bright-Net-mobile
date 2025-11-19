@@ -3,8 +3,8 @@
     "bottomNav": {
         "home": "Home",
         "search": "Search",
-        "loveZone": "Love Zone",
         "upload": "Upload",
+        "chat": "Chat",
         "profile": "Profile"
     },
     "settings": {

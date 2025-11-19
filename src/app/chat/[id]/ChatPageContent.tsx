@@ -15,42 +15,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { createClient } from "@/lib/supabase/client";
 import { User } from "@supabase/supabase-js";
-import { Prof"Next.js Build Configuration နှင့် Dynamic Route ပြင်ဆင်ခြင်း"
-
-    ရည်ရွယ်ချက်: Next.js Build Error (generateStaticParams) နှင့် 404 Not Found Error များကို ဖြေရှင်းရန်၊ App အား Client-Only (SPA) အဖြစ် Build လုပ်ရန်။
-    
-    အဆင့် ၁။ Next.js ကို Client-Only Mode ဖြင့် ပြင်ဆင်ရန်
-    /next.config.js ဖိုင်တွင် experimental အောက်ရှိ is</>spa option ကို true ဟု သတ်မှတ်ပေးပါ။
-    
-    အပြောင်းအလဲ:
-    
-    JavaScript
-    
-    // next.config.js
-    const nextConfig = {
-      output: 'export', 
-      experimental: {
-        appDir: true,
-        nextScriptWorkers: true,
-        is</>spa: true, // <<< ဤနေရာတွင် ထည့်သွင်းပါ။
-      },
-      // ... အခြား configuration များ
-    };
-    module.exports = nextConfig;
-    အဆင့် ၂။ ပျက်သွားသော Dynamic Route Page များကို ပြန်လည်ထည့်သွင်းရန်
-    /src/app/chat/[id]/page.tsx ကို ဖျက်လိုက်ခြင်းကြောင့် ဖြစ်ပေါ်လာသော 404 Error ကို ဖြေရှင်းရန် ဤဖိုင်ကို Server Wrapper အဖြစ် ပြန်လည်ဖန်တီးပါ။
-    
-    ဤ Code သည် generateStaticParams ပါဝင်ပြီးသား ဖြစ်သဖြင့် အဆင့် (၁) ပြီးလျှင် Build Error ကိုလည်း နောက်တစ်ကြိမ် မဖြစ်စေရန် ကာကွယ်ပေးပါလိမ့်မည်။
-    
-    ဖိုင်တည်နေရာ- /src/app/chat/[id]/page.tsx
-    
-    TypeScript
-    
-    // Server Component (No "use client")
-    import ChatPageContent from './ChatPageContent'; 
-    // Static Export အတွက် generateStaticParams ကို ထည့်သွင်းခြင်း export function generateStaticParams() { return []; }
-    
-    export default function ChatPage({ params }) { // Client Component ကို params ဖြင့် Render လုပ်ခြင်း return ; }ile } from "@/lib/data";
+import { Profile } from "@/lib/data";
 import { formatDistanceToNow, isBefore, subMinutes } from "date-fns";
 import { useRouter } from "next/navigation";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
@@ -109,7 +74,7 @@ function PresenceIndicator({ user }: { user: OtherUserWithPresence | null }) {
 }
 
 
-const ChatMessage = ({ message, isSender, onReply, onDelete, onReaction, currentUser, otherUserId }: { message: DirectMessage, isSender: boolean, onReply: (message: any) => void, onDelete: (messageId: string) => void, onReaction: (messageId: string, emoji: string) => void, currentUser: User | null, otherUserId: string }) => {
+const ChatMessage = ({ message, isSender, onReply, onDelete, onReaction, currentUser }: { message: DirectMessage, isSender: boolean, onReply: (message: any) => void, onDelete: (messageId: string) => void, onReaction: (messageId: string, emoji: string) => void, currentUser: User | null }) => {
     
     const timeAgo = formatDistanceToNow(new Date(message.created_at), { addSuffix: true });
     const msgRef = useRef<HTMLDivElement>(null);
@@ -130,9 +95,9 @@ const ChatMessage = ({ message, isSender, onReply, onDelete, onReaction, current
             async ([entry]) => {
                 if (entry.isIntersecting && !isSender && !message.is_seen_by_other) {
                     if (currentUser) {
-                       await supabase.from('direct_message_read_status').insert({
-                           message_id: message.id,
-                           user_id: currentUser.id
+                       await supabase.rpc('mark_message_as_read', {
+                           p_message_id: message.id,
+                           p_user_id: currentUser.id
                        });
                     }
                     observer.disconnect();
@@ -322,7 +287,6 @@ export default function ChatPageContent({ params }: { params: { id: string } }) 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const recordingTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const notificationSoundRef = useRef<HTMLAudioElement | null>(null);
   
   const fetchChatData = useCallback(async (user: User, otherUserId: string) => {
     setLoading(true);
@@ -357,7 +321,7 @@ export default function ChatPageContent({ params }: { params: { id: string } }) 
 
     const { data: messagesData, error: messagesError } = await supabase
       .from('direct_messages')
-      .select('*, profiles:sender_id(*), direct_message_reactions(*, profiles:user_id(*)), seen_by:direct_message_read_status(user_id), parent_message:parent_message_id(content, media_type, profiles:sender_id(full_name))')
+      .select('*, profiles:sender_id(*), direct_message_reactions(*, profiles:user_id(*)), parent_message:parent_message_id(content, media_type, profiles:sender_id(full_name))')
       .eq('conversation_id', currentConvoId)
       .order('created_at', { ascending: true });
 
@@ -365,10 +329,18 @@ export default function ChatPageContent({ params }: { params: { id: string } }) 
       toast({ variant: "destructive", title: "Failed to load messages." });
       setMessages([]);
     } else {
+        const messageIds = messagesData.map(msg => msg.id);
+        const { data: readStatuses, error: readStatusError } = await supabase
+            .from('direct_message_read_status')
+            .select('message_id')
+            .eq('user_id', otherUserId)
+            .in('message_id', messageIds);
+
+        const readMessageIds = new Set(readStatuses?.map(s => s.message_id) || []);
+
         const processedMessages = messagesData.map(msg => ({
             ...msg,
-            // @ts-ignore
-            is_seen_by_other: msg.seen_by.some((seen: any) => seen.user_id !== user.id)
+            is_seen_by_other: readMessageIds.has(msg.id)
         })) as DirectMessage[];
         setMessages(processedMessages);
     }
@@ -384,10 +356,6 @@ export default function ChatPageContent({ params }: { params: { id: string } }) 
         setCurrentUser(user);
         fetchChatData(user, params.id);
     });
-    
-    if (typeof Audio !== 'undefined' && process.env.NEXT_PUBLIC_NOTIFICATION_SOUND_URL) {
-      notificationSoundRef.current = new Audio(process.env.NEXT_PUBLIC_NOTIFICATION_SOUND_URL);
-    }
   }, [fetchChatData, supabase.auth, params.id, router]);
 
 
@@ -405,15 +373,12 @@ export default function ChatPageContent({ params }: { params: { id: string } }) 
         async (payload) => {
            const { data: fullMessage, error } = await supabase
                 .from('direct_messages')
-                .select('*, profiles:sender_id(*), direct_message_reactions(*, profiles:user_id(*)), seen_by:direct_message_read_status(user_id), parent_message:parent_message_id(content, media_type, profiles:sender_id(full_name))')
+                .select('*, profiles:sender_id(*), direct_message_reactions(*, profiles:user_id(*)), parent_message:parent_message_id(content, media_type, profiles:sender_id(full_name))')
                 .eq('id', payload.new.id)
                 .single();
             if (!error && fullMessage) {
                  const newMessage = { ...fullMessage, is_seen_by_other: false } as DirectMessage;
                  setMessages((prevMessages) => [...prevMessages, newMessage]);
-                 if (payload.new.sender_id !== currentUser.id) {
-                    notificationSoundRef.current?.play().catch(e => console.error("Error playing sound:", e));
-                 }
             }
         }
       ).subscribe();
@@ -449,11 +414,19 @@ export default function ChatPageContent({ params }: { params: { id: string } }) 
         .on('postgres_changes',
           { event: 'INSERT', schema: 'public', table: 'direct_message_read_status', filter: `user_id=eq.${params.id}` },
           (payload) => {
+            const { message_id } = payload.new;
             setMessages(prev => prev.map(msg => 
-                (msg.sender_id === currentUser.id && !msg.is_seen_by_other)
+                msg.id === message_id && msg.sender_id === currentUser.id
                 ? { ...msg, is_seen_by_other: true } 
                 : msg
             ));
+             // Mark all previous messages as read too
+            setMessages(prev => prev.map(msg => {
+                if (msg.sender_id === currentUser.id && !msg.is_seen_by_other && new Date(msg.created_at) <= new Date(payload.new.read_at)) {
+                    return { ...msg, is_seen_by_other: true };
+                }
+                return msg;
+            }));
           }
       ).subscribe();
 
@@ -554,15 +527,16 @@ export default function ChatPageContent({ params }: { params: { id: string } }) 
     
     if (mediaFile) {
         const fileExtension = mediaFile.name.split('.').pop();
-        const fileName = `public/${currentUser.id}-${Date.now()}.${fileExtension}`;
+        const fileName = `${currentUser.id}-${Date.now()}.${fileExtension}`;
+        const filePath = `public/${fileName}`;
         
-        const { error: uploadError } = await supabase.storage.from('direct-messages-media').upload(fileName, mediaFile);
+        const { error: uploadError } = await supabase.storage.from('direct-messages-media').upload(filePath, mediaFile);
         if (uploadError) {
             toast({ variant: "destructive", title: "Media upload failed", description: uploadError.message });
             setSending(false);
             return;
         }
-        const { data: { publicUrl } } = supabase.storage.from('direct-messages-media').getPublicUrl(fileName);
+        const { data: { publicUrl } } = supabase.storage.from('direct-messages-media').getPublicUrl(filePath);
         publicMediaUrl = publicUrl;
         mediaType = mediaFile.type.split('/')[0];
     }
@@ -648,6 +622,7 @@ export default function ChatPageContent({ params }: { params: { id: string } }) 
         setMediaDuration(recordingTime);
         setRecordingTime(0);
         setMediaFile(audioFile);
+        handleSendMessage();
       };
       mediaRecorderRef.current.start();
       setIsRecording(true);
@@ -744,7 +719,7 @@ export default function ChatPageContent({ params }: { params: { id: string } }) 
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent>
-              <DropdownMenuItem className="text-destructive" onClick={handleBlockUser}>
+              <DropdownMenuItem className="text-destructive" onClick={handleBlockUser} disabled={isBlocked}>
                 <Ban className="mr-2 h-4 w-4" />
                 <span>Block user</span>
               </DropdownMenuItem>
@@ -775,7 +750,7 @@ export default function ChatPageContent({ params }: { params: { id: string } }) 
       
       <main className="flex-1 overflow-y-auto p-4 space-y-6">
         {messages.map((msg) => (
-            <ChatMessage key={msg.id} message={msg} isSender={msg.sender_id === currentUser?.id} onReply={handleReply} onDelete={handleDelete} onReaction={handleReaction} currentUser={currentUser} otherUserId={otherUser.id}/>
+            <ChatMessage key={msg.id} message={msg} isSender={msg.sender_id === currentUser?.id} onReply={handleReply} onDelete={handleDelete} onReaction={handleReaction} currentUser={currentUser}/>
         ))}
         <div ref={messagesEndRef} />
       </main>
@@ -824,16 +799,6 @@ export default function ChatPageContent({ params }: { params: { id: string } }) 
                         <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></div>
                         <p className="text-sm font-mono text-red-500">{formatRecordingTime(recordingTime)}</p>
                     </div>
-                ) : mediaFile && mediaFile.type.startsWith('audio/') ? (
-                    <div className="flex-1 flex items-center bg-muted h-10 rounded-lg px-3 gap-2 justify-between">
-                         <div className="flex items-center gap-2">
-                            <Waves className="h-5 w-5 text-primary" />
-                            <p className="text-sm font-mono text-muted-foreground">{formatRecordingTime(Math.round(mediaDuration || 0))}</p>
-                        </div>
-                        <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={handleRemoveMedia}>
-                            <Trash2 className="h-5 w-5 text-destructive" />
-                        </Button>
-                    </div>
                 ) : (
                     <>
                         <input 
@@ -865,7 +830,7 @@ export default function ChatPageContent({ params }: { params: { id: string } }) 
                     </>
                 )}
 
-                <Button variant="ghost" size="icon" type="button" onClick={handleMicClick} disabled={isChatDisabled}>
+                <Button variant="ghost" size="icon" type="button" onMouseDown={handleMicClick} onMouseUp={stopRecording} onTouchStart={handleMicClick} onTouchEnd={stopRecording} disabled={isChatDisabled}>
                   <Mic className={cn("h-5 w-5 text-muted-foreground", isRecording && "text-red-500")} />
                 </Button>
                 <Button size="icon" type="submit" disabled={(!newMessage.trim() && !mediaFile) || sending || isChatDisabled}>

@@ -21,10 +21,7 @@ export function BottomNav() {
       if (!user) return;
 
       const { count, error } = await supabase
-        .from('direct_messages')
-        .select('*', { count: 'exact', head: true })
-        .eq('is_seen', false)
-        .eq('receiver_id', user.id);
+        .rpc('count_unread_conversations', { p_user_id: user.id });
       
       if (!error && count !== null) {
           setHasUnread(count > 0);
@@ -34,7 +31,7 @@ export function BottomNav() {
     checkUnreadMessages();
 
     const channel = supabase.channel('public:direct_messages:bottom-nav')
-      .on('postgres_changes', { event: '*', schema: 'public' }, (payload) => {
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'direct_messages' }, (payload) => {
         checkUnreadMessages();
       })
       .subscribe();
@@ -48,7 +45,7 @@ export function BottomNav() {
     { href: "/home", label: t('bottomNav.home'), icon: Home },
     { href: "/search", label: t('bottomNav.search'), icon: Search },
     { href: "/upload", label: t('bottomNav.upload'), icon: PlusSquare, isSpecial: true },
-    { href: "/bliss-zone", label: t('bottomNav.loveZone'), icon: Heart },
+    { href: "/chat", label: t('bottomNav.chat'), icon: MessageCircle, notification: hasUnread },
     { href: "/profile", label: t('bottomNav.profile'), icon: User },
   ];
 
