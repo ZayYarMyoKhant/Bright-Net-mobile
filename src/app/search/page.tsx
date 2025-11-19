@@ -247,7 +247,7 @@ function ClassResults() {
       startTransition(async () => {
         const { data, error } = await supabase
             .from('classes')
-            .select('*, creator:profiles!classes_created_by_fkey(*)')
+            .select('*, creator:created_by(*)')
             .textSearch('name', query, { type: 'websearch', config: 'english' });
 
         if (error) {
@@ -367,3 +367,5 @@ export default function SearchPage() {
         </Suspense>
     )
 }
+
+    
