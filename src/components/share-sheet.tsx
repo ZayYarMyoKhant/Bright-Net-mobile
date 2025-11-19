@@ -34,15 +34,17 @@ export function ShareSheet({ post, currentUser }: ShareSheetProps) {
         setLoading(false);
         return;
       };
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('id, username, full_name, avatar_url')
-        .not('id', 'eq', currentUser.id); 
       
+      const { data, error } = await supabase
+        .from('followers')
+        .select('profiles!followers_user_id_fkey(*)')
+        .eq('follower_id', currentUser.id);
+
       if (error) {
         console.error("Error fetching friends:", error);
       } else {
-        setFriends(data as Profile[]);
+        const followingProfiles = data.map((item: any) => item.profiles).filter(Boolean);
+        setFriends(followingProfiles as Profile[]);
       }
       setLoading(false);
     }
@@ -132,10 +134,10 @@ export function ShareSheet({ post, currentUser }: ShareSheetProps) {
             ))}
           </div>
         ) : (
-            <div className="text-center p-10 text-muted-foreground flex flex-col items-center">
+            <div className="text-center p-10 text-muted-foreground flex flex-col items-center pt-20">
                 <Users className="h-12 w-12 mb-4" />
-                <p className="font-bold">No friends to share with</p>
-                <p className="text-sm mt-1">When you have friends, they'll appear here.</p>
+                <p className="font-bold">You're not following anyone</p>
+                <p className="text-sm mt-1">Follow some people to share posts with them.</p>
             </div>
         )}
       </ScrollArea>
