@@ -50,17 +50,71 @@ export default function ChatListPage() {
   const router = useRouter();
 
   const fetchConversations = useCallback(async (user: User) => {
-    const { data, error } = await supabase
-      .rpc('get_user_conversations', { p_user_id: user.id });
+    setLoading(true);
 
-    // Always set conversations state. If data is null, it becomes an empty array.
-    setConversations(data || []);
+    const { data: userConvos, error: userConvosError } = await supabase
+        .from('conversation_participants')
+        .select('conversation_id')
+        .eq('user_id', user.id);
 
-    // Only log an error if it is a meaningful error object, not an empty one.
-    if (error && (typeof error !== 'object' || Object.keys(error).length > 0)) {
-        console.error('Error fetching conversations:', error);
+    if (userConvosError) {
+        console.error('Error fetching user conversations:', userConvosError);
+        setConversations([]);
+        setLoading(false);
+        return;
+    }
+
+    const conversationIds = userConvos.map(c => c.conversation_id);
+
+    if (conversationIds.length === 0) {
+        setConversations([]);
+        setLoading(false);
+        return;
+    }
+
+    const { data: otherParticipants, error: participantsError } = await supabase
+        .from('conversation_participants')
+        .select('conversation_id, user_id, profiles(*)')
+        .in('conversation_id', conversationIds)
+        .neq('user_id', user.id);
+
+    if (participantsError) {
+        console.error('Error fetching participants:', participantsError);
+        setConversations([]);
+        setLoading(false);
+        return;
     }
     
+    const { data: lastMessages, error: messagesError } = await supabase
+        .rpc('get_last_messages', { p_conversation_ids: conversationIds, p_user_id: user.id });
+
+    if (messagesError) {
+        console.error('Error fetching last messages:', messagesError);
+    }
+    
+    const lastMessageMap = new Map(lastMessages?.map(m => [m.conversation_id, m]));
+
+    const convos: Conversation[] = otherParticipants.map(p => {
+        const lastMessage = lastMessageMap.get(p.conversation_id) || null;
+        return {
+            id: p.conversation_id,
+            // @ts-ignore
+            other_user: p.profiles,
+            last_message: lastMessage ? {
+                content: lastMessage.content,
+                media_type: lastMessage.media_type,
+                created_at: lastMessage.created_at,
+                sender_id: lastMessage.sender_id,
+                is_seen: lastMessage.is_seen,
+            } : null,
+        }
+    }).sort((a, b) => {
+        if (!a.last_message) return 1;
+        if (!b.last_message) return -1;
+        return new Date(b.last_message.created_at).getTime() - new Date(a.last_message.created_at).getTime();
+    });
+
+    setConversations(convos);
     setLoading(false);
   }, [supabase]);
 
@@ -83,6 +137,7 @@ export default function ChatListPage() {
       .on('postgres_changes', 
         { event: '*', schema: 'public', table: 'direct_messages' },
         (payload) => {
+            // A bit inefficient to refetch all, but it's the simplest way to ensure correctness
             fetchConversations(currentUser);
         }
       )
@@ -123,10 +178,16 @@ export default function ChatListPage() {
                 let lastMessagePreview = "No messages yet";
 
                 if (lastMessage) {
+                  let text = "";
+                   if (lastMessage.content) {
+                        text = lastMessage.content;
+                   } else if (lastMessage.media_type) {
+                        text = `Sent a ${lastMessage.media_type}`;
+                   }
                   if(lastMessage.sender_id === currentUser?.id) {
-                     lastMessagePreview = `You: ${lastMessage.content || `sent a ${lastMessage.media_type}`}`;
+                     lastMessagePreview = `You: ${text}`;
                   } else {
-                     lastMessagePreview = lastMessage.content || `Sent a ${lastMessage.media_type}`;
+                     lastMessagePreview = text;
                   }
                 }
 
