@@ -181,7 +181,7 @@ export default function IndividualClassPageContent({ initialData }: { initialDat
     const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
         if (file) {
-            if (file.type.startsWith("image/") || file.type.startsWith("video/")) {
+            if (file.type.startsWith("image/") || file.type.startsWith("video/") || file.type.startsWith("audio/")) {
                 setMediaFile(file);
                 setMediaPreview(URL.createObjectURL(file));
             } else {
@@ -212,13 +212,13 @@ export default function IndividualClassPageContent({ initialData }: { initialDat
             const fileName = `class-${classData.id}-${currentUser.id}-${Date.now()}.${fileExtension}`;
             const filePath = `public/${fileName}`;
             
-            const { error: uploadError } = await supabase.storage.from('class-media').upload(filePath, mediaFile);
+            const { error: uploadError } = await supabase.storage.from('direct-messages-media').upload(filePath, mediaFile);
             if (uploadError) {
                 toast({ variant: "destructive", title: "Media upload failed", description: uploadError.message });
                 setSending(false);
                 return;
             }
-            const { data: { publicUrl } } = supabase.storage.from('class-media').getPublicUrl(filePath);
+            const { data: { publicUrl } } = supabase.storage.from('direct-messages-media').getPublicUrl(filePath);
             publicMediaUrl = publicUrl;
             mediaType = mediaFile.type.split('/')[0] as 'image' | 'video' | 'audio';
         }
@@ -387,9 +387,11 @@ export default function IndividualClassPageContent({ initialData }: { initialDat
                                     <div className="relative w-24 h-24 rounded-lg overflow-hidden">
                                         {mediaFile?.type.startsWith('image/') ? (
                                             <Image src={mediaPreview} alt="Media preview" layout="fill" objectFit="cover" />
-                                        ) : (
+                                        ) : mediaFile?.type.startsWith('video/') ? (
                                             <video src={mediaPreview} className="w-full h-full object-cover" />
-                                        )}
+                                        ) : mediaFile?.type.startsWith('audio/') ? (
+                                            <audio src={mediaPreview} controls className="w-full" />
+                                        ) : null}
                                         <Button
                                             variant="destructive"
                                             size="icon"
@@ -409,7 +411,7 @@ export default function IndividualClassPageContent({ initialData }: { initialDat
                                     </div>
                                 ) : (
                                     <>
-                                        <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept="image/*,video/*" disabled={sending} />
+                                        <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept="image/*,video/*,audio/*" disabled={sending} />
                                         <Button variant="ghost" size="icon" type="button" onClick={() => fileInputRef.current?.click()} disabled={sending}><ImagePlus className="h-5 w-5 text-muted-foreground" /></Button>
                                         <Button variant="ghost" size="icon" type="button" onClick={() => setShowEmojiPicker(!showEmojiPicker)} disabled={sending}>
                                             <Smile className={cn("h-5 w-5 text-muted-foreground", showEmojiPicker && "text-primary")} />
@@ -461,3 +463,5 @@ export default function IndividualClassPageContent({ initialData }: { initialDat
         </div>
     );
 }
+
+    
