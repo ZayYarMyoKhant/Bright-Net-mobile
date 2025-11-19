@@ -3,7 +3,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Search, PlusSquare, User, MessageCircle, Heart, GraduationCap } from "lucide-react";
+import { Home, Search, PlusSquare, User, MessageCircle, Heart } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTranslation } from "@/context/language-context";
 import { useEffect, useState } from "react";
@@ -20,11 +20,14 @@ export function BottomNav() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      const { data, error } = await supabase.rpc('get_user_conversations');
+      const { count, error } = await supabase
+        .from('direct_messages')
+        .select('*', { count: 'exact', head: true })
+        .eq('is_seen', false)
+        .eq('receiver_id', user.id);
       
-      if (!error && data) {
-          const totalUnread = data.reduce((acc: number, convo: any) => acc + convo.unread_count, 0);
-          setHasUnread(totalUnread > 0);
+      if (!error && count !== null) {
+          setHasUnread(count > 0);
       }
     };
 
@@ -44,10 +47,8 @@ export function BottomNav() {
   const navItems = [
     { href: "/home", label: t('bottomNav.home'), icon: Home },
     { href: "/search", label: t('bottomNav.search'), icon: Search },
-    { href: "/bliss-zone", label: t('bottomNav.loveZone'), icon: Heart },
     { href: "/upload", label: t('bottomNav.upload'), icon: PlusSquare, isSpecial: true },
-    { href: "/class", label: t('bottomNav.class'), icon: GraduationCap },
-    { href: "/chat", label: t('bottomNav.chat'), icon: MessageCircle, notification: hasUnread },
+    { href: "/bliss-zone", label: t('bottomNav.loveZone'), icon: Heart },
     { href: "/profile", label: t('bottomNav.profile'), icon: User },
   ];
 

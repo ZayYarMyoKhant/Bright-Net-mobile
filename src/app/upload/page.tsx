@@ -3,7 +3,7 @@
 
 import { BottomNav } from "@/components/bottom-nav";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { GraduationCap, PlusCircle } from "lucide-react";
+import { PlusCircle } from "lucide-react";
 import Link from "next/link";
 import { AdBanner } from "@/components/ad-banner";
 
@@ -24,18 +24,6 @@ export default function CreatePage() {
               <CardContent>
                 <div className="flex justify-center items-center h-24">
                   <PlusCircle className="h-12 w-12 text-primary-foreground/70" />
-                </div>
-              </CardContent>
-            </Card>
-          </Link>
-           <Link href="/class/create">
-            <Card className="w-full cursor-pointer bg-primary text-primary-foreground hover:bg-primary/90">
-              <CardHeader>
-                <CardTitle className="text-lg">Create class</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="flex justify-center items-center h-24">
-                  <GraduationCap className="h-12 w-12 text-primary-foreground/70" />
                 </div>
               </CardContent>
             </Card>

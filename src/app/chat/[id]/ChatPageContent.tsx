@@ -15,7 +15,42 @@ import { useToast } from "@/hooks/use-toast";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { createClient } from "@/lib/supabase/client";
 import { User } from "@supabase/supabase-js";
-import { Profile } from "@/lib/data";
+import { Prof"Next.js Build Configuration နှင့် Dynamic Route ပြင်ဆင်ခြင်း"
+
+    ရည်ရွယ်ချက်: Next.js Build Error (generateStaticParams) နှင့် 404 Not Found Error များကို ဖြေရှင်းရန်၊ App အား Client-Only (SPA) အဖြစ် Build လုပ်ရန်။
+    
+    အဆင့် ၁။ Next.js ကို Client-Only Mode ဖြင့် ပြင်ဆင်ရန်
+    /next.config.js ဖိုင်တွင် experimental အောက်ရှိ is</>spa option ကို true ဟု သတ်မှတ်ပေးပါ။
+    
+    အပြောင်းအလဲ:
+    
+    JavaScript
+    
+    // next.config.js
+    const nextConfig = {
+      output: 'export', 
+      experimental: {
+        appDir: true,
+        nextScriptWorkers: true,
+        is</>spa: true, // <<< ဤနေရာတွင် ထည့်သွင်းပါ။
+      },
+      // ... အခြား configuration များ
+    };
+    module.exports = nextConfig;
+    အဆင့် ၂။ ပျက်သွားသော Dynamic Route Page များကို ပြန်လည်ထည့်သွင်းရန်
+    /src/app/chat/[id]/page.tsx ကို ဖျက်လိုက်ခြင်းကြောင့် ဖြစ်ပေါ်လာသော 404 Error ကို ဖြေရှင်းရန် ဤဖိုင်ကို Server Wrapper အဖြစ် ပြန်လည်ဖန်တီးပါ။
+    
+    ဤ Code သည် generateStaticParams ပါဝင်ပြီးသား ဖြစ်သဖြင့် အဆင့် (၁) ပြီးလျှင် Build Error ကိုလည်း နောက်တစ်ကြိမ် မဖြစ်စေရန် ကာကွယ်ပေးပါလိမ့်မည်။
+    
+    ဖိုင်တည်နေရာ- /src/app/chat/[id]/page.tsx
+    
+    TypeScript
+    
+    // Server Component (No "use client")
+    import ChatPageContent from './ChatPageContent'; 
+    // Static Export အတွက် generateStaticParams ကို ထည့်သွင်းခြင်း export function generateStaticParams() { return []; }
+    
+    export default function ChatPage({ params }) { // Client Component ကို params ဖြင့် Render လုပ်ခြင်း return ; }ile } from "@/lib/data";
 import { formatDistanceToNow, isBefore, subMinutes } from "date-fns";
 import { useRouter } from "next/navigation";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";

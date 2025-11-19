@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Grid3x3, Settings, UserPlus, Clapperboard, Loader2, CameraOff, GraduationCap } from "lucide-react";
+import { Grid3x3, Settings, UserPlus, Clapperboard, Loader2, CameraOff } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { BottomNav } from '@/components/bottom-nav';
@@ -14,13 +14,6 @@ import { useToast } from '@/hooks/use-toast';
 import { createClient } from '@/lib/supabase/client';
 import type { Post, Profile } from '@/lib/data';
 import { Badge } from '@/components/ui/badge';
-
-type Class = {
-  id: string;
-  name: string;
-  creator_id: string;
-  avatar_url: string;
-};
 
 type ProfileData = Profile & {
   following: number;
@@ -35,7 +28,6 @@ export default function ProfilePage() {
   
   const [user, setUser] = useState<ProfileData | null>(null);
   const [posts, setPosts] = useState<Post[]>([]);
-  const [createdClasses, setCreatedClasses] = useState<Class[]>([]);
   const [loading, setLoading] = useState(true);
   const [requestCount, setRequestCount] = useState(0);
 
@@ -84,13 +76,6 @@ export default function ProfilePage() {
         toast({ variant: 'destructive', title: 'Error loading posts', description: postError.message });
     } else {
         setPosts(postDataRes as Post[]);
-    }
-
-    const { data: createdClassesRes, error: classError } = await supabase.from('classes').select('*').eq('creator_id', authUser.id);
-     if (classError) {
-        toast({ variant: 'destructive', title: 'Error loading classes', description: classError.message });
-    } else {
-        setCreatedClasses(createdClassesRes as Class[]);
     }
 
     setLoading(false);
@@ -200,14 +185,10 @@ export default function ProfilePage() {
 
 
           <Tabs defaultValue="posts" className="mt-6">
-            <TabsList className="grid w-full grid-cols-2">
+            <TabsList className="grid w-full grid-cols-1">
               <TabsTrigger value="posts">
                 <Grid3x3 className="mr-2 h-4 w-4" />
                 Posts
-              </TabsTrigger>
-              <TabsTrigger value="class">
-                <GraduationCap className="mr-2 h-4 w-4" />
-                Class
               </TabsTrigger>
             </TabsList>
             <TabsContent value="posts" className="mt-4">
@@ -235,32 +216,6 @@ export default function ProfilePage() {
                   <p className="mt-4 text-sm">You have no posts yet.</p>
                 </div>
               )}
-            </TabsContent>
-            <TabsContent value="class">
-               {createdClasses.length > 0 ? (
-                 <div className="divide-y mt-4">
-                    {createdClasses.map((cls) => (
-                        <Link href={`/class/${cls.id}`} key={cls.id}>
-                            <div className="p-4 flex items-center gap-4 hover:bg-muted/50 cursor-pointer">
-                                <Avatar className="h-14 w-14 rounded-md">
-                                    <AvatarImage src={cls.avatar_url} />
-                                    <AvatarFallback>
-                                        <GraduationCap/>
-                                    </AvatarFallback>
-                                </Avatar>
-                                <div className="flex-1">
-                                    <p className="font-semibold text-primary">{cls.name}</p>
-                                </div>
-                            </div>
-                        </Link>
-                    ))}
-                 </div>
-               ) : (
-                  <div className="flex flex-col items-center justify-center pt-10 text-center text-muted-foreground">
-                      <GraduationCap className="h-12 w-12" />
-                      <p className="mt-4 text-sm">You haven't created any classes yet.</p>
-                  </div>
-               )}
             </TabsContent>
           </Tabs>
         </main>

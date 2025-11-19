@@ -5,7 +5,7 @@ import { use, useEffect, useState, useCallback } from "react";
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Grid3x3, Clapperboard, ArrowLeft, MessageCircle, CameraOff, Loader2, MoreVertical, Trash2, GraduationCap, Lock } from "lucide-react";
+import { Grid3x3, Clapperboard, ArrowLeft, CameraOff, Loader2, MoreVertical, Trash2, Lock } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { BottomNav } from '@/components/bottom-nav';
@@ -43,11 +43,6 @@ type ProfileData = Profile & {
   is_in_relationship: boolean;
 };
 
-type JoinedClass = {
-  id: string;
-  name: string;
-  avatar_url: string;
-};
 
 function PresenceIndicator({ user }: { user: ProfileData | null }) {
     if (!user || !user.show_active_status || !user.last_seen) {
@@ -76,7 +71,6 @@ export default function UserProfilePage({ params: paramsPromise }: { params: Pro
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [posts, setPosts] = useState<Post[]>([]);
-  const [createdClasses, setCreatedClasses] = useState<JoinedClass[]>([]);
   const [loading, setLoading] = useState(true);
   const [isFollowing, setIsFollowing] = useState(false);
   const [isOwnProfile, setIsOwnProfile] = useState(false);
@@ -101,11 +95,10 @@ export default function UserProfilePage({ params: paramsPromise }: { params: Pro
     setIsOwnProfile(authUser?.id === profileData.id);
 
     // Parallelize fetches for counts, posts, and classes
-    const [followersRes, followingRes, postsRes, createdClassesRes, followStatusRes] = await Promise.all([
+    const [followersRes, followingRes, postsRes, followStatusRes] = await Promise.all([
         supabase.from('followers').select('follower_id', { count: 'exact' }).eq('user_id', params.id),
         supabase.from('followers').select('user_id', { count: 'exact' }).eq('follower_id', params.id),
         supabase.from('posts').select('*').eq('user_id', params.id).order('created_at', { ascending: false }),
-        supabase.from('classes').select('id, name, avatar_url').eq('creator_id', params.id),
         authUser && authUser.id !== params.id 
             ? supabase.from('followers').select('*').eq('user_id', params.id).eq('follower_id', authUser.id).maybeSingle() 
             : Promise.resolve({ data: null })
@@ -128,11 +121,6 @@ export default function UserProfilePage({ params: paramsPromise }: { params: Pro
     
     setPosts(postsRes.data as Post[] || []);
     
-    if (createdClassesRes.error) {
-        toast({ variant: 'destructive', title: 'Error loading classes', description: createdClassesRes.error.message });
-    } else {
-        setCreatedClasses(createdClassesRes.data as JoinedClass[]);
-    }
     
     setLoading(false);
   }, [params.id, supabase, toast]);
@@ -226,12 +214,7 @@ export default function UserProfilePage({ params: paramsPromise }: { params: Pro
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <h1 className="font-bold">{profile.username}</h1>
-          <Link href={`/chat/${profile.id}`}>
-            <Button variant="ghost" size="icon">
-              <MessageCircle className="h-5 w-5" />
-              <span className="sr-only">Message user</span>
-            </Button>
-          </Link>
+          <div className="w-10"></div>
         </header>
 
         <main className="flex-1 overflow-y-auto p-4">
@@ -285,14 +268,10 @@ export default function UserProfilePage({ params: paramsPromise }: { params: Pro
 
 
           <Tabs defaultValue="posts" className="mt-6">
-            <TabsList className="grid w-full grid-cols-2">
+            <TabsList className="grid w-full grid-cols-1">
               <TabsTrigger value="posts">
                 <Grid3x3 className="mr-2 h-4 w-4" />
                 Posts
-              </TabsTrigger>
-              <TabsTrigger value="class">
-                 <GraduationCap className="mr-2 h-4 w-4" />
-                 Class
               </TabsTrigger>
             </TabsList>
             <TabsContent value="posts">
@@ -328,35 +307,6 @@ export default function UserProfilePage({ params: paramsPromise }: { params: Pro
                     <p className="text-sm">Follow this account to see their photos and videos.</p>
                 </div>
              )}
-            </TabsContent>
-            <TabsContent value="class">
-               {canViewContent ? (
-                    createdClasses.length > 0 ? (
-                        <div className="divide-y mt-4 border-t">
-                            {createdClasses.map((cls) => (
-                                <Link href={`/class/${cls.id}`} key={cls.id}>
-                                    <div className="p-4 flex items-center gap-4 hover:bg-muted/50 cursor-pointer">
-                                        <Avatar className="h-14 w-14 rounded-md" src={cls.avatar_url} />
-                                        <div className="flex-1">
-                                            <p className="font-semibold text-primary">{cls.name}</p>
-                                        </div>
-                                    </div>
-                                </Link>
-                            ))}
-                        </div>
-                    ) : (
-                        <div className="flex flex-col items-center justify-center pt-10 text-center text-muted-foreground">
-                            <GraduationCap className="h-12 w-12" />
-                            <p className="mt-4 text-sm">{isOwnProfile ? "You haven't created any classes." : "This user hasn't created any classes."}</p>
-                        </div>
-                    )
-               ) : (
-                 <div className="flex flex-col items-center justify-center pt-10 text-center text-muted-foreground border-t mt-4">
-                    <Lock className="h-12 w-12 mt-4" />
-                    <p className="mt-4 font-semibold">This Account is Private</p>
-                    <p className="text-sm">Follow this account to see their classes.</p>
-                </div>
-               )}
             </TabsContent>
           </Tabs>
         </main>
