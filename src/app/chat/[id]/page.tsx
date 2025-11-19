@@ -1,6 +1,5 @@
 
 // /src/app/chat/[id]/page.tsx
-// (Server Component ဖြစ်သည့်အတွက် "use client" မပါပါ)
 import { Suspense } from 'react';
 import { Loader2 } from 'lucide-react';
 import ChatPageContent from './ChatPageContent'; // Client Component ကို မှန်ကန်စွာ import လုပ်ပါ

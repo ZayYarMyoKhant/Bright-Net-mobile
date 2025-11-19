@@ -1,6 +1,5 @@
 
 // /src/app/class/[id]/page.tsx
-// (Server Component ဖြစ်သည့်အတွက် "use client" မပါပါ)
 import { Suspense } from "react";
 import { Loader2 } from "lucide-react";
 import IndividualClassPageContent from "./IndividualClassPageContent";
