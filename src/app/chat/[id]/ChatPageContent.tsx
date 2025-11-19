@@ -5,7 +5,7 @@ import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { ArrowLeft, Mic, Image as ImageIcon, Send, Smile, MoreVertical, MessageSquareReply, Trash2, X, Loader2, Waves, Heart, ThumbsUp, Laugh, Frown, Check, CheckCheck, Ban, Share2 } from "lucide-react";
+import { ArrowLeft, Mic, Image as ImageIcon, Send, Smile, MoreVertical, MessageSquareReply, Trash2, X, Loader2, Waves, Heart, ThumbsUp, Laugh, Frown, Check, CheckCheck, Ban, Share2, AlertTriangle } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useState, useRef, useEffect, useCallback } from "react";
@@ -19,6 +19,7 @@ import { Profile } from "@/lib/data";
 import { formatDistanceToNow, isBefore, subMinutes } from "date-fns";
 import { useRouter } from "next/navigation";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 
 
 type Reaction = {
@@ -269,6 +270,7 @@ export default function ChatPageContent({ params }: { params: { id: string } }) 
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [messages, setMessages] = useState<DirectMessage[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [isBlocked, setIsBlocked] = useState(false);
   const [isBlockedBy, setIsBlockedBy] = useState(false);
 
@@ -290,6 +292,13 @@ export default function ChatPageContent({ params }: { params: { id: string } }) 
   
   const fetchChatData = useCallback(async (user: User, otherUserId: string) => {
     setLoading(true);
+    setError(null);
+
+    if (!otherUserId) {
+        setError("The other user's ID is missing.");
+        setLoading(false);
+        return;
+    }
     
     // Fetch block status in both directions
     const { data: blockData, error: blockError } = await supabase
@@ -304,15 +313,19 @@ export default function ChatPageContent({ params }: { params: { id: string } }) 
 
     const { data: otherUserData, error: otherUserError } = await supabase.from('profiles').select('id, username, full_name, avatar_url, last_seen, show_active_status').eq('id', otherUserId).single();
     if(otherUserError) {
-        toast({variant: 'destructive', title: 'User not found'});
-        router.push('/chat');
+        const errorMessage = otherUserError.message || "The user you're trying to chat with could not be found.";
+        setError(errorMessage);
+        toast({variant: 'destructive', title: 'User Not Found', description: errorMessage});
+        setLoading(false);
         return;
     }
     setOtherUser(otherUserData as OtherUserWithPresence);
 
-    const { data: convos } = await supabase.rpc('get_or_create_conversation', { user_2_id: otherUserId });
-    if (!convos || convos.length === 0) {
-        toast({variant: 'destructive', title: 'Could not start conversation'});
+    const { data: convos, error: convoError } = await supabase.rpc('get_or_create_conversation', { user_2_id: otherUserId });
+    if (convoError || !convos || convos.length === 0) {
+        const errorMessage = convoError?.message || 'Could not start or find the conversation.';
+        setError(errorMessage);
+        toast({variant: 'destructive', title: 'Conversation Error', description: errorMessage});
         setLoading(false);
         return;
     }
@@ -326,11 +339,11 @@ export default function ChatPageContent({ params }: { params: { id: string } }) 
       .order('created_at', { ascending: true });
 
     if (messagesError) {
-      toast({ variant: "destructive", title: "Failed to load messages." });
+      toast({ variant: "destructive", title: "Failed to load messages.", description: messagesError.message });
       setMessages([]);
     } else {
         const messageIds = messagesData.map(msg => msg.id);
-        const { data: readStatuses, error: readStatusError } = await supabase
+        const { data: readStatuses } = await supabase
             .from('direct_message_read_status')
             .select('message_id')
             .eq('user_id', otherUserId)
@@ -345,7 +358,7 @@ export default function ChatPageContent({ params }: { params: { id: string } }) 
         setMessages(processedMessages);
     }
     setLoading(false);
-  }, [supabase, toast, router]);
+  }, [supabase, toast]);
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
@@ -680,8 +693,28 @@ export default function ChatPageContent({ params }: { params: { id: string } }) 
       }
   };
 
-  if (loading || !otherUser) {
+  if (loading) {
     return <div className="flex h-dvh w-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin"/></div>
+  }
+
+  if (error) {
+      return (
+        <div className="flex h-dvh w-full items-center justify-center bg-background p-4">
+            <Alert variant="destructive" className="max-w-lg">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertTitle>Error</AlertTitle>
+                <AlertDescription>
+                    <p>Could not load the chat data. Here's the specific error:</p>
+                    <pre className="mt-2 whitespace-pre-wrap rounded-md bg-muted p-2 text-xs font-mono">{error}</pre>
+                    <Button onClick={() => router.back()} className="mt-4">Go Back</Button>
+                </AlertDescription>
+            </Alert>
+        </div>
+    );
+  }
+
+  if (!otherUser) {
+      return <div className="flex h-dvh w-full items-center justify-center"><p>User not found.</p></div>
   }
 
   const isChatDisabled = isBlocked || isBlockedBy;

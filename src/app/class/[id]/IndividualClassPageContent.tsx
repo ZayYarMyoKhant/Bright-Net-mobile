@@ -11,6 +11,8 @@ import { User } from "@supabase/supabase-js";
 import { useToast } from "@/hooks/use-toast";
 import Link from "next/link";
 import { Profile } from "@/lib/data";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { AlertTriangle } from "lucide-react";
 
 type ClassData = {
     id: string;
@@ -30,9 +32,19 @@ export default function IndividualClassPageContent({ params }: { params: { id: s
     const [loading, setLoading] = useState(true);
     const [currentUser, setCurrentUser] = useState<User | null>(null);
     const [isEnrolled, setIsEnrolled] = useState(false);
+    const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
         const fetchClassData = async () => {
+            setLoading(true);
+            setError(null);
+            
+            if (!classId) {
+                setError("Class ID is missing.");
+                setLoading(false);
+                return;
+            }
+
             const { data: { user } } = await supabase.auth.getUser();
             setCurrentUser(user);
 
@@ -43,8 +55,10 @@ export default function IndividualClassPageContent({ params }: { params: { id: s
                 .single();
 
             if (classError || !classInfo) {
-                toast({ variant: 'destructive', title: 'Class not found' });
-                router.push('/home');
+                const errorMessage = classError?.message || 'The class could not be found.';
+                setError(errorMessage);
+                toast({ variant: 'destructive', title: 'Error Loading Class', description: errorMessage });
+                setLoading(false);
                 return;
             }
 
@@ -66,7 +80,7 @@ export default function IndividualClassPageContent({ params }: { params: { id: s
         };
 
         fetchClassData();
-    }, [classId, router, supabase, toast]);
+    }, [classId, supabase, toast]);
 
     const handleEnroll = async () => {
         if (!currentUser) {
@@ -91,12 +105,36 @@ export default function IndividualClassPageContent({ params }: { params: { id: s
         }
     };
 
-    if (loading || !classData) {
+    if (loading) {
         return (
             <div className="flex h-dvh w-full items-center justify-center bg-background">
                 <Loader2 className="h-8 w-8 animate-spin" />
             </div>
         );
+    }
+
+    if (error) {
+         return (
+            <div className="flex h-dvh w-full items-center justify-center bg-background p-4">
+                 <Alert variant="destructive" className="max-w-lg">
+                    <AlertTriangle className="h-4 w-4" />
+                    <AlertTitle>Error</AlertTitle>
+                    <AlertDescription>
+                        <p>Could not load the class data. Here's the specific error:</p>
+                        <pre className="mt-2 whitespace-pre-wrap rounded-md bg-muted p-2 text-xs font-mono">{error}</pre>
+                        <Button onClick={() => router.back()} className="mt-4">Go Back</Button>
+                    </AlertDescription>
+                </Alert>
+            </div>
+        );
+    }
+
+    if (!classData) {
+        return (
+             <div className="flex h-dvh w-full items-center justify-center text-center">
+                <p>Something went wrong, but no specific error was caught. Please try again.</p>
+             </div>
+        )
     }
 
     return (
@@ -142,5 +180,3 @@ export default function IndividualClassPageContent({ params }: { params: { id: s
         </div>
     );
 }
-
-    

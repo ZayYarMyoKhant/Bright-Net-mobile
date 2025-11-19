@@ -5,7 +5,7 @@ import { useEffect, useState, useCallback } from "react";
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Grid3x3, Clapperboard, ArrowLeft, CameraOff, Loader2, MoreVertical, Trash2, Lock } from "lucide-react";
+import { Grid3x3, Clapperboard, ArrowLeft, CameraOff, Loader2, MoreVertical, Trash2, Lock, AlertTriangle } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { BottomNav } from '@/components/bottom-nav';
@@ -14,17 +14,7 @@ import { createClient } from "@/lib/supabase/client";
 import type { Post, Profile } from "@/lib/data";
 import { User } from "@supabase/supabase-js";
 import { useToast } from "@/hooks/use-toast";
-import {
-    AlertDialog,
-    AlertDialogAction,
-    AlertDialogCancel,
-    AlertDialogContent,
-    AlertDialogDescription,
-    AlertDialogFooter,
-    AlertDialogHeader,
-    AlertDialogTitle,
-    AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { formatDistanceToNow, isBefore, subMinutes } from "date-fns";
 
@@ -66,12 +56,20 @@ export default function UserProfilePageContent({ params }: { params: { id: strin
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [isFollowing, setIsFollowing] = useState(false);
   const [isOwnProfile, setIsOwnProfile] = useState(false);
 
 
   const fetchProfileData = useCallback(async () => {
     setLoading(true);
+    setError(null);
+    
+    if (!params.id) {
+        setError("User ID is missing.");
+        setLoading(false);
+        return;
+    }
 
     const { data: { user: authUser } } = await supabase.auth.getUser();
     setCurrentUser(authUser);
@@ -80,8 +78,9 @@ export default function UserProfilePageContent({ params }: { params: { id: strin
     const { data: profileData, error: profileError } = await supabase.from('profiles').select('*').eq('id', params.id).single();
 
     if (profileError || !profileData) {
-      console.error("Error fetching user profile:", profileError);
-      setProfile(null); 
+      const errorMessage = profileError?.message || "The user profile could not be found.";
+      setError(errorMessage);
+      toast({ variant: 'destructive', title: 'Error Loading Profile', description: errorMessage });
       setLoading(false);
       return;
     }
@@ -120,9 +119,7 @@ export default function UserProfilePageContent({ params }: { params: { id: strin
   }, [params.id, supabase, toast]);
 
   useEffect(() => {
-    if (params.id) {
-      fetchProfileData();
-    }
+    fetchProfileData();
      const channel = supabase.channel(`profile-${params.id}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles', filter: `id=eq.${params.id}` }, (payload) => {
         fetchProfileData();
@@ -183,16 +180,33 @@ export default function UserProfilePageContent({ params }: { params: { id: strin
     )
   }
 
-  if (!profile) {
+  if (error) {
     return (
       <>
-        <div className="flex h-full flex-col bg-background text-foreground pb-16 items-center justify-center text-center p-4">
-          <p className="text-lg font-semibold">User not found</p>
-           <p className="text-sm text-muted-foreground mt-1">The profile you are looking for does not exist.</p>
-           <Button onClick={() => router.back()} className="mt-4">Go Back</Button>
+        <div className="flex h-dvh w-full items-center justify-center bg-background p-4">
+             <Alert variant="destructive" className="max-w-lg">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertTitle>Error</AlertTitle>
+                <AlertDescription>
+                    <p>Could not load the profile. Here's the specific error:</p>
+                    <pre className="mt-2 whitespace-pre-wrap rounded-md bg-muted p-2 text-xs font-mono">{error}</pre>
+                    <Button onClick={() => router.back()} className="mt-4">Go Back</Button>
+                </AlertDescription>
+            </Alert>
         </div>
         <BottomNav />
       </>
+    )
+  }
+
+  if (!profile) {
+    return (
+         <>
+            <div className="flex h-dvh w-full items-center justify-center text-center">
+                <p>Something went wrong, but no specific error was caught. The user may not exist.</p>
+            </div>
+            <BottomNav />
+        </>
     )
   }
   
