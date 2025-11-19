@@ -48,15 +48,20 @@ const VideoPost = ({ post, index }: { post: Post; index: number }) => {
         const callback = (entries: IntersectionObserverEntry[]) => {
             entries.forEach(entry => {
                 if (entry.isIntersecting) {
-                    const playPromise = entry.target.play();
+                    const playPromise = (entry.target as HTMLVideoElement).play();
                     if (playPromise !== undefined) {
-                        playPromise.catch(e => console.error("Autoplay failed", e));
+                        playPromise.catch(e => {
+                            // Ignore interrupt errors as they are expected when quickly scrolling
+                            if (e.name !== 'AbortError') {
+                                console.error("Autoplay failed", e);
+                            }
+                        });
                     }
                     if (!isMuted) {
                       (entry.target as HTMLVideoElement).muted = false;
                     }
                 } else {
-                    entry.target.pause();
+                    (entry.target as HTMLVideoElement).pause();
                 }
             });
         };

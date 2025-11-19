@@ -3,7 +3,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Search, PlusSquare, User, MessageCircle, Heart } from "lucide-react";
+import { Home, Search, PlusSquare, User, MessageCircle, Heart, BookOpen } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTranslation } from "@/context/language-context";
 import { useEffect, useState } from "react";
@@ -44,23 +44,21 @@ export function BottomNav() {
   const navItems = [
     { href: "/home", label: t('bottomNav.home'), icon: Home },
     { href: "/search", label: t('bottomNav.search'), icon: Search },
-    { href: "/upload", label: 'Create', icon: PlusSquare, isSpecial: true },
     { href: "/bliss-zone", label: 'Bliss Zone', icon: Heart },
+    { href: "/upload", label: 'Create', icon: PlusSquare, isSpecial: true },
+    { href: "/class", label: 'Class', icon: BookOpen },
+    { href: "/chat", label: t('bottomNav.chat'), icon: MessageCircle, notification: hasUnread },
     { href: "/profile", label: t('bottomNav.profile'), icon: User },
   ];
 
   const specialButtonIndex = navItems.findIndex(item => item.isSpecial);
-  let leftItems = navItems.slice(0, specialButtonIndex);
-  const specialItem = navItems[specialButtonIndex];
-  let rightItems = navItems.slice(specialButtonIndex + 1);
-
-  // Distribute items evenly
-  const totalRegularItems = navItems.length - 1;
-  const midPoint = Math.ceil(totalRegularItems / 2);
   
   const allRegularItems = navItems.filter(item => !item.isSpecial);
-  leftItems = allRegularItems.slice(0, midPoint);
-  rightItems = allRegularItems.slice(midPoint);
+  const specialItem = navItems[specialButtonIndex];
+  
+  const midPoint = Math.floor(allRegularItems.length / 2);
+  const leftItems = allRegularItems.slice(0, midPoint);
+  const rightItems = allRegularItems.slice(midPoint);
 
 
   return (
