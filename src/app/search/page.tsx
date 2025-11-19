@@ -256,7 +256,7 @@ const ClassResultItem = ({ item, currentUser }: { item: ClassResult; currentUser
             return;
         }
         setIsJoining(true);
-        const { error } = await supabase.from('class_enrollments').insert({
+        const { error } = await supabase.from('class_members').insert({
             class_id: item.id,
             user_id: currentUser.id
         });
@@ -317,7 +317,7 @@ function ClassResults() {
         } else {
             const classIds = data.map(c => c.id);
             const { data: enrollments, error: enrollmentError } = await supabase
-                .from('class_enrollments')
+                .from('class_members')
                 .select('class_id')
                 .eq('user_id', currentUser.id)
                 .in('class_id', classIds);
@@ -434,5 +434,3 @@ export default function SearchPage() {
         </Suspense>
     )
 }
-
-    

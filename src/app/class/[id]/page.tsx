@@ -14,7 +14,7 @@ export default async function IndividualClassPage({ params }: { params: { id:str
 
   if (!classId) {
       const initialData = { classData: null, isEnrolled: false, messages: [], error: 'Class ID is missing.' };
-      return <IndividualClassPageContent params={params} initialData={initialData} />;
+      return <IndividualClassPageContent initialData={initialData} />;
   }
 
   const { data: { user } } = await supabase.auth.getUser();
@@ -27,12 +27,12 @@ export default async function IndividualClassPage({ params }: { params: { id:str
       .single();
       
   const studentCountPromise = supabase
-      .from('class_enrollments')
+      .from('class_members')
       .select('user_id', { count: 'exact', head: true })
       .eq('class_id', classId);
       
   const isEnrolledPromise = user ? supabase
-      .from('class_enrollments')
+      .from('class_members')
       .select('user_id', { count: 'exact', head: true })
       .eq('class_id', classId)
       .eq('user_id', user.id) : Promise.resolve({ count: 0 });
@@ -44,7 +44,7 @@ export default async function IndividualClassPage({ params }: { params: { id:str
   if (classError || !classInfo) {
       const errorMessage = classError?.message || 'The class could not be found.';
       const initialData = { classData: null, isEnrolled: false, messages: [], error: errorMessage };
-      return <IndividualClassPageContent params={params} initialData={initialData} />;
+      return <IndividualClassPageContent initialData={initialData} />;
   }
   
   const isUserEnrolled = (isEnrolledRes.count ?? 0) > 0;
@@ -73,9 +73,7 @@ export default async function IndividualClassPage({ params }: { params: { id:str
 
   return (
     <Suspense fallback={<div className="flex h-dvh w-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin"/></div>}>
-        <IndividualClassPageContent params={params} initialData={initialData} />
+        <IndividualClassPageContent initialData={initialData} />
     </Suspense>
   );
 }
-
-    

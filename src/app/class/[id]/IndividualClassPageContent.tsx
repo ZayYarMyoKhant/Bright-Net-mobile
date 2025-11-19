@@ -63,8 +63,7 @@ const ChatMessage = ({ message, isSender }: { message: ClassMessage, isSender: b
 };
 
 
-export default function IndividualClassPageContent({ initialData, params }: { initialData: InitialClassData, params: { id: string } }) {
-    const classId = params.id;
+export default function IndividualClassPageContent({ initialData }: { initialData: InitialClassData }) {
     const router = useRouter();
     const supabase = createClient();
     const { toast } = useToast();
@@ -97,16 +96,16 @@ export default function IndividualClassPageContent({ initialData, params }: { in
 
     // Realtime listener for new messages
     useEffect(() => {
-        if (!isEnrolled) return;
+        if (!isEnrolled || !classData) return;
 
-        const channel = supabase.channel(`class-chat-${classId}`)
+        const channel = supabase.channel(`class-chat-${classData.id}`)
             .on<ClassMessage>(
                 'postgres_changes',
                 {
                     event: 'INSERT',
                     schema: 'public',
                     table: 'class_messages',
-                    filter: `class_id=eq.${classId}`
+                    filter: `class_id=eq.${classData.id}`
                 },
                 async (payload) => {
                      const { data: fullMessage, error } = await supabase
@@ -125,7 +124,7 @@ export default function IndividualClassPageContent({ initialData, params }: { in
         return () => {
             supabase.removeChannel(channel);
         }
-    }, [isEnrolled, classId, supabase]);
+    }, [isEnrolled, classData, supabase]);
     
     const handleSendMessage = async (e?: React.FormEvent) => {
         e?.preventDefault();
@@ -227,12 +226,10 @@ export default function IndividualClassPageContent({ initialData, params }: { in
                     <div className="mt-8 text-center p-4 border rounded-lg bg-muted/50">
                         <p className="font-semibold">You are not a member of this class.</p>
                         <p className="text-sm text-muted-foreground mt-1">Please join from the search page to participate.</p>
-                         <Button onClick={() => router.push('/search')} className="mt-4">Go to Search</Button>
+                         <Button onClick={() => router.push('/search?tab=classes')} className="mt-4">Go to Search</Button>
                     </div>
                 </main>
             )}
         </div>
     );
 }
-
-    
