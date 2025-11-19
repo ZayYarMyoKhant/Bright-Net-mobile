@@ -9,16 +9,18 @@ import {
   Search,
   Loader2,
   Users,
-  MessageCircle,
+  Grid3x3,
+  Clapperboard,
+  CameraOff
 } from "lucide-react";
 import Link from "next/link";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { createClient } from "@/lib/supabase/client";
-import { User } from "@supabase/supabase-js";
 import { Avatar } from "@/components/ui/avatar";
 import { Post, Profile } from "@/lib/data";
-
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import Image from "next/image";
 
 function SearchBar() {
   const router = useRouter();
@@ -27,11 +29,13 @@ function SearchBar() {
   const [query, setQuery] = useState(searchParams.get("q") || "");
 
   const handleSearch = () => {
+    const newParams = new URLSearchParams(searchParams.toString());
     if (query.trim()) {
-      const newParams = new URLSearchParams(searchParams.toString());
       newParams.set('q', query.trim());
-      router.push(`${pathname}?${newParams.toString()}`);
+    } else {
+      newParams.delete('q');
     }
+    router.push(`${pathname}?${newParams.toString()}`);
   };
   
   const handleSearchSubmit = (e: React.FormEvent) => {
@@ -44,7 +48,7 @@ function SearchBar() {
       <div className="relative flex-1">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
         <Input
-          placeholder="Search for users..."
+          placeholder="Search..."
           className="w-full pl-10"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
@@ -61,10 +65,103 @@ function SearchPlaceholder() {
   return (
      <div className="flex flex-col items-center justify-center pt-20 text-center text-muted-foreground">
         <Search className="h-12 w-12" />
-        <p className="mt-4 text-lg">Search for other users</p>
-        <p className="text-sm">Find and connect with friends.</p>
+        <p className="mt-4 text-lg">Search for posts and users</p>
+        <p className="text-sm">Find content and connect with friends.</p>
       </div>
   )
+}
+
+function PostResults() {
+    const searchParams = useSearchParams();
+    const query = searchParams.get("q");
+    const [isPending, startTransition] = useTransition();
+    const [imagePosts, setImagePosts] = useState<Post[]>([]);
+    const [videoPosts, setVideoPosts] = useState<Post[]>([]);
+    const { toast } = useToast();
+    const supabase = createClient();
+
+    useEffect(() => {
+        if (query) {
+            startTransition(async () => {
+                const { data, error } = await supabase
+                    .from('posts')
+                    .select('*, profiles!posts_user_id_fkey(*)')
+                    .textSearch('caption', query, { type: 'websearch', config: 'english' });
+                
+                if (error) {
+                    toast({ variant: 'destructive', title: "Search failed", description: error.message });
+                } else {
+                    const allPosts = data as unknown as Post[];
+                    setImagePosts(allPosts.filter(p => p.media_type === 'image'));
+                    setVideoPosts(allPosts.filter(p => p.media_type === 'video'));
+                }
+            });
+        } else {
+            setImagePosts([]);
+            setVideoPosts([]);
+        }
+    }, [query, supabase, toast]);
+
+    if (isPending) {
+        return <div className="flex justify-center items-center pt-10"><Loader2 className="h-8 w-8 animate-spin" /></div>
+    }
+
+    return (
+        <Tabs defaultValue="news" className="w-full">
+            <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="news">News</TabsTrigger>
+                <TabsTrigger value="lite">Lite</TabsTrigger>
+            </TabsList>
+            <TabsContent value="news" className="mt-4">
+                {imagePosts.length > 0 ? (
+                    <div className="grid grid-cols-3 gap-1">
+                        {imagePosts.map((post) => (
+                        <div key={post.id} className="group relative aspect-square w-full bg-muted">
+                            <Link href={`/post/${post.id}`} className="block h-full w-full">
+                                <Image
+                                    src={post.media_url}
+                                    alt={`Post by ${post.user.username}`}
+                                    fill
+                                    className="object-cover h-full w-full"
+                                    data-ai-hint="lifestyle content"
+                                />
+                            </Link>
+                        </div>
+                        ))}
+                    </div>
+                ) : (
+                    <div className="flex flex-col items-center justify-center pt-10 text-center text-muted-foreground">
+                        <CameraOff className="h-12 w-12" />
+                        <p className="mt-4 text-sm">No image posts found for "{query}"</p>
+                    </div>
+                )}
+            </TabsContent>
+            <TabsContent value="lite" className="mt-4">
+                 {videoPosts.length > 0 ? (
+                    <div className="grid grid-cols-3 gap-1">
+                        {videoPosts.map((post) => (
+                        <div key={post.id} className="group relative aspect-square w-full bg-muted">
+                            <Link href={`/post/${post.id}`} className="block h-full w-full">
+                                <video
+                                    src={post.media_url}
+                                    className="object-cover h-full w-full"
+                                />
+                                <div className="absolute inset-0 bg-black/20 flex items-center justify-center">
+                                    <Clapperboard className="h-8 w-8 text-white" />
+                                </div>
+                            </Link>
+                        </div>
+                        ))}
+                    </div>
+                ) : (
+                    <div className="flex flex-col items-center justify-center pt-10 text-center text-muted-foreground">
+                        <CameraOff className="h-12 w-12" />
+                        <p className="mt-4 text-sm">No video posts found for "{query}"</p>
+                    </div>
+                )}
+            </TabsContent>
+        </Tabs>
+    );
 }
 
 function UserResults() {
@@ -74,7 +171,6 @@ function UserResults() {
   const [users, setUsers] = useState<Profile[]>([]);
   const { toast } = useToast();
   const supabase = createClient();
-  const router = useRouter();
 
   useEffect(() => {
     if (query) {
@@ -122,18 +218,11 @@ function UserResults() {
                         <p className="text-sm text-muted-foreground">@{user.username}</p>
                     </Link>
                 </div>
-                <Button asChild size="sm" variant="outline">
-                    <Link href={`/chat/${user.id}`}>
-                        <MessageCircle className="mr-2 h-4 w-4" />
-                        Message
-                    </Link>
-                </Button>
             </div>
         ))}
       </div>
   )
 }
-
 
 function SearchPageContent() {
   const searchParams = useSearchParams();
@@ -151,9 +240,20 @@ function SearchPageContent() {
         </div>
 
         <main className="flex-1 overflow-y-auto">
-            <div className="flex flex-col h-full">
-               {query ? <UserResults /> : <SearchPlaceholder />}
-            </div>
+            {!query ? <SearchPlaceholder /> : (
+                <Tabs defaultValue="posts" className="w-full">
+                    <TabsList className="grid w-full grid-cols-2">
+                        <TabsTrigger value="posts">Posts</TabsTrigger>
+                        <TabsTrigger value="users">Users</TabsTrigger>
+                    </TabsList>
+                    <TabsContent value="posts">
+                        <PostResults />
+                    </TabsContent>
+                    <TabsContent value="users">
+                        <UserResults />
+                    </TabsContent>
+                </Tabs>
+            )}
         </main>
       </div>
       <BottomNav />

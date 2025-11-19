@@ -48,7 +48,10 @@ const VideoPost = ({ post, index }: { post: Post; index: number }) => {
         const callback = (entries: IntersectionObserverEntry[]) => {
             entries.forEach(entry => {
                 if (entry.isIntersecting) {
-                    entry.target.play().catch(e => console.error("Autoplay failed", e));
+                    const playPromise = entry.target.play();
+                    if (playPromise !== undefined) {
+                        playPromise.catch(e => console.error("Autoplay failed", e));
+                    }
                     if (!isMuted) {
                       (entry.target as HTMLVideoElement).muted = false;
                     }

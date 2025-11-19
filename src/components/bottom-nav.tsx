@@ -44,15 +44,23 @@ export function BottomNav() {
   const navItems = [
     { href: "/home", label: t('bottomNav.home'), icon: Home },
     { href: "/search", label: t('bottomNav.search'), icon: Search },
-    { href: "/upload", label: t('bottomNav.upload'), icon: PlusSquare, isSpecial: true },
-    { href: "/chat", label: t('bottomNav.chat'), icon: MessageCircle, notification: hasUnread },
+    { href: "/upload", label: 'Create', icon: PlusSquare, isSpecial: true },
+    { href: "/bliss-zone", label: 'Bliss Zone', icon: Heart },
     { href: "/profile", label: t('bottomNav.profile'), icon: User },
   ];
 
   const specialButtonIndex = navItems.findIndex(item => item.isSpecial);
-  const leftItems = navItems.slice(0, specialButtonIndex);
+  let leftItems = navItems.slice(0, specialButtonIndex);
   const specialItem = navItems[specialButtonIndex];
-  const rightItems = navItems.slice(specialButtonIndex + 1);
+  let rightItems = navItems.slice(specialButtonIndex + 1);
+
+  // Distribute items evenly
+  const totalRegularItems = navItems.length - 1;
+  const midPoint = Math.ceil(totalRegularItems / 2);
+  
+  const allRegularItems = navItems.filter(item => !item.isSpecial);
+  leftItems = allRegularItems.slice(0, midPoint);
+  rightItems = allRegularItems.slice(midPoint);
 
 
   return (
