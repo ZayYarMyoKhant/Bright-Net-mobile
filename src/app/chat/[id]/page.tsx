@@ -1,15 +1,94 @@
 
 // /src/app/chat/[id]/page.tsx
 import { Suspense } from 'react';
+import { createClient } from '@/lib/supabase/server';
+import { cookies } from 'next/headers';
 import { Loader2 } from 'lucide-react';
-import ChatPageContent from './ChatPageContent'; // Client Component ကို မှန်ကန်စွာ import လုပ်ပါ
+import ChatPageContent from './ChatPageContent';
 
-// ဤသည်မှာ အမှန်တကယ် Route ကို ဖော်ပြသော Server Page component ဖြစ်သည်။
-export default function ChatPage({ params }: { params: { id: string } }) {
-  // params ကို Client Component သို့ props အဖြစ် ပို့ပေးပါ
+// This is the Server Page component that handles the route.
+export default async function ChatPage({ params }: { params: { id: string } }) {
+  const supabase = createClient(cookies());
+  const otherUserId = params.id;
+
+  const { data: { user: currentUser } } = await supabase.auth.getUser();
+
+  if (!currentUser) {
+    // Or redirect to a login page
+    return <div className="flex h-dvh w-full items-center justify-center"><p>Please log in to view chats.</p></div>;
+  }
+
+  // Fetch block status
+  const { data: blockData } = await supabase
+    .from('blocks')
+    .select('*')
+    .or(`(blocker_id.eq.${currentUser.id},blocked_id.eq.${otherUserId}),(blocker_id.eq.${otherUserId},blocked_id.eq.${currentUser.id})`);
+
+  const isBlocked = blockData?.some(b => b.blocker_id === currentUser.id) ?? false;
+  const isBlockedBy = blockData?.some(b => b.blocked_id === currentUser.id) ?? false;
+
+  // Fetch other user's data
+  const { data: otherUserData, error: otherUserError } = await supabase
+    .from('profiles')
+    .select('id, username, full_name, avatar_url, last_seen, show_active_status')
+    .eq('id', otherUserId)
+    .single();
+
+  if (otherUserError) {
+    const initialData = { otherUser: null, conversationId: null, messages: [], isBlocked, isBlockedBy, error: otherUserError.message };
+    return <ChatPageContent params={params} initialData={initialData} />;
+  }
+
+  // Get or create conversation
+  const { data: convos, error: convoError } = await supabase.rpc('get_or_create_conversation', { user_2_id: otherUserId });
+
+  if (convoError || !convos || convos.length === 0) {
+    const initialData = { otherUser: otherUserData, conversationId: null, messages: [], isBlocked, isBlockedBy, error: convoError?.message || 'Could not start conversation.' };
+    return <ChatPageContent params={params} initialData={initialData} />;
+  }
+  const conversationId = convos[0].id;
+
+  // Fetch messages
+  const { data: messagesData, error: messagesError } = await supabase
+    .from('direct_messages')
+    .select('*, profiles:sender_id(*), direct_message_reactions(*, profiles:user_id(*)), parent_message:parent_message_id(content, media_type, profiles:sender_id(full_name))')
+    .eq('conversation_id', conversationId)
+    .order('created_at', { ascending: true });
+
+  if (messagesError) {
+    const initialData = { otherUser: otherUserData, conversationId, messages: [], isBlocked, isBlockedBy, error: messagesError.message };
+    return <ChatPageContent params={params} initialData={initialData} />;
+  }
+  
+    const messageIds = messagesData.map(msg => msg.id);
+    const { data: readStatuses } = await supabase
+        .from('direct_message_read_status')
+        .select('message_id')
+        .eq('user_id', otherUserId)
+        .in('message_id', messageIds);
+
+    const readMessageIds = new Set(readStatuses?.map(s => s.message_id) || []);
+
+    const processedMessages = messagesData.map(msg => ({
+        ...msg,
+        is_seen_by_other: readMessageIds.has(msg.id)
+    }));
+
+
+  const initialData = {
+    otherUser: otherUserData,
+    conversationId,
+    messages: processedMessages,
+    isBlocked,
+    isBlockedBy,
+    error: null,
+  };
+
   return (
     <Suspense fallback={<div className="flex h-dvh w-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin"/></div>}>
-      <ChatPageContent params={params} />
+      <ChatPageContent params={params} initialData={initialData} />
     </Suspense>
   );
 }
+
+    

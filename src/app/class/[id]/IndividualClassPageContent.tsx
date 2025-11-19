@@ -22,76 +22,41 @@ type ClassData = {
     students: Profile[];
 };
 
-export default function IndividualClassPageContent({ params }: { params: { id: string } }) {
+type InitialClassData = {
+    classData: ClassData | null;
+    isEnrolled: boolean;
+    error: string | null;
+}
+
+export default function IndividualClassPageContent({ initialData, params }: { initialData: InitialClassData, params: { id: string } }) {
     const classId = params.id;
     const router = useRouter();
     const supabase = createClient();
     const { toast } = useToast();
 
-    const [classData, setClassData] = useState<ClassData | null>(null);
-    const [loading, setLoading] = useState(true);
+    const [classData, setClassData] = useState<ClassData | null>(initialData.classData);
     const [currentUser, setCurrentUser] = useState<User | null>(null);
-    const [isEnrolled, setIsEnrolled] = useState(false);
-    const [error, setError] = useState<string | null>(null);
+    const [isEnrolled, setIsEnrolled] = useState(initialData.isEnrolled);
+    const [error, setError] = useState<string | null>(initialData.error);
 
     useEffect(() => {
-        const fetchClassData = async () => {
-            setLoading(true);
-            setError(null);
-            
-            if (!classId) {
-                setError("Class ID is missing.");
-                setLoading(false);
-                return;
-            }
-
+        const fetchUser = async () => {
             const { data: { user } } = await supabase.auth.getUser();
             setCurrentUser(user);
-
-            const { data: classInfo, error: classError } = await supabase
-                .from('classes')
-                .select('id, name, description, avatar_url')
-                .eq('id', classId)
-                .single();
-
-            if (classError || !classInfo) {
-                const errorMessage = classError?.message || 'The class could not be found.';
-                setError(errorMessage);
-                toast({ variant: 'destructive', title: 'Error Loading Class', description: errorMessage });
-                setLoading(false);
-                return;
-            }
-
-            const { data: studentData, error: studentError } = await supabase
-                .from('class_enrollments')
-                .select('profiles:user_id(*)')
-                .eq('class_id', classId);
-            
-            const students = studentData ? studentData.map((s: any) => s.profiles) : [];
-            
-            setClassData({ ...classInfo, students } as ClassData);
-
-            if (user) {
-                const isUserEnrolled = students.some((student: Profile) => student.id === user.id);
-                setIsEnrolled(isUserEnrolled);
-            }
-
-            setLoading(false);
         };
+        fetchUser();
+    }, [supabase]);
 
-        fetchClassData();
-    }, [classId, supabase, toast]);
 
     const handleEnroll = async () => {
         if (!currentUser) {
             toast({ variant: 'destructive', title: 'You must be logged in to enroll.' });
             return;
         }
-
-        if (isEnrolled) return;
+        if (isEnrolled || !classData) return;
 
         const { error } = await supabase.from('class_enrollments').insert({
-            class_id: classId,
+            class_id: classData.id,
             user_id: currentUser.id
         });
 
@@ -100,18 +65,13 @@ export default function IndividualClassPageContent({ params }: { params: { id: s
         } else {
             toast({ title: 'Successfully enrolled!' });
             setIsEnrolled(true);
-            // Refresh students list
-            setClassData(prev => prev ? ({ ...prev, students: [...prev.students, {id: currentUser.id, username: currentUser.user_metadata.username, avatar_url: currentUser.user_metadata.avatar_url}] as Profile[]}) : null);
+            // Optimistically update students list
+            const { data: userProfile } = await supabase.from('profiles').select('*').eq('id', currentUser.id).single();
+            if (userProfile) {
+                setClassData(prev => prev ? ({ ...prev, students: [...prev.students, userProfile] }) : null);
+            }
         }
     };
-
-    if (loading) {
-        return (
-            <div className="flex h-dvh w-full items-center justify-center bg-background">
-                <Loader2 className="h-8 w-8 animate-spin" />
-            </div>
-        );
-    }
 
     if (error) {
          return (
@@ -132,7 +92,8 @@ export default function IndividualClassPageContent({ params }: { params: { id: s
     if (!classData) {
         return (
              <div className="flex h-dvh w-full items-center justify-center text-center">
-                <p>Something went wrong, but no specific error was caught. Please try again.</p>
+                <p>Class could not be loaded. It might have been deleted.</p>
+                 <Button onClick={() => router.back()} className="mt-4">Go Back</Button>
              </div>
         )
     }
@@ -180,3 +141,5 @@ export default function IndividualClassPageContent({ params }: { params: { id: s
         </div>
     );
 }
+
+    

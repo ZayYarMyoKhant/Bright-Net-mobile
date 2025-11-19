@@ -1,12 +1,12 @@
 
 "use client";
 
-import { use, Suspense, useEffect, useState, useCallback } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Loader2, Heart, MessageCircle, Send, MoreVertical, Trash2 } from "lucide-react";
+import { ArrowLeft, Loader2, Heart, MessageCircle, Send, MoreVertical, Trash2, AlertTriangle } from "lucide-react";
 import { Avatar } from "@/components/ui/avatar";
 import { Card, CardHeader, CardContent, CardFooter } from "@/components/ui/card";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -20,71 +20,20 @@ import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
-export default function PostViewerContent({ params }: { params: { id: string } }) {
+
+export default function PostViewerContent({ post: initialPost, error: initialError, currentUser }: { post: Post | null, error: string | null, currentUser: User | null }) {
   const router = useRouter();
   const { toast } = useToast();
   const supabase = createClient();
 
-  const [post, setPost] = useState<Post | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [isLiked, setIsLiked] = useState(false);
-  const [likesCount, setLikesCount] = useState(0);
-  const [commentsCount, setCommentsCount] = useState(0);
-  const [isOwner, setIsOwner] = useState(false);
-
-
-  const fetchPost = useCallback(async (user: User | null) => {
-    setLoading(true);
-    const { data: postData, error } = await supabase
-      .from('posts')
-      .select('*, profiles!posts_user_id_fkey(*), likes:post_likes(count), comments:post_comments(count)')
-      .eq('id', params.id)
-      .single();
-
-    if (error || !postData) {
-      toast({ variant: "destructive", title: "Post not found", description: error?.message });
-      setPost(null);
-    } else {
-        const { data: userLike } = user ? await supabase
-          .from('post_likes')
-          .select('post_id')
-          .eq('user_id', user.id)
-          .eq('post_id', postData.id)
-          .single() : { data: null };
-        
-        // @ts-ignore
-        setIsOwner(user?.id === postData.profiles.id);
-
-        const processedPost: Post = {
-          id: postData.id,
-          // @ts-ignore
-          user: postData.profiles,
-          media_url: postData.media_url,
-          media_type: postData.media_type,
-          caption: postData.caption,
-          created_at: postData.created_at,
-          // @ts-ignore
-          likes: postData.likes[0]?.count || 0,
-          // @ts-ignore
-          comments: postData.comments[0]?.count || 0,
-          isLiked: !!userLike,
-        };
-        setPost(processedPost);
-        setLikesCount(processedPost.likes);
-        setCommentsCount(processedPost.comments);
-        setIsLiked(processedPost.isLiked);
-    }
-    setLoading(false);
-  }, [params.id, supabase, toast]);
-
-  useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => {
-        setCurrentUser(user);
-        fetchPost(user);
-    });
-  }, [fetchPost, supabase.auth]);
+  const [post, setPost] = useState<Post | null>(initialPost);
+  const [error, setError] = useState<string | null>(initialError);
+  const [isLiked, setIsLiked] = useState(initialPost?.isLiked ?? false);
+  const [likesCount, setLikesCount] = useState(initialPost?.likes ?? 0);
+  const [commentsCount, setCommentsCount] = useState(initialPost?.comments ?? 0);
+  const isOwner = currentUser?.id === post?.user.id;
 
   const handleLike = async () => {
     if (!currentUser || !post) {
@@ -143,23 +92,26 @@ export default function PostViewerContent({ params }: { params: { id: string } }
     router.refresh();
   };
 
-
-  if (loading) {
+  if (error) {
      return (
-        <div className="flex h-dvh w-full items-center justify-center bg-black">
-            <Loader2 className="h-8 w-8 animate-spin text-white" />
+        <div className="flex h-dvh w-full items-center justify-center bg-background p-4">
+            <Alert variant="destructive" className="max-w-lg">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertTitle>Error</AlertTitle>
+                <AlertDescription>
+                    <p>Could not load this post.</p>
+                    <pre className="mt-2 whitespace-pre-wrap rounded-md bg-muted p-2 text-xs font-mono">{error}</pre>
+                    <Button onClick={() => router.back()} className="mt-4">Go Back</Button>
+                </AlertDescription>
+            </Alert>
         </div>
     );
   }
 
   if (!post) {
      return (
-        <div className="flex h-dvh w-full items-center justify-center bg-background p-4 text-center">
-            <div>
-              <p className="text-lg font-semibold">Post not found</p>
-              <p className="text-muted-foreground">This post may have been deleted or the link is incorrect.</p>
-              <Button onClick={() => router.back()} className="mt-4">Go Back</Button>
-            </div>
+        <div className="flex h-dvh w-full items-center justify-center bg-black">
+            <Loader2 className="h-8 w-8 animate-spin text-white" />
         </div>
     );
   }
@@ -272,3 +224,5 @@ export default function PostViewerContent({ params }: { params: { id: string } }
     </div>
   );
 }
+
+    

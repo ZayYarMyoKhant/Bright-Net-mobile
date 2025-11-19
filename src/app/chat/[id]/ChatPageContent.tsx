@@ -57,6 +57,15 @@ const ReactionEmojis = {
   '😢': Frown
 };
 
+type InitialChatData = {
+    otherUser: OtherUserWithPresence | null;
+    conversationId: string | null;
+    messages: DirectMessage[];
+    isBlocked: boolean;
+    isBlockedBy: boolean;
+    error: string | null;
+}
+
 function PresenceIndicator({ user }: { user: OtherUserWithPresence | null }) {
     if (!user || !user.show_active_status || !user.last_seen) {
         return null;
@@ -260,19 +269,19 @@ const ChatMessage = ({ message, isSender, onReply, onDelete, onReaction, current
         </div>
     )
 }
-export default function ChatPageContent({ params }: { params: { id: string } }) {
+export default function ChatPageContent({ initialData, params }: { initialData: InitialChatData, params: { id: string } }) {
   const router = useRouter();
   const { toast } = useToast();
   const supabase = createClient();
   
   const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [otherUser, setOtherUser] = useState<OtherUserWithPresence | null>(null);
-  const [conversationId, setConversationId] = useState<string | null>(null);
-  const [messages, setMessages] = useState<DirectMessage[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [isBlocked, setIsBlocked] = useState(false);
-  const [isBlockedBy, setIsBlockedBy] = useState(false);
+  
+  const [otherUser, setOtherUser] = useState<OtherUserWithPresence | null>(initialData.otherUser);
+  const [conversationId, setConversationId] = useState<string | null>(initialData.conversationId);
+  const [messages, setMessages] = useState<DirectMessage[]>(initialData.messages);
+  const [error, setError] = useState<string | null>(initialData.error);
+  const [isBlocked, setIsBlocked] = useState(initialData.isBlocked);
+  const [isBlockedBy, setIsBlockedBy] = useState(initialData.isBlockedBy);
 
   const [newMessage, setNewMessage] = useState("");
   const [replyingTo, setReplyingTo] = useState<any | null>(null);
@@ -289,76 +298,6 @@ export default function ChatPageContent({ params }: { params: { id: string } }) 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const recordingTimerRef = useRef<NodeJS.Timeout | null>(null);
-  
-  const fetchChatData = useCallback(async (user: User, otherUserId: string) => {
-    setLoading(true);
-    setError(null);
-
-    if (!otherUserId) {
-        setError("The other user's ID is missing.");
-        setLoading(false);
-        return;
-    }
-    
-    // Fetch block status in both directions
-    const { data: blockData, error: blockError } = await supabase
-      .from('blocks')
-      .select('*')
-      .or(`(blocker_id.eq.${user.id},blocked_id.eq.${otherUserId}),(blocker_id.eq.${otherUserId},blocked_id.eq.${user.id})`);
-
-    if (blockData) {
-        setIsBlocked(blockData.some(b => b.blocker_id === user.id));
-        setIsBlockedBy(blockData.some(b => b.blocked_id === user.id));
-    }
-
-    const { data: otherUserData, error: otherUserError } = await supabase.from('profiles').select('id, username, full_name, avatar_url, last_seen, show_active_status').eq('id', otherUserId).single();
-    if(otherUserError) {
-        const errorMessage = otherUserError.message || "The user you're trying to chat with could not be found.";
-        setError(errorMessage);
-        toast({variant: 'destructive', title: 'User Not Found', description: errorMessage});
-        setLoading(false);
-        return;
-    }
-    setOtherUser(otherUserData as OtherUserWithPresence);
-
-    const { data: convos, error: convoError } = await supabase.rpc('get_or_create_conversation', { user_2_id: otherUserId });
-    if (convoError || !convos || convos.length === 0) {
-        const errorMessage = convoError?.message || 'Could not start or find the conversation.';
-        setError(errorMessage);
-        toast({variant: 'destructive', title: 'Conversation Error', description: errorMessage});
-        setLoading(false);
-        return;
-    }
-    const currentConvoId = convos[0].id;
-    setConversationId(currentConvoId);
-
-    const { data: messagesData, error: messagesError } = await supabase
-      .from('direct_messages')
-      .select('*, profiles:sender_id(*), direct_message_reactions(*, profiles:user_id(*)), parent_message:parent_message_id(content, media_type, profiles:sender_id(full_name))')
-      .eq('conversation_id', currentConvoId)
-      .order('created_at', { ascending: true });
-
-    if (messagesError) {
-      toast({ variant: "destructive", title: "Failed to load messages.", description: messagesError.message });
-      setMessages([]);
-    } else {
-        const messageIds = messagesData.map(msg => msg.id);
-        const { data: readStatuses } = await supabase
-            .from('direct_message_read_status')
-            .select('message_id')
-            .eq('user_id', otherUserId)
-            .in('message_id', messageIds);
-
-        const readMessageIds = new Set(readStatuses?.map(s => s.message_id) || []);
-
-        const processedMessages = messagesData.map(msg => ({
-            ...msg,
-            is_seen_by_other: readMessageIds.has(msg.id)
-        })) as DirectMessage[];
-        setMessages(processedMessages);
-    }
-    setLoading(false);
-  }, [supabase, toast]);
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
@@ -367,9 +306,8 @@ export default function ChatPageContent({ params }: { params: { id: string } }) 
             return;
         }
         setCurrentUser(user);
-        fetchChatData(user, params.id);
     });
-  }, [fetchChatData, supabase.auth, params.id, router]);
+  }, [supabase.auth, router]);
 
 
   useEffect(() => {
@@ -505,7 +443,7 @@ export default function ChatPageContent({ params }: { params: { id: string } }) 
     const { error } = await supabase.from('direct_messages').delete().eq('id', messageId);
     if (error) {
         toast({ variant: 'destructive', title: "Failed to delete message."});
-        if(currentUser) fetchChatData(currentUser, params.id);
+        // Re-fetch data might be better here, but for now we just show an error.
     }
   };
   
@@ -693,10 +631,6 @@ export default function ChatPageContent({ params }: { params: { id: string } }) 
       }
   };
 
-  if (loading) {
-    return <div className="flex h-dvh w-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin"/></div>
-  }
-
   if (error) {
       return (
         <div className="flex h-dvh w-full items-center justify-center bg-background p-4">
@@ -714,6 +648,7 @@ export default function ChatPageContent({ params }: { params: { id: string } }) 
   }
 
   if (!otherUser) {
+      // This case should ideally not happen if data is fetched on server, but as a fallback.
       return <div className="flex h-dvh w-full items-center justify-center"><p>User not found.</p></div>
   }
 
@@ -881,3 +816,5 @@ export default function ChatPageContent({ params }: { params: { id: string } }) 
     </div>
   );
 }
+
+    

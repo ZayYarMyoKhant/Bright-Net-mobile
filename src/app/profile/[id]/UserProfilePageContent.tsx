@@ -28,6 +28,12 @@ type ProfileData = Profile & {
   is_in_relationship: boolean;
 };
 
+type InitialProfileData = {
+    profile: ProfileData | null;
+    posts: Post[];
+    error: string | null;
+}
+
 
 function PresenceIndicator({ user }: { user: ProfileData | null }) {
     if (!user || !user.show_active_status || !user.last_seen) {
@@ -47,89 +53,36 @@ function PresenceIndicator({ user }: { user: ProfileData | null }) {
 }
 
 
-export default function UserProfilePageContent({ params }: { params: { id: string } }) {
+export default function UserProfilePageContent({ initialData }: { initialData: InitialProfileData }) {
   const router = useRouter();
   const supabase = createClient();
   const { toast } = useToast();
   
   const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [profile, setProfile] = useState<ProfileData | null>(null);
-  const [posts, setPosts] = useState<Post[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [isFollowing, setIsFollowing] = useState(false);
-  const [isOwnProfile, setIsOwnProfile] = useState(false);
-
-
-  const fetchProfileData = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    
-    if (!params.id) {
-        setError("User ID is missing.");
-        setLoading(false);
-        return;
-    }
-
-    const { data: { user: authUser } } = await supabase.auth.getUser();
-    setCurrentUser(authUser);
-
-    // Fetch profile data
-    const { data: profileData, error: profileError } = await supabase.from('profiles').select('*').eq('id', params.id).single();
-
-    if (profileError || !profileData) {
-      const errorMessage = profileError?.message || "The user profile could not be found.";
-      setError(errorMessage);
-      toast({ variant: 'destructive', title: 'Error Loading Profile', description: errorMessage });
-      setLoading(false);
-      return;
-    }
-    
-    setIsOwnProfile(authUser?.id === profileData.id);
-
-    // Parallelize fetches for counts, posts, and classes
-    const [followersRes, followingRes, postsRes, followStatusRes] = await Promise.all([
-        supabase.from('followers').select('follower_id', { count: 'exact' }).eq('user_id', params.id),
-        supabase.from('followers').select('user_id', { count: 'exact' }).eq('follower_id', params.id),
-        supabase.from('posts').select('*').eq('user_id', params.id).order('created_at', { ascending: false }),
-        authUser && authUser.id !== params.id 
-            ? supabase.from('followers').select('*').eq('user_id', params.id).eq('follower_id', authUser.id).maybeSingle() 
-            : Promise.resolve({ data: null })
-    ]);
-    
-    const isFollowingUser = !!followStatusRes?.data;
-    setIsFollowing(isFollowingUser);
-
-    setProfile({
-      ...profileData,
-      bio: profileData.bio || "Another digital creator's bio.",
-      followers: followersRes.count || 0,
-      following: followingRes.count || 0,
-      is_following: isFollowingUser,
-      is_private: profileData.is_private || false,
-      last_seen: profileData.last_seen,
-      show_active_status: profileData.show_active_status,
-      is_in_relationship: profileData.is_in_relationship,
-    });
-    
-    setPosts(postsRes.data as Post[] || []);
-    
-    
-    setLoading(false);
-  }, [params.id, supabase, toast]);
+  const [profile, setProfile] = useState<ProfileData | null>(initialData.profile);
+  const [posts, setPosts] = useState<Post[]>(initialData.posts);
+  const [error, setError] = useState<string | null>(initialData.error);
+  
+  const [isFollowing, setIsFollowing] = useState(initialData.profile?.is_following ?? false);
+  const isOwnProfile = currentUser?.id === profile?.id;
 
   useEffect(() => {
-    fetchProfileData();
-     const channel = supabase.channel(`profile-${params.id}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles', filter: `id=eq.${params.id}` }, (payload) => {
-        fetchProfileData();
+      supabase.auth.getUser().then(({data: { user }}) => {
+          setCurrentUser(user);
+      });
+  }, [supabase]);
+
+  useEffect(() => {
+     const channel = supabase.channel(`profile-${profile?.id}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles', filter: `id=eq.${profile?.id}` }, (payload) => {
+        setProfile(prev => prev ? { ...prev, ...(payload.new as Profile) } : null);
       })
       .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [params.id, fetchProfileData, supabase]);
+  }, [profile?.id, supabase]);
   
   const handleFollowToggle = async () => {
     if (!currentUser) {
@@ -168,18 +121,6 @@ export default function UserProfilePageContent({ params }: { params: { id: strin
     }
   };
 
-  if (loading) {
-    return (
-       <>
-        <div className="flex h-full flex-col bg-background text-foreground pb-16 items-center justify-center">
-            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-            <p className="mt-2 text-sm text-muted-foreground">Loading profile...</p>
-        </div>
-        <BottomNav />
-      </>
-    )
-  }
-
   if (error) {
     return (
       <>
@@ -203,7 +144,7 @@ export default function UserProfilePageContent({ params }: { params: { id: strin
     return (
          <>
             <div className="flex h-dvh w-full items-center justify-center text-center">
-                <p>Something went wrong, but no specific error was caught. The user may not exist.</p>
+                 <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
             </div>
             <BottomNav />
         </>
@@ -323,3 +264,5 @@ export default function UserProfilePageContent({ params }: { params: { id: strin
     </>
   );
 }
+
+    
