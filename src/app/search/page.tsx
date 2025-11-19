@@ -11,7 +11,8 @@ import {
   Users,
   Clapperboard,
   CameraOff,
-  MessageSquare
+  MessageSquare,
+  BookOpen
 } from "lucide-react";
 import Link from "next/link";
 import { Input } from "@/components/ui/input";
@@ -68,7 +69,7 @@ function SearchPlaceholder() {
   return (
      <div className="flex flex-col items-center justify-center pt-20 text-center text-muted-foreground">
         <Search className="h-12 w-12" />
-        <p className="mt-4 text-lg">Search for posts, users and classes</p>
+        <p className="mt-4 text-lg">Search for posts and users</p>
         <p className="text-sm">Find content and connect with friends.</p>
       </div>
   )
@@ -94,27 +95,30 @@ function PostResults() {
                 if (error) {
                     toast({ variant: 'destructive', title: "Search failed", description: error.message });
                 } else {
-                    const postIds = data.map(p => p.id);
                     const { data: { user: currentUser } } = await supabase.auth.getUser();
-                    const { data: userLikes } = currentUser ? await supabase
-                        .from('post_likes')
-                        .select('post_id')
-                        .eq('user_id', currentUser.id)
-                        .in('post_id', postIds) : { data: [] };
 
-                    const likedPostIds = new Set(userLikes?.map(like => like.post_id));
+                    const allPosts: Post[] = await Promise.all(data.map(async (p: any) => {
+                         const { data: userLikes } = currentUser ? await supabase
+                            .from('post_likes')
+                            .select('post_id')
+                            .eq('user_id', currentUser.id)
+                            .eq('post_id', p.id) : { data: [] };
 
-                    const allPosts: Post[] = data.map((p: any) => ({
-                        id: p.id,
-                        user: p.profiles,
-                        media_url: p.media_url,
-                        media_type: p.media_type,
-                        caption: p.caption,
-                        created_at: p.created_at,
-                        likes: p.likes[0]?.count || 0,
-                        comments: p.comments[0]?.count || 0,
-                        isLiked: likedPostIds.has(p.id)
+                        const likedPostIds = new Set(userLikes?.map(like => like.post_id));
+                        
+                        return {
+                            id: p.id,
+                            user: p.profiles,
+                            media_url: p.media_url,
+                            media_type: p.media_type,
+                            caption: p.caption,
+                            created_at: p.created_at,
+                            likes: p.likes[0]?.count || 0,
+                            comments: p.comments[0]?.count || 0,
+                            isLiked: likedPostIds.has(p.id)
+                        }
                     }));
+                    
                     setImagePosts(allPosts.filter(p => p.media_type === 'image'));
                     setVideoPosts(allPosts.filter(p => p.media_type === 'video'));
                 }
@@ -127,6 +131,15 @@ function PostResults() {
 
     if (isPending) {
         return <div className="flex justify-center items-center pt-10"><Loader2 className="h-8 w-8 animate-spin" /></div>
+    }
+    
+    if (imagePosts.length === 0 && videoPosts.length === 0 && !isPending && query) {
+        return (
+             <div className="flex flex-col items-center justify-center pt-10 text-center text-muted-foreground">
+                <CameraOff className="h-12 w-12" />
+                <p className="mt-4 text-sm">No posts found for "{query}"</p>
+            </div>
+        )
     }
 
     return (
@@ -231,7 +244,13 @@ function UserResults() {
 
 function SearchPageContent() {
   const searchParams = useSearchParams();
-  const query = searchParams.get("q");
+  const [hasQuery, setHasQuery] = useState(false);
+
+  useEffect(() => {
+    // This effect runs only on the client, after the initial render.
+    // This ensures that the server-rendered output and the initial client render match.
+    setHasQuery(searchParams.has("q"));
+  }, [searchParams]);
 
   return (
     <>
@@ -245,7 +264,7 @@ function SearchPageContent() {
         </div>
 
         <main className="flex-1 overflow-y-auto">
-            {!query ? <SearchPlaceholder /> : (
+            {!hasQuery ? <SearchPlaceholder /> : (
                 <Tabs defaultValue="posts" className="w-full">
                     <TabsList className="grid w-full grid-cols-2">
                         <TabsTrigger value="posts">Posts</TabsTrigger>
