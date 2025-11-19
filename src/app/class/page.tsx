@@ -5,13 +5,15 @@ import { useState, useEffect, useCallback } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { useRouter } from 'next/navigation';
 import { BottomNav } from '@/components/bottom-nav';
-import { Card, CardHeader } from '@/components/ui/card';
+import { Card, CardHeader, CardContent } from '@/components/ui/card';
 import { Loader2, BookOpen } from 'lucide-react';
 import Link from 'next/link';
+import { Avatar } from '@/components/ui/avatar';
 
 type ClassSummary = {
   id: string;
   name: string;
+  avatar_url: string | null;
 };
 
 export default function ClassListPage() {
@@ -23,7 +25,7 @@ export default function ClassListPage() {
     setLoading(true);
     const { data, error } = await supabase
       .from('classes')
-      .select('id, name');
+      .select('id, name, avatar_url');
 
     if (error) {
       console.error('Error fetching classes:', error);
@@ -60,11 +62,14 @@ export default function ClassListPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {classes.map((cls) => (
                 <Link href={`/class/${cls.id}`} key={cls.id}>
-                  <Card className="overflow-hidden hover:shadow-lg transition-shadow h-24 flex items-center">
-                     <CardHeader>
-                        <p className="font-bold truncate">{cls.name}</p>
-                     </CardHeader>
-                  </Card>
+                    <Card className="overflow-hidden hover:shadow-lg transition-shadow">
+                        <CardContent className="p-4 flex items-center gap-4">
+                            <Avatar className="h-16 w-16" src={cls.avatar_url} alt={cls.name} />
+                            <div className="flex-1">
+                                <p className="font-bold truncate">{cls.name}</p>
+                            </div>
+                        </CardContent>
+                    </Card>
                 </Link>
               ))}
             </div>
@@ -75,5 +80,3 @@ export default function ClassListPage() {
     </>
   );
 }
-
-    

@@ -247,7 +247,7 @@ function ClassResults() {
       startTransition(async () => {
         const { data, error } = await supabase
             .from('classes')
-            .select('id, name')
+            .select('id, name, avatar_url')
             .textSearch('name', query, { type: 'websearch', config: 'english' });
 
         if (error) {
@@ -277,16 +277,15 @@ function ClassResults() {
   return (
       <div className="divide-y">
         {classes.map((cls) => (
-            <Link href={`/class/${cls.id}`} key={cls.id}>
-                <div className="p-4 flex items-center gap-4 hover:bg-muted">
-                    <div className="relative w-16 h-16 rounded-md overflow-hidden bg-muted flex-shrink-0 flex items-center justify-center">
-                        <BookOpen className="h-8 w-8 text-muted-foreground" />
-                    </div>
-                    <div className="flex-1">
-                        <p className="font-semibold">{cls.name}</p>
-                    </div>
+            <div key={cls.id} className="p-4 flex items-center gap-4">
+                <Avatar className="h-12 w-12" src={cls.avatar_url} alt={cls.name} />
+                <div className="flex-1">
+                    <p className="font-semibold">{cls.name}</p>
                 </div>
-            </Link>
+                <Link href={`/class/${cls.id}`}>
+                    <Button variant="outline">View</Button>
+                </Link>
+            </div>
         ))}
       </div>
   )
@@ -366,5 +365,3 @@ export default function SearchPage() {
         </Suspense>
     )
 }
-
-    
