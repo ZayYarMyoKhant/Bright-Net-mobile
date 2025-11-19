@@ -94,16 +94,13 @@ function PostResults() {
             startTransition(async () => {
                 const { data, error } = await supabase
                     .from('posts')
-                    .select('*, profiles!posts_user_id_fkey(*)')
+                    .select('*')
                     .textSearch('caption', query, { type: 'websearch', config: 'english' });
                 
                 if (error) {
                     toast({ variant: 'destructive', title: "Search failed", description: error.message });
                 } else {
-                    const allPosts: Post[] = data.map((post: any) => ({
-                        ...post,
-                        user: post['profiles!posts_user_id_fkey']
-                    }));
+                    const allPosts: Post[] = data as Post[];
                     setImagePosts(allPosts.filter(p => p.media_type === 'image'));
                     setVideoPosts(allPosts.filter(p => p.media_type === 'video'));
                 }
@@ -132,7 +129,7 @@ function PostResults() {
                             <Link href={`/post/${post.id}`} className="block h-full w-full">
                                 <Image
                                     src={post.media_url}
-                                    alt={`Post by ${post.user.username}`}
+                                    alt={post.caption || 'Search result post'}
                                     fill
                                     className="object-cover h-full w-full"
                                     data-ai-hint="lifestyle content"
