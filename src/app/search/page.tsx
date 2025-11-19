@@ -11,7 +11,6 @@ import {
   Users,
   Clapperboard,
   CameraOff,
-  BookOpen,
   MessageSquare
 } from "lucide-react";
 import Link from "next/link";
@@ -25,12 +24,6 @@ import Image from "next/image";
 import { PostCard } from "@/components/post-card";
 import { VideoFeed } from "@/components/video-feed";
 
-type ClassResult = {
-    id: string;
-    name: string;
-    description: string;
-    cover_image_url: string;
-};
 
 function SearchBar() {
   const router = useRouter();
@@ -236,65 +229,6 @@ function UserResults() {
 }
 
 
-function ClassResults() {
-  const searchParams = useSearchParams();
-  const query = searchParams.get("q");
-  const [isPending, startTransition] = useTransition();
-  const [classes, setClasses] = useState<ClassResult[]>([]);
-  const { toast } = useToast();
-  const supabase = createClient();
-
-  useEffect(() => {
-    if (query) {
-      startTransition(async () => {
-        const { data, error } = await supabase
-            .from('classes')
-            .select('id, name, description, cover_image_url')
-            .textSearch('name', query, { type: 'websearch', config: 'english' });
-        
-        if (error) {
-            toast({ variant: 'destructive', title: "Search failed", description: error.message });
-        } else {
-            setClasses(data as ClassResult[]);
-        }
-      });
-    } else {
-        setClasses([]);
-    }
-  }, [query, supabase, toast]);
-
-  if (isPending) {
-    return <div className="flex justify-center items-center pt-10"><Loader2 className="h-8 w-8 animate-spin" /></div>
-  }
-
-  if (classes.length === 0 && query) {
-      return (
-        <div className="flex flex-col items-center justify-center pt-20 text-center text-muted-foreground">
-          <BookOpen className="h-12 w-12" />
-          <p className="mt-4 text-lg">No classes found for "{query}"</p>
-        </div>
-      )
-  }
-
-  return (
-      <div className="divide-y">
-        {classes.map((cls) => (
-            <Link href={`/class/${cls.id}`} key={cls.id}>
-                <div className="p-4 flex items-center gap-4 hover:bg-muted/50">
-                    <div className="h-16 w-16 bg-muted rounded-md overflow-hidden flex-shrink-0">
-                         <Image src={cls.cover_image_url} alt={cls.name} width={64} height={64} className="h-full w-full object-cover" />
-                    </div>
-                    <div className="flex-1">
-                        <p className="font-semibold hover:underline">{cls.name}</p>
-                        <p className="text-sm text-muted-foreground truncate">{cls.description}</p>
-                    </div>
-                </div>
-            </Link>
-        ))}
-      </div>
-  )
-}
-
 function SearchPageContent() {
   const searchParams = useSearchParams();
   const query = searchParams.get("q");
@@ -313,19 +247,15 @@ function SearchPageContent() {
         <main className="flex-1 overflow-y-auto">
             {!query ? <SearchPlaceholder /> : (
                 <Tabs defaultValue="posts" className="w-full">
-                    <TabsList className="grid w-full grid-cols-3">
+                    <TabsList className="grid w-full grid-cols-2">
                         <TabsTrigger value="posts">Posts</TabsTrigger>
                         <TabsTrigger value="users">Users</TabsTrigger>
-                        <TabsTrigger value="classes">Classes</TabsTrigger>
                     </TabsList>
                     <TabsContent value="posts">
                         <PostResults />
                     </TabsContent>
                     <TabsContent value="users">
                         <UserResults />
-                    </TabsContent>
-                    <TabsContent value="classes">
-                        <ClassResults />
                     </TabsContent>
                 </Tabs>
             )}
