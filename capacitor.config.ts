@@ -1,3 +1,4 @@
+
 import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
@@ -5,7 +6,7 @@ const config: CapacitorConfig = {
   appName: 'Bright-Net',
   webDir: 'out',
   server: {
-    url: 'http://localhost:3000',
+    url: 'https://bright-net-mobile.vercel.app',
     cleartext: true
   }
 };
