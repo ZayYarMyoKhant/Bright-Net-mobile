@@ -6,13 +6,6 @@ import UserProfilePageContent from "./UserProfilePageContent";
 import { BottomNav } from "@/components/bottom-nav";
 
 
-// This function is required for static export with dynamic routes.
-// Returning an empty array means no pages will be pre-rendered at build time.
-// They will be generated on-demand on the client-side.
-export function generateStaticParams() {
-  return [];
-}
-
 // This is the Server Page component that handles the route.
 export default function UserProfilePage({ params }: { params: { id: string } }) {
   // Pass the params to the Client Component as props.

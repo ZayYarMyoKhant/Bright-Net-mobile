@@ -16,6 +16,7 @@ type ClassData = {
     id: string;
     name: string;
     description: string;
+    avatar_url: string | null;
     students: Profile[];
 };
 
@@ -37,7 +38,7 @@ export default function IndividualClassPageContent({ params }: { params: { id: s
 
             const { data: classInfo, error: classError } = await supabase
                 .from('classes')
-                .select('id, name, description')
+                .select('id, name, description, avatar_url')
                 .eq('id', classId)
                 .single();
 
@@ -109,9 +110,13 @@ export default function IndividualClassPageContent({ params }: { params: { id: s
             </header>
 
             <main className="flex-1 overflow-y-auto p-4 space-y-4">
-                <h2 className="text-2xl font-bold">{classData.name}</h2>
-                
-                <p className="text-muted-foreground">{classData.description}</p>
+                <div className="flex items-center gap-4">
+                     <Avatar className="h-20 w-20" src={classData.avatar_url} alt={classData.name} />
+                    <div className="flex-1">
+                        <h2 className="text-2xl font-bold">{classData.name}</h2>
+                        <p className="text-muted-foreground">{classData.description}</p>
+                    </div>
+                </div>
                 
                 <Button className="w-full" onClick={handleEnroll} disabled={isEnrolled}>
                     {isEnrolled ? 'Enrolled' : 'Enroll in this Class'}
