@@ -97,6 +97,10 @@ export default function ChatListPage() {
           <h1 className="text-xl font-bold">Chats</h1>
         </header>
 
+        <div className="p-4 border-b">
+          <AdBanner />
+        </div>
+
         <main className="flex-1 overflow-y-auto">
           {loading ? (
             <div className="flex h-full w-full items-center justify-center">
@@ -107,9 +111,6 @@ export default function ChatListPage() {
               <MessageSquarePlus className="h-16 w-16" />
               <h2 className="mt-4 text-lg font-semibold">No Chats Yet</h2>
               <p className="mt-1 text-sm">Start a conversation from a user's profile.</p>
-              <div className="w-full p-4 mt-8">
-                 <AdBanner />
-              </div>
             </div>
           ) : (
             <div className="divide-y">
