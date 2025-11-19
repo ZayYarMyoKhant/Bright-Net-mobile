@@ -163,14 +163,7 @@ function PostResults() {
                 )}
             </TabsContent>
             <TabsContent value="lite" className="mt-0">
-                 {videoPosts.length > 0 ? (
-                    <VideoFeed posts={videoPosts} loading={isPending} />
-                ) : (
-                    <div className="flex flex-col items-center justify-center pt-10 text-center text-muted-foreground">
-                        <CameraOff className="h-12 w-12" />
-                        <p className="mt-4 text-sm">No video posts found for "{query}"</p>
-                    </div>
-                )}
+                 <VideoFeed posts={videoPosts} loading={isPending} />
             </TabsContent>
         </Tabs>
     );
@@ -241,6 +234,65 @@ function UserResults() {
   )
 }
 
+function ClassResults() {
+  const searchParams = useSearchParams();
+  const query = searchParams.get("q");
+  const [isPending, startTransition] = useTransition();
+  const [classes, setClasses] = useState<any[]>([]);
+  const { toast } = useToast();
+  const supabase = createClient();
+
+  useEffect(() => {
+    if (query) {
+      startTransition(async () => {
+        const { data, error } = await supabase
+            .from('classes')
+            .select('*, creator:created_by(*)')
+            .textSearch('name', query, { type: 'websearch', config: 'english' });
+
+        if (error) {
+            toast({ variant: 'destructive', title: "Class search failed", description: error.message });
+        } else {
+            setClasses(data);
+        }
+      });
+    } else {
+        setClasses([]);
+    }
+  }, [query, supabase, toast]);
+
+  if (isPending) {
+    return <div className="flex justify-center items-center pt-10"><Loader2 className="h-8 w-8 animate-spin" /></div>
+  }
+
+  if (classes.length === 0 && query) {
+      return (
+        <div className="flex flex-col items-center justify-center pt-20 text-center text-muted-foreground">
+          <BookOpen className="h-12 w-12" />
+          <p className="mt-4 text-lg">No classes found for "{query}"</p>
+        </div>
+      )
+  }
+
+  return (
+      <div className="divide-y">
+        {classes.map((cls) => (
+            <Link href={`/class/${cls.id}`} key={cls.id}>
+                <div className="p-4 flex items-center gap-4 hover:bg-muted">
+                    <div className="relative w-16 h-16 rounded-md overflow-hidden bg-muted flex-shrink-0">
+                        <Image src={cls.cover_image_url} alt={cls.name} fill className="object-cover" />
+                    </div>
+                    <div className="flex-1">
+                        <p className="font-semibold">{cls.name}</p>
+                        <p className="text-sm text-muted-foreground">by @{cls.creator.username}</p>
+                    </div>
+                </div>
+            </Link>
+        ))}
+      </div>
+  )
+}
+
 
 function SearchPageContent() {
   const searchParams = useSearchParams();
@@ -266,15 +318,19 @@ function SearchPageContent() {
         <main className="flex-1 overflow-y-auto">
             {!hasQuery ? <SearchPlaceholder /> : (
                 <Tabs defaultValue="posts" className="w-full">
-                    <TabsList className="grid w-full grid-cols-2">
+                    <TabsList className="grid w-full grid-cols-3">
                         <TabsTrigger value="posts">Posts</TabsTrigger>
                         <TabsTrigger value="users">Users</TabsTrigger>
+                        <TabsTrigger value="classes">Classes</TabsTrigger>
                     </TabsList>
                     <TabsContent value="posts">
                         <PostResults />
                     </TabsContent>
                     <TabsContent value="users">
                         <UserResults />
+                    </TabsContent>
+                    <TabsContent value="classes">
+                        <ClassResults />
                     </TabsContent>
                 </Tabs>
             )}
