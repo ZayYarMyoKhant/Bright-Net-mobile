@@ -247,7 +247,7 @@ function ClassResults() {
       startTransition(async () => {
         const { data, error } = await supabase
             .from('classes')
-            .select('id, name, cover_image_url')
+            .select('id, name')
             .textSearch('name', query, { type: 'websearch', config: 'english' });
 
         if (error) {
@@ -279,8 +279,8 @@ function ClassResults() {
         {classes.map((cls) => (
             <Link href={`/class/${cls.id}`} key={cls.id}>
                 <div className="p-4 flex items-center gap-4 hover:bg-muted">
-                    <div className="relative w-16 h-16 rounded-md overflow-hidden bg-muted flex-shrink-0">
-                        <Image src={cls.cover_image_url} alt={cls.name} fill className="object-cover" />
+                    <div className="relative w-16 h-16 rounded-md overflow-hidden bg-muted flex-shrink-0 flex items-center justify-center">
+                        <BookOpen className="h-8 w-8 text-muted-foreground" />
                     </div>
                     <div className="flex-1">
                         <p className="font-semibold">{cls.name}</p>

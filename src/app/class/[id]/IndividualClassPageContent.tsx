@@ -16,7 +16,6 @@ type ClassData = {
     id: string;
     name: string;
     description: string;
-    cover_image_url: string;
     students: Profile[];
 };
 
@@ -38,7 +37,7 @@ export default function IndividualClassPageContent({ params }: { params: { id: s
 
             const { data: classInfo, error: classError } = await supabase
                 .from('classes')
-                .select('id, name, description, cover_image_url')
+                .select('id, name, description')
                 .eq('id', classId)
                 .single();
 
@@ -109,36 +108,34 @@ export default function IndividualClassPageContent({ params }: { params: { id: s
                 <div className="w-10"></div>
             </header>
 
-            <main className="flex-1 overflow-y-auto">
-                <div className="w-full h-48 bg-cover bg-center" style={{ backgroundImage: `url(${classData.cover_image_url})` }} />
+            <main className="flex-1 overflow-y-auto p-4 space-y-4">
+                <h2 className="text-2xl font-bold">{classData.name}</h2>
                 
-                <div className="p-4 space-y-4">
-                    <h2 className="text-2xl font-bold">{classData.name}</h2>
-                    
-                    <p className="text-muted-foreground">{classData.description}</p>
-                    
-                    <Button className="w-full" onClick={handleEnroll} disabled={isEnrolled}>
-                        {isEnrolled ? 'Enrolled' : 'Enroll in this Class'}
-                    </Button>
-                    
-                    <div className="border-t pt-4">
-                        <h3 className="font-bold text-lg flex items-center gap-2 mb-3">
-                            <Users className="h-5 w-5" />
-                            Students ({classData.students.length})
-                        </h3>
-                         <div className="grid grid-cols-2 gap-4">
-                            {classData.students.map(student => (
-                                <Link href={`/profile/${student.id}`} key={student.id}>
-                                    <div className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted">
-                                        <Avatar className="h-10 w-10" profile={student} />
-                                        <p className="font-semibold truncate">{student.full_name}</p>
-                                    </div>
-                                </Link>
-                            ))}
-                        </div>
+                <p className="text-muted-foreground">{classData.description}</p>
+                
+                <Button className="w-full" onClick={handleEnroll} disabled={isEnrolled}>
+                    {isEnrolled ? 'Enrolled' : 'Enroll in this Class'}
+                </Button>
+                
+                <div className="border-t pt-4">
+                    <h3 className="font-bold text-lg flex items-center gap-2 mb-3">
+                        <Users className="h-5 w-5" />
+                        Students ({classData.students.length})
+                    </h3>
+                     <div className="grid grid-cols-2 gap-4">
+                        {classData.students.map(student => (
+                            <Link href={`/profile/${student.id}`} key={student.id}>
+                                <div className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted">
+                                    <Avatar className="h-10 w-10" profile={student} />
+                                    <p className="font-semibold truncate">{student.full_name}</p>
+                                </div>
+                            </Link>
+                        ))}
                     </div>
                 </div>
             </main>
         </div>
     );
 }
+
+    

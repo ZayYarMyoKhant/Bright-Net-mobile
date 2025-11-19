@@ -8,12 +8,10 @@ import { BottomNav } from '@/components/bottom-nav';
 import { Card, CardHeader } from '@/components/ui/card';
 import { Loader2, BookOpen } from 'lucide-react';
 import Link from 'next/link';
-import Image from 'next/image';
 
 type ClassSummary = {
   id: string;
   name: string;
-  cover_image_url: string;
 };
 
 export default function ClassListPage() {
@@ -25,7 +23,7 @@ export default function ClassListPage() {
     setLoading(true);
     const { data, error } = await supabase
       .from('classes')
-      .select('id, name, cover_image_url');
+      .select('id, name');
 
     if (error) {
       console.error('Error fetching classes:', error);
@@ -62,15 +60,7 @@ export default function ClassListPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {classes.map((cls) => (
                 <Link href={`/class/${cls.id}`} key={cls.id}>
-                  <Card className="overflow-hidden hover:shadow-lg transition-shadow">
-                     <div className="relative w-full aspect-video">
-                        <Image 
-                            src={cls.cover_image_url} 
-                            alt={cls.name}
-                            fill
-                            className="object-cover"
-                        />
-                     </div>
+                  <Card className="overflow-hidden hover:shadow-lg transition-shadow h-24 flex items-center">
                      <CardHeader>
                         <p className="font-bold truncate">{cls.name}</p>
                      </CardHeader>
@@ -85,3 +75,5 @@ export default function ClassListPage() {
     </>
   );
 }
+
+    
