@@ -23,6 +23,7 @@ import { Post, Profile } from "@/lib/data";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import Image from "next/image";
 import { PostCard } from "@/components/post-card";
+import { VideoFeed } from "@/components/video-feed";
 
 type ClassResult = {
     id: string;
@@ -155,23 +156,9 @@ function PostResults() {
                     </div>
                 )}
             </TabsContent>
-            <TabsContent value="lite" className="mt-4">
+            <TabsContent value="lite" className="mt-0">
                  {videoPosts.length > 0 ? (
-                    <div className="grid grid-cols-3 gap-1">
-                        {videoPosts.map((post) => (
-                        <div key={post.id} className="group relative aspect-square w-full bg-muted">
-                            <Link href={`/post/${post.id}`} className="block h-full w-full">
-                                <video
-                                    src={post.media_url}
-                                    className="object-cover h-full w-full"
-                                />
-                                <div className="absolute inset-0 bg-black/20 flex items-center justify-center">
-                                    <Clapperboard className="h-8 w-8 text-white" />
-                                </div>
-                            </Link>
-                        </div>
-                        ))}
-                    </div>
+                    <VideoFeed posts={videoPosts} loading={isPending} />
                 ) : (
                     <div className="flex flex-col items-center justify-center pt-10 text-center text-muted-foreground">
                         <CameraOff className="h-12 w-12" />
