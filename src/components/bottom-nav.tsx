@@ -46,6 +46,7 @@ export function BottomNav() {
     { href: "/search", label: t('bottomNav.search'), icon: Search },
     { href: "/bliss-zone", label: 'Bliss Zone', icon: Heart },
     { href: "/upload", label: 'Create', icon: PlusSquare, isSpecial: true },
+    { href: "/class", label: 'Class', icon: BookOpen },
     { href: "/chat", label: t('bottomNav.chat'), icon: MessageCircle, notification: hasUnread },
     { href: "/profile", label: t('bottomNav.profile'), icon: User },
   ];

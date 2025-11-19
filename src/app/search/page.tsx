@@ -247,7 +247,7 @@ function ClassResults() {
       startTransition(async () => {
         const { data, error } = await supabase
             .from('classes')
-            .select('*, creator:created_by(*)')
+            .select('*, creator:profiles!classes_created_by_fkey(*)')
             .textSearch('name', query, { type: 'websearch', config: 'english' });
 
         if (error) {
