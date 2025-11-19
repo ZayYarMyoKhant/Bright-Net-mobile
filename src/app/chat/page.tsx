@@ -84,16 +84,41 @@ export default function ChatListPage() {
         setLoading(false);
         return;
     }
-    
+
     const { data: lastMessages, error: messagesError } = await supabase
-        .rpc('get_last_messages', { p_conversation_ids: conversationIds, p_user_id: user.id });
+        .from('direct_messages')
+        .select('*')
+        .in('conversation_id', conversationIds)
+        .order('created_at', { ascending: false });
 
     if (messagesError) {
         console.error('Error fetching last messages:', messagesError);
     }
     
-    const lastMessageMap = new Map(lastMessages?.map(m => [m.conversation_id, m]));
+    // Create a map to get the latest message for each conversation
+    const lastMessageMap = new Map();
+    if (lastMessages) {
+        for (const message of lastMessages) {
+            if (!lastMessageMap.has(message.conversation_id)) {
+                lastMessageMap.set(message.conversation_id, message);
+            }
+        }
+    }
 
+    // Check read status for each last message
+    const lastMessageIds = Array.from(lastMessageMap.values()).map(m => m.id);
+    const { data: readStatuses, error: readStatusError } = await supabase
+        .from('direct_message_read_status')
+        .select('message_id')
+        .eq('user_id', user.id)
+        .in('message_id', lastMessageIds);
+
+    if (readStatusError) {
+        console.error('Error fetching read statuses:', readStatusError);
+    }
+
+    const readMessageIds = new Set(readStatuses?.map(s => s.message_id) || []);
+    
     const convos: Conversation[] = otherParticipants.map(p => {
         const lastMessage = lastMessageMap.get(p.conversation_id) || null;
         return {
@@ -105,7 +130,7 @@ export default function ChatListPage() {
                 media_type: lastMessage.media_type,
                 created_at: lastMessage.created_at,
                 sender_id: lastMessage.sender_id,
-                is_seen: lastMessage.is_seen,
+                is_seen: readMessageIds.has(lastMessage.id) || lastMessage.sender_id === user.id,
             } : null,
         }
     }).sort((a, b) => {
