@@ -4,7 +4,7 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Loader2, Users, Send, BookOpenText } from "lucide-react";
+import { ArrowLeft, Loader2, Users, Send, BookOpenText, MoreVertical, Trash2, Mic, ImagePlus, Smile, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { User } from "@supabase/supabase-js";
@@ -16,6 +16,10 @@ import { AlertTriangle } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { formatDistanceToNow } from "date-fns";
 import { cn } from "@/lib/utils";
+import Image from "next/image";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { EmojiPicker } from "@/components/emoji-picker";
 
 
 type ClassData = {
@@ -28,7 +32,9 @@ type ClassData = {
 
 type ClassMessage = {
     id: string;
-    content: string;
+    content: string | null;
+    media_url: string | null;
+    media_type: 'image' | 'video' | 'audio' | 'sticker' | null;
     created_at: string;
     user_id: string;
     profiles: Profile;
@@ -42,6 +48,32 @@ type InitialClassData = {
 }
 
 const ChatMessage = ({ message, isSender }: { message: ClassMessage, isSender: boolean }) => {
+
+    const renderMedia = () => {
+        if (message.media_type === 'image' && message.media_url) {
+            return (
+                <div className="relative rounded-lg overflow-hidden w-48 h-48">
+                    <Image src={message.media_url} alt="sent image" layout="fill" objectFit="cover" data-ai-hint="photo message" />
+                </div>
+            );
+        }
+        if (message.media_type === 'video' && message.media_url) {
+            return <video src={message.media_url} controls className="rounded-lg w-48 h-auto" />;
+        }
+        if (message.media_type === 'sticker' && message.media_url) {
+            return (
+                <div className="relative h-32 w-32">
+                    <Image src={message.media_url} alt="sticker" layout="fill" objectFit="contain" unoptimized />
+                </div>
+            );
+        }
+        if (message.media_type === 'audio' && message.media_url) {
+            return <audio controls src={message.media_url} className="w-60 h-10" />;
+        }
+        return null;
+    };
+
+
     return (
         <div className={cn("flex items-start gap-3", isSender ? "justify-end" : "justify-start")}>
             {!isSender && (
@@ -50,10 +82,18 @@ const ChatMessage = ({ message, isSender }: { message: ClassMessage, isSender: b
                 </Link>
             )}
             <div className="group relative max-w-xs">
-                <div className={cn("px-3 py-2 rounded-lg", isSender ? "bg-primary text-primary-foreground" : "bg-muted")}>
-                    {!isSender && <p className="text-xs font-semibold mb-1">{message.profiles.full_name}</p>}
-                    <p className="text-sm break-words">{message.content}</p>
+                <div className={cn(
+                    "rounded-lg",
+                     message.media_type && ['sticker', 'audio'].includes(message.media_type) ? "bg-transparent" : (isSender ? 'bg-primary text-primary-foreground' : 'bg-muted')
+                )}>
+                    <div className="px-3 py-2">
+                        {!isSender && <p className="text-xs font-semibold mb-1">{message.profiles.full_name}</p>}
+                        
+                        {renderMedia()}
+                        {message.content && <p className={cn("text-sm break-words", message.media_url && 'pt-2')}>{message.content}</p>}
+                    </div>
                 </div>
+
                 <div className={cn("text-xs text-muted-foreground mt-1", isSender ? "text-right" : "text-left")}>
                     {formatDistanceToNow(new Date(message.created_at), { addSuffix: true })}
                 </div>
@@ -73,9 +113,21 @@ export default function IndividualClassPageContent({ initialData }: { initialDat
     const [isEnrolled, setIsEnrolled] = useState(initialData.isEnrolled);
     const [error, setError] = useState<string | null>(initialData.error);
     const [messages, setMessages] = useState<ClassMessage[]>(initialData.messages);
+    
+    // Chat Input State
     const [newMessage, setNewMessage] = useState("");
+    const [mediaFile, setMediaFile] = useState<File | null>(null);
+    const [mediaPreview, setMediaPreview] = useState<string | null>(null);
+    const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+    const [isRecording, setIsRecording] = useState(false);
+    const [recordingTime, setRecordingTime] = useState(0);
     const [sending, setSending] = useState(false);
+
     const messagesEndRef = useRef<HTMLDivElement>(null);
+    const fileInputRef = useRef<HTMLInputElement>(null);
+    const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+    const audioChunksRef = useRef<Blob[]>([]);
+    const recordingTimerRef = useRef<NodeJS.Timeout | null>(null);
 
 
     useEffect(() => {
@@ -125,26 +177,126 @@ export default function IndividualClassPageContent({ initialData }: { initialDat
             supabase.removeChannel(channel);
         }
     }, [isEnrolled, classData, supabase]);
-    
-    const handleSendMessage = async (e?: React.FormEvent) => {
+
+    const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (file) {
+            if (file.type.startsWith("image/") || file.type.startsWith("video/")) {
+                setMediaFile(file);
+                setMediaPreview(URL.createObjectURL(file));
+            } else {
+                toast({variant: "destructive", title: "Unsupported File Type"});
+                handleRemoveMedia();
+            }
+        }
+    };
+
+    const handleRemoveMedia = () => {
+        setMediaFile(null);
+        setMediaPreview(null);
+        if (fileInputRef.current) fileInputRef.current.value = "";
+    };
+
+    const handleSendMessage = async (e?: React.FormEvent, stickerUrl?: string) => {
         e?.preventDefault();
-        if (!newMessage.trim() || !currentUser || !classData) return;
+        if ((!newMessage.trim() && !mediaFile && !stickerUrl) || !currentUser || !classData) return;
         
         setSending(true);
-        const { error } = await supabase.from('class_messages').insert({
+        setShowEmojiPicker(false);
+
+        let publicMediaUrl = stickerUrl || null;
+        let mediaType: ClassMessage['media_type'] = stickerUrl ? 'sticker' : null;
+
+        if (mediaFile) {
+            const fileExtension = mediaFile.name.split('.').pop();
+            const fileName = `class-${classData.id}-${currentUser.id}-${Date.now()}.${fileExtension}`;
+            const filePath = `public/${fileName}`;
+            
+            const { error: uploadError } = await supabase.storage.from('class-media').upload(filePath, mediaFile);
+            if (uploadError) {
+                toast({ variant: "destructive", title: "Media upload failed", description: uploadError.message });
+                setSending(false);
+                return;
+            }
+            const { data: { publicUrl } } = supabase.storage.from('class-media').getPublicUrl(filePath);
+            publicMediaUrl = publicUrl;
+            mediaType = mediaFile.type.split('/')[0] as 'image' | 'video' | 'audio';
+        }
+
+        const { error: insertError } = await supabase.from('class_messages').insert({
             class_id: classData.id,
             user_id: currentUser.id,
-            content: newMessage,
+            content: newMessage || null,
+            media_url: publicMediaUrl,
+            media_type: mediaType,
         });
         
         setNewMessage("");
+        handleRemoveMedia();
         setSending(false);
         
+        if (insertError) {
+            toast({ variant: "destructive", title: "Failed to send message", description: insertError.message });
+        }
+    }
+    
+    const handleLeaveClass = async () => {
+        if (!currentUser || !classData) return;
+
+        const { error } = await supabase
+            .from('class_members')
+            .delete()
+            .match({ class_id: classData.id, user_id: currentUser.id });
+
         if (error) {
-            toast({ variant: "destructive", title: "Failed to send message", description: error.message });
+            toast({ variant: "destructive", title: "Failed to leave class", description: error.message });
+        } else {
+            toast({ title: "You have left the class." });
+            router.push('/class');
+            router.refresh();
+        }
+    };
+    
+    const startRecording = async () => {
+        try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        mediaRecorderRef.current = new MediaRecorder(stream);
+        audioChunksRef.current = [];
+        mediaRecorderRef.current.ondataavailable = (event) => audioChunksRef.current.push(event.data);
+        mediaRecorderRef.current.onstop = async () => {
+            const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+            const audioFile = new File([audioBlob], `voice-message-${Date.now()}.webm`, { type: 'audio/webm' });
+            if (recordingTimerRef.current) clearInterval(recordingTimerRef.current);
+            setRecordingTime(0);
+            setMediaFile(audioFile);
+            // Directly call send message after recording stops
+            await handleSendMessage();
+        };
+        mediaRecorderRef.current.start();
+        setIsRecording(true);
+        setRecordingTime(0);
+        recordingTimerRef.current = setInterval(() => setRecordingTime(prev => prev + 1), 1000);
+        } catch (error) {
+        toast({ variant: "destructive", title: "Microphone Access Denied"});
         }
     }
 
+    const stopRecording = () => {
+        if (mediaRecorderRef.current && isRecording) {
+            mediaRecorderRef.current.stop();
+            setIsRecording(false);
+        }
+    }
+
+    const handleMicClick = () => {
+        isRecording ? stopRecording() : startRecording();
+    };
+
+    const formatRecordingTime = (time: number) => {
+        const minutes = Math.floor(time / 60);
+        const seconds = time % 60;
+        return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+    };
 
     if (error) {
          return (
@@ -179,7 +331,37 @@ export default function IndividualClassPageContent({ initialData }: { initialDat
                     <h1 className="font-bold text-lg truncate px-2">{classData.name}</h1>
                     {isEnrolled && <p className="text-xs text-muted-foreground">{classData.student_count} members</p>}
                 </div>
-                <div className="w-10"></div>
+                {isEnrolled ? (
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon">
+                                <MoreVertical className="h-5 w-5" />
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent>
+                            <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                    <DropdownMenuItem className="text-destructive" onSelect={(e) => e.preventDefault()}>
+                                        <Trash2 className="mr-2 h-4 w-4" />
+                                        <span>Leave Class</span>
+                                    </DropdownMenuItem>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                        <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                        <AlertDialogDescription>
+                                            This will remove you from the class. You can rejoin later from the search page.
+                                        </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                        <AlertDialogAction onClick={handleLeaveClass} className="bg-destructive hover:bg-destructive/80">Confirm</AlertDialogAction>
+                                    </AlertDialogFooter>
+                                </AlertDialogContent>
+                            </AlertDialog>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                ) : <div className="w-10"></div>}
             </header>
 
             {isEnrolled ? (
@@ -198,19 +380,65 @@ export default function IndividualClassPageContent({ initialData }: { initialDat
                         )}
                         <div ref={messagesEndRef} />
                     </main>
-                    <footer className="sticky bottom-0 bg-background border-t p-2">
-                         <form onSubmit={handleSendMessage} className="flex items-center gap-2 pt-1">
-                            <Input 
-                              placeholder="Type a message..." 
-                              className="flex-1"
-                              value={newMessage}
-                              onChange={(e) => setNewMessage(e.target.value)}
-                              disabled={sending}
+                    <footer className="sticky bottom-0 bg-background border-t">
+                        <div className="p-2">
+                             {mediaPreview && (
+                                <div className="p-2 relative">
+                                    <div className="relative w-24 h-24 rounded-lg overflow-hidden">
+                                        {mediaFile?.type.startsWith('image/') ? (
+                                            <Image src={mediaPreview} alt="Media preview" layout="fill" objectFit="cover" />
+                                        ) : (
+                                            <video src={mediaPreview} className="w-full h-full object-cover" />
+                                        )}
+                                        <Button
+                                            variant="destructive"
+                                            size="icon"
+                                            className="absolute top-1 right-1 h-6 w-6 rounded-full z-10"
+                                            onClick={handleRemoveMedia}
+                                        >
+                                            <X className="h-4 w-4" />
+                                        </Button>
+                                    </div>
+                                </div>
+                            )}
+                            <form onSubmit={handleSendMessage} className="flex items-center gap-2 pt-1">
+                                { isRecording ? (
+                                    <div className="flex-1 flex items-center bg-muted h-10 rounded-lg px-3 gap-2">
+                                        <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></div>
+                                        <p className="text-sm font-mono text-red-500">{formatRecordingTime(recordingTime)}</p>
+                                    </div>
+                                ) : (
+                                    <>
+                                        <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept="image/*,video/*" disabled={sending} />
+                                        <Button variant="ghost" size="icon" type="button" onClick={() => fileInputRef.current?.click()} disabled={sending}><ImagePlus className="h-5 w-5 text-muted-foreground" /></Button>
+                                        <Button variant="ghost" size="icon" type="button" onClick={() => setShowEmojiPicker(!showEmojiPicker)} disabled={sending}>
+                                            <Smile className={cn("h-5 w-5 text-muted-foreground", showEmojiPicker && "text-primary")} />
+                                        </Button>
+                                        <Input 
+                                        placeholder="Type a message..." 
+                                        className="flex-1"
+                                        value={newMessage}
+                                        onChange={(e) => setNewMessage(e.target.value)}
+                                        onFocus={() => setShowEmojiPicker(false)}
+                                        disabled={sending}
+                                        />
+                                    </>
+                                )}
+
+                                <Button variant="ghost" size="icon" type="button" onMouseDown={handleMicClick} onMouseUp={stopRecording} onTouchStart={handleMicClick} onTouchEnd={stopRecording} disabled={sending}>
+                                    <Mic className={cn("h-5 w-5 text-muted-foreground", isRecording && "text-red-500")} />
+                                </Button>
+                                <Button size="icon" type="submit" disabled={(!newMessage.trim() && !mediaFile) || sending}>
+                                    {sending ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
+                                </Button>
+                            </form>
+                        </div>
+                        {showEmojiPicker && (
+                            <EmojiPicker 
+                                onEmojiSelect={(emoji) => setNewMessage(prev => prev + emoji)}
+                                onStickerSelect={(stickerUrl) => handleSendMessage(undefined, stickerUrl)}
                             />
-                            <Button size="icon" type="submit" disabled={!newMessage.trim() || sending}>
-                                {sending ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
-                            </Button>
-                        </form>
+                        )}
                     </footer>
                 </>
             ) : (

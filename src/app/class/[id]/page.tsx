@@ -12,12 +12,13 @@ export default async function IndividualClassPage({ params }: { params: { id:str
   const supabase = createClient(cookies());
   const classId = params.id;
 
+  const { data: { user } } = await supabase.auth.getUser();
+
   if (!classId) {
       const initialData = { classData: null, isEnrolled: false, messages: [], error: 'Class ID is missing.' };
       return <IndividualClassPageContent initialData={initialData} />;
   }
 
-  const { data: { user } } = await supabase.auth.getUser();
 
   // Fetch class info and student count in parallel
   const classInfoPromise = supabase
@@ -35,7 +36,7 @@ export default async function IndividualClassPage({ params }: { params: { id:str
       .from('class_members')
       .select('user_id', { count: 'exact', head: true })
       .eq('class_id', classId)
-      .eq('user_id', user.id) : Promise.resolve({ count: 0 });
+      .eq('user_id', user.id) : Promise.resolve({ count: 0, error: null });
 
   const [classInfoRes, studentCountRes, isEnrolledRes] = await Promise.all([classInfoPromise, studentCountPromise, isEnrolledPromise]);
 
@@ -51,12 +52,17 @@ export default async function IndividualClassPage({ params }: { params: { id:str
   let messages = [];
 
   if (isUserEnrolled) {
-      const { data: messagesData } = await supabase
+      const { data: messagesData, error: messagesError } = await supabase
           .from('class_messages')
           .select('*, profiles:user_id(*)')
           .eq('class_id', classId)
           .order('created_at', { ascending: true })
           .limit(100);
+
+      if (messagesError) {
+          const initialData = { classData: null, isEnrolled: false, messages: [], error: messagesError.message };
+          return <IndividualClassPageContent initialData={initialData} />;
+      }
       messages = messagesData || [];
   }
 
@@ -77,3 +83,4 @@ export default async function IndividualClassPage({ params }: { params: { id:str
     </Suspense>
   );
 }
+
