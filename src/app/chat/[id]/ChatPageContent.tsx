@@ -5,7 +5,7 @@ import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { ArrowLeft, Mic, Image as ImageIcon, Send, Smile, MoreVertical, MessageSquareReply, Trash2, X, Loader2, Waves, Heart, ThumbsUp, Laugh, Frown, Check, CheckCheck, Ban, Share2, AlertTriangle } from "lucide-react";
+import { ArrowLeft, Mic, Image as ImageIcon, Send, Smile, MoreVertical, MessageSquareReply, Trash2, X, Loader2, Waves, Heart, ThumbsUp, Laugh, Frown, Check, CheckCheck, Ban, Share2, AlertTriangle, StopCircle } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useState, useRef, useEffect, useCallback } from "react";
@@ -65,6 +65,9 @@ type InitialChatData = {
     isBlockedBy: boolean;
     error: string | null;
 }
+
+type RecordingStatus = 'idle' | 'recording' | 'preview';
+
 
 function PresenceIndicator({ user }: { user: OtherUserWithPresence | null }) {
     if (!user || !user.show_active_status || !user.last_seen) {
@@ -287,17 +290,18 @@ export default function ChatPageContent({ initialData, params }: { initialData: 
   const [replyingTo, setReplyingTo] = useState<any | null>(null);
   const [mediaFile, setMediaFile] = useState<File | null>(null);
   const [mediaPreview, setMediaPreview] = useState<string | null>(null);
-  const [mediaDuration, setMediaDuration] = useState<number | null>(null);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
-  const [isRecording, setIsRecording] = useState(false);
-  const [recordingTime, setRecordingTime] = useState(0);
   const [sending, setSending] = useState(false);
 
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  // Voice Message State
+  const [recordingStatus, setRecordingStatus] = useState<RecordingStatus>('idle');
+  const [recordingTime, setRecordingTime] = useState(0);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const recordingTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
@@ -450,10 +454,9 @@ export default function ChatPageContent({ initialData, params }: { initialData: 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
-      if (file.type.startsWith("image/") || file.type.startsWith("video/") || file.type.startsWith("audio/")) {
+      if (file.type.startsWith("image/") || file.type.startsWith("video/")) {
         setMediaFile(file);
         setMediaPreview(URL.createObjectURL(file));
-        setMediaDuration(null);
       } else {
         toast({variant: "destructive", title: "Unsupported File Type"});
         handleRemoveMedia();
@@ -464,8 +467,8 @@ export default function ChatPageContent({ initialData, params }: { initialData: 
   const handleRemoveMedia = () => {
     setMediaFile(null);
     setMediaPreview(null);
-    setMediaDuration(null);
     if (fileInputRef.current) fileInputRef.current.value = "";
+    setRecordingStatus('idle');
   };
   
   const handleSendMessage = async (e?: React.FormEvent) => {
@@ -566,17 +569,20 @@ export default function ChatPageContent({ initialData, params }: { initialData: 
       mediaRecorderRef.current = new MediaRecorder(stream);
       audioChunksRef.current = [];
       mediaRecorderRef.current.ondataavailable = (event) => audioChunksRef.current.push(event.data);
+      
       mediaRecorderRef.current.onstop = () => {
         const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
         const audioFile = new File([audioBlob], `voice-message-${Date.now()}.webm`, { type: 'audio/webm' });
-        if (recordingTimerRef.current) clearInterval(recordingTimerRef.current);
-        setMediaDuration(recordingTime);
-        setRecordingTime(0);
+        
         setMediaFile(audioFile);
-        handleSendMessage();
+        setMediaPreview(URL.createObjectURL(audioFile));
+        setRecordingStatus('preview');
+        
+        if (recordingTimerRef.current) clearInterval(recordingTimerRef.current);
       };
+
       mediaRecorderRef.current.start();
-      setIsRecording(true);
+      setRecordingStatus('recording');
       setRecordingTime(0);
       recordingTimerRef.current = setInterval(() => setRecordingTime(prev => prev + 1), 1000);
     } catch (error) {
@@ -585,14 +591,29 @@ export default function ChatPageContent({ initialData, params }: { initialData: 
   }
 
   const stopRecording = () => {
-    if (mediaRecorderRef.current && isRecording) {
+    if (mediaRecorderRef.current && recordingStatus === 'recording') {
       mediaRecorderRef.current.stop();
-      setIsRecording(false);
     }
   }
+  
+  const cancelRecording = () => {
+    if (mediaRecorderRef.current && recordingStatus === 'recording') {
+        mediaRecorderRef.current.stop(); // Stop recording without processing
+    }
+    if (recordingTimerRef.current) clearInterval(recordingTimerRef.current);
+    setRecordingTime(0);
+    setRecordingStatus('idle');
+    setMediaFile(null);
+    setMediaPreview(null);
+  };
+
 
   const handleMicClick = () => {
-    isRecording ? stopRecording() : startRecording();
+    if (recordingStatus === 'idle') {
+        startRecording();
+    } else if (recordingStatus === 'recording') {
+        stopRecording();
+    }
   };
 
   const formatRecordingTime = (time: number) => {
@@ -742,14 +763,10 @@ export default function ChatPageContent({ initialData, params }: { initialData: 
                     </Button>
                 </div>
             )}
-             {mediaPreview && !mediaFile?.type.startsWith('audio') && (
+             {mediaPreview && mediaFile?.type.startsWith('image') && (
                 <div className="p-2 relative">
                     <div className="relative w-24 h-24 rounded-lg overflow-hidden">
-                        {mediaFile?.type.startsWith('image/') ? (
-                            <Image src={mediaPreview} alt="Media preview" layout="fill" objectFit="cover" />
-                        ) : (
-                            <video src={mediaPreview} className="w-full h-full object-cover" />
-                        )}
+                        <Image src={mediaPreview} alt="Media preview" layout="fill" objectFit="cover" />
                          <Button
                             variant="destructive"
                             size="icon"
@@ -762,10 +779,20 @@ export default function ChatPageContent({ initialData, params }: { initialData: 
                 </div>
             )}
             <form onSubmit={handleSendMessage} className="flex items-center gap-2 pt-1">
-                 { isRecording ? (
+                 { recordingStatus === 'recording' ? (
                     <div className="flex-1 flex items-center bg-muted h-10 rounded-lg px-3 gap-2">
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={cancelRecording}>
+                            <Trash2 className="h-5 w-5" />
+                        </Button>
                         <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></div>
                         <p className="text-sm font-mono text-red-500">{formatRecordingTime(recordingTime)}</p>
+                    </div>
+                ) : recordingStatus === 'preview' && mediaPreview ? (
+                     <div className="flex-1 flex items-center bg-muted h-10 rounded-lg px-3 gap-2">
+                         <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={cancelRecording}>
+                            <Trash2 className="h-5 w-5" />
+                        </Button>
+                        <audio src={mediaPreview} controls className="w-full h-8" />
                     </div>
                 ) : (
                     <>
@@ -774,7 +801,7 @@ export default function ChatPageContent({ initialData, params }: { initialData: 
                             ref={fileInputRef} 
                             onChange={handleFileChange}
                             className="hidden" 
-                            accept="image/*,video/*,audio/*"
+                            accept="image/*,video/*"
                             disabled={isChatDisabled}
                         />
                         <Button variant="ghost" size="icon" type="button" onClick={() => fileInputRef.current?.click()} disabled={isChatDisabled}><ImageIcon className="h-5 w-5 text-muted-foreground" /></Button>
@@ -797,10 +824,13 @@ export default function ChatPageContent({ initialData, params }: { initialData: 
                         />
                     </>
                 )}
+                
+                {recordingStatus !== 'preview' && (
+                     <Button variant="ghost" size="icon" type="button" onClick={handleMicClick} disabled={isChatDisabled}>
+                        {recordingStatus === 'recording' ? <StopCircle className="h-5 w-5 text-red-500" /> : <Mic className="h-5 w-5 text-muted-foreground" />}
+                    </Button>
+                )}
 
-                <Button variant="ghost" size="icon" type="button" onMouseDown={handleMicClick} onMouseUp={stopRecording} onTouchStart={handleMicClick} onTouchEnd={stopRecording} disabled={isChatDisabled}>
-                  <Mic className={cn("h-5 w-5 text-muted-foreground", isRecording && "text-red-500")} />
-                </Button>
                 <Button size="icon" type="submit" disabled={(!newMessage.trim() && !mediaFile) || sending || isChatDisabled}>
                     {sending ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
                 </Button>
@@ -816,5 +846,7 @@ export default function ChatPageContent({ initialData, params }: { initialData: 
     </div>
   );
 }
+
+    
 
     
