@@ -1,7 +1,7 @@
 
 "use client";
 
-import { use, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Loader2, Users } from "lucide-react";
@@ -17,8 +17,6 @@ type ClassData = {
     name: string;
     description: string;
     cover_image_url: string;
-    created_by: string;
-    creator: Profile;
     students: Profile[];
 };
 
@@ -40,7 +38,7 @@ export default function IndividualClassPageContent({ params }: { params: { id: s
 
             const { data: classInfo, error: classError } = await supabase
                 .from('classes')
-                .select('*, creator:created_by(*)')
+                .select('id, name, description, cover_image_url')
                 .eq('id', classId)
                 .single();
 
@@ -57,7 +55,7 @@ export default function IndividualClassPageContent({ params }: { params: { id: s
             
             const students = studentData ? studentData.map((s: any) => s.profiles) : [];
             
-            setClassData({ ...classInfo, students, creator: classInfo.creator } as ClassData);
+            setClassData({ ...classInfo, students } as ClassData);
 
             if (user) {
                 const isUserEnrolled = students.some((student: Profile) => student.id === user.id);
@@ -117,14 +115,6 @@ export default function IndividualClassPageContent({ params }: { params: { id: s
                 <div className="p-4 space-y-4">
                     <h2 className="text-2xl font-bold">{classData.name}</h2>
                     
-                    <Link href={`/profile/${classData.creator.id}`} className="flex items-center gap-2">
-                        <Avatar className="h-8 w-8" profile={classData.creator} />
-                        <div>
-                            <p className="text-sm text-muted-foreground">Created by</p>
-                            <p className="font-semibold">{classData.creator.full_name}</p>
-                        </div>
-                    </Link>
-
                     <p className="text-muted-foreground">{classData.description}</p>
                     
                     <Button className="w-full" onClick={handleEnroll} disabled={isEnrolled}>

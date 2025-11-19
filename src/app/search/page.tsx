@@ -247,7 +247,7 @@ function ClassResults() {
       startTransition(async () => {
         const { data, error } = await supabase
             .from('classes')
-            .select('*, creator:created_by(*)')
+            .select('id, name, cover_image_url')
             .textSearch('name', query, { type: 'websearch', config: 'english' });
 
         if (error) {
@@ -284,7 +284,6 @@ function ClassResults() {
                     </div>
                     <div className="flex-1">
                         <p className="font-semibold">{cls.name}</p>
-                        <p className="text-sm text-muted-foreground">by @{cls.creator.username}</p>
                     </div>
                 </div>
             </Link>

@@ -4,32 +4,28 @@
 import { useState, useEffect, useCallback } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { useRouter } from 'next/navigation';
-import { User } from '@supabase/supabase-js';
 import { BottomNav } from '@/components/bottom-nav';
-import { Card, CardHeader, CardContent } from '@/components/ui/card';
+import { Card, CardHeader } from '@/components/ui/card';
 import { Loader2, BookOpen } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { Profile } from '@/lib/data';
 
 type ClassSummary = {
   id: string;
   name: string;
   cover_image_url: string;
-  creator: Profile;
 };
 
 export default function ClassListPage() {
   const [classes, setClasses] = useState<ClassSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const supabase = createClient();
-  const router = useRouter();
 
   const fetchClasses = useCallback(async () => {
     setLoading(true);
     const { data, error } = await supabase
       .from('classes')
-      .select('id, name, cover_image_url, creator:created_by(*)');
+      .select('id, name, cover_image_url');
 
     if (error) {
       console.error('Error fetching classes:', error);
@@ -77,7 +73,6 @@ export default function ClassListPage() {
                      </div>
                      <CardHeader>
                         <p className="font-bold truncate">{cls.name}</p>
-                        <p className="text-sm text-muted-foreground">by @{cls.creator.username}</p>
                      </CardHeader>
                   </Card>
                 </Link>
