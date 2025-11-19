@@ -53,7 +53,7 @@ function PresenceIndicator({ user }: { user: ProfileData | null }) {
 }
 
 
-export default function UserProfilePageContent({ initialData }: { initialData: InitialProfileData }) {
+export default function UserProfilePageContent({ initialData, params }: { initialData: InitialProfileData, params: { id: string } }) {
   const router = useRouter();
   const supabase = createClient();
   const { toast } = useToast();
@@ -73,6 +73,7 @@ export default function UserProfilePageContent({ initialData }: { initialData: I
   }, [supabase]);
 
   useEffect(() => {
+     if (!profile?.id) return;
      const channel = supabase.channel(`profile-${profile?.id}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles', filter: `id=eq.${profile?.id}` }, (payload) => {
         setProfile(prev => prev ? { ...prev, ...(payload.new as Profile) } : null);
@@ -129,8 +130,7 @@ export default function UserProfilePageContent({ initialData }: { initialData: I
                 <AlertTriangle className="h-4 w-4" />
                 <AlertTitle>Error</AlertTitle>
                 <AlertDescription>
-                    <p>Could not load the profile. Here's the specific error:</p>
-                    <pre className="mt-2 whitespace-pre-wrap rounded-md bg-muted p-2 text-xs font-mono">{error}</pre>
+                    <p>{error}</p>
                     <Button onClick={() => router.back()} className="mt-4">Go Back</Button>
                 </AlertDescription>
             </Alert>
@@ -230,7 +230,9 @@ export default function UserProfilePageContent({ initialData }: { initialData: I
                         {posts.map((post) => (
                         <div key={post.id} className="group relative aspect-square w-full bg-muted">
                             <Link href={`/post/${post.id}`} className="block h-full w-full">
-                                <div className="aspect-square w-full relative h-full">
+                                {post.media_type === 'video' ? (
+                                    <video src={post.media_url} className="h-full w-full object-cover" />
+                                ) : (
                                     <Image
                                         src={post.media_url}
                                         alt={`Post by ${profile.username}`}
@@ -238,7 +240,7 @@ export default function UserProfilePageContent({ initialData }: { initialData: I
                                         className="object-cover h-full w-full"
                                         data-ai-hint="lifestyle content"
                                     />
-                                </div>
+                                )}
                             </Link>
                         </div>
                         ))}
@@ -264,5 +266,3 @@ export default function UserProfilePageContent({ initialData }: { initialData: I
     </>
   );
 }
-
-    
