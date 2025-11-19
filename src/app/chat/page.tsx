@@ -53,15 +53,11 @@ export default function ChatListPage() {
     const { data, error } = await supabase
       .rpc('get_user_conversations', { p_user_id: user.id });
 
-    if (data) {
-        setConversations(data as Conversation[]);
-    } else if (error) {
-        // Only log an error if there is a genuine error object
+    if (error && Object.keys(error).length > 0) {
         console.error('Error fetching conversations:', error);
-    } else {
-        // Handle case where data is null/undefined but there's no error
-        setConversations([]);
     }
+    
+    setConversations(data || []);
     setLoading(false);
   }, [supabase]);
 
