@@ -3,7 +3,6 @@ import type {NextConfig} from 'next';
 
 const nextConfig: NextConfig = {
   /* config options here */
-  output: 'export',
   typescript: {
     ignoreBuildErrors: true,
   },
@@ -44,17 +43,6 @@ const nextConfig: NextConfig = {
         pathname: '/**',
       },
     ],
-  },
-   /**
-   * @param {Record<string, { page: string, query?: Record<string, string> }>} defaultPathMap
-   * @returns {Promise<Record<string, { page: string, query?: Record<string, string> }>>}
-   */
-  exportPathMap: async function (defaultPathMap) {
-    // Remove the dynamic routes that cause build errors
-    delete defaultPathMap['/chat/[id]'];
-    delete defaultPathMap['/class/[id]'];
-    // You can add more routes to exclude here if needed
-    return defaultPathMap;
   },
 };
 
