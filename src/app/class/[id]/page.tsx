@@ -13,36 +13,61 @@ export default async function IndividualClassPage({ params }: { params: { id:str
   const classId = params.id;
 
   if (!classId) {
-      const initialData = { classData: null, isEnrolled: false, error: 'Class ID is missing.' };
+      const initialData = { classData: null, isEnrolled: false, messages: [], error: 'Class ID is missing.' };
       return <IndividualClassPageContent params={params} initialData={initialData} />;
   }
 
   const { data: { user } } = await supabase.auth.getUser();
 
-  const { data: classInfo, error: classError } = await supabase
+  // Fetch class info and student count in parallel
+  const classInfoPromise = supabase
       .from('classes')
       .select('id, name, description, avatar_url')
       .eq('id', classId)
       .single();
+      
+  const studentCountPromise = supabase
+      .from('class_enrollments')
+      .select('user_id', { count: 'exact', head: true })
+      .eq('class_id', classId);
+      
+  const isEnrolledPromise = user ? supabase
+      .from('class_enrollments')
+      .select('user_id', { count: 'exact', head: true })
+      .eq('class_id', classId)
+      .eq('user_id', user.id) : Promise.resolve({ count: 0 });
 
+  const [classInfoRes, studentCountRes, isEnrolledRes] = await Promise.all([classInfoPromise, studentCountPromise, isEnrolledPromise]);
+
+  const { data: classInfo, error: classError } = classInfoRes;
+  
   if (classError || !classInfo) {
       const errorMessage = classError?.message || 'The class could not be found.';
-      const initialData = { classData: null, isEnrolled: false, error: errorMessage };
+      const initialData = { classData: null, isEnrolled: false, messages: [], error: errorMessage };
       return <IndividualClassPageContent params={params} initialData={initialData} />;
   }
+  
+  const isUserEnrolled = (isEnrolledRes.count ?? 0) > 0;
+  let messages = [];
 
-  const { data: studentData } = await supabase
-      .from('class_enrollments')
-      .select('profiles:user_id(*)')
-      .eq('class_id', classId);
-  
-  const students = studentData ? studentData.map((s: any) => s.profiles) : [];
-  
-  const isUserEnrolled = user ? students.some((student: Profile) => student.id === user.id) : false;
+  if (isUserEnrolled) {
+      const { data: messagesData } = await supabase
+          .from('class_messages')
+          .select('*, profiles:user_id(*)')
+          .eq('class_id', classId)
+          .order('created_at', { ascending: true })
+          .limit(100);
+      messages = messagesData || [];
+  }
+
 
   const initialData = {
-      classData: { ...classInfo, students },
+      classData: { 
+          ...classInfo, 
+          student_count: studentCountRes.count ?? 0,
+      },
       isEnrolled: isUserEnrolled,
+      messages,
       error: null
   };
 
