@@ -47,8 +47,7 @@ function VideoPlayerPageContent({ params }: { params: { id: string } }) {
   );
 }
 
-export default function VideoViewerPage({ params: paramsPromise }: { params: Promise<{ id: string }> }) {
-  const params = use(paramsPromise);
+export default function VideoViewerPage({ params }: { params: { id: string } }) {
   return (
     <Suspense fallback={
         <div className="flex h-dvh w-full items-center justify-center bg-black">

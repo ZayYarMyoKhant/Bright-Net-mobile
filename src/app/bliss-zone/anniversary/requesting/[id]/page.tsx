@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useEffect, useState, use } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { Avatar } from '@/components/ui/avatar';
@@ -17,13 +17,7 @@ type Profile = {
     full_name: string;
 };
 
-// This function is required for static export
-export async function generateStaticParams() {
-  return [];
-}
-
-export default function AnniversaryRequestingPage({ params: paramsPromise }: { params: Promise<{ id: string }> }) {
-    const params = use(paramsPromise);
+export default function AnniversaryRequestingPage({ params }: { params: { id: string } }) {
     const coupleId = params.id;
     const router = useRouter();
     const supabase = createClient();
