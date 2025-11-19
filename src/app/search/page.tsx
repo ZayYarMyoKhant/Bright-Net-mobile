@@ -24,6 +24,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import Image from "next/image";
 import { PostCard } from "@/components/post-card";
 import { VideoFeed } from "@/components/video-feed";
+import { Card, CardContent } from "@/components/ui/card";
+import { User as AuthUser } from "@supabase/supabase-js";
 
 
 function SearchBar() {
@@ -234,32 +236,109 @@ function UserResults() {
   )
 }
 
+type ClassResult = {
+    id: string;
+    name: string;
+    avatar_url: string | null;
+    is_enrolled: boolean;
+}
+
+const ClassResultItem = ({ item, currentUser }: { item: ClassResult; currentUser: AuthUser | null }) => {
+    const router = useRouter();
+    const supabase = createClient();
+    const { toast } = useToast();
+    const [isEnrolled, setIsEnrolled] = useState(item.is_enrolled);
+    const [isJoining, setIsJoining] = useState(false);
+
+    const handleJoin = async () => {
+        if (!currentUser) {
+            toast({ variant: 'destructive', title: 'You must be logged in to join a class.' });
+            return;
+        }
+        setIsJoining(true);
+        const { error } = await supabase.from('class_enrollments').insert({
+            class_id: item.id,
+            user_id: currentUser.id
+        });
+
+        if (error) {
+            toast({ variant: 'destructive', title: 'Failed to join class', description: error.message });
+        } else {
+            toast({ title: 'Successfully joined!', description: `Welcome to ${item.name}.` });
+            setIsEnrolled(true);
+        }
+        setIsJoining(false);
+    };
+
+    return (
+        <Card className="overflow-hidden">
+            <CardContent className="p-4 flex items-center gap-4">
+                <Avatar className="h-12 w-12" src={item.avatar_url} alt={item.name} />
+                <div className="flex-1">
+                    <p className="font-bold truncate">{item.name}</p>
+                </div>
+                {isEnrolled ? (
+                    <Link href={`/class/${item.id}`}>
+                        <Button variant="outline">View</Button>
+                    </Link>
+                ) : (
+                    <Button onClick={handleJoin} disabled={isJoining}>
+                        {isJoining ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Join'}
+                    </Button>
+                )}
+            </CardContent>
+        </Card>
+    );
+};
+
+
 function ClassResults() {
   const searchParams = useSearchParams();
   const query = searchParams.get("q");
   const [isPending, startTransition] = useTransition();
-  const [classes, setClasses] = useState<any[]>([]);
+  const [classes, setClasses] = useState<ClassResult[]>([]);
+  const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
   const { toast } = useToast();
   const supabase = createClient();
 
   useEffect(() => {
-    if (query) {
+    supabase.auth.getUser().then(({ data: { user } }) => setCurrentUser(user));
+  }, [supabase]);
+
+  useEffect(() => {
+    if (query && currentUser) {
       startTransition(async () => {
         const { data, error } = await supabase
             .from('classes')
-            .select('id, name, avatar_url')
-            .textSearch('name', query, { type: 'websearch', config: 'english' });
+            .select('id, name, avatar_url');
 
         if (error) {
             toast({ variant: 'destructive', title: "Class search failed", description: error.message });
         } else {
-            setClasses(data);
+            const classIds = data.map(c => c.id);
+            const { data: enrollments, error: enrollmentError } = await supabase
+                .from('class_enrollments')
+                .select('class_id')
+                .eq('user_id', currentUser.id)
+                .in('class_id', classIds);
+
+            if (enrollmentError) {
+                toast({ variant: 'destructive', title: "Could not check enrollments", description: enrollmentError.message });
+                setClasses(data.map(c => ({...c, is_enrolled: false})));
+            } else {
+                const enrolledClassIds = new Set(enrollments.map(e => e.class_id));
+                const results = data.map(c => ({
+                    ...c,
+                    is_enrolled: enrolledClassIds.has(c.id)
+                }));
+                setClasses(results);
+            }
         }
       });
     } else {
         setClasses([]);
     }
-  }, [query, supabase, toast]);
+  }, [query, supabase, toast, currentUser]);
 
   if (isPending) {
     return <div className="flex justify-center items-center pt-10"><Loader2 className="h-8 w-8 animate-spin" /></div>
@@ -275,17 +354,9 @@ function ClassResults() {
   }
 
   return (
-      <div className="divide-y">
+      <div className="space-y-4 p-4">
         {classes.map((cls) => (
-            <div key={cls.id} className="p-4 flex items-center gap-4">
-                <Avatar className="h-12 w-12" src={cls.avatar_url} alt={cls.name} />
-                <div className="flex-1">
-                    <p className="font-semibold">{cls.name}</p>
-                </div>
-                <Link href={`/class/${cls.id}`}>
-                    <Button variant="outline">View</Button>
-                </Link>
-            </div>
+            <ClassResultItem key={cls.id} item={cls} currentUser={currentUser} />
         ))}
       </div>
   )
@@ -297,8 +368,6 @@ function SearchPageContent() {
   const [hasQuery, setHasQuery] = useState(false);
 
   useEffect(() => {
-    // This effect runs only on the client, after the initial render.
-    // This ensures that the server-rendered output and the initial client render match.
     setHasQuery(searchParams.has("q"));
   }, [searchParams]);
 
@@ -365,3 +434,5 @@ export default function SearchPage() {
         </Suspense>
     )
 }
+
+    

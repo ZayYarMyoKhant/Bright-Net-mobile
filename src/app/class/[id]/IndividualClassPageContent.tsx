@@ -126,28 +126,6 @@ export default function IndividualClassPageContent({ initialData, params }: { in
             supabase.removeChannel(channel);
         }
     }, [isEnrolled, classId, supabase]);
-
-
-    const handleEnroll = async () => {
-        if (!currentUser) {
-            toast({ variant: 'destructive', title: 'You must be logged in to enroll.' });
-            return;
-        }
-        if (isEnrolled || !classData) return;
-
-        const { error } = await supabase.from('class_enrollments').insert({
-            class_id: classData.id,
-            user_id: currentUser.id
-        });
-
-        if (error) {
-            toast({ variant: 'destructive', title: 'Failed to enroll', description: error.message });
-        } else {
-            toast({ title: 'Successfully enrolled!', description: 'Welcome to the class.' });
-            setIsEnrolled(true);
-            setClassData(prev => prev ? ({ ...prev, student_count: prev.student_count + 1 }) : null);
-        }
-    };
     
     const handleSendMessage = async (e?: React.FormEvent) => {
         e?.preventDefault();
@@ -246,9 +224,11 @@ export default function IndividualClassPageContent({ initialData, params }: { in
                         <span>{classData.student_count} members</span>
                     </div>
                     
-                    <Button className="mt-8 w-full max-w-xs" size="lg" onClick={handleEnroll}>
-                        Enroll in this Class
-                    </Button>
+                    <div className="mt-8 text-center p-4 border rounded-lg bg-muted/50">
+                        <p className="font-semibold">You are not a member of this class.</p>
+                        <p className="text-sm text-muted-foreground mt-1">Please join from the search page to participate.</p>
+                         <Button onClick={() => router.push('/search')} className="mt-4">Go to Search</Button>
+                    </div>
                 </main>
             )}
         </div>
