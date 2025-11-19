@@ -9,7 +9,6 @@ import {
   Search,
   Loader2,
   Users,
-  Grid3x3,
   Clapperboard,
   CameraOff,
   BookOpen,
@@ -23,6 +22,7 @@ import { Avatar } from "@/components/ui/avatar";
 import { Post, Profile } from "@/lib/data";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import Image from "next/image";
+import { PostCard } from "@/components/post-card";
 
 type ClassResult = {
     id: string;
@@ -94,13 +94,33 @@ function PostResults() {
             startTransition(async () => {
                 const { data, error } = await supabase
                     .from('posts')
-                    .select('*')
+                    .select('*, profiles!posts_user_id_fkey(*), likes:post_likes(count), comments:post_comments(count)')
                     .textSearch('caption', query, { type: 'websearch', config: 'english' });
                 
                 if (error) {
                     toast({ variant: 'destructive', title: "Search failed", description: error.message });
                 } else {
-                    const allPosts: Post[] = data as Post[];
+                    const postIds = data.map(p => p.id);
+                    const { data: { user: currentUser } } = await supabase.auth.getUser();
+                    const { data: userLikes } = currentUser ? await supabase
+                        .from('post_likes')
+                        .select('post_id')
+                        .eq('user_id', currentUser.id)
+                        .in('post_id', postIds) : { data: [] };
+
+                    const likedPostIds = new Set(userLikes?.map(like => like.post_id));
+
+                    const allPosts: Post[] = data.map((p: any) => ({
+                        id: p.id,
+                        user: p.profiles,
+                        media_url: p.media_url,
+                        media_type: p.media_type,
+                        caption: p.caption,
+                        created_at: p.created_at,
+                        likes: p.likes[0]?.count || 0,
+                        comments: p.comments[0]?.count || 0,
+                        isLiked: likedPostIds.has(p.id)
+                    }));
                     setImagePosts(allPosts.filter(p => p.media_type === 'image'));
                     setVideoPosts(allPosts.filter(p => p.media_type === 'video'));
                 }
@@ -123,19 +143,9 @@ function PostResults() {
             </TabsList>
             <TabsContent value="news" className="mt-4">
                 {imagePosts.length > 0 ? (
-                    <div className="grid grid-cols-3 gap-1">
+                    <div className="w-full max-w-lg mx-auto space-y-4">
                         {imagePosts.map((post) => (
-                        <div key={post.id} className="group relative aspect-square w-full bg-muted">
-                            <Link href={`/post/${post.id}`} className="block h-full w-full">
-                                <Image
-                                    src={post.media_url}
-                                    alt={post.caption || 'Search result post'}
-                                    fill
-                                    className="object-cover h-full w-full"
-                                    data-ai-hint="lifestyle content"
-                                />
-                            </Link>
-                        </div>
+                           <PostCard key={post.id} post={post} />
                         ))}
                     </div>
                 ) : (
