@@ -100,7 +100,10 @@ function PostResults() {
                 if (error) {
                     toast({ variant: 'destructive', title: "Search failed", description: error.message });
                 } else {
-                    const allPosts = data as unknown as Post[];
+                    const allPosts: Post[] = data.map((post: any) => ({
+                        ...post,
+                        user: post['profiles!posts_user_id_fkey']
+                    }));
                     setImagePosts(allPosts.filter(p => p.media_type === 'image'));
                     setVideoPosts(allPosts.filter(p => p.media_type === 'video'));
                 }
