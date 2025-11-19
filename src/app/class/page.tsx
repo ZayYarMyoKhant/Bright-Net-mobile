@@ -5,10 +5,11 @@ import { useState, useEffect, useCallback } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { useRouter } from 'next/navigation';
 import { BottomNav } from '@/components/bottom-nav';
-import { Card, CardHeader, CardContent } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Loader2, BookOpen } from 'lucide-react';
 import Link from 'next/link';
 import { Avatar } from '@/components/ui/avatar';
+import { Button } from '@/components/ui/button';
 
 type ClassSummary = {
   id: string;
@@ -59,18 +60,19 @@ export default function ClassListPage() {
               <p className="mt-1 text-sm">Check back later for new classes!</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-4">
               {classes.map((cls) => (
-                <Link href={`/class/${cls.id}`} key={cls.id}>
-                    <Card className="overflow-hidden hover:shadow-lg transition-shadow">
-                        <CardContent className="p-4 flex items-center gap-4">
-                            <Avatar className="h-16 w-16" src={cls.avatar_url} alt={cls.name} />
-                            <div className="flex-1">
-                                <p className="font-bold truncate">{cls.name}</p>
-                            </div>
-                        </CardContent>
-                    </Card>
-                </Link>
+                <Card key={cls.id} className="overflow-hidden hover:shadow-lg transition-shadow">
+                    <CardContent className="p-4 flex items-center gap-4">
+                        <Avatar className="h-12 w-12" src={cls.avatar_url} alt={cls.name} />
+                        <div className="flex-1">
+                            <p className="font-bold truncate">{cls.name}</p>
+                        </div>
+                        <Link href={`/class/${cls.id}`}>
+                            <Button variant="outline">View</Button>
+                        </Link>
+                    </CardContent>
+                </Card>
               ))}
             </div>
           )}
