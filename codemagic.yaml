@@ -36,12 +36,13 @@ workflows:
         # Build ပြီးသား Web Code များကို Android Native Project ထဲသို့ ကူးထည့်ခြင်း
         script: npx cap sync android
         
-      - name: Build Android Release APK
+      - name: Build Android Debug APK
         # Android folder ထဲသို့ ဝင်၍ APK ဖိုင်ကို တကယ်တမ်း ထုတ်လုပ်ခြင်း
         script: |
           cd android
-          ./gradlew assembleRelease
+          ./gradlew assembleDebug
           
     artifacts:
       # ထုတ်ပြီးသား APK ဖိုင်ကို Codemagic Dashboard မှာ မြင်ရအောင် ညွှန်းဆိုခြင်း
-      - android/app/build/outputs/**/*.apk
+      - android/app/build/outputs/apk/debug/*.apk
+
