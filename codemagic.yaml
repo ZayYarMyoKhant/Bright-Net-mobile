@@ -24,18 +24,6 @@ workflows:
         # Web Code (Next.js/React) များကို Production အတွက် Build လုပ်ခြင်း
         script: npm run build
       
-      - name: Create out directory
-        # Capacitor sync အတွက် လိုအပ်သော out folder ကို ကြိုတင်ဖန်တီးခြင်း
-        script: mkdir -p out
-        
-      - name: Add Android Platform
-        # Capacitor အတွက် Android platform ကို ထည့်သွင်းခြင်း
-        script: npx cap add android
-
-      - name: Sync Capacitor project
-        # Build ပြီးသား Web Code များကို Android Native Project ထဲသို့ ကူးထည့်ခြင်း
-        script: npx cap sync android
-        
       - name: Build Android Debug APK
         # Android folder ထဲသို့ ဝင်၍ APK ဖိုင်ကို တကယ်တမ်း ထုတ်လုပ်ခြင်း
         script: |
