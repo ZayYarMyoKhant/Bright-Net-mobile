@@ -5,7 +5,7 @@ workflows:
     environment:
       # Build အတွက် လိုအပ်သော နည်းပညာများ သတ်မှတ်ခြင်း
       node: 20 # Node.js version
-      java: 17 # Java version (Android Build အတွက် လိုအပ်)
+      java: 21 # Java version (Android Build အတွက် လိုအပ်)
       groups:
         - supabase_keys # Supabase key တွေအတွက် group
       
