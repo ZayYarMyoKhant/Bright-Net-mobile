@@ -21,29 +21,15 @@ type ShareSheetProps = {
 async function getOrCreateConversationForSharing(supabase: ReturnType<typeof createClient>, currentUserId: string, otherUserId: string): Promise<string | null> {
     const isSelfChat = currentUserId === otherUserId;
 
-    // Find existing conversation
-    const { data: existing_convos, error: rpcError } = await supabase.rpc('get_conversation_between_users', {
-        user_id_1: currentUserId,
-        user_id_2: otherUserId
-    });
-
-    if (rpcError) {
-        console.error("RPC error get_conversation_between_users: ", rpcError);
-        // Fallback to manual check if RPC fails or doesn't exist
-    }
-
-    if (existing_convos && existing_convos.length > 0) {
-        return existing_convos[0].id;
-    }
-
-    // Manual check if RPC failed or for self-chat
-    const { data: userConvos } = await supabase
+    // 1. Find existing conversation
+    const { data: userConvosData } = await supabase
         .from('conversation_participants')
         .select('conversation_id')
         .eq('user_id', currentUserId);
 
-    if (userConvos && userConvos.length > 0) {
-        const convoIds = userConvos.map(c => c.conversation_id);
+    if (userConvosData && userConvosData.length > 0) {
+        const convoIds = userConvosData.map(c => c.conversation_id);
+        
         const { data: participants } = await supabase
             .from('conversation_participants')
             .select('conversation_id, user_id')
@@ -60,28 +46,28 @@ async function getOrCreateConversationForSharing(supabase: ReturnType<typeof cre
 
             for (const convoId in convoParticipantMap) {
                 const participantIds = convoParticipantMap[convoId];
-                if (isSelfChat) {
-                    if (participantIds.length === 1 && participantIds[0] === currentUserId) {
-                        return convoId;
-                    }
-                } else {
-                    if (participantIds.length === 2 && participantIds.includes(currentUserId) && participantIds.includes(otherUserId)) {
-                        return convoId;
-                    }
+                const isCorrectChat = isSelfChat
+                    ? participantIds.length === 1 && participantIds[0] === currentUserId
+                    : participantIds.length === 2 && participantIds.includes(currentUserId) && participantIds.includes(otherUserId);
+                
+                if (isCorrectChat) {
+                    return convoId;
                 }
             }
         }
     }
 
-
-    // If no conversation exists, create a new one
+    // 2. If no conversation exists, create a new one
     const { data: newConvo, error: newConvoError } = await supabase
         .from('conversations')
         .insert({})
         .select('id')
         .single();
     
-    if (newConvoError) return null;
+    if (newConvoError) {
+        console.error("Error creating new conversation:", newConvoError);
+        return null;
+    }
 
     const participantsToInsert = [{ conversation_id: newConvo.id, user_id: currentUserId }];
     if (!isSelfChat) {
@@ -91,6 +77,7 @@ async function getOrCreateConversationForSharing(supabase: ReturnType<typeof cre
     const { error: participantsError } = await supabase.from('conversation_participants').insert(participantsToInsert);
     
     if (participantsError) {
+        console.error("Error inserting participants:", participantsError);
         // Cleanup created conversation if participant insertion fails
         await supabase.from('conversations').delete().eq('id', newConvo.id);
         return null;
@@ -135,7 +122,7 @@ export function ShareSheet({ post, currentUser }: ShareSheetProps) {
 
   const handleSelectFriend = (id: string) => {
     setSelectedFriends(prev => 
-      prev.includes(id) ? prev.filter(friendId => !== id) : [...prev, id]
+      prev.includes(id) ? prev.filter(friendId => friendId !== id) : [...prev, id]
     );
   };
 
@@ -153,7 +140,7 @@ export function ShareSheet({ post, currentUser }: ShareSheetProps) {
             const conversationId = await getOrCreateConversationForSharing(supabase, currentUser.id, friendId);
 
             if (!conversationId) {
-                 throw new Error(`Could not get conversation with friend ${friendId}`);
+                 throw new Error(`Could not get or create a conversation with user ${friendId}`);
             }
             
             const { error: messageError } = await supabase.from('direct_messages').insert({
@@ -166,7 +153,7 @@ export function ShareSheet({ post, currentUser }: ShareSheetProps) {
             });
 
             if (messageError) {
-                throw new Error(`Could not send message to friend ${friendId}: ${messageError.message}`);
+                throw new Error(`Could not send message to user ${friendId}: ${messageError.message}`);
             }
         }
         
