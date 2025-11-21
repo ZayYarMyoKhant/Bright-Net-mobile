@@ -16,6 +16,7 @@ import { Button } from '@/components/ui/button';
 
 type Conversation = {
   id: string;
+  is_self_chat: boolean;
   other_user: Profile & { last_seen: string | null; show_active_status: boolean; };
   last_message: {
     content: string | null;
@@ -53,85 +54,23 @@ export default function ChatListPage() {
   const fetchConversations = useCallback(async (user: User) => {
     setLoading(true);
 
-    // 1. Get all conversation IDs the user is a part of.
-    const { data: userConvoLinks, error: convoLinksError } = await supabase
-      .from('conversation_participants')
-      .select('conversation_id')
-      .eq('user_id', user.id);
-
-    if (convoLinksError) {
-      console.error('Error fetching conversation links:', convoLinksError);
-      setConversations([]);
-      setLoading(false);
-      return;
-    }
-
-    const conversationIds = userConvoLinks.map(link => link.conversation_id);
-
-    if (conversationIds.length === 0) {
-      setConversations([]);
-      setLoading(false);
-      return;
-    }
-    
-    // 2. Fetch all conversation details for those IDs
-    const { data: convosData, error: convosError } = await supabase
-        .from('conversations')
-        .select(`
-            id,
-            is_group_chat,
-            participants:conversation_participants (
-                user_id,
-                profiles (*)
-            ),
-            last_message:direct_messages (
-                content,
-                media_type,
-                created_at,
-                sender_id
-            )
-        `)
-        .in('id', conversationIds)
-        .order('created_at', { referencedTable: 'direct_messages', ascending: false })
-        .limit(1, { referencedTable: 'direct_messages' });
-
+    const { data: convosData, error: convosError } = await supabase.rpc('get_user_conversations_new', { p_user_id: user.id });
 
     if (convosError) {
-        console.error('Error fetching conversations:', convosError);
-        setConversations([]);
-        setLoading(false);
-        return;
+      console.error('Error fetching conversations:', convosError);
+      setConversations([]);
+      setLoading(false);
+      return;
     }
-
-    // 3. Check read status for all last messages in one go
-    const lastMessageIds = convosData
-        .map(c => c.last_message.length > 0 ? c.last_message[0].id : null)
-        .filter(id => id !== null);
-
-    let readMessageIds = new Set();
-    if (lastMessageIds.length > 0) {
-        const { data: readStatuses, error: readStatusError } = await supabase
-            .from('direct_message_read_status')
-            .select('message_id')
-            .eq('user_id', user.id)
-            .in('message_id', lastMessageIds as string[]);
-        
-        if (!readStatusError && readStatuses) {
-            readMessageIds = new Set(readStatuses.map(s => s.message_id));
-        }
-    }
-
 
     const formattedConversations: Conversation[] = convosData
-        .map(conversation => {
-            if (!conversation) return null;
-            
-            if (conversation.is_group_chat === false) {
-                 const participants = conversation.participants;
-                 const selfParticipant = participants.find(p => p.user_id === user.id);
-                 if (participants.length === 1 && selfParticipant) {
-                     return {
-                        id: conversation.id,
+        .map((convo: any) => {
+            if (!convo.other_user_profile) {
+                // This handles the self-chat case
+                if (convo.is_self_chat) {
+                    return {
+                        id: convo.conversation_id,
+                        is_self_chat: true,
                         other_user: {
                             id: user.id,
                             username: 'saved_messages',
@@ -140,46 +79,43 @@ export default function ChatListPage() {
                             last_seen: null,
                             show_active_status: false,
                         },
-                        last_message: conversation.last_message[0] ? {
-                            ...conversation.last_message[0],
-                             is_seen: true,
+                        last_message: convo.last_message_content ? {
+                            content: convo.last_message_content,
+                            media_type: convo.last_message_media_type,
+                            created_at: convo.last_message_created_at,
+                            sender_id: convo.last_message_sender_id,
+                            is_seen: true,
                         } : null
-                     }
-                 }
+                    };
+                }
+                return null;
             }
-
-
-            const otherParticipant = conversation.participants.find(p => p.user_id !== user.id);
-            if (!otherParticipant || !otherParticipant.profiles) return null;
-
-            const lastMessage = conversation.last_message[0];
-            const isSeen = lastMessage ? readMessageIds.has(lastMessage.id) : true;
-
             return {
-                id: conversation.id,
+                id: convo.conversation_id,
+                is_self_chat: false,
                 other_user: {
-                    ...(otherParticipant.profiles as Profile),
-                    last_seen: otherParticipant.profiles.last_seen,
-                    show_active_status: otherParticipant.profiles.show_active_status
+                    ...convo.other_user_profile,
+                    last_seen: convo.other_user_profile.last_seen,
+                    show_active_status: convo.other_user_profile.show_active_status
                 },
-                last_message: lastMessage ? {
-                    content: lastMessage.content,
-                    media_type: lastMessage.media_type,
-                    created_at: lastMessage.created_at,
-                    sender_id: lastMessage.sender_id,
-                    is_seen: isSeen
+                last_message: convo.last_message_content ? {
+                    content: convo.last_message_content,
+                    media_type: convo.last_message_media_type,
+                    created_at: convo.last_message_created_at,
+                    sender_id: convo.last_message_sender_id,
+                    is_seen: convo.is_seen
                 } : null
             };
         })
         .filter((c): c is Conversation => c !== null)
         .sort((a, b) => {
-            if (a.other_user.username === 'saved_messages') return -1;
-            if (b.other_user.username === 'saved_messages') return 1;
+            if (a.is_self_chat) return -1;
+            if (b.is_self_chat) return 1;
             if (!a.last_message) return 1;
             if (!b.last_message) return -1;
             return new Date(b.last_message.created_at).getTime() - new Date(a.last_message.created_at).getTime();
         });
-        
+
     setConversations(formattedConversations);
     setLoading(false);
   }, [supabase]);
@@ -257,7 +193,7 @@ export default function ChatListPage() {
               {conversations.map((convo) => {
                 if (!convo.other_user) return null; // Skip if other_user is null
                 
-                const isSavedMessages = convo.other_user.username === 'saved_messages';
+                const isSavedMessages = convo.is_self_chat;
                 const lastMessage = convo.last_message;
                 const isUnread = !isSavedMessages && lastMessage && lastMessage.sender_id !== currentUser?.id && !lastMessage.is_seen;
                 let lastMessagePreview = "No messages yet";

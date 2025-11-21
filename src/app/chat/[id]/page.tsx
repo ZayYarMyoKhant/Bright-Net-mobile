@@ -9,27 +9,29 @@ import ChatPageContent from './ChatPageContent';
 async function getOrCreateConversation(
     supabase: ReturnType<typeof createClient>,
     currentUser: { id: string },
-    otherUserId: string,
-    isSelfChat: boolean
+    otherUserId: string
 ): Promise<{ id: string } | { error: string }> {
+    const isSelfChat = currentUser.id === otherUserId;
+
     if (isSelfChat) {
-        const { data, error } = await supabase
+        // Find conversation with only one participant (the current user)
+        const { data: selfConvo, error: selfConvoError } = await supabase
             .from('conversations')
-            .select('id')
-            .eq('is_self_chat', true)
-            .eq('self_chat_user_id', currentUser.id)
-            .single();
+            .select('id, participants:conversation_participants(user_id)')
+            .eq('is_group_chat', false);
 
-        if (data) return { id: data.id };
+        if (selfConvoError) return { error: selfConvoError.message };
 
-        if (error && error.code !== 'PGRST116') { // PGRST116: no rows found
-            return { error: error.message };
+        const existingSelfChat = selfConvo.find(c => c.participants.length === 1 && c.participants[0].user_id === currentUser.id);
+
+        if (existingSelfChat) {
+            return { id: existingSelfChat.id };
         }
 
         // Create self-chat conversation
         const { data: newConvo, error: newConvoError } = await supabase
             .from('conversations')
-            .insert({ is_self_chat: true, self_chat_user_id: currentUser.id })
+            .insert({ is_group_chat: false })
             .select('id')
             .single();
 
@@ -46,12 +48,12 @@ async function getOrCreateConversation(
             user_id_2: otherUserId
         });
 
+        if (error) {
+             console.error("RPC error get_conversation_between_users: ", error);
+        }
+        
         if (data && data.length > 0) {
             return { id: data[0].id };
-        }
-
-        if (error) {
-            console.error("RPC error get_conversation_between_users: ", error);
         }
 
         // Create new conversation if none exists
@@ -116,7 +118,7 @@ export default async function ChatPage({ params }: { params: { id: string } }) {
 
 
   // Get or create conversation
-  const convoResult = await getOrCreateConversation(supabase, currentUser, otherUserId, isSelfChat);
+  const convoResult = await getOrCreateConversation(supabase, currentUser, otherUserId);
   
   if ('error' in convoResult) {
       const initialData = { otherUser: otherUserData, conversationId: null, messages: [], isBlocked, isBlockedBy, error: convoResult.error || 'Could not start conversation.' };
@@ -141,7 +143,7 @@ export default async function ChatPage({ params }: { params: { id: string } }) {
     const messageIds = messagesData.map(msg => msg.id);
     let readMessageIds = new Set();
     
-    if (messageIds.length > 0) {
+    if (messageIds.length > 0 && !isSelfChat) {
         const { data: readStatuses } = await supabase
             .from('direct_message_read_status')
             .select('message_id')
@@ -156,7 +158,7 @@ export default async function ChatPage({ params }: { params: { id: string } }) {
 
     const processedMessages = messagesData.map(msg => ({
         ...msg,
-        is_seen_by_other: readMessageIds.has(msg.id)
+        is_seen_by_other: isSelfChat ? true : readMessageIds.has(msg.id)
     }));
 
 
