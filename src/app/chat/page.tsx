@@ -53,7 +53,6 @@ export default function ChatListPage() {
   const fetchConversations = useCallback(async (user: User) => {
     setLoading(true);
 
-    // Step 1: Get all conversation participants for the current user
     const { data: userConvos, error: userConvosError } = await supabase
         .from('conversation_participants')
         .select(`
@@ -61,6 +60,7 @@ export default function ChatListPage() {
             conversations (
                 id,
                 created_at,
+                is_group_chat,
                 participants:conversation_participants (
                     user_id,
                     profiles (*)
@@ -75,8 +75,9 @@ export default function ChatListPage() {
             )
         `)
         .eq('user_id', user.id)
-        .order('created_at', { foreignTable: 'conversations.direct_messages', ascending: false })
-        .limit(1, { foreignTable: 'conversations.direct_messages' });
+        .order('created_at', { referencedTable: 'conversations.direct_messages', ascending: false })
+        .limit(1, { referencedTable: 'conversations.direct_messages' });
+
 
     if (userConvosError) {
         console.error('Error fetching conversations:', userConvosError);
@@ -89,6 +90,30 @@ export default function ChatListPage() {
         .map(convoPart => {
             const conversation = convoPart.conversations;
             if (!conversation) return null;
+            
+            // For saved messages (self-chat)
+            if (conversation.is_group_chat === false) {
+                 const participants = conversation.participants;
+                 const selfParticipant = participants.find(p => p.user_id === user.id);
+                 if (participants.length === 1 && selfParticipant) {
+                     return {
+                        id: conversation.id,
+                        other_user: {
+                            id: user.id,
+                            username: 'saved_messages',
+                            full_name: 'Saved Messages',
+                            avatar_url: '', // No avatar for this special entry
+                            last_seen: null,
+                            show_active_status: false,
+                        },
+                        last_message: conversation.last_message[0] ? {
+                            ...conversation.last_message[0],
+                             is_seen: true,
+                        } : null
+                     }
+                 }
+            }
+
 
             const otherParticipant = conversation.participants.find(p => p.user_id !== user.id);
             if (!otherParticipant || !otherParticipant.profiles) return null;
@@ -114,6 +139,9 @@ export default function ChatListPage() {
         })
         .filter((c): c is Conversation => c !== null)
         .sort((a, b) => {
+            // "Saved Messages" always on top
+            if (a.other_user.username === 'saved_messages') return -1;
+            if (b.other_user.username === 'saved_messages') return 1;
             if (!a.last_message) return 1;
             if (!b.last_message) return -1;
             return new Date(b.last_message.created_at).getTime() - new Date(a.last_message.created_at).getTime();
@@ -196,8 +224,9 @@ export default function ChatListPage() {
               {conversations.map((convo) => {
                 if (!convo.other_user) return null; // Skip if other_user is null
                 
+                const isSavedMessages = convo.other_user.username === 'saved_messages';
                 const lastMessage = convo.last_message;
-                const isUnread = lastMessage && lastMessage.sender_id !== currentUser?.id && !lastMessage.is_seen;
+                const isUnread = !isSavedMessages && lastMessage && lastMessage.sender_id !== currentUser?.id && !lastMessage.is_seen;
                 let lastMessagePreview = "No messages yet";
 
                 if (lastMessage) {
@@ -218,8 +247,16 @@ export default function ChatListPage() {
                   <Link href={`/chat/${convo.other_user.id}`} key={convo.id}>
                     <div className="p-4 flex items-center gap-4 hover:bg-muted/50">
                       <div className="relative">
-                        <Avatar className="h-14 w-14" profile={convo.other_user}/>
-                        <PresenceIndicator user={convo.other_user} />
+                        {isSavedMessages ? (
+                            <div className="h-14 w-14 rounded-md bg-primary flex items-center justify-center">
+                                <Bookmark className="h-8 w-8 text-primary-foreground" />
+                            </div>
+                        ) : (
+                            <>
+                                <Avatar className="h-14 w-14" profile={convo.other_user}/>
+                                <PresenceIndicator user={convo.other_user} />
+                            </>
+                        )}
                       </div>
                       <div className="flex-1 overflow-hidden">
                         <div className="flex justify-between">
@@ -230,6 +267,7 @@ export default function ChatListPage() {
                            {lastMessagePreview}
                         </p>
                       </div>
+                       {isUnread && <div className="h-3 w-3 rounded-full bg-primary flex-shrink-0" />}
                     </div>
                   </Link>
                 );
@@ -242,3 +280,5 @@ export default function ChatListPage() {
     </>
   );
 }
+
+    
