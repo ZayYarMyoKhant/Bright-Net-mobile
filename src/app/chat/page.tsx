@@ -52,40 +52,74 @@ export default function ChatListPage() {
 
   const fetchConversations = useCallback(async (user: User) => {
     setLoading(true);
-    
-    // Step 1: Get all conversation IDs for the current user
-    const { data: userConversations, error: convosError } = await supabase
+
+    // Step 1: Get all conversation participants for the current user
+    const { data: userConvos, error: userConvosError } = await supabase
         .from('conversation_participants')
-        .select('conversation_id')
-        .eq('user_id', user.id);
+        .select(`
+            conversation_id,
+            conversations (
+                id,
+                created_at,
+                participants:conversation_participants (
+                    user_id,
+                    profiles (*)
+                ),
+                last_message:direct_messages (
+                    content,
+                    media_type,
+                    created_at,
+                    sender_id,
+                    read_status:direct_message_read_status (is_seen:user_id)
+                )
+            )
+        `)
+        .eq('user_id', user.id)
+        .order('created_at', { foreignTable: 'conversations.direct_messages', ascending: false })
+        .limit(1, { foreignTable: 'conversations.direct_messages' });
 
-    if (convosError) {
-        console.error('Error fetching user conversations:', convosError);
+    if (userConvosError) {
+        console.error('Error fetching conversations:', userConvosError);
         setConversations([]);
         setLoading(false);
         return;
     }
 
-    const conversationIds = userConversations.map(c => c.conversation_id);
+    const formattedConversations: Conversation[] = userConvos
+        .map(convoPart => {
+            const conversation = convoPart.conversations;
+            if (!conversation) return null;
 
-    if (conversationIds.length === 0) {
-        setConversations([]);
-        setLoading(false);
-        return;
-    }
+            const otherParticipant = conversation.participants.find(p => p.user_id !== user.id);
+            if (!otherParticipant || !otherParticipant.profiles) return null;
 
-    // Step 2: Get the details for each conversation using the new RPC function
-    const { data, error } = await supabase.rpc('get_user_conversations_new', { p_user_id: user.id });
+            const lastMessage = conversation.last_message[0];
+            const isSeen = lastMessage ? lastMessage.read_status.some(status => status.is_seen === user.id) : true;
 
-    if (error && Object.keys(error).length > 0) { // Check if error is a non-empty object
-      console.error('Error fetching conversations:', error);
-      setConversations([]);
-    } else if (data) {
-      setConversations(data as Conversation[]);
-    } else {
-      setConversations([]);
-    }
-
+            return {
+                id: conversation.id,
+                other_user: {
+                    ...(otherParticipant.profiles as Profile),
+                    last_seen: otherParticipant.profiles.last_seen,
+                    show_active_status: otherParticipant.profiles.show_active_status
+                },
+                last_message: lastMessage ? {
+                    content: lastMessage.content,
+                    media_type: lastMessage.media_type,
+                    created_at: lastMessage.created_at,
+                    sender_id: lastMessage.sender_id,
+                    is_seen: isSeen
+                } : null
+            };
+        })
+        .filter((c): c is Conversation => c !== null)
+        .sort((a, b) => {
+            if (!a.last_message) return 1;
+            if (!b.last_message) return -1;
+            return new Date(b.last_message.created_at).getTime() - new Date(a.last_message.created_at).getTime();
+        });
+        
+    setConversations(formattedConversations);
     setLoading(false);
   }, [supabase]);
 
@@ -103,20 +137,13 @@ export default function ChatListPage() {
   useEffect(() => {
     if (!currentUser) return;
 
-    // Listen to changes in direct messages
-    const messageChannel = supabase
-      .channel('public:direct_messages')
+    const changes = supabase.channel('public:direct_messages')
       .on('postgres_changes', 
-        { event: 'INSERT', schema: 'public', table: 'direct_messages' },
+        { event: '*', schema: 'public', table: 'direct_messages' },
         (payload) => {
             fetchConversations(currentUser);
         }
       )
-      .subscribe();
-
-    // Listen to changes in conversations (e.g., new one created)
-    const conversationChannel = supabase
-      .channel('public:conversation_participants')
       .on('postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'conversation_participants', filter: `user_id=eq.${currentUser.id}` },
         (payload) => {
@@ -127,8 +154,7 @@ export default function ChatListPage() {
 
 
     return () => {
-      supabase.removeChannel(messageChannel);
-      supabase.removeChannel(conversationChannel);
+      supabase.removeChannel(changes);
     };
   }, [currentUser, supabase, fetchConversations]);
   
