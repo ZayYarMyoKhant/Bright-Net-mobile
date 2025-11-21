@@ -56,7 +56,7 @@ export default function ChatListPage() {
 
     const { data: convosData, error: convosError } = await supabase.rpc('get_user_conversations_new', { p_user_id: user.id });
     
-    if (convosError) {
+    if (convosError && Object.keys(convosError).length > 0) {
       console.error('Error fetching conversations:', convosError);
       setConversations([]);
       setLoading(false);
@@ -71,31 +71,34 @@ export default function ChatListPage() {
 
     const formattedConversations: Conversation[] = convosData
         .map((convo: any) => {
+            const isSelfChat = convo.is_self_chat || (!convo.other_user_profile && convo.total_participants === 1);
+
+            if (isSelfChat) {
+                return {
+                    id: convo.conversation_id,
+                    is_self_chat: true,
+                    other_user: {
+                        id: user.id,
+                        username: 'saved_messages',
+                        full_name: 'Saved Messages',
+                        avatar_url: '',
+                        last_seen: null,
+                        show_active_status: false,
+                    },
+                    last_message: convo.last_message_content ? {
+                        content: convo.last_message_content,
+                        media_type: convo.last_message_media_type,
+                        created_at: convo.last_message_created_at,
+                        sender_id: convo.last_message_sender_id,
+                        is_seen: true, // Always seen for self chat
+                    } : null
+                };
+            }
+            
             if (!convo.other_user_profile) {
-                // This handles the self-chat case
-                if (convo.is_self_chat) {
-                    return {
-                        id: convo.conversation_id,
-                        is_self_chat: true,
-                        other_user: {
-                            id: user.id,
-                            username: 'saved_messages',
-                            full_name: 'Saved Messages',
-                            avatar_url: '',
-                            last_seen: null,
-                            show_active_status: false,
-                        },
-                        last_message: convo.last_message_content ? {
-                            content: convo.last_message_content,
-                            media_type: convo.last_message_media_type,
-                            created_at: convo.last_message_created_at,
-                            sender_id: convo.last_message_sender_id,
-                            is_seen: true, // Always seen for self chat
-                        } : null
-                    };
-                }
                 return null;
             }
+
             return {
                 id: convo.conversation_id,
                 is_self_chat: false,

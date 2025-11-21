@@ -11,25 +11,57 @@ async function getOrCreateConversation(
     currentUser: { id: string },
     otherUserId: string
 ): Promise<{ id: string } | { error: string }> {
-    // Find existing conversation between the two users
-    const { data: existing_convos, error: rpcError } = await supabase.rpc('get_conversation_between_users', {
-        user_id_1: currentUser.id,
-        user_id_2: otherUserId
-    });
-
-    if (rpcError) {
-        console.error("RPC error get_conversation_between_users: ", rpcError);
-        // Don't return here, proceed to create a new one if needed
-    }
     
-    if (existing_convos && existing_convos.length > 0) {
-        return { id: existing_convos[0].id };
+    // Self-chat (Saved Messages) case
+    if (currentUser.id === otherUserId) {
+        const { data: selfConvo, error: selfConvoError } = await supabase
+            .from('conversation_participants')
+            .select('conversation_id')
+            .eq('user_id', currentUser.id);
+
+        if (selfConvoError) return { error: selfConvoError.message };
+
+        const selfConvoIds = selfConvo.map(p => p.conversation_id);
+
+        const { data: existing, error: existingError } = await supabase
+            .from('conversation_participants')
+            .select('conversation_id, user_id')
+            .in('conversation_id', selfConvoIds);
+
+        if (existingError) return { error: existingError.message };
+
+        const convoCounts: { [key: string]: number } = {};
+        existing.forEach(p => {
+            convoCounts[p.conversation_id] = (convoCounts[p.conversation_id] || 0) + 1;
+        });
+
+        const singleParticipantConvo = Object.keys(convoCounts).find(convoId => convoCounts[convoId] === 1);
+
+        if (singleParticipantConvo) {
+            return { id: singleParticipantConvo };
+        }
+
+    } else {
+         // Find existing conversation between the two users
+        const { data: existing_convos, error: rpcError } = await supabase.rpc('get_conversation_between_users', {
+            user_id_1: currentUser.id,
+            user_id_2: otherUserId
+        });
+
+        if (rpcError) {
+             console.error("RPC error get_conversation_between_users: ", rpcError);
+        }
+        
+        if (existing_convos && existing_convos.length > 0) {
+            return { id: existing_convos[0].id };
+        }
     }
+
 
     // Create new conversation if none exists
     const { data: newConvo, error: newConvoError } = await supabase
         .from('conversations')
-        .insert({ is_group_chat: false })
+        .insert({})
         .select('id')
         .single();
     
