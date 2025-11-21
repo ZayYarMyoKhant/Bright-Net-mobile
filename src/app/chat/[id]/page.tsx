@@ -6,9 +6,77 @@ import { cookies } from 'next/headers';
 import { Loader2 } from 'lucide-react';
 import ChatPageContent from './ChatPageContent';
 
+async function getOrCreateConversation(
+    supabase: ReturnType<typeof createClient>,
+    currentUser: { id: string },
+    otherUserId: string,
+    isSelfChat: boolean
+): Promise<{ id: string } | { error: string }> {
+    if (isSelfChat) {
+        const { data, error } = await supabase
+            .from('conversations')
+            .select('id')
+            .eq('is_self_chat', true)
+            .eq('self_chat_user_id', currentUser.id)
+            .single();
+
+        if (data) return { id: data.id };
+
+        if (error && error.code !== 'PGRST116') { // PGRST116: no rows found
+            return { error: error.message };
+        }
+
+        // Create self-chat conversation
+        const { data: newConvo, error: newConvoError } = await supabase
+            .from('conversations')
+            .insert({ is_self_chat: true, self_chat_user_id: currentUser.id })
+            .select('id')
+            .single();
+
+        if (newConvoError) return { error: newConvoError.message };
+
+        // Add participant
+        await supabase.from('conversation_participants').insert({ conversation_id: newConvo.id, user_id: currentUser.id });
+        return { id: newConvo.id };
+
+    } else {
+        // Find existing conversation between the two users
+        const { data, error } = await supabase.rpc('get_conversation_between_users', {
+            user_id_1: currentUser.id,
+            user_id_2: otherUserId
+        });
+
+        if (data && data.length > 0) {
+            return { id: data[0].id };
+        }
+
+        if (error) {
+            console.error("RPC error get_conversation_between_users: ", error);
+        }
+
+        // Create new conversation if none exists
+        const { data: newConvo, error: newConvoError } = await supabase
+            .from('conversations')
+            .insert({ is_group_chat: false })
+            .select('id')
+            .single();
+        
+        if (newConvoError) return { error: newConvoError.message };
+
+        // Add participants
+        await supabase.from('conversation_participants').insert([
+            { conversation_id: newConvo.id, user_id: currentUser.id },
+            { conversation_id: newConvo.id, user_id: otherUserId }
+        ]);
+
+        return { id: newConvo.id };
+    }
+}
+
+
 // This is the Server Page component that handles the route.
 export default async function ChatPage({ params }: { params: { id: string } }) {
-  const supabase = createClient(cookies());
+  const supabase = createClient();
   const otherUserId = params.id;
 
   const { data: { user: currentUser } } = await supabase.auth.getUser();
@@ -48,16 +116,15 @@ export default async function ChatPage({ params }: { params: { id: string } }) {
 
 
   // Get or create conversation
-  const { data: convoData, error: convoError } = await supabase.rpc('get_or_create_conversation', { 
-    p_user_2_id: otherUserId,
-    p_is_self_chat: isSelfChat
-  });
-
-  if (convoError || !convoData) {
-    const initialData = { otherUser: otherUserData, conversationId: null, messages: [], isBlocked, isBlockedBy, error: convoError?.message || 'Could not start conversation.' };
-    return <ChatPageContent params={params} initialData={initialData} />;
+  const convoResult = await getOrCreateConversation(supabase, currentUser, otherUserId, isSelfChat);
+  
+  if ('error' in convoResult) {
+      const initialData = { otherUser: otherUserData, conversationId: null, messages: [], isBlocked, isBlockedBy, error: convoResult.error || 'Could not start conversation.' };
+      return <ChatPageContent params={params} initialData={initialData} />;
   }
-  const conversationId = convoData.id;
+
+  const conversationId = convoResult.id;
+
 
   // Fetch messages
   const { data: messagesData, error: messagesError } = await supabase
@@ -108,3 +175,5 @@ export default async function ChatPage({ params }: { params: { id: string } }) {
     </Suspense>
   );
 }
+
+    

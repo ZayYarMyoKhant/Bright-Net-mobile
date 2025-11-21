@@ -53,45 +53,79 @@ export default function ChatListPage() {
   const fetchConversations = useCallback(async (user: User) => {
     setLoading(true);
 
-    const { data: userConvos, error: userConvosError } = await supabase
-        .from('conversation_participants')
+    // 1. Get all conversation IDs the user is a part of.
+    const { data: userConvoLinks, error: convoLinksError } = await supabase
+      .from('conversation_participants')
+      .select('conversation_id')
+      .eq('user_id', user.id);
+
+    if (convoLinksError) {
+      console.error('Error fetching conversation links:', convoLinksError);
+      setConversations([]);
+      setLoading(false);
+      return;
+    }
+
+    const conversationIds = userConvoLinks.map(link => link.conversation_id);
+
+    if (conversationIds.length === 0) {
+      setConversations([]);
+      setLoading(false);
+      return;
+    }
+    
+    // 2. Fetch all conversation details for those IDs
+    const { data: convosData, error: convosError } = await supabase
+        .from('conversations')
         .select(`
-            conversation_id,
-            conversations (
-                id,
+            id,
+            is_group_chat,
+            participants:conversation_participants (
+                user_id,
+                profiles (*)
+            ),
+            last_message:direct_messages (
+                content,
+                media_type,
                 created_at,
-                is_group_chat,
-                participants:conversation_participants (
-                    user_id,
-                    profiles (*)
-                ),
-                last_message:direct_messages (
-                    content,
-                    media_type,
-                    created_at,
-                    sender_id,
-                    read_status:direct_message_read_status (is_seen:user_id)
-                )
+                sender_id
             )
         `)
-        .eq('user_id', user.id)
-        .order('created_at', { referencedTable: 'conversations.direct_messages', ascending: false })
-        .limit(1, { referencedTable: 'conversations.direct_messages' });
+        .in('id', conversationIds)
+        .order('created_at', { referencedTable: 'direct_messages', ascending: false })
+        .limit(1, { referencedTable: 'direct_messages' });
 
 
-    if (userConvosError) {
-        console.error('Error fetching conversations:', userConvosError);
+    if (convosError) {
+        console.error('Error fetching conversations:', convosError);
         setConversations([]);
         setLoading(false);
         return;
     }
 
-    const formattedConversations: Conversation[] = userConvos
-        .map(convoPart => {
-            const conversation = convoPart.conversations;
+    // 3. Check read status for all last messages in one go
+    const lastMessageIds = convosData
+        .map(c => c.last_message.length > 0 ? c.last_message[0].id : null)
+        .filter(id => id !== null);
+
+    let readMessageIds = new Set();
+    if (lastMessageIds.length > 0) {
+        const { data: readStatuses, error: readStatusError } = await supabase
+            .from('direct_message_read_status')
+            .select('message_id')
+            .eq('user_id', user.id)
+            .in('message_id', lastMessageIds as string[]);
+        
+        if (!readStatusError && readStatuses) {
+            readMessageIds = new Set(readStatuses.map(s => s.message_id));
+        }
+    }
+
+
+    const formattedConversations: Conversation[] = convosData
+        .map(conversation => {
             if (!conversation) return null;
             
-            // For saved messages (self-chat)
             if (conversation.is_group_chat === false) {
                  const participants = conversation.participants;
                  const selfParticipant = participants.find(p => p.user_id === user.id);
@@ -102,7 +136,7 @@ export default function ChatListPage() {
                             id: user.id,
                             username: 'saved_messages',
                             full_name: 'Saved Messages',
-                            avatar_url: '', // No avatar for this special entry
+                            avatar_url: '',
                             last_seen: null,
                             show_active_status: false,
                         },
@@ -119,7 +153,7 @@ export default function ChatListPage() {
             if (!otherParticipant || !otherParticipant.profiles) return null;
 
             const lastMessage = conversation.last_message[0];
-            const isSeen = lastMessage ? lastMessage.read_status.some(status => status.is_seen === user.id) : true;
+            const isSeen = lastMessage ? readMessageIds.has(lastMessage.id) : true;
 
             return {
                 id: conversation.id,
@@ -139,7 +173,6 @@ export default function ChatListPage() {
         })
         .filter((c): c is Conversation => c !== null)
         .sort((a, b) => {
-            // "Saved Messages" always on top
             if (a.other_user.username === 'saved_messages') return -1;
             if (b.other_user.username === 'saved_messages') return 1;
             if (!a.last_message) return 1;
