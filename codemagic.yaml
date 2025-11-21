@@ -21,6 +21,11 @@ workflows:
       - name: Build Web Assets
         script: npm run build
       
+      - name: Add and Sync Android Platform
+        script: |
+          npx cap add android
+          npx cap sync android
+          
       - name: Build Android Release APK
         script: |
           cd android
