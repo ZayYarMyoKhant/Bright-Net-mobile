@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
+import { Avatar } from "./ui/avatar";
 import { Button } from "./ui/button";
 import { Checkbox } from "./ui/checkbox";
 import { ScrollArea } from "./ui/scroll-area";
@@ -12,12 +12,93 @@ import { Post, Profile } from "@/lib/data";
 import { User } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { useRouter } from "next/navigation";
 
 type ShareSheetProps = {
   post: Post;
   currentUser: User | null;
 }
+
+async function getOrCreateConversationForSharing(supabase: ReturnType<typeof createClient>, currentUserId: string, otherUserId: string): Promise<string | null> {
+    const isSelfChat = currentUserId === otherUserId;
+
+    // Find existing conversation
+    const { data: existing_convos, error: rpcError } = await supabase.rpc('get_conversation_between_users', {
+        user_id_1: currentUserId,
+        user_id_2: otherUserId
+    });
+
+    if (rpcError) {
+        console.error("RPC error get_conversation_between_users: ", rpcError);
+        // Fallback to manual check if RPC fails or doesn't exist
+    }
+
+    if (existing_convos && existing_convos.length > 0) {
+        return existing_convos[0].id;
+    }
+
+    // Manual check if RPC failed or for self-chat
+    const { data: userConvos } = await supabase
+        .from('conversation_participants')
+        .select('conversation_id')
+        .eq('user_id', currentUserId);
+
+    if (userConvos && userConvos.length > 0) {
+        const convoIds = userConvos.map(c => c.conversation_id);
+        const { data: participants } = await supabase
+            .from('conversation_participants')
+            .select('conversation_id, user_id')
+            .in('conversation_id', convoIds);
+
+        if (participants) {
+            const convoParticipantMap: { [key: string]: string[] } = {};
+            for (const p of participants) {
+                if (!convoParticipantMap[p.conversation_id]) {
+                    convoParticipantMap[p.conversation_id] = [];
+                }
+                convoParticipantMap[p.conversation_id].push(p.user_id);
+            }
+
+            for (const convoId in convoParticipantMap) {
+                const participantIds = convoParticipantMap[convoId];
+                if (isSelfChat) {
+                    if (participantIds.length === 1 && participantIds[0] === currentUserId) {
+                        return convoId;
+                    }
+                } else {
+                    if (participantIds.length === 2 && participantIds.includes(currentUserId) && participantIds.includes(otherUserId)) {
+                        return convoId;
+                    }
+                }
+            }
+        }
+    }
+
+
+    // If no conversation exists, create a new one
+    const { data: newConvo, error: newConvoError } = await supabase
+        .from('conversations')
+        .insert({})
+        .select('id')
+        .single();
+    
+    if (newConvoError) return null;
+
+    const participantsToInsert = [{ conversation_id: newConvo.id, user_id: currentUserId }];
+    if (!isSelfChat) {
+        participantsToInsert.push({ conversation_id: newConvo.id, user_id: otherUserId });
+    }
+
+    const { error: participantsError } = await supabase.from('conversation_participants').insert(participantsToInsert);
+    
+    if (participantsError) {
+        // Cleanup created conversation if participant insertion fails
+        await supabase.from('conversations').delete().eq('id', newConvo.id);
+        return null;
+    }
+
+    return newConvo.id;
+}
+
 
 export function ShareSheet({ post, currentUser }: ShareSheetProps) {
   const [friends, setFriends] = useState<Profile[]>([]);
@@ -27,7 +108,6 @@ export function ShareSheet({ post, currentUser }: ShareSheetProps) {
   const [shareToSaved, setShareToSaved] = useState(false);
   const supabase = createClient();
   const { toast } = useToast();
-  const router = useRouter();
 
   useEffect(() => {
     const fetchFriends = async () => {
@@ -55,7 +135,7 @@ export function ShareSheet({ post, currentUser }: ShareSheetProps) {
 
   const handleSelectFriend = (id: string) => {
     setSelectedFriends(prev => 
-      prev.includes(id) ? prev.filter(friendId => friendId !== id) : [...prev, id]
+      prev.includes(id) ? prev.filter(friendId => !== id) : [...prev, id]
     );
   };
 
@@ -70,15 +150,11 @@ export function ShareSheet({ post, currentUser }: ShareSheetProps) {
         }
 
         for (const friendId of shareTargets) {
-            const { data: convoData, error: convoError } = await supabase.rpc('get_or_create_conversation', { 
-              p_user_2_id: friendId,
-              p_is_self_chat: friendId === currentUser.id
-            });
+            const conversationId = await getOrCreateConversationForSharing(supabase, currentUser.id, friendId);
 
-            if (convoError || !convoData) {
-                throw new Error(`Could not get conversation with friend ${friendId}: ${convoError?.message}`);
+            if (!conversationId) {
+                 throw new Error(`Could not get conversation with friend ${friendId}`);
             }
-            const conversationId = convoData.id;
             
             const { error: messageError } = await supabase.from('direct_messages').insert({
                 conversation_id: conversationId,
@@ -88,6 +164,7 @@ export function ShareSheet({ post, currentUser }: ShareSheetProps) {
                 media_type: post.media_type,
                 is_shared_post: true
             });
+
             if (messageError) {
                 throw new Error(`Could not send message to friend ${friendId}: ${messageError.message}`);
             }
@@ -109,6 +186,7 @@ export function ShareSheet({ post, currentUser }: ShareSheetProps) {
         setSending(false);
         setSelectedFriends([]);
         setShareToSaved(false);
+        // A bit of a hack to close the sheet, but it works
         document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
     }
   };
@@ -130,7 +208,7 @@ export function ShareSheet({ post, currentUser }: ShareSheetProps) {
                 <Checkbox 
                     id="saved-messages"
                     checked={shareToSaved}
-                    onCheckedChange={() => setShareToSaved(!shareToSaved)}
+                    onCheckedChange={(checked) => setShareToSaved(!!checked)}
                     className="h-6 w-6"
                 />
             </div>
@@ -174,3 +252,5 @@ export function ShareSheet({ post, currentUser }: ShareSheetProps) {
     </>
   );
 }
+
+    
