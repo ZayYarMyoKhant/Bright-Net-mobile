@@ -12,53 +12,54 @@ async function getOrCreateConversation(
     otherUserId: string
 ): Promise<{ id: string } | { error: string }> {
     
-    // Self-chat (Saved Messages) case
-    if (currentUser.id === otherUserId) {
-        const { data: selfConvo, error: selfConvoError } = await supabase
+    // 1. Find existing conversation between the two users
+    try {
+        const { data: userConvos, error: userConvosError } = await supabase
             .from('conversation_participants')
             .select('conversation_id')
             .eq('user_id', currentUser.id);
 
-        if (selfConvoError) return { error: selfConvoError.message };
-
-        const selfConvoIds = selfConvo.map(p => p.conversation_id);
-
-        const { data: existing, error: existingError } = await supabase
-            .from('conversation_participants')
-            .select('conversation_id, user_id')
-            .in('conversation_id', selfConvoIds);
-
-        if (existingError) return { error: existingError.message };
-
-        const convoCounts: { [key: string]: number } = {};
-        existing.forEach(p => {
-            convoCounts[p.conversation_id] = (convoCounts[p.conversation_id] || 0) + 1;
-        });
-
-        const singleParticipantConvo = Object.keys(convoCounts).find(convoId => convoCounts[convoId] === 1);
-
-        if (singleParticipantConvo) {
-            return { id: singleParticipantConvo };
+        if (userConvosError) throw userConvosError;
+        if (!userConvos) {
+             // This should not happen if user is logged in
+             return { error: "Could not fetch user conversations." };
         }
 
-    } else {
-         // Find existing conversation between the two users
-        const { data: existing_convos, error: rpcError } = await supabase.rpc('get_conversation_between_users', {
-            user_id_1: currentUser.id,
-            user_id_2: otherUserId
-        });
+        const convoIds = userConvos.map(c => c.conversation_id);
 
-        if (rpcError) {
-             console.error("RPC error get_conversation_between_users: ", rpcError);
+        if (convoIds.length > 0) {
+            const { data: otherUserConvos, error: otherUserConvosError } = await supabase
+                .from('conversation_participants')
+                .select('conversation_id')
+                .eq('user_id', otherUserId)
+                .in('conversation_id', convoIds);
+            
+            if (otherUserConvosError) throw otherUserConvosError;
+
+            // Find a matching conversation ID
+            if (otherUserConvos && otherUserConvos.length > 0) {
+                 const matchingConvo = userConvos.find(uc => 
+                    otherUserConvos.some(ouc => ouc.conversation_id === uc.conversation_id)
+                 );
+                 if (matchingConvo) {
+                    // Make sure it's not a group chat by checking participant count
+                    const { count } = await supabase
+                        .from('conversation_participants')
+                        .select('*', { count: 'exact', head: true })
+                        .eq('conversation_id', matchingConvo.conversation_id);
+
+                    if (count === 2) {
+                         return { id: matchingConvo.conversation_id };
+                    }
+                 }
+            }
         }
-        
-        if (existing_convos && existing_convos.length > 0) {
-            return { id: existing_convos[0].id };
-        }
+    } catch(e: any) {
+        return { error: "Error finding existing conversation: " + e.message };
     }
 
 
-    // Create new conversation if none exists
+    // 2. Create new conversation if none exists
     const { data: newConvo, error: newConvoError } = await supabase
         .from('conversations')
         .insert({})
@@ -67,7 +68,7 @@ async function getOrCreateConversation(
     
     if (newConvoError) return { error: newConvoError.message };
 
-    // Add participants
+    // 3. Add participants
     const participants = [{ conversation_id: newConvo.id, user_id: currentUser.id }];
     if (currentUser.id !== otherUserId) {
         participants.push({ conversation_id: newConvo.id, user_id: otherUserId });
@@ -76,6 +77,66 @@ async function getOrCreateConversation(
     const { error: participantsError } = await supabase.from('conversation_participants').insert(participants);
     if(participantsError) {
         // Attempt to clean up the created conversation if participant insertion fails
+        await supabase.from('conversations').delete().eq('id', newConvo.id);
+        return { error: participantsError.message };
+    }
+
+    return { id: newConvo.id };
+}
+
+
+async function getOrCreateSelfConversation(
+    supabase: ReturnType<typeof createClient>,
+    currentUser: { id: string }
+): Promise<{ id: string } | { error: string }> {
+     try {
+        const { data: userConvos, error: userConvosError } = await supabase
+            .from('conversation_participants')
+            .select('conversation_id')
+            .eq('user_id', currentUser.id);
+
+        if (userConvosError) throw userConvosError;
+        if (!userConvos) return { error: "Could not fetch user conversations." };
+
+        const convoIds = userConvos.map(c => c.conversation_id);
+        
+        if (convoIds.length > 0) {
+            const { data: convoParticipants, error: participantsError } = await supabase
+                .from('conversation_participants')
+                .select('conversation_id, user_id')
+                .in('conversation_id', convoIds);
+            
+            if (participantsError) throw participantsError;
+            
+            const conversationCounts: Record<string, number> = {};
+            for (const participant of convoParticipants) {
+                conversationCounts[participant.conversation_id] = (conversationCounts[participant.conversation_id] || 0) + 1;
+            }
+            
+            for (const convoId of convoIds) {
+                if(conversationCounts[convoId] === 1) {
+                    return { id: convoId };
+                }
+            }
+        }
+    } catch(e: any) {
+        return { error: "Error finding self conversation: " + e.message };
+    }
+
+    // Create new self-conversation if none exists
+    const { data: newConvo, error: newConvoError } = await supabase
+        .from('conversations')
+        .insert({})
+        .select('id')
+        .single();
+    
+    if (newConvoError) return { error: newConvoError.message };
+
+    const { error: participantsError } = await supabase
+        .from('conversation_participants')
+        .insert({ conversation_id: newConvo.id, user_id: currentUser.id });
+    
+    if(participantsError) {
         await supabase.from('conversations').delete().eq('id', newConvo.id);
         return { error: participantsError.message };
     }
@@ -126,7 +187,9 @@ export default async function ChatPage({ params }: { params: { id: string } }) {
 
 
   // Get or create conversation
-  const convoResult = await getOrCreateConversation(supabase, currentUser, otherUserId);
+  const convoResult = isSelfChat 
+    ? await getOrCreateSelfConversation(supabase, currentUser)
+    : await getOrCreateConversation(supabase, currentUser, otherUserId);
   
   if ('error' in convoResult) {
       const initialData = { otherUser: otherUserData, conversationId: null, messages: [], isBlocked, isBlockedBy, error: convoResult.error || 'Could not start conversation.' };

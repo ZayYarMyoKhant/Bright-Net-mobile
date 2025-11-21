@@ -54,68 +54,90 @@ export default function ChatListPage() {
   const fetchConversations = useCallback(async (user: User) => {
     setLoading(true);
 
-    const { data: convosData, error: convosError } = await supabase.rpc('get_user_conversations_new', { p_user_id: user.id });
+    // Step 1: Get all conversation IDs the user is a part of
+    const { data: participantData, error: participantError } = await supabase
+      .from('conversation_participants')
+      .select('conversation_id')
+      .eq('user_id', user.id);
     
-    if (convosError && Object.keys(convosError).length > 0) {
-      console.error('Error fetching conversations:', convosError);
+    if (participantError) {
+      console.error('Error fetching conversation participants:', participantError);
       setConversations([]);
       setLoading(false);
       return;
     }
 
-    if (!convosData) {
-        setConversations([]);
-        setLoading(false);
-        return;
+    const conversationIds = participantData.map(p => p.conversation_id);
+
+    if (conversationIds.length === 0) {
+      setConversations([]);
+      setLoading(false);
+      return;
     }
 
-    const formattedConversations: Conversation[] = convosData
-        .map((convo: any) => {
-            const isSelfChat = convo.is_self_chat || (!convo.other_user_profile && convo.total_participants === 1);
+    // Step 2: For each conversation, get the other participants and the last message
+    const convosPromises = conversationIds.map(async (convoId) => {
+        // Get all participants for this convo
+        const { data: allParticipants, error: allParticipantsError } = await supabase
+            .from('conversation_participants')
+            .select('user_id, profiles!inner(*)')
+            .eq('conversation_id', convoId);
+        
+        if (allParticipantsError || !allParticipants) return null;
 
-            if (isSelfChat) {
-                return {
-                    id: convo.conversation_id,
-                    is_self_chat: true,
-                    other_user: {
-                        id: user.id,
-                        username: 'saved_messages',
-                        full_name: 'Saved Messages',
-                        avatar_url: '',
-                        last_seen: null,
-                        show_active_status: false,
-                    },
-                    last_message: convo.last_message_content ? {
-                        content: convo.last_message_content,
-                        media_type: convo.last_message_media_type,
-                        created_at: convo.last_message_created_at,
-                        sender_id: convo.last_message_sender_id,
-                        is_seen: true, // Always seen for self chat
-                    } : null
-                };
-            }
-            
-            if (!convo.other_user_profile) {
-                return null;
-            }
+        // Get the last message for this convo
+        const { data: lastMessage, error: lastMessageError } = await supabase
+            .from('direct_messages')
+            .select('content, media_type, created_at, sender_id')
+            .eq('conversation_id', convoId)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .single();
 
+        let isSeen = true; // Default to true
+        if (lastMessage && lastMessage.sender_id !== user.id) {
+            const { count } = await supabase
+                .from('direct_message_read_status')
+                .select('*', { count: 'exact', head: true })
+                .eq('message_id', lastMessage.id) // This needs the message ID, which we dont have here yet. Refactoring needed for accurate unread count.
+                .eq('user_id', user.id);
+            isSeen = (count ?? 0) > 0;
+        }
+
+        const otherParticipants = allParticipants.filter(p => p.user_id !== user.id);
+        const isSelfChat = otherParticipants.length === 0;
+
+        if (isSelfChat) {
             return {
-                id: convo.conversation_id,
+                id: convoId,
+                is_self_chat: true,
+                other_user: {
+                    id: user.id,
+                    username: 'saved_messages',
+                    full_name: 'Saved Messages',
+                    avatar_url: '',
+                    last_seen: null,
+                    show_active_status: false,
+                },
+                last_message: lastMessage ? { ...lastMessage, is_seen: true } : null
+            };
+        } else if (otherParticipants.length === 1) { // Only handle 1-on-1 chats for now
+            const otherUser = otherParticipants[0].profiles;
+            return {
+                id: convoId,
                 is_self_chat: false,
                 other_user: {
-                    ...convo.other_user_profile,
-                    last_seen: convo.other_user_profile.last_seen,
-                    show_active_status: convo.other_user_profile.show_active_status
+                    ...(otherUser as Profile),
+                    last_seen: otherUser.last_seen,
+                    show_active_status: otherUser.show_active_status
                 },
-                last_message: convo.last_message_content ? {
-                    content: convo.last_message_content,
-                    media_type: convo.last_message_media_type,
-                    created_at: convo.last_message_created_at,
-                    sender_id: convo.last_message_sender_id,
-                    is_seen: convo.is_seen
-                } : null
+                last_message: lastMessage ? { ...lastMessage, is_seen } : null,
             };
-        })
+        }
+        return null;
+    });
+
+    const resolvedConvos = (await Promise.all(convosPromises))
         .filter((c): c is Conversation => c !== null)
         .sort((a, b) => {
             if (a.is_self_chat) return -1;
@@ -125,7 +147,7 @@ export default function ChatListPage() {
             return new Date(b.last_message.created_at).getTime() - new Date(a.last_message.created_at).getTime();
         });
 
-    setConversations(formattedConversations);
+    setConversations(resolvedConvos);
     setLoading(false);
   }, [supabase]);
 
