@@ -28,10 +28,3 @@ workflows:
           
     artifacts:
       - android/app/build/outputs/apk/release/*.apk
-
-    publishing:
-      android_signing:
-        keystore: $CM_KEYSTORE
-        keystore_password: $CM_KEYSTORE_PASSWORD
-        key_alias: $CM_KEY_ALIAS
-        key_alias_password: $CM_KEY_ALIAS_PASSWORD
