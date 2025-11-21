@@ -55,12 +55,18 @@ export default function ChatListPage() {
     setLoading(true);
 
     const { data: convosData, error: convosError } = await supabase.rpc('get_user_conversations_new', { p_user_id: user.id });
-
+    
     if (convosError) {
       console.error('Error fetching conversations:', convosError);
       setConversations([]);
       setLoading(false);
       return;
+    }
+
+    if (!convosData) {
+        setConversations([]);
+        setLoading(false);
+        return;
     }
 
     const formattedConversations: Conversation[] = convosData
@@ -84,7 +90,7 @@ export default function ChatListPage() {
                             media_type: convo.last_message_media_type,
                             created_at: convo.last_message_created_at,
                             sender_id: convo.last_message_sender_id,
-                            is_seen: true,
+                            is_seen: true, // Always seen for self chat
                         } : null
                     };
                 }
@@ -142,7 +148,7 @@ export default function ChatListPage() {
         }
       )
       .on('postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'conversation_participants', filter: `user_id=eq.${currentUser.id}` },
+        { event: '*', schema: 'public', table: 'conversation_participants' },
         (payload) => {
             fetchConversations(currentUser);
         }
@@ -205,7 +211,7 @@ export default function ChatListPage() {
                    } else if (lastMessage.media_type) {
                         text = `Sent a ${lastMessage.media_type}`;
                    }
-                  if(lastMessage.sender_id === currentUser?.id) {
+                  if(lastMessage.sender_id === currentUser?.id && !isSavedMessages) {
                      lastMessagePreview = `You: ${text}`;
                   } else {
                      lastMessagePreview = text;
@@ -249,5 +255,3 @@ export default function ChatListPage() {
     </>
   );
 }
-
-    

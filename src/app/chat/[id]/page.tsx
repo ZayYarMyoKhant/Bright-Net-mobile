@@ -11,68 +11,44 @@ async function getOrCreateConversation(
     currentUser: { id: string },
     otherUserId: string
 ): Promise<{ id: string } | { error: string }> {
-    const isSelfChat = currentUser.id === otherUserId;
+    // Find existing conversation between the two users
+    const { data: existing_convos, error: rpcError } = await supabase.rpc('get_conversation_between_users', {
+        user_id_1: currentUser.id,
+        user_id_2: otherUserId
+    });
 
-    if (isSelfChat) {
-        // Find conversation with only one participant (the current user)
-        const { data: selfConvo, error: selfConvoError } = await supabase
-            .from('conversations')
-            .select('id, participants:conversation_participants(user_id)')
-            .eq('is_group_chat', false);
-
-        if (selfConvoError) return { error: selfConvoError.message };
-
-        const existingSelfChat = selfConvo.find(c => c.participants.length === 1 && c.participants[0].user_id === currentUser.id);
-
-        if (existingSelfChat) {
-            return { id: existingSelfChat.id };
-        }
-
-        // Create self-chat conversation
-        const { data: newConvo, error: newConvoError } = await supabase
-            .from('conversations')
-            .insert({ is_group_chat: false })
-            .select('id')
-            .single();
-
-        if (newConvoError) return { error: newConvoError.message };
-
-        // Add participant
-        await supabase.from('conversation_participants').insert({ conversation_id: newConvo.id, user_id: currentUser.id });
-        return { id: newConvo.id };
-
-    } else {
-        // Find existing conversation between the two users
-        const { data, error } = await supabase.rpc('get_conversation_between_users', {
-            user_id_1: currentUser.id,
-            user_id_2: otherUserId
-        });
-
-        if (error) {
-             console.error("RPC error get_conversation_between_users: ", error);
-        }
-        
-        if (data && data.length > 0) {
-            return { id: data[0].id };
-        }
-
-        // Create new conversation if none exists
-        const { data: newConvo, error: newConvoError } = await supabase
-            .from('conversations')
-            .insert({ is_group_chat: false })
-            .select('id')
-            .single();
-        
-        if (newConvoError) return { error: newConvoError.message };
-
-        // Add participants
-        await supabase.from('conversation_participants').insert([
-            { conversation_id: newConvo.id, user_id: currentUser.id },
-            { conversation_id: newConvo.id, user_id: otherUserId }
-        ]);
-
-        return { id: newConvo.id };
+    if (rpcError) {
+        console.error("RPC error get_conversation_between_users: ", rpcError);
+        // Don't return here, proceed to create a new one if needed
     }
+    
+    if (existing_convos && existing_convos.length > 0) {
+        return { id: existing_convos[0].id };
+    }
+
+    // Create new conversation if none exists
+    const { data: newConvo, error: newConvoError } = await supabase
+        .from('conversations')
+        .insert({ is_group_chat: false })
+        .select('id')
+        .single();
+    
+    if (newConvoError) return { error: newConvoError.message };
+
+    // Add participants
+    const participants = [{ conversation_id: newConvo.id, user_id: currentUser.id }];
+    if (currentUser.id !== otherUserId) {
+        participants.push({ conversation_id: newConvo.id, user_id: otherUserId });
+    }
+
+    const { error: participantsError } = await supabase.from('conversation_participants').insert(participants);
+    if(participantsError) {
+        // Attempt to clean up the created conversation if participant insertion fails
+        await supabase.from('conversations').delete().eq('id', newConvo.id);
+        return { error: participantsError.message };
+    }
+
+    return { id: newConvo.id };
 }
 
 
@@ -107,7 +83,7 @@ export default async function ChatPage({ params }: { params: { id: string } }) {
     .single();
 
   if (otherUserError) {
-    const initialData = { otherUser: null, conversationId: null, messages: [], isBlocked, isBlockedBy, error: otherUserError.message };
+    const initialData = { otherUser: null, conversationId: null, messages: [], isBlocked, isBlockedBy, error: `User with ID ${otherUserId} not found.` };
     return <ChatPageContent params={params} initialData={initialData} />;
   }
   
@@ -177,5 +153,3 @@ export default async function ChatPage({ params }: { params: { id: string } }) {
     </Suspense>
   );
 }
-
-    
