@@ -60,7 +60,7 @@ export default function ChatListPage() {
       console.error('Error fetching conversations:', error);
       setConversations([]);
     } else {
-      setConversations(data as Conversation[]);
+      setConversations(data as Conversation[] || []);
     }
     setLoading(false);
   }, [supabase]);
