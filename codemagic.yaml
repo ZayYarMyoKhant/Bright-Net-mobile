@@ -23,6 +23,7 @@ workflows:
       
       - name: Add and Sync Android Platform
         script: |
+          rm -rf ./android
           npx cap add android
           npx cap sync android
           
