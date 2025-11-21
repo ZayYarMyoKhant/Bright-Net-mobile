@@ -53,8 +53,27 @@ export default function ChatListPage() {
   const fetchConversations = useCallback(async (user: User) => {
     setLoading(true);
 
-    const { data, error } = await supabase
-      .rpc('get_user_conversations', { p_user_id: user.id });
+    const { data: userConversations, error: convosError } = await supabase
+        .from('conversation_participants')
+        .select('conversation_id')
+        .eq('user_id', user.id);
+
+    if (convosError) {
+        console.error('Error fetching user conversations:', convosError);
+        setConversations([]);
+        setLoading(false);
+        return;
+    }
+
+    const conversationIds = userConversations.map(c => c.conversation_id);
+
+    if (conversationIds.length === 0) {
+        setConversations([]);
+        setLoading(false);
+        return;
+    }
+    
+    const { data, error } = await supabase.rpc('get_user_conversations_new', { p_user_id: user.id });
 
     if (error) {
       console.error('Error fetching conversations:', error);
@@ -64,6 +83,7 @@ export default function ChatListPage() {
     } else {
       setConversations([]);
     }
+
     setLoading(false);
   }, [supabase]);
 
@@ -81,19 +101,32 @@ export default function ChatListPage() {
   useEffect(() => {
     if (!currentUser) return;
 
-    const channel = supabase
+    // Listen to changes in direct messages
+    const messageChannel = supabase
       .channel('public:direct_messages')
       .on('postgres_changes', 
-        { event: '*', schema: 'public', table: 'direct_messages' },
+        { event: 'INSERT', schema: 'public', table: 'direct_messages' },
         (payload) => {
-            // A bit inefficient to refetch all, but it's the simplest way to ensure correctness
             fetchConversations(currentUser);
         }
       )
       .subscribe();
 
+    // Listen to changes in conversations (e.g., new one created)
+    const conversationChannel = supabase
+      .channel('public:conversation_participants')
+      .on('postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'conversation_participants', filter: `user_id=eq.${currentUser.id}` },
+        (payload) => {
+            fetchConversations(currentUser);
+        }
+      )
+      .subscribe();
+
+
     return () => {
-      supabase.removeChannel(channel);
+      supabase.removeChannel(messageChannel);
+      supabase.removeChannel(conversationChannel);
     };
   }, [currentUser, supabase, fetchConversations]);
   
@@ -133,6 +166,8 @@ export default function ChatListPage() {
           ) : (
             <div className="divide-y">
               {conversations.map((convo) => {
+                if (!convo.other_user) return null; // Skip if other_user is null
+                
                 const lastMessage = convo.last_message;
                 const isUnread = lastMessage && lastMessage.sender_id !== currentUser?.id && !lastMessage.is_seen;
                 let lastMessagePreview = "No messages yet";
@@ -179,5 +214,3 @@ export default function ChatListPage() {
     </>
   );
 }
-
-    
