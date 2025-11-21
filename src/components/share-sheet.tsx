@@ -70,11 +70,15 @@ export function ShareSheet({ post, currentUser }: ShareSheetProps) {
         }
 
         for (const friendId of shareTargets) {
-            const { data: convos, error: convoError } = await supabase.rpc('get_or_create_conversation', { user_2_id: friendId });
-            if (convoError || !convos || convos.length === 0) {
+            const { data: convoData, error: convoError } = await supabase.rpc('get_or_create_conversation', { 
+              p_user_2_id: friendId,
+              p_is_self_chat: friendId === currentUser.id
+            });
+
+            if (convoError || !convoData) {
                 throw new Error(`Could not get conversation with friend ${friendId}: ${convoError?.message}`);
             }
-            const conversationId = convos[0].id;
+            const conversationId = convoData.id;
             
             const { error: messageError } = await supabase.from('direct_messages').insert({
                 conversation_id: conversationId,
@@ -138,9 +142,7 @@ export function ShareSheet({ post, currentUser }: ShareSheetProps) {
             <>
                 {friends.map((friend) => (
                 <div key={friend.id} className="flex items-center gap-4">
-                    <Avatar className="h-10 w-10">
-                        <AvatarImage src={friend.avatar_url} data-ai-hint="person portrait" />
-                        <AvatarFallback>{friend.username ? friend.username.charAt(0).toUpperCase() : '?'}</AvatarFallback>
+                    <Avatar className="h-10 w-10" profile={friend}>
                     </Avatar>
                     <div className="flex-1">
                         <p className="font-semibold">{friend.full_name || friend.username}</p>
