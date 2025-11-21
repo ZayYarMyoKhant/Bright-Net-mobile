@@ -3,7 +3,7 @@
 
 import { BottomNav } from "@/components/bottom-nav";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { PlusCircle } from "lucide-react";
+import { PlusCircle, BookOpen } from "lucide-react";
 import Link from "next/link";
 import { AdBanner } from "@/components/ad-banner";
 
@@ -19,7 +19,7 @@ export default function CreatePage() {
           <Link href="/upload/post">
             <Card className="w-full cursor-pointer bg-primary text-primary-foreground hover:bg-primary/90">
               <CardHeader>
-                <CardTitle className="text-lg">Create post</CardTitle>
+                <CardTitle className="text-lg">Create Post</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="flex justify-center items-center h-24">
@@ -28,6 +28,20 @@ export default function CreatePage() {
               </CardContent>
             </Card>
           </Link>
+
+          <Link href="/upload/class">
+            <Card className="w-full cursor-pointer bg-secondary text-secondary-foreground hover:bg-secondary/90">
+              <CardHeader>
+                <CardTitle className="text-lg">Create Class</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex justify-center items-center h-24">
+                  <BookOpen className="h-12 w-12 text-secondary-foreground/70" />
+                </div>
+              </CardContent>
+            </Card>
+          </Link>
+          
           <div className="pt-4">
             <AdBanner />
           </div>

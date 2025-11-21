@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { Suspense, useEffect, useState, useCallback } from 'react';
@@ -11,6 +10,7 @@ import { VideoFeed } from '@/components/video-feed';
 import { createClient } from '@/lib/supabase/client';
 import type { Post } from '@/lib/data';
 import { useToast } from '@/hooks/use-toast';
+import { useSearchParams } from 'next/navigation';
 
 function FeedFallback() {
   return (
@@ -20,7 +20,7 @@ function FeedFallback() {
   );
 }
 
-export default function HomePage() {
+function HomePageContent() {
   const [imagePosts, setImagePosts] = useState<Post[]>([]);
   const [videoPosts, setVideoPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
@@ -32,10 +32,23 @@ export default function HomePage() {
 
     const { data: { user: currentUser } } = await supabase.auth.getUser();
 
-    const { data: posts, error } = await supabase
+    // Get the timestamp of the last viewed post
+    const lastViewedTimestamp = localStorage.getItem('lastViewedPostTimestamp');
+
+    let query = supabase
       .from('posts')
       .select('*, profiles!posts_user_id_fkey(*), likes:post_likes(count), comments:post_comments(count)')
       .order('created_at', { ascending: false });
+
+    // If we have a last viewed timestamp, fetch posts created after it.
+    // This is a simple implementation. A more robust solution might involve pagination
+    // and storing seen post IDs.
+    if (lastViewedTimestamp) {
+      query = query.gt('created_at', lastViewedTimestamp);
+    }
+    
+    const { data: posts, error } = await query;
+    
 
     if (error) {
       console.error("Error fetching posts:", error);
@@ -44,12 +57,34 @@ export default function HomePage() {
       return;
     } 
     
-    if (!posts) {
+    if (!posts || posts.length === 0) {
+        // If no new posts, fetch the most recent 10 posts as a fallback
+        const { data: fallbackPosts, error: fallbackError } = await supabase
+            .from('posts')
+            .select('*, profiles!posts_user_id_fkey(*), likes:post_likes(count), comments:post_comments(count)')
+            .order('created_at', { ascending: false })
+            .limit(10);
+        
+        if (fallbackError) {
+             console.error("Error fetching fallback posts:", fallbackError);
+        } else if (fallbackPosts) {
+             processAndSetPosts(fallbackPosts, currentUser);
+        }
         setLoading(false);
         return;
     }
+    
+    processAndSetPosts(posts, currentUser);
+    
+    // Store the timestamp of the newest post from this batch
+    if (posts.length > 0) {
+        localStorage.setItem('lastViewedPostTimestamp', posts[0].created_at);
+    }
 
-      // Fetch user's likes in a separate query
+    setLoading(false);
+  }, [supabase, toast]);
+
+  const processAndSetPosts = async (posts: any[], currentUser: any) => {
       const postIds = posts.map(p => p.id);
       const { data: userLikes } = currentUser ? await supabase
         .from('post_likes')
@@ -73,9 +108,7 @@ export default function HomePage() {
 
       setImagePosts(processedPosts.filter(p => p.media_type === 'image'));
       setVideoPosts(processedPosts.filter(p => p.media_type === 'video'));
-    
-    setLoading(false);
-  }, [supabase, toast]);
+  }
 
   useEffect(() => {
     fetchPosts();
@@ -94,14 +127,10 @@ export default function HomePage() {
 
           <main className="flex-1 overflow-y-auto pt-16">
               <TabsContent value="news">
-                  <Suspense fallback={<FeedFallback />}>
-                      <PostFeed posts={imagePosts} loading={loading} />
-                  </Suspense>
+                  <PostFeed posts={imagePosts} loading={loading} />
               </TabsContent>
               <TabsContent value="lite">
-                  <Suspense fallback={<FeedFallback />}>
-                      <VideoFeed posts={videoPosts} loading={loading} />
-                  </Suspense>
+                  <VideoFeed posts={videoPosts} loading={loading} />
               </TabsContent>
           </main>
         </div>
@@ -109,4 +138,13 @@ export default function HomePage() {
       </Tabs>
     </>
   );
+}
+
+
+export default function HomePage() {
+    return (
+        <Suspense fallback={<FeedFallback />}>
+            <HomePageContent />
+        </Suspense>
+    )
 }

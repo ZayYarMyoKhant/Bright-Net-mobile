@@ -7,11 +7,12 @@ import { useRouter } from 'next/navigation';
 import { User } from '@supabase/supabase-js';
 import { BottomNav } from '@/components/bottom-nav';
 import { Avatar } from '@/components/ui/avatar';
-import { Loader2, MessageSquarePlus } from 'lucide-react';
+import { Loader2, MessageSquarePlus, Bookmark } from 'lucide-react';
 import Link from 'next/link';
 import { formatDistanceToNow, isBefore, subMinutes } from 'date-fns';
 import { Profile } from '@/lib/data';
 import { AdBanner } from '@/components/ad-banner';
+import { Button } from '@/components/ui/button';
 
 type Conversation = {
   id: string;
@@ -172,12 +173,23 @@ export default function ChatListPage() {
       supabase.removeChannel(channel);
     };
   }, [currentUser, supabase, fetchConversations]);
+  
+  const handleSavedMessageClick = () => {
+    if(currentUser) {
+        router.push(`/chat/${currentUser.id}`);
+    }
+  }
 
   return (
     <>
       <div className="flex h-dvh flex-col bg-background text-foreground pb-16">
-        <header className="flex h-16 flex-shrink-0 items-center justify-center bg-primary text-primary-foreground px-4">
+        <header className="flex h-16 flex-shrink-0 items-center justify-center bg-primary text-primary-foreground px-4 relative">
           <h1 className="text-xl font-bold">Chats</h1>
+          {currentUser && (
+            <Button variant="ghost" size="icon" className="absolute right-2" onClick={handleSavedMessageClick}>
+                <Bookmark />
+            </Button>
+          )}
         </header>
 
         <div className="p-4 border-b">

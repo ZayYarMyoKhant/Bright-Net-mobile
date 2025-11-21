@@ -7,7 +7,7 @@ import { Button } from "./ui/button";
 import { Checkbox } from "./ui/checkbox";
 import { ScrollArea } from "./ui/scroll-area";
 import { SheetHeader, SheetTitle } from "./ui/sheet";
-import { Send, Loader2, Users } from "lucide-react";
+import { Send, Loader2, Users, Bookmark } from "lucide-react";
 import { Post, Profile } from "@/lib/data";
 import { User } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
@@ -24,6 +24,7 @@ export function ShareSheet({ post, currentUser }: ShareSheetProps) {
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [selectedFriends, setSelectedFriends] = useState<string[]>([]);
+  const [shareToSaved, setShareToSaved] = useState(false);
   const supabase = createClient();
   const { toast } = useToast();
   const router = useRouter();
@@ -59,11 +60,16 @@ export function ShareSheet({ post, currentUser }: ShareSheetProps) {
   };
 
   const handleShare = async () => {
-    if (!currentUser || selectedFriends.length === 0) return;
+    if (!currentUser || (selectedFriends.length === 0 && !shareToSaved)) return;
     setSending(true);
 
     try {
-        for (const friendId of selectedFriends) {
+        const shareTargets = [...selectedFriends];
+        if (shareToSaved) {
+            shareTargets.push(currentUser.id); // Add self for saved messages
+        }
+
+        for (const friendId of shareTargets) {
             const { data: convos, error: convoError } = await supabase.rpc('get_or_create_conversation', { user_2_id: friendId });
             if (convoError || !convos || convos.length === 0) {
                 throw new Error(`Could not get conversation with friend ${friendId}: ${convoError?.message}`);
@@ -76,7 +82,7 @@ export function ShareSheet({ post, currentUser }: ShareSheetProps) {
                 content: post.caption,
                 media_url: post.media_url,
                 media_type: post.media_type,
-                is_shared_post: true // Use the new boolean flag
+                is_shared_post: true
             });
             if (messageError) {
                 throw new Error(`Could not send message to friend ${friendId}: ${messageError.message}`);
@@ -85,7 +91,7 @@ export function ShareSheet({ post, currentUser }: ShareSheetProps) {
         
         toast({
             title: "Shared Successfully!",
-            description: `Your post has been sent to ${selectedFriends.length} friend(s).`
+            description: `Your post has been sent.`
         });
 
     } catch (error) {
@@ -98,7 +104,7 @@ export function ShareSheet({ post, currentUser }: ShareSheetProps) {
     } finally {
         setSending(false);
         setSelectedFriends([]);
-        // This is a bit of a hack to close the sheet. A better way would be to control the sheet's open state from a parent component.
+        setShareToSaved(false);
         document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
     }
   };
@@ -109,40 +115,56 @@ export function ShareSheet({ post, currentUser }: ShareSheetProps) {
         <SheetTitle>Share to</SheetTitle>
       </SheetHeader>
       <ScrollArea className="flex-1">
-        {loading ? (
-           <div className="flex justify-center items-center h-full pt-10">
-            <Loader2 className="h-6 w-6 animate-spin" />
-          </div>
-        ) : friends.length > 0 ? (
-          <div className="p-4 space-y-4">
-            {friends.map((friend) => (
-              <div key={friend.id} className="flex items-center gap-4">
-                  <Avatar className="h-10 w-10">
-                      <AvatarImage src={friend.avatar_url} data-ai-hint="person portrait" />
-                      <AvatarFallback>{friend.username ? friend.username.charAt(0).toUpperCase() : '?'}</AvatarFallback>
-                  </Avatar>
-                  <div className="flex-1">
-                      <p className="font-semibold">{friend.full_name || friend.username}</p>
-                  </div>
-                  <Checkbox 
-                      id={`friend-${friend.id}`}
-                      checked={selectedFriends.includes(friend.id)}
-                      onCheckedChange={() => handleSelectFriend(friend.id)}
-                      className="h-6 w-6"
-                  />
-              </div>
-            ))}
-          </div>
-        ) : (
-            <div className="text-center p-10 text-muted-foreground flex flex-col items-center pt-20">
-                <Users className="h-12 w-12 mb-4" />
-                <p className="font-bold">You're not following anyone</p>
-                <p className="text-sm mt-1">Follow some people to share posts with them.</p>
+        <div className="p-4 space-y-4">
+            <div className="flex items-center gap-4">
+                <div className="h-10 w-10 bg-primary rounded-md flex items-center justify-center">
+                    <Bookmark className="h-6 w-6 text-primary-foreground" />
+                </div>
+                <div className="flex-1">
+                    <p className="font-semibold">Saved Messages</p>
+                </div>
+                <Checkbox 
+                    id="saved-messages"
+                    checked={shareToSaved}
+                    onCheckedChange={() => setShareToSaved(!shareToSaved)}
+                    className="h-6 w-6"
+                />
             </div>
-        )}
+            {loading ? (
+            <div className="flex justify-center items-center h-full pt-10">
+                <Loader2 className="h-6 w-6 animate-spin" />
+            </div>
+            ) : friends.length > 0 ? (
+            <>
+                {friends.map((friend) => (
+                <div key={friend.id} className="flex items-center gap-4">
+                    <Avatar className="h-10 w-10">
+                        <AvatarImage src={friend.avatar_url} data-ai-hint="person portrait" />
+                        <AvatarFallback>{friend.username ? friend.username.charAt(0).toUpperCase() : '?'}</AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1">
+                        <p className="font-semibold">{friend.full_name || friend.username}</p>
+                    </div>
+                    <Checkbox 
+                        id={`friend-${friend.id}`}
+                        checked={selectedFriends.includes(friend.id)}
+                        onCheckedChange={() => handleSelectFriend(friend.id)}
+                        className="h-6 w-6"
+                    />
+                </div>
+                ))}
+            </>
+            ) : (
+                <div className="text-center p-10 text-muted-foreground flex flex-col items-center pt-10">
+                    <Users className="h-12 w-12 mb-4" />
+                    <p className="font-bold">You're not following anyone</p>
+                    <p className="text-sm mt-1">Follow some people to share posts with them.</p>
+                </div>
+            )}
+        </div>
       </ScrollArea>
       <footer className="flex-shrink-0 border-t p-4">
-        <Button className="w-full" disabled={selectedFriends.length === 0 || sending} onClick={handleShare}>
+        <Button className="w-full" disabled={(selectedFriends.length === 0 && !shareToSaved) || sending} onClick={handleShare}>
             {sending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
             Send
         </Button>
