@@ -81,7 +81,9 @@ export default async function ChatPage({ params }: { params: { id: string } }) {
             .eq('user_id', otherUserId)
             .in('message_id', messageIds);
 
-        readMessageIds = new Set(readStatuses?.map(s => s.message_id) || []);
+        if (readStatuses) {
+            readMessageIds = new Set(readStatuses.map(s => s.message_id));
+        }
     }
 
 
