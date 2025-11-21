@@ -54,7 +54,6 @@ export default function ChatListPage() {
   const fetchConversations = useCallback(async (user: User) => {
     setLoading(true);
 
-    // Step 1: Get all conversation IDs the user is a part of
     const { data: participantData, error: participantError } = await supabase
       .from('conversation_participants')
       .select('conversation_id')
@@ -75,9 +74,7 @@ export default function ChatListPage() {
       return;
     }
 
-    // Step 2: For each conversation, get the other participants and the last message
     const convosPromises = conversationIds.map(async (convoId) => {
-        // Get all participants for this convo
         const { data: allParticipants, error: allParticipantsError } = await supabase
             .from('conversation_participants')
             .select('user_id, profiles!inner(*)')
@@ -85,21 +82,20 @@ export default function ChatListPage() {
         
         if (allParticipantsError || !allParticipants) return null;
 
-        // Get the last message for this convo
         const { data: lastMessage, error: lastMessageError } = await supabase
             .from('direct_messages')
-            .select('content, media_type, created_at, sender_id')
+            .select('id, content, media_type, created_at, sender_id')
             .eq('conversation_id', convoId)
             .order('created_at', { ascending: false })
             .limit(1)
             .single();
 
-        let isSeen = true; // Default to true
+        let isSeen = true;
         if (lastMessage && lastMessage.sender_id !== user.id) {
             const { count } = await supabase
                 .from('direct_message_read_status')
                 .select('*', { count: 'exact', head: true })
-                .eq('message_id', lastMessage.id) // This needs the message ID, which we dont have here yet. Refactoring needed for accurate unread count.
+                .eq('message_id', lastMessage.id)
                 .eq('user_id', user.id);
             isSeen = (count ?? 0) > 0;
         }
@@ -121,7 +117,7 @@ export default function ChatListPage() {
                 },
                 last_message: lastMessage ? { ...lastMessage, is_seen: true } : null
             };
-        } else if (otherParticipants.length === 1) { // Only handle 1-on-1 chats for now
+        } else if (otherParticipants.length === 1) {
             const otherUser = otherParticipants[0].profiles;
             return {
                 id: convoId,
@@ -131,7 +127,7 @@ export default function ChatListPage() {
                     last_seen: otherUser.last_seen,
                     show_active_status: otherUser.show_active_status
                 },
-                last_message: lastMessage ? { ...lastMessage, is_seen } : null,
+                last_message: lastMessage ? { ...lastMessage, is_seen: isSeen } : null,
             };
         }
         return null;
