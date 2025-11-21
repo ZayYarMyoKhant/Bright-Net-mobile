@@ -52,7 +52,8 @@ export default function ChatListPage() {
 
   const fetchConversations = useCallback(async (user: User) => {
     setLoading(true);
-
+    
+    // Step 1: Get all conversation IDs for the current user
     const { data: userConversations, error: convosError } = await supabase
         .from('conversation_participants')
         .select('conversation_id')
@@ -72,10 +73,11 @@ export default function ChatListPage() {
         setLoading(false);
         return;
     }
-    
+
+    // Step 2: Get the details for each conversation using the new RPC function
     const { data, error } = await supabase.rpc('get_user_conversations_new', { p_user_id: user.id });
 
-    if (error) {
+    if (error && Object.keys(error).length > 0) { // Check if error is a non-empty object
       console.error('Error fetching conversations:', error);
       setConversations([]);
     } else if (data) {
@@ -214,3 +216,5 @@ export default function ChatListPage() {
     </>
   );
 }
+
+    
