@@ -84,8 +84,7 @@ export default function CreateClassPage() {
       const { data: classData, error: insertError } = await supabase.from('classes').insert({
         name,
         description,
-        avatar_url: publicAvatarUrl,
-        owner_id: user.id
+        avatar_url: publicAvatarUrl
       }).select().single();
 
       if (insertError) {
