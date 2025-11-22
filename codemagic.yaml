@@ -32,6 +32,13 @@ workflows:
       - name: Sync Capacitor Project
         script: npx cap sync android
 
+      - name: Create 'gradle.properties' for Signing
+        script: |
+          echo "CM_KEYSTORE=${CM_KEYSTORE}" > android/gradle.properties
+          echo "CM_KEY_PASSWORD=${CM_KEY_PASSWORD}" >> android/gradle.properties
+          echo "CM_KEY_ALIAS=${CM_KEY_ALIAS}" >> android/gradle.properties
+          echo "CM_KEY_ALIAS_PASSWORD=${CM_KEY_ALIAS_PASSWORD}" >> android/gradle.properties
+          
       - name: Build Android Release APK
         script: |
           cd android && ./gradlew build
