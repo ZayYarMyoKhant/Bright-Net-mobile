@@ -24,7 +24,10 @@ workflows:
       - name: Create out directory for Capacitor
         script: mkdir -p out
 
-      - name: Add and Sync Android Platform
+      - name: Add Android Platform
+        script: npx cap add android
+
+      - name: Sync Capacitor Project
         script: npx cap sync android
 
       - name: Build Android Release APK
