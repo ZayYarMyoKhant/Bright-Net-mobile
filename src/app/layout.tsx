@@ -14,7 +14,6 @@ import { TypingBattleRequestBanner } from '@/components/typing-battle-request-ba
 import { CoupleRequestBanner } from '@/components/couple-request-banner';
 import { OfflineProvider, OfflineContext } from '@/context/offline-context';
 import OfflinePage from '@/app/offline/page';
-import Script from 'next/script';
 
 const ptSans = PT_Sans({
   subsets: ['latin'],
