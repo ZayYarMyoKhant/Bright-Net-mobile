@@ -21,12 +21,11 @@ workflows:
       - name: Build Web Assets
         script: npm run build
       
-      - name: Add and Sync Android Platform
+      - name: Run Android Platform
         script: |
           rm -rf ./android
-          npx cap add android
-          npx cap sync android
-          
+          npx cap run android --no-sync --no-open
+
       - name: Build Android Release APK
         script: |
           cd android
@@ -34,4 +33,3 @@ workflows:
           
     artifacts:
       - android/app/build/outputs/apk/release/*.apk
-
