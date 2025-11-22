@@ -18,9 +18,17 @@ workflows:
           echo "NEXT_PUBLIC_SUPABASE_URL=$NEXT_PUBLIC_SUPABASE_URL" >> .env
           echo "NEXT_PUBLIC_SUPABASE_ANON_KEY=$NEXT_PUBLIC_SUPABASE_ANON_KEY" >> .env
 
+      - name: Build web assets
+        script: npm run build
+
+      - name: Create out directory for Capacitor
+        script: mkdir -p out
+
+      - name: Add and Sync Android Platform
+        script: npx cap sync android
+
       - name: Build Android Release APK
         script: |
-          chmod +x ./android/gradlew
           cd ./android && ./gradlew assembleRelease
           
     artifacts:
