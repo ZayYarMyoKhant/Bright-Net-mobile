@@ -18,13 +18,8 @@ workflows:
           echo "NEXT_PUBLIC_SUPABASE_URL=$NEXT_PUBLIC_SUPABASE_URL" >> .env
           echo "NEXT_PUBLIC_SUPABASE_ANON_KEY=$NEXT_PUBLIC_SUPABASE_ANON_KEY" >> .env
 
-      - name: Build Web Assets
-        script: npm run build
-      
-      - name: Run Android Platform
-        script: |
-          rm -rf ./android
-          npx cap run android --no-sync --no-open
+      - name: Add Android Platform
+        script: npx cap add android --no-sync
 
       - name: Build Android Release APK
         script: |
