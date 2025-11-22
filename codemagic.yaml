@@ -18,9 +18,6 @@ workflows:
           echo "NEXT_PUBLIC_SUPABASE_URL=$NEXT_PUBLIC_SUPABASE_URL" >> .env
           echo "NEXT_PUBLIC_SUPABASE_ANON_KEY=$NEXT_PUBLIC_SUPABASE_ANON_KEY" >> .env
 
-      - name: Add Android Platform
-        script: npx cap add android
-
       - name: Build Android Release APK
         script: |
           cd android
