@@ -34,7 +34,9 @@ workflows:
 
       - name: Create 'gradle.properties' for Signing
         script: |
-          echo "usesCleartextTraffic=true" > android/gradle.properties
+          echo "android.useAndroidX=true" > android/gradle.properties
+          echo "android.enableJetifier=true" >> android/gradle.properties
+          echo "usesCleartextTraffic=true" >> android/gradle.properties
           echo "CM_KEYSTORE=${CM_KEYSTORE}" >> android/gradle.properties
           echo "CM_KEY_PASSWORD=${CM_KEY_PASSWORD}" >> android/gradle.properties
           echo "CM_KEY_ALIAS=${CM_KEY_ALIAS}" >> android/gradle.properties
