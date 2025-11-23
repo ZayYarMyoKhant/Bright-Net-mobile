@@ -7,7 +7,6 @@ workflows:
       java: 21
       groups:
         - supabase_keys
-        # This group is defined globally but also needs to be available in the signing script
         - signing
       
     scripts:
@@ -39,3 +38,9 @@ workflows:
           
     artifacts:
       - android/app/build/outputs/apk/release/*.apk
+
+    android_signing:
+      keystore: $CM_KEYSTORE
+      keystore_password: $CM_KEY_PASSWORD
+      key_alias: $CM_KEY_ALIAS
+      key_password: $CM_KEY_ALIAS_PASSWORD
