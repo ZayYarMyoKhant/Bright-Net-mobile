@@ -1,7 +1,7 @@
 
 workflows:
   android-build:
-    name: Android Build
+    name: Android Release Build
     environment:
       node: 20
       java: 21
