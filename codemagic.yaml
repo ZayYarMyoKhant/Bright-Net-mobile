@@ -61,7 +61,7 @@ workflows:
       - android/app/build/outputs/apk/release/*.apk
 
 publishing:
-    android_signing:
+  android_signing:
         keystore: $CM_KEYSTORE
         keystore_password: $CM_KEY_PASSWORD
         key_alias: $CM_KEY_ALIAS
