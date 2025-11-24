@@ -25,15 +25,40 @@ workflows:
           npx cap add android
       - name: Sync Capacitor Project
         script: npx cap sync android
+      - name: Decode Keystore File
+        script: echo $CM_KEYSTORE | base64 --decode > $CM_BUILD_DIR/keystore.jks
+      - name: Create 'gradle.properties' for Signing
+        script: |
+          PROPERTIES_PATH="android/gradle.properties"
+          echo "MY_RELEASE_KEYSTORE_FILE=$CM_BUILD_DIR/keystore.jks" >> $PROPERTIES_PATH
+          echo "MY_RELEASE_KEYSTORE_PASSWORD=$CM_KEYSTORE_PASSWORD" >> $PROPERTIES_PATH
+          echo "MY_RELEASE_KEY_ALIAS=$CM_KEY_ALIAS" >> $PROPERTIES_PATH
+          echo "MY_RELEASE_KEY_PASSWORD=$CM_KEY_ALIAS_PASSWORD" >> $PROPERTIES_PATH
+      - name: Add Signing Config to build.gradle
+        script: |
+          BUILD_GRADLE_PATH="android/app/build.gradle"
+          SIGNING_CONFIG="
+              android {
+                  signingConfigs {
+                      release {
+                          if (project.hasProperty('MY_RELEASE_KEYSTORE_FILE')) {
+                              storeFile file(MY_RELEASE_KEYSTORE_FILE)
+                              storePassword MY_RELEASE_KEYSTORE_PASSWORD
+                              keyAlias MY_RELEASE_KEY_ALIAS
+                              keyPassword MY_RELEASE_KEY_PASSWORD
+                          }
+                      }
+                  }
+                  buildTypes {
+                      release {
+                          signingConfig signingConfigs.release
+                      }
+                  }
+              }
+          "
+          echo "$SIGNING_CONFIG" >> $BUILD_GRADLE_PATH
       - name: Build Android Release APK
         script: |
           cd android && ./gradlew assembleRelease
     artifacts:
       - android/app/build/outputs/apk/release/app-release.apk
-
-publishing:
-  android_signing:
-    keystore: $CM_KEYSTORE
-    keystore_password: $CM_KEY_PASSWORD
-    key_alias: $CM_KEY_ALIAS
-    key_password: $CM_KEY_ALIAS_PASSWORD
