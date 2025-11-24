@@ -33,6 +33,27 @@ workflows:
           echo "MY_RELEASE_KEYSTORE_PASSWORD=$CM_KEY_PASSWORD" >> android/gradle.properties
           echo "MY_RELEASE_KEY_ALIAS=$CM_KEY_ALIAS" >> android/gradle.properties
           echo "MY_RELEASE_KEY_PASSWORD=$CM_KEY_ALIAS_PASSWORD" >> android/gradle.properties
+      - name: Add Signing Config to build.gradle
+        script: |
+          BUILD_GRADLE_PATH="android/app/build.gradle"
+          SIGNING_CONFIG="
+          android {
+              signingConfigs {
+                  release {
+                      storeFile file(MY_RELEASE_KEYSTORE_FILE)
+                      storePassword MY_RELEASE_KEYSTORE_PASSWORD
+                      keyAlias MY_RELEASE_KEY_ALIAS
+                      keyPassword MY_RELEASE_KEY_PASSWORD
+                  }
+              }
+              buildTypes {
+                  release {
+                      signingConfig signingConfigs.release
+                  }
+              }
+          }
+          "
+          echo "$SIGNING_CONFIG" >> $BUILD_GRADLE_PATH
       - name: Build Android Release APK
         script: |
           cd android && ./gradlew assembleRelease
