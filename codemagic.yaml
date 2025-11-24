@@ -8,30 +8,28 @@ workflows:
       groups:
         - supabase_keys
         - signing
-      
+    android_signing:
+      keystore: $CM_KEYSTORE
+      keystore_password: $CM_KEY_PASSWORD
+      key_alias: $CM_KEY_ALIAS
+      key_password: $CM_KEY_ALIAS_PASSWORD
     scripts:
       - name: Install dependencies
         script: npm install
-        
       - name: Create .env file
         script: |
           echo "NEXT_PUBLIC_SUPABASE_URL=$NEXT_PUBLIC_SUPABASE_URL" >> .env
           echo "NEXT_PUBLIC_SUPABASE_ANON_KEY=$NEXT_PUBLIC_SUPABASE_ANON_KEY" >> .env
-
       - name: Build web assets
         script: npm run build
-
       - name: Create out directory for Capacitor
         script: mkdir -p out
-
       - name: Add Android Platform
         script: |
           rm -rf ./android
           npx cap add android
-          
       - name: Sync Capacitor Project
         script: npx cap sync android
-
       - name: Create 'gradle.properties' for Signing
         script: |
           echo "android.useAndroidX=true" > android/gradle.properties
@@ -40,16 +38,8 @@ workflows:
           echo "MY_RELEASE_KEYSTORE_PASSWORD=$CM_KEY_PASSWORD" >> android/gradle.properties
           echo "MY_RELEASE_KEY_ALIAS=$CM_KEY_ALIAS" >> android/gradle.properties
           echo "MY_RELEASE_KEY_PASSWORD=$CM_KEY_ALIAS_PASSWORD" >> android/gradle.properties
-          
       - name: Build Android Release APK
         script: |
           cd android && ./gradlew assembleRelease
-          
     artifacts:
       - android/app/build/outputs/apk/release/*.apk
-
-    android_signing:
-      keystore: $CM_KEYSTORE
-      keystore_password: $CM_KEY_PASSWORD
-      key_alias: $CM_KEY_ALIAS
-      key_password: $CM_KEY_ALIAS_PASSWORD
