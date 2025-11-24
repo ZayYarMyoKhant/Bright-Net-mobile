@@ -40,10 +40,10 @@ workflows:
           android {
               signingConfigs {
                   release {
-                      storeFile file(MY_RELEASE_KEYSTORE_FILE)
-                      storePassword MY_RELEASE_KEYSTORE_PASSWORD
-                      keyAlias MY_RELEASE_KEY_ALIAS
-                      keyPassword MY_RELEASE_KEY_PASSWORD
+                      storeFile file(project.properties['MY_RELEASE_KEYSTORE_FILE'] ?: '')
+                      storePassword project.properties['MY_RELEASE_KEYSTORE_PASSWORD'] ?: ''
+                      keyAlias project.properties['MY_RELEASE_KEY_ALIAS'] ?: ''
+                      keyPassword project.properties['MY_RELEASE_KEY_PASSWORD'] ?: ''
                   }
               }
               buildTypes {
