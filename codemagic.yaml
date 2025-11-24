@@ -29,7 +29,7 @@ workflows:
         script: |
           cd android && ./gradlew assembleRelease
     artifacts:
-      - android/app/build/outputs/apk/release/app-release-signed.apk
+      - android/app/build/outputs/apk/release/app-release.apk
 
 publishing:
   android_signing:
