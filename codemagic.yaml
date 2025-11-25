@@ -57,8 +57,9 @@ workflows:
               }
           "
           echo "$SIGNING_CONFIG" >> $BUILD_GRADLE_PATH
-      - name: Build Android Release APK
+      - name: Build Android Release AAB
         script: |
-          cd android && ./gradlew assembleRelease
+          cd android && ./gradlew bundleRelease
     artifacts:
-      - android/app/build/outputs/apk/release/app-release.apk
+      - android/app/build/outputs/bundle/release/app-release.aab
+
