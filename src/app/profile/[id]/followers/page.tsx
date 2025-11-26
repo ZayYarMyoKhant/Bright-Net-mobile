@@ -20,6 +20,7 @@ export default function FollowersPage({ params }: { params: { id: string } }) {
     const router = useRouter();
     const { toast } = useToast();
     const supabase = createClient();
+    const profileId = params.id;
 
     const [profileUsername, setProfileUsername] = useState("");
     const [followers, setFollowers] = useState<FollowerProfile[]>([]);
@@ -32,7 +33,7 @@ export default function FollowersPage({ params }: { params: { id: string } }) {
         const { data: profileData, error: profileError } = await supabase
             .from("profiles")
             .select("username")
-            .eq("id", params.id)
+            .eq("id", profileId)
             .single();
 
         if (profileError || !profileData) {
@@ -46,7 +47,7 @@ export default function FollowersPage({ params }: { params: { id: string } }) {
         const { data: followerData, error: followerError } = await supabase
             .from('followers')
             .select('profiles!followers_follower_id_fkey(*)')
-            .eq('user_id', params.id);
+            .eq('user_id', profileId);
 
         if (followerError) {
              toast({ variant: "destructive", title: "Error fetching followers" });
@@ -86,7 +87,7 @@ export default function FollowersPage({ params }: { params: { id: string } }) {
         }
 
         setLoading(false);
-    }, [params.id, supabase, toast, router]);
+    }, [profileId, supabase, toast, router]);
 
     useEffect(() => {
         supabase.auth.getUser().then(({ data: { user } }) => {
@@ -131,7 +132,7 @@ export default function FollowersPage({ params }: { params: { id: string } }) {
                 <div className="w-10"></div>
             </header>
 
-            <Tabs defaultValue="followers" onValueChange={(value) => value === 'following' && router.push(`/profile/${params.id}/following`)} className="w-full">
+            <Tabs defaultValue="followers" onValueChange={(value) => value === 'following' && router.push(`/profile/${profileId}/following`)} className="w-full">
                 <TabsList className="grid w-full grid-cols-2 rounded-none h-12">
                     <TabsTrigger value="following" className="text-base">Following</TabsTrigger>
                     <TabsTrigger value="followers" className="text-base">Followers</TabsTrigger>
