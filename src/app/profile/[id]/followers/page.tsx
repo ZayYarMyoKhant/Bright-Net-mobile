@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, use } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Loader2, UserX } from "lucide-react";
 import { Avatar } from "@/components/ui/avatar";
@@ -17,10 +17,11 @@ type FollowerProfile = Profile & { is_following_back: boolean };
 
 
 export default function FollowersPage({ params }: { params: { id: string } }) {
+    const resolvedParams = use(params);
+    const profileId = resolvedParams.id;
     const router = useRouter();
     const { toast } = useToast();
     const supabase = createClient();
-    const profileId = params.id;
 
     const [profileUsername, setProfileUsername] = useState("");
     const [followers, setFollowers] = useState<FollowerProfile[]>([]);
