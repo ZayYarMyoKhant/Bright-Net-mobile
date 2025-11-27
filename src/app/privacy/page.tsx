@@ -10,14 +10,14 @@ export default function PrivacyPolicyPage() {
     const router = useRouter();
 
     return (
-        <div className="bg-background text-foreground min-h-dvh">
+        <div className="flex h-dvh flex-col bg-background text-foreground">
             <header className="flex h-16 flex-shrink-0 items-center border-b px-4 sticky top-0 bg-background/80 backdrop-blur-sm z-10">
                 <Button variant="ghost" size="icon" onClick={() => router.back()} className="mr-2">
                     <ArrowLeft className="h-5 w-5" />
                 </Button>
                 <h1 className="text-xl font-bold">Privacy Policy for Bright-Net</h1>
             </header>
-            <main className="p-4 md:p-6 lg:p-8">
+            <main className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8">
                 <Card>
                     <CardHeader>
                         <CardTitle>Privacy Policy</CardTitle>
