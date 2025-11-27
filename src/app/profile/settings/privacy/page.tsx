@@ -5,7 +5,7 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { ArrowLeft, Loader2 } from "lucide-react";
+import { ArrowLeft, Loader2, ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -106,6 +106,15 @@ export default function PrivacySettingsPage() {
                         </div>
                         <Switch id="private-account" checked={isPrivateAccount} onCheckedChange={setIsPrivateAccount} />
                     </div>
+                     <Link href="/privacy" className="block">
+                        <div className="flex items-center justify-between py-4 hover:bg-muted/50 -mx-4 px-4">
+                             <div>
+                                <p className="font-semibold text-base">Privacy Policy for Bright-Net</p>
+                                <p className="text-sm text-muted-foreground">Read our data usage and privacy information.</p>
+                            </div>
+                           <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                        </div>
+                    </Link>
                 </div>
             </main>
             <footer className="p-4 border-t">

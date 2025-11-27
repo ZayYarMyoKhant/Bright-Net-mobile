@@ -1,3 +1,4 @@
+
 "use client";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -69,7 +70,7 @@ export default function PrivacyPolicyPage() {
                         <p>We may update this Privacy Policy from time to time in order to reflect, for example, changes to our practices or for other operational, legal, or regulatory reasons. We will notify you of any changes by updating the "Last Updated" date of this Privacy Policy.</p>
 
                         <h2>8. CONTACT US</h2>
-                        <p>If you have questions or comments about this Privacy Policy, please contact us at: [Your Contact Email Address]</p>
+                        <p>If you have questions or comments about this Privacy Policy, please contact us at: zeyarzeyarmyokhant@gmail.com</p>
 
                     </CardContent>
                 </Card>
