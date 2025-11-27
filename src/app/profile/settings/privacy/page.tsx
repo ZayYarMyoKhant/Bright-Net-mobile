@@ -115,6 +115,15 @@ export default function PrivacySettingsPage() {
                            <ChevronRight className="h-5 w-5 text-muted-foreground" />
                         </div>
                     </Link>
+                    <Link href="/terms" className="block">
+                        <div className="flex items-center justify-between py-4 hover:bg-muted/50 -mx-4 px-4">
+                             <div>
+                                <p className="font-semibold text-base">Terms of Use</p>
+                                <p className="text-sm text-muted-foreground">Read our terms and conditions of use.</p>
+                            </div>
+                           <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                        </div>
+                    </Link>
                 </div>
             </main>
             <footer className="p-4 border-t">

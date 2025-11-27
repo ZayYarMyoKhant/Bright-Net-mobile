@@ -1,11 +1,11 @@
 
 "use client";
 
-import { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { VideoDescription } from '@/components/video-description';
 import { Avatar } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { Heart, MessageCircle, Send, Loader2, VideoOff, VolumeOff, Music } from 'lucide-react';
+import { Heart, MessageCircle, Send, Loader2, VideoOff, VolumeOff, Music, Info } from 'lucide-react';
 import {
   Sheet,
   SheetContent,
@@ -13,11 +13,27 @@ import {
 } from "@/components/ui/sheet"
 import { CommentSheet } from "./comment-sheet";
 import { ShareSheet } from "./share-sheet";
+import { NativeAd } from "./native-ad";
 import { cn } from '@/lib/utils';
 import type { Post } from '@/lib/data';
 import { useToast } from '@/hooks/use-toast';
 import { createClient } from '@/lib/supabase/client';
 import { User } from '@supabase/supabase-js';
+import { Card } from './ui/card';
+
+const AdPost = () => {
+    return (
+        <div className="relative h-full w-full snap-start flex-shrink-0 bg-black flex flex-col items-center justify-center p-4">
+             <Card className="w-full max-w-md bg-muted/20 border-muted/30 text-white">
+                <div className="p-4 flex items-center gap-3">
+                    <Info className="h-5 w-5 text-blue-400" />
+                    <p className="text-sm font-semibold">Sponsored Content</p>
+                </div>
+                <NativeAd />
+            </Card>
+        </div>
+    )
+}
 
 const VideoPost = ({ post, index }: { post: Post; index: number }) => {
     const [isLiked, setIsLiked] = useState(post.isLiked);
@@ -205,11 +221,18 @@ export function VideoFeed({ posts, loading }: { posts: Post[], loading: boolean 
         )
     }
 
+    const items = [];
+    for (let i = 0; i < posts.length; i++) {
+        items.push(<VideoPost key={posts[i].id} post={posts[i]} index={i} />);
+        if ((i + 1) % 3 === 0 && i < posts.length - 1) {
+            items.push(<AdPost key={`ad-${i}`} />);
+        }
+    }
+
+
     return (
         <div className="relative h-[calc(100dvh-8rem)] w-full snap-y snap-mandatory overflow-y-scroll bg-black">
-            {posts.map((post, index) => (
-                <VideoPost key={post.id} post={post} index={index} />
-            ))}
+            {items}
         </div>
     );
 }
