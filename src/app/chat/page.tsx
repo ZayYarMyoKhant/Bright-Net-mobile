@@ -57,23 +57,84 @@ export default function ChatListPage() {
   const fetchConversations = useCallback(async (user: User) => {
     setLoading(true);
     
-    const { data: convos, error } = await supabase
-      .rpc('get_user_conversations', { p_user_id: user.id });
+    // 1. Get all conversation IDs the current user is part of
+    const { data: userConvos, error: userConvosError } = await supabase
+        .from('conversation_participants')
+        .select('conversation_id')
+        .eq('user_id', user.id);
 
-    if (error) {
-      console.error('Error fetching conversations via RPC:', error);
-      setConversations([]);
-    } else {
-       const sortedConvos = (convos as Conversation[])
-        .sort((a, b) => {
-            if (a.is_self_chat) return -1;
-            if (b.is_self_chat) return 1;
-            if (!a.last_message) return 1;
-            if (!b.last_message) return -1;
-            return new Date(b.last_message.created_at).getTime() - new Date(a.last_message.created_at).getTime();
-        });
-      setConversations(sortedConvos);
+    if (userConvosError) {
+        console.error("Error fetching user's conversations:", userConvosError);
+        setLoading(false);
+        return;
     }
+
+    const conversationIds = userConvos.map(c => c.conversation_id);
+    if (conversationIds.length === 0) {
+        setConversations([]);
+        setLoading(false);
+        return;
+    }
+
+    // 2. Fetch all participants for these conversations
+    const { data: allParticipants, error: participantsError } = await supabase
+        .from('conversation_participants')
+        .select('conversation_id, user_id, profiles!inner(id, username, full_name, avatar_url, last_seen, show_active_status)')
+        .in('conversation_id', conversationIds);
+
+    if (participantsError) {
+        console.error("Error fetching participants:", participantsError);
+        setLoading(false);
+        return;
+    }
+
+    // 3. Process each conversation
+    const processedConvos = await Promise.all(conversationIds.map(async (convoId) => {
+        const participantsInConvo = allParticipants.filter(p => p.conversation_id === convoId);
+        const otherParticipant = participantsInConvo.find(p => p.user_id !== user.id);
+        const isSelfChat = participantsInConvo.length === 1 && participantsInConvo[0].user_id === user.id;
+
+        // Determine the "other user" for the chat list
+        const otherUser = isSelfChat ? participantsInConvo[0].profiles : otherParticipant?.profiles;
+        if (!otherUser) return null; // Should not happen in a valid conversation
+
+        // 4. Fetch the last message for the conversation
+        const { data: lastMessage, error: lastMessageError } = await supabase
+            .from('direct_messages')
+            .select('content, media_type, created_at, sender_id')
+            .eq('conversation_id', convoId)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .single();
+
+        // 5. Count unread messages for the current user in this conversation
+        const { count: unreadCount, error: unreadError } = await supabase
+            .from('direct_messages')
+            .select('*', { count: 'exact', head: true })
+            .eq('conversation_id', convoId)
+            .eq('is_seen', false)
+            .neq('sender_id', user.id);
+
+        return {
+            id: convoId,
+            is_self_chat: isSelfChat,
+            other_user: otherUser,
+            last_message: lastMessage,
+            unread_count: unreadCount || 0,
+        } as Conversation;
+    }));
+
+    const validConvos = processedConvos.filter(Boolean) as Conversation[];
+
+    const sortedConvos = validConvos.sort((a, b) => {
+        if (a.is_self_chat) return -1;
+        if (b.is_self_chat) return 1;
+        if (!a.last_message) return 1;
+        if (!b.last_message) return -1;
+        return new Date(b.last_message.created_at).getTime() - new Date(a.last_message.created_at).getTime();
+    });
+
+    setConversations(sortedConvos);
     setLoading(false);
   }, [supabase]);
 

@@ -17,16 +17,37 @@ export function BottomNav() {
 
   useEffect(() => {
     const checkUnreadMessages = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      
-      const { data: unreadData, error: rpcError } = await supabase.rpc('count_unread_conversations_for_user', {p_user_id: user.id});
-      
-      if (!rpcError && unreadData) {
-          setHasUnread(unreadData > 0);
-      } else if (rpcError) {
-          console.error("Error checking unread messages:", rpcError);
-      }
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+
+        // Get all conversations for the user
+        const { data: convoParticipants, error: convoError } = await supabase
+            .from('conversation_participants')
+            .select('conversation_id')
+            .eq('user_id', user.id);
+
+        if (convoError || !convoParticipants || convoParticipants.length === 0) {
+            setHasUnread(false);
+            if (convoError) console.error("Error fetching user conversations:", convoError);
+            return;
+        }
+
+        const conversationIds = convoParticipants.map(p => p.conversation_id);
+
+        // Count unread messages across all those conversations
+        const { count, error: countError } = await supabase
+            .from('direct_messages')
+            .select('*', { count: 'exact', head: true })
+            .in('conversation_id', conversationIds)
+            .eq('is_seen', false)
+            .neq('sender_id', user.id);
+        
+        if (countError) {
+            console.error("Error counting unread messages:", countError);
+            setHasUnread(false);
+        } else {
+            setHasUnread((count || 0) > 0);
+        }
     };
 
     checkUnreadMessages();
