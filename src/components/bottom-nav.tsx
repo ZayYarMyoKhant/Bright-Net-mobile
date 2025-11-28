@@ -20,18 +20,21 @@ export function BottomNav() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      const { count, error } = await supabase
-        .rpc('count_unread_conversations', { p_user_id: user.id });
+      const { data, error } = await supabase
+        .rpc('count_unread_conversations_for_user', { p_user_id: user.id });
       
-      if (!error && count !== null) {
-          setHasUnread(count > 0);
+      if (!error && data) {
+          setHasUnread(data > 0);
       }
     };
 
     checkUnreadMessages();
 
-    const channel = supabase.channel('public:direct_messages:bottom-nav')
+    const channel = supabase.channel('public:direct_messages:bottom-nav-realtime')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'direct_messages' }, (payload) => {
+        checkUnreadMessages();
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'direct_message_read_status' }, (payload) => {
         checkUnreadMessages();
       })
       .subscribe();

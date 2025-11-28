@@ -14,6 +14,7 @@ import { Profile } from '@/lib/data';
 import { AdBanner } from '@/components/ad-banner';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { Badge } from '@/components/ui/badge';
 
 type Conversation = {
   id: string;
@@ -26,6 +27,7 @@ type Conversation = {
     sender_id: string;
     is_seen: boolean;
   } | null;
+  unread_count: number;
 };
 
 function PresenceIndicator({ user }: { user: { last_seen: string | null; show_active_status: boolean; } }) {
@@ -55,7 +57,6 @@ export default function ChatListPage() {
   const fetchConversations = useCallback(async (user: User) => {
     setLoading(true);
     
-    // This RPC is complex. A simpler, more direct query might be better if performance issues arise.
     const { data: convos, error } = await supabase
       .rpc('get_user_conversations', { p_user_id: user.id });
 
@@ -90,8 +91,7 @@ export default function ChatListPage() {
   useEffect(() => {
     if (!currentUser) return;
 
-    // A single channel to listen to all relevant changes
-    const changes = supabase.channel('public:chat-list-page')
+    const changes = supabase.channel('public:chat-list-page-changes')
       .on('postgres_changes', 
         { event: '*', schema: 'public', table: 'direct_messages' },
         (payload) => {
@@ -153,11 +153,11 @@ export default function ChatListPage() {
           ) : (
             <div className="divide-y">
               {conversations.map((convo) => {
-                if (!convo.other_user) return null; // Skip if other_user is null
+                if (!convo.other_user) return null;
                 
                 const isSavedMessages = convo.is_self_chat;
                 const lastMessage = convo.last_message;
-                const isUnread = !isSavedMessages && lastMessage && lastMessage.sender_id !== currentUser?.id && !lastMessage.is_seen;
+                const isUnread = !isSavedMessages && convo.unread_count > 0;
                 let lastMessagePreview = "No messages yet";
 
                 if (lastMessage) {
@@ -198,7 +198,11 @@ export default function ChatListPage() {
                            {lastMessagePreview}
                         </p>
                       </div>
-                       {isUnread && <div className="h-3 w-3 rounded-full bg-primary flex-shrink-0" />}
+                       {isUnread && (
+                         <div className="flex-shrink-0">
+                           <Badge variant="destructive" className="h-6 w-6 justify-center rounded-full p-0">{convo.unread_count}</Badge>
+                         </div>
+                       )}
                     </div>
                   </Link>
                 );
@@ -211,5 +215,3 @@ export default function ChatListPage() {
     </>
   );
 }
-
-    
