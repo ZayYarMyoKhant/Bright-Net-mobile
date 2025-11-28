@@ -18,7 +18,10 @@ export function BottomNav() {
   useEffect(() => {
     const checkUnreadMessages = async () => {
         const { data: { user } } = await supabase.auth.getUser();
-        if (!user) return;
+        if (!user) {
+          setHasUnread(false);
+          return;
+        };
 
         // Get all conversations for the user
         const { data: convoParticipants, error: convoError } = await supabase
@@ -27,8 +30,8 @@ export function BottomNav() {
             .eq('user_id', user.id);
 
         if (convoError || !convoParticipants || convoParticipants.length === 0) {
+            if(convoError) console.error("Error fetching user conversations:", convoError);
             setHasUnread(false);
-            if (convoError) console.error("Error fetching user conversations:", convoError);
             return;
         }
 
