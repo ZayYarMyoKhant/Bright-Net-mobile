@@ -13,6 +13,7 @@ import { formatDistanceToNow, isBefore, subMinutes } from 'date-fns';
 import { Profile } from '@/lib/data';
 import { AdBanner } from '@/components/ad-banner';
 import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 
 type Conversation = {
   id: string;
@@ -53,88 +54,15 @@ export default function ChatListPage() {
 
   const fetchConversations = useCallback(async (user: User) => {
     setLoading(true);
-
-    const { data: participantData, error: participantError } = await supabase
-      .from('conversation_participants')
-      .select('conversation_id')
-      .eq('user_id', user.id);
     
-    if (participantError) {
-      console.error('Error fetching conversation participants:', participantError);
+    const { data: convos, error } = await supabase
+      .rpc('get_user_conversations', { p_user_id: user.id });
+
+    if (error) {
+      console.error('Error fetching conversations via RPC:', error);
       setConversations([]);
-      setLoading(false);
-      return;
-    }
-
-    const conversationIds = participantData.map(p => p.conversation_id);
-
-    if (conversationIds.length === 0) {
-      setConversations([]);
-      setLoading(false);
-      return;
-    }
-
-    const convosPromises = conversationIds.map(async (convoId) => {
-        const { data: allParticipants, error: allParticipantsError } = await supabase
-            .from('conversation_participants')
-            .select('user_id, profiles!inner(*)')
-            .eq('conversation_id', convoId);
-        
-        if (allParticipantsError || !allParticipants) return null;
-
-        const { data: lastMessage, error: lastMessageError } = await supabase
-            .from('direct_messages')
-            .select('id, content, media_type, created_at, sender_id')
-            .eq('conversation_id', convoId)
-            .order('created_at', { ascending: false })
-            .limit(1)
-            .single();
-
-        let isSeen = true;
-        if (lastMessage && lastMessage.sender_id !== user.id) {
-            const { count } = await supabase
-                .from('direct_message_read_status')
-                .select('*', { count: 'exact', head: true })
-                .eq('message_id', lastMessage.id)
-                .eq('user_id', user.id);
-            isSeen = (count ?? 0) > 0;
-        }
-
-        const otherParticipants = allParticipants.filter(p => p.user_id !== user.id);
-        const isSelfChat = otherParticipants.length === 0;
-
-        if (isSelfChat) {
-            return {
-                id: convoId,
-                is_self_chat: true,
-                other_user: {
-                    id: user.id,
-                    username: 'saved_messages',
-                    full_name: 'Saved Messages',
-                    avatar_url: '',
-                    last_seen: null,
-                    show_active_status: false,
-                },
-                last_message: lastMessage ? { ...lastMessage, is_seen: true } : null
-            };
-        } else if (otherParticipants.length === 1) {
-            const otherUser = otherParticipants[0].profiles;
-            return {
-                id: convoId,
-                is_self_chat: false,
-                other_user: {
-                    ...(otherUser as Profile),
-                    last_seen: otherUser.last_seen,
-                    show_active_status: otherUser.show_active_status
-                },
-                last_message: lastMessage ? { ...lastMessage, is_seen: isSeen } : null,
-            };
-        }
-        return null;
-    });
-
-    const resolvedConvos = (await Promise.all(convosPromises))
-        .filter((c): c is Conversation => c !== null)
+    } else {
+       const sortedConvos = (convos as Conversation[])
         .sort((a, b) => {
             if (a.is_self_chat) return -1;
             if (b.is_self_chat) return 1;
@@ -142,8 +70,8 @@ export default function ChatListPage() {
             if (!b.last_message) return -1;
             return new Date(b.last_message.created_at).getTime() - new Date(a.last_message.created_at).getTime();
         });
-
-    setConversations(resolvedConvos);
+      setConversations(sortedConvos);
+    }
     setLoading(false);
   }, [supabase]);
 
@@ -161,7 +89,7 @@ export default function ChatListPage() {
   useEffect(() => {
     if (!currentUser) return;
 
-    const changes = supabase.channel('public:direct_messages')
+    const changes = supabase.channel('public:direct_messages_list_page')
       .on('postgres_changes', 
         { event: '*', schema: 'public', table: 'direct_messages' },
         (payload) => {
@@ -172,6 +100,12 @@ export default function ChatListPage() {
         { event: '*', schema: 'public', table: 'conversation_participants' },
         (payload) => {
             fetchConversations(currentUser);
+        }
+      )
+      .on('postgres_changes',
+        { event: '*', schema: 'public', table: 'direct_message_read_status' },
+        (payload) => {
+             fetchConversations(currentUser);
         }
       )
       .subscribe();
@@ -259,7 +193,7 @@ export default function ChatListPage() {
                            <p className="font-semibold">{convo.other_user.full_name}</p>
                            {lastMessage && <p className="text-xs text-muted-foreground">{formatDistanceToNow(new Date(lastMessage.created_at), { addSuffix: true })}</p>}
                         </div>
-                        <p className={`text-sm truncate ${isUnread ? 'font-bold text-foreground' : 'text-muted-foreground'}`}>
+                        <p className={cn(`text-sm truncate`, isUnread ? 'font-bold text-foreground' : 'text-muted-foreground')}>
                            {lastMessagePreview}
                         </p>
                       </div>
@@ -276,3 +210,5 @@ export default function ChatListPage() {
     </>
   );
 }
+
+    

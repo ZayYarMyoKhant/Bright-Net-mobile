@@ -108,7 +108,7 @@ const ChatMessage = ({ message, isSender, onReply, onDelete, onReaction, current
             async ([entry]) => {
                 if (entry.isIntersecting && !isSender && !message.is_seen_by_other) {
                     if (currentUser) {
-                       await supabase.rpc('mark_message_as_read', {
+                       await supabase.rpc('mark_direct_message_as_read', {
                            p_message_id: message.id,
                            p_user_id: currentUser.id
                        });
@@ -846,6 +846,8 @@ export default function ChatPageContent({ initialData, params }: { initialData: 
     </div>
   );
 }
+
+    
 
     
 

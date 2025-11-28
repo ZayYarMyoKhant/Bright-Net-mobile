@@ -4,7 +4,7 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Loader2, Users, Send, BookOpenText, MoreVertical, Trash2, Mic, ImagePlus, Smile, X, StopCircle } from "lucide-react";
+import { ArrowLeft, Loader2, Users, Send, BookOpenText, MoreVertical, Trash2, Mic, ImagePlus, Smile, X, StopCircle, CheckCheck } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { User } from "@supabase/supabase-js";
@@ -38,6 +38,7 @@ type ClassMessage = {
     created_at: string;
     user_id: string;
     profiles: Profile;
+    read_by_count: number;
 }
 
 type InitialClassData = {
@@ -50,7 +51,37 @@ type InitialClassData = {
 type RecordingStatus = 'idle' | 'recording' | 'preview';
 
 
-const ChatMessage = ({ message, isSender }: { message: ClassMessage, isSender: boolean }) => {
+const ChatMessage = ({ message, isSender, totalMembers }: { message: ClassMessage, isSender: boolean, totalMembers: number }) => {
+    const msgRef = useRef<HTMLDivElement>(null);
+    const supabase = createClient();
+    const [hasBeenSeen, setHasBeenSeen] = useState(false);
+
+    useEffect(() => {
+      const observer = new IntersectionObserver(
+        async ([entry]) => {
+          // Mark as read only once and if the message is visible enough
+          if (entry.isIntersecting && !hasBeenSeen && !isSender) {
+            setHasBeenSeen(true);
+            await supabase.rpc('mark_class_message_as_read', {
+                p_message_id: message.id,
+            });
+            observer.disconnect();
+          }
+        },
+        { threshold: 0.5 }
+      );
+  
+      if (msgRef.current) {
+        observer.observe(msgRef.current);
+      }
+  
+      return () => {
+        if (msgRef.current) {
+          // @ts-ignore
+          observer.unobserve(msgRef.current);
+        }
+      };
+    }, [isSender, message.id, supabase, hasBeenSeen]);
 
     const renderMedia = () => {
         if (message.media_type === 'image' && message.media_url) {
@@ -78,7 +109,7 @@ const ChatMessage = ({ message, isSender }: { message: ClassMessage, isSender: b
 
 
     return (
-        <div className={cn("flex items-start gap-3", isSender ? "justify-end" : "justify-start")}>
+        <div ref={msgRef} className={cn("flex items-start gap-3", isSender ? "justify-end" : "justify-start")}>
             {!isSender && (
                 <Link href={`/profile/${message.profiles.id}`}>
                     <Avatar className="h-8 w-8" profile={message.profiles} />
@@ -97,8 +128,14 @@ const ChatMessage = ({ message, isSender }: { message: ClassMessage, isSender: b
                     </div>
                 </div>
 
-                <div className={cn("text-xs text-muted-foreground mt-1", isSender ? "text-right" : "text-left")}>
-                    {formatDistanceToNow(new Date(message.created_at), { addSuffix: true })}
+                 <div className={cn("text-xs text-muted-foreground mt-1 flex items-center gap-1.5", isSender ? "justify-end" : "justify-start")}>
+                    <span>{formatDistanceToNow(new Date(message.created_at), { addSuffix: true })}</span>
+                     {isSender && message.read_by_count > 0 && (
+                        <div className="flex items-center gap-0.5" title={`Seen by ${message.read_by_count} members`}>
+                            <CheckCheck className="h-4 w-4 text-blue-500" />
+                            <span className="text-xs">{Math.min(message.read_by_count, totalMembers-1)}</span>
+                        </div>
+                    )}
                 </div>
             </div>
         </div>
@@ -167,15 +204,29 @@ export default function IndividualClassPageContent({ initialData }: { initialDat
                 async (payload) => {
                      const { data: fullMessage, error } = await supabase
                         .from('class_messages')
-                        .select('*, profiles:user_id(*)')
+                        .select('*, profiles:user_id(*), read_by:class_message_read_status(count)')
                         .eq('id', payload.new.id)
                         .single();
 
                     if (!error && fullMessage) {
-                        setMessages((prevMessages) => [...prevMessages, fullMessage as ClassMessage]);
+                        const newMsg = { ...fullMessage, read_by_count: fullMessage.read_by[0]?.count || 0 };
+                        setMessages((prevMessages) => [...prevMessages, newMsg]);
                     }
                 }
             )
+            .on('postgres_changes', {
+                event: 'INSERT',
+                schema: 'public',
+                table: 'class_message_read_status'
+            }, async (payload) => {
+                const messageId = payload.new.message_id;
+                setMessages(prev => prev.map(msg => {
+                    if (msg.id === messageId) {
+                        return { ...msg, read_by_count: msg.read_by_count + 1 };
+                    }
+                    return msg;
+                }));
+            })
             .subscribe();
 
         return () => {
@@ -397,7 +448,7 @@ export default function IndividualClassPageContent({ initialData }: { initialDat
                             </div>
                         ) : (
                             messages.map((msg) => (
-                                <ChatMessage key={msg.id} message={msg} isSender={msg.user_id === currentUser?.id} />
+                                <ChatMessage key={msg.id} message={msg} isSender={msg.user_id === currentUser?.id} totalMembers={classData.student_count} />
                             ))
                         )}
                         <div ref={messagesEndRef} />
@@ -495,6 +546,8 @@ export default function IndividualClassPageContent({ initialData }: { initialDat
         </div>
     );
 }
+
+    
 
     
 
