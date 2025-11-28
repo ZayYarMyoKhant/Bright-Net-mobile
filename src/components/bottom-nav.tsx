@@ -19,21 +19,13 @@ export function BottomNav() {
     const checkUnreadMessages = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
-
-      const { data, error, count } = await supabase
-        .from('conversations')
-        .select(`
-          id,
-          messages:direct_messages(id, is_seen:direct_message_read_status(count))
-        `, { count: 'exact' })
-        .eq('direct_messages.direct_message_read_status.user_id', user.id)
-        .eq('direct_messages.direct_message_read_status.is_seen', false);
-
       
       const { data: unreadData, error: rpcError } = await supabase.rpc('count_unread_conversations_for_user', {p_user_id: user.id});
       
       if (!rpcError && unreadData) {
           setHasUnread(unreadData > 0);
+      } else if (rpcError) {
+          console.error("Error checking unread messages:", rpcError);
       }
     };
 
