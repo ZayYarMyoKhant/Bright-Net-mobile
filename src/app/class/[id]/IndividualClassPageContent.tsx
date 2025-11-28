@@ -55,17 +55,29 @@ const ChatMessage = ({ message, isSender, totalMembers }: { message: ClassMessag
     const msgRef = useRef<HTMLDivElement>(null);
     const supabase = createClient();
     const [hasBeenSeen, setHasBeenSeen] = useState(false);
+    const [currentUser, setCurrentUser] = useState<User | null>(null);
+
+    useEffect(() => {
+        supabase.auth.getUser().then(({ data: { user }}) => {
+            setCurrentUser(user);
+        });
+    }, [supabase]);
+
 
     useEffect(() => {
       const observer = new IntersectionObserver(
         async ([entry]) => {
-          // Mark as read only once and if the message is visible enough
-          if (entry.isIntersecting && !hasBeenSeen && !isSender) {
+          if (entry.isIntersecting && !hasBeenSeen && !isSender && currentUser) {
             setHasBeenSeen(true);
-            await supabase.rpc('mark_class_message_as_read', {
-                p_message_id: message.id,
-            });
-            observer.disconnect();
+            
+            const { error } = await supabase.from('class_message_read_status').insert({
+                message_id: message.id,
+                user_id: currentUser.id
+            }, { onConflict: 'message_id, user_id' });
+
+            if (!error) {
+                observer.disconnect();
+            }
           }
         },
         { threshold: 0.5 }
@@ -81,7 +93,7 @@ const ChatMessage = ({ message, isSender, totalMembers }: { message: ClassMessag
           observer.unobserve(msgRef.current);
         }
       };
-    }, [isSender, message.id, supabase, hasBeenSeen]);
+    }, [isSender, message.id, supabase, hasBeenSeen, currentUser]);
 
     const renderMedia = () => {
         if (message.media_type === 'image' && message.media_url) {

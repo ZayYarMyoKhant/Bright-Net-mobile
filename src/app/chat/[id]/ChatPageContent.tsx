@@ -106,14 +106,15 @@ const ChatMessage = ({ message, isSender, onReply, onDelete, onReaction, current
      useEffect(() => {
         const observer = new IntersectionObserver(
             async ([entry]) => {
-                if (entry.isIntersecting && !isSender && !message.is_seen_by_other) {
-                    if (currentUser) {
-                       await supabase.rpc('mark_direct_message_as_read', {
-                           p_message_id: message.id,
-                           p_user_id: currentUser.id
-                       });
+                if (entry.isIntersecting && !isSender && !message.is_seen_by_other && currentUser) {
+                    const { error } = await supabase.from('direct_message_read_status').insert({
+                        message_id: message.id,
+                        user_id: currentUser.id
+                    }, { onConflict: 'message_id, user_id' }); // Prevent duplicates
+
+                    if (!error) {
+                        observer.disconnect(); // Disconnect after successfully marking as read
                     }
-                    observer.disconnect();
                 }
             },
             { threshold: 0.5 }

@@ -55,6 +55,7 @@ export default function ChatListPage() {
   const fetchConversations = useCallback(async (user: User) => {
     setLoading(true);
     
+    // This RPC is complex. A simpler, more direct query might be better if performance issues arise.
     const { data: convos, error } = await supabase
       .rpc('get_user_conversations', { p_user_id: user.id });
 
@@ -89,7 +90,8 @@ export default function ChatListPage() {
   useEffect(() => {
     if (!currentUser) return;
 
-    const changes = supabase.channel('public:direct_messages_list_page')
+    // A single channel to listen to all relevant changes
+    const changes = supabase.channel('public:chat-list-page')
       .on('postgres_changes', 
         { event: '*', schema: 'public', table: 'direct_messages' },
         (payload) => {
@@ -109,7 +111,6 @@ export default function ChatListPage() {
         }
       )
       .subscribe();
-
 
     return () => {
       supabase.removeChannel(changes);
