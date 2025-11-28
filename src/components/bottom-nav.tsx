@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 import { Home, Search, PlusSquare, User, MessageCircle, Heart, BookOpen } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTranslation } from "@/context/language-context";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
 
 export function BottomNav() {
@@ -15,59 +15,60 @@ export function BottomNav() {
   const [hasUnread, setHasUnread] = useState(false);
   const supabase = createClient();
 
+  const checkUnreadMessages = useCallback(async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      setHasUnread(false);
+      return;
+    }
+
+    // Get all conversation IDs for the user
+    const { data: convoParticipants, error: convoError } = await supabase
+        .from('conversation_participants')
+        .select('conversation_id')
+        .eq('user_id', user.id);
+
+    if (convoError || !convoParticipants || convoParticipants.length === 0) {
+        if(convoError) console.error("Error fetching user conversations:", convoError);
+        setHasUnread(false);
+        return;
+    }
+
+    const conversationIds = convoParticipants.map(p => p.conversation_id);
+
+    // Count unread messages across all those conversations
+    const { count, error: countError } = await supabase
+        .from('direct_messages')
+        .select('*', { count: 'exact', head: true })
+        .in('conversation_id', conversationIds)
+        .eq('is_seen', false)
+        .neq('sender_id', user.id);
+    
+    if (countError) {
+        console.error("Error counting unread messages:", countError);
+        setHasUnread(false);
+    } else {
+        setHasUnread((count || 0) > 0);
+    }
+  }, [supabase]);
+
+
   useEffect(() => {
-    const checkUnreadMessages = async () => {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) {
-          setHasUnread(false);
-          return;
-        };
-
-        // Get all conversations for the user
-        const { data: convoParticipants, error: convoError } = await supabase
-            .from('conversation_participants')
-            .select('conversation_id')
-            .eq('user_id', user.id);
-
-        if (convoError || !convoParticipants || convoParticipants.length === 0) {
-            if(convoError) console.error("Error fetching user conversations:", convoError);
-            setHasUnread(false);
-            return;
-        }
-
-        const conversationIds = convoParticipants.map(p => p.conversation_id);
-
-        // Count unread messages across all those conversations
-        const { count, error: countError } = await supabase
-            .from('direct_messages')
-            .select('*', { count: 'exact', head: true })
-            .in('conversation_id', conversationIds)
-            .eq('is_seen', false)
-            .neq('sender_id', user.id);
-        
-        if (countError) {
-            console.error("Error counting unread messages:", countError);
-            setHasUnread(false);
-        } else {
-            setHasUnread((count || 0) > 0);
-        }
-    };
-
     checkUnreadMessages();
 
     const channel = supabase.channel('public:direct_messages:bottom-nav-realtime')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'direct_messages' }, (payload) => {
-        checkUnreadMessages();
-      })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'direct_message_read_status' }, (payload) => {
-        checkUnreadMessages();
-      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'direct_messages' }, 
+        () => checkUnreadMessages()
+      )
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'direct_message_read_status' }, 
+        () => checkUnreadMessages()
+      )
       .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [supabase]);
+  }, [supabase, checkUnreadMessages]);
 
   const navItems = [
     { href: "/home", label: t('bottomNav.home'), icon: Home },
