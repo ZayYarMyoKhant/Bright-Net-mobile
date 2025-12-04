@@ -18,7 +18,7 @@ export default async function UserProfilePage({ params }: { params: { id: string
 
   if (profileError || !profileData) {
     const initialData = { profile: null, posts: [], error: profileError?.message || 'User not found.' };
-    return <UserProfilePageContent initialData={initialData} />;
+    return <UserProfilePageContent initialData={initialData} params={params} />;
   }
 
   const isOwnProfile = authUser?.id === profileData.id;
@@ -45,6 +45,7 @@ export default async function UserProfilePage({ params }: { params: { id: string
       last_seen: profileData.last_seen,
       show_active_status: profileData.show_active_status,
       is_in_relationship: profileData.is_in_relationship,
+      is_verified: profileData.is_verified,
     },
     posts: postsRes.data || [],
     error: null,
@@ -61,9 +62,7 @@ export default async function UserProfilePage({ params }: { params: { id: string
             <BottomNav />
         </>
     }>
-        <UserProfilePageContent initialData={initialData} />
+        <UserProfilePageContent initialData={initialData} params={params} />
     </Suspense>
   );
 }
-
-    

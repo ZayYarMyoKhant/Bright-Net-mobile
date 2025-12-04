@@ -8,6 +8,7 @@ export type Profile = {
   win_streak_3?: boolean;
   win_streak_10?: boolean;
   is_in_relationship?: boolean;
+  is_verified?: boolean;
 };
 
 export type Comment = {

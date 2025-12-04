@@ -58,5 +58,3 @@ export default async function FullScreenPostPage({ params }: { params: { id: str
     </Suspense>
   );
 }
-
-    

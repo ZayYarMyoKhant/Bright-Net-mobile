@@ -7,6 +7,7 @@ import Image from "next/image";
 import { cn } from "@/lib/utils"
 import type { Profile } from "@/lib/data";
 import { Rose } from "@/components/icons";
+import { BadgeCheck } from "lucide-react";
 
 interface AvatarProps extends React.ComponentPropsWithoutRef<typeof AvatarPrimitive.Root> {
     profile?: Partial<Profile>;
@@ -59,6 +60,9 @@ const Avatar = React.forwardRef<
           
           {showFrame && <AvatarFrame isStreak10={profile?.win_streak_10} />}
           {profile?.is_in_relationship && <Rose className="absolute -top-2 -right-2 h-5 w-5 z-20" />}
+          {profile?.is_verified && (
+              <BadgeCheck className="absolute -bottom-1 -right-1 h-5 w-5 text-blue-500 bg-white rounded-full z-20" />
+          )}
 
       </div>
     )
