@@ -56,41 +56,95 @@ export default function ChatListPage() {
   const fetchConversations = useCallback(async (user: User) => {
     setLoading(true);
     
-    const { data, error } = await supabase.rpc('get_user_conversations', { user_id_param: user.id });
+    // 1. Get all conversations the user is a part of
+    const { data: participantData, error: participantError } = await supabase
+        .from('conversation_participants')
+        .select('conversation_id')
+        .eq('user_id', user.id);
 
-    if (error) {
-        console.error("Error fetching conversations via RPC:", error);
+    if (participantError) {
+        console.error("Error fetching user conversations:", participantError);
         setConversations([]);
-    } else {
-        const sortedConvos = (data as any[]).sort((a, b) => {
-            if (a.is_self_chat) return -1;
-            if (b.is_self_chat) return 1;
-            if (!a.last_message_created_at) return 1;
-            if (!b.last_message_created_at) return -1;
-            return new Date(b.last_message_created_at).getTime() - new Date(a.last_message_created_at).getTime();
-        });
-
-        const finalConvos: Conversation[] = sortedConvos.map(c => ({
-            id: c.conversation_id,
-            is_self_chat: c.is_self_chat,
-            other_user: {
-                id: c.other_user_id,
-                username: c.other_user_username,
-                full_name: c.other_user_full_name,
-                avatar_url: c.other_user_avatar_url,
-                last_seen: c.other_user_last_seen,
-                show_active_status: c.other_user_show_active_status
-            },
-            last_message: c.last_message_content || c.last_message_media_type ? {
-                content: c.last_message_content,
-                media_type: c.last_message_media_type,
-                created_at: c.last_message_created_at,
-                sender_id: c.last_message_sender_id,
-            } : null,
-            unread_count: c.unread_count
-        }));
-        setConversations(finalConvos);
+        setLoading(false);
+        return;
     }
+
+    const conversationIds = participantData.map(p => p.conversation_id);
+
+    if (conversationIds.length === 0) {
+        setConversations([]);
+        setLoading(false);
+        return;
+    }
+    
+    // 2. Fetch details for each conversation in parallel
+    const conversationPromises = conversationIds.map(async (convoId) => {
+        // a. Get all participants for the conversation
+        const { data: participants, error: pError } = await supabase
+            .from('conversation_participants')
+            .select('user_id')
+            .eq('conversation_id', convoId);
+        
+        if (pError) return null;
+
+        const isSelfChat = participants.length === 1 && participants[0].user_id === user.id;
+        const otherParticipant = participants.find(p => p.user_id !== user.id);
+
+        if (!isSelfChat && !otherParticipant) return null;
+        
+        // b. Fetch other user's profile
+        const { data: otherUserData, error: userError } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', isSelfChat ? user.id : otherParticipant!.user_id)
+            .single();
+        
+        if (userError) return null;
+        
+        // c. Fetch last message
+        const { data: lastMessageData, error: msgError } = await supabase
+            .from('direct_messages')
+            .select('*')
+            .eq('conversation_id', convoId)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .single();
+
+        // d. Count unread messages
+        const { count: unreadCount, error: countError } = await supabase
+            .from('direct_messages')
+            .select('*', { count: 'exact', head: true })
+            .eq('conversation_id', convoId)
+            .eq('is_seen', false)
+            .neq('sender_id', user.id);
+
+
+        return {
+            id: convoId,
+            is_self_chat: isSelfChat,
+            other_user: otherUserData as Profile & { last_seen: string | null; show_active_status: boolean; },
+            last_message: lastMessageData ? {
+                content: lastMessageData.content,
+                media_type: lastMessageData.media_type,
+                created_at: lastMessageData.created_at,
+                sender_id: lastMessageData.sender_id,
+            } : null,
+            unread_count: countError ? 0 : unreadCount,
+        };
+    });
+
+    const resolvedConversations = (await Promise.all(conversationPromises))
+        .filter(Boolean) as Conversation[];
+        
+    const sortedConvos = resolvedConversations.sort((a, b) => {
+        if (a.is_self_chat) return -1;
+        if (b.is_self_chat) return 1;
+        if (!a.last_message) return 1;
+        if (!b.last_message) return -1;
+        return new Date(b.last_message.created_at).getTime() - new Date(a.last_message.created_at).getTime();
+    });
+
+    setConversations(sortedConvos);
     setLoading(false);
   }, [supabase]);
 
