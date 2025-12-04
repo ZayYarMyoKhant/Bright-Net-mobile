@@ -174,7 +174,7 @@ const ChatMessage = ({ message, isSender, onReply, onDelete, onReaction, current
                      message.media_type && ['sticker', 'audio'].includes(message.media_type) ? "bg-transparent" : (isSender ? 'bg-primary text-primary-foreground' : 'bg-muted')
                 )}>
                      <div className="px-3 py-2">
-                        {!isSender && !message.is_shared_post && !message.parent_message && <p className={cn("font-semibold text-xs mb-1", message.profiles.is_verified && "text-white bg-gradient-to-r from-cyan-500 to-blue-500 rounded-md px-2 py-1 inline-block")}>{message.profiles.full_name}</p>}
+                        {!isSender && !message.is_shared_post && !message.parent_message && <p className={cn("font-semibold text-xs mb-1", message.profiles.is_verified && "font-bold text-white bg-gradient-to-r from-cyan-500 to-blue-500 rounded-md px-2 py-1 inline-block")}>{message.profiles.full_name}</p>}
                         
                          {message.parent_message && (
                             <div className="bg-black/10 p-2 rounded-md mb-2">
@@ -348,9 +348,16 @@ export default function ChatPageContent({ initialData, params }: { initialData: 
                 .select('*, profiles:sender_id(*), direct_message_reactions(*, profiles:user_id(*)), parent_message:parent_message_id(content, media_type, profiles:sender_id(full_name))')
                 .eq('id', payload.new.id)
                 .single();
+
             if (!error && fullMessage) {
                  const newMessage = { ...fullMessage, is_seen_by_other: false } as DirectMessage;
-                 setMessages((prevMessages) => [...prevMessages, newMessage]);
+                 setMessages((prevMessages) => {
+                    // Prevent duplicates from showing up
+                    if (prevMessages.some(msg => msg.id === newMessage.id)) {
+                        return prevMessages;
+                    }
+                    return [...prevMessages, newMessage]
+                 });
             }
         }
       )
@@ -901,3 +908,5 @@ export default function ChatPageContent({ initialData, params }: { initialData: 
     </div>
   );
 }
+
+    
