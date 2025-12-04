@@ -258,7 +258,7 @@ export default function ChatListPage() {
                       </div>
                       <div className="flex-1 overflow-hidden">
                         <div className="flex justify-between">
-                           <p className="font-semibold">{isSavedMessages ? 'Saved Messages' : convo.other_user.full_name}</p>
+                           <p className={cn("font-semibold", convo.other_user.is_verified && "text-white bg-gradient-to-r from-cyan-500 to-blue-500 rounded-md px-2 py-1 inline-block")}>{isSavedMessages ? 'Saved Messages' : convo.other_user.full_name}</p>
                            {lastMessage && <p className="text-xs text-muted-foreground">{formatDistanceToNow(new Date(lastMessage.created_at), { addSuffix: true })}</p>}
                         </div>
                         <p className={cn(`text-sm truncate`, isUnread ? 'font-bold text-foreground' : 'text-muted-foreground')}>
@@ -282,5 +282,3 @@ export default function ChatListPage() {
     </>
   );
 }
-
-    

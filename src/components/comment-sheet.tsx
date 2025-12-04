@@ -38,7 +38,7 @@ const CommentItem = ({ comment, isReply = false, onReply, onDelete, currentUser 
             </Avatar>
         </Link>
         <div className="flex-1">
-            <Link href={`/profile/${comment.profiles.id}`} className="text-xs font-semibold hover:underline">{comment.profiles.username}</Link>
+            <Link href={`/profile/${comment.profiles.id}`} className={cn("text-xs font-semibold hover:underline", comment.profiles.is_verified && "text-white bg-gradient-to-r from-cyan-500 to-blue-500 rounded-md px-1.5 py-0.5 inline-block")}>{comment.profiles.username}</Link>
             <p className="text-sm">{comment.content}</p>
             <div className="flex items-center gap-4 mt-1 text-xs text-muted-foreground">
                 <span>{timeAgo}</span>

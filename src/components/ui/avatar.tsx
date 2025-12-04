@@ -61,7 +61,7 @@ const Avatar = React.forwardRef<
           {showFrame && <AvatarFrame isStreak10={profile?.win_streak_10} />}
           {profile?.is_in_relationship && <Rose className="absolute -top-2 -right-2 h-5 w-5 z-20" />}
           {profile?.is_verified && (
-              <BadgeCheck className="absolute -bottom-1 -right-1 h-5 w-5 text-blue-500 bg-white rounded-full z-20" />
+              <BadgeCheck className="absolute -bottom-1 -right-1 h-5 w-5 text-white bg-blue-500 rounded-full z-20 p-0.5" />
           )}
 
       </div>

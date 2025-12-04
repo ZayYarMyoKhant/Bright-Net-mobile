@@ -17,12 +17,13 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import Link from 'next/link';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { cn } from '@/lib/utils';
 
 type CoupleData = {
     id: string;
     first_loving_day: string | null;
-    user1: { id: string; full_name: string; avatar_url: string; };
-    user2: { id: string; full_name: string; avatar_url: string; };
+    user1: { id: string; full_name: string; avatar_url: string; is_verified?: boolean };
+    user2: { id: string; full_name: string; avatar_url: string; is_verified?: boolean };
 };
 
 type Profile = {
@@ -31,6 +32,7 @@ type Profile = {
     avatar_url: string;
     full_name: string;
     is_in_relationship: boolean;
+    is_verified?: boolean;
 };
 
 type CoupleRequest = {
@@ -67,8 +69,8 @@ export default function AnniversaryPage() {
             .select(`
                 id,
                 first_loving_day,
-                user1:user1_id(id, full_name, avatar_url),
-                user2:user2_id(id, full_name, avatar_url)
+                user1:user1_id(id, full_name, avatar_url, is_verified),
+                user2:user2_id(id, full_name, avatar_url, is_verified)
             `)
             .or(`user1_id.eq.${user.id},user2_id.eq.${user.id}`)
             .eq('status', 'accepted')
@@ -257,7 +259,7 @@ export default function AnniversaryPage() {
                         <div className="flex justify-around items-center mt-4">
                             <div className="flex flex-col items-center gap-2">
                                 <Avatar className="h-20 w-20 border-4 border-pink-200" profile={you} />
-                                <p className="font-semibold">{you.full_name}</p>
+                                <p className={cn("font-semibold", you.is_verified && "font-bold text-white bg-gradient-to-r from-cyan-500 to-blue-500 rounded-md px-2 py-1")}>{you.full_name}</p>
                             </div>
                             <div className="flex flex-col items-center">
                                 <Heart className="h-10 w-10 text-red-500 fill-red-500" />
@@ -266,7 +268,7 @@ export default function AnniversaryPage() {
                             </div>
                              <div className="flex flex-col items-center gap-2">
                                 <Avatar className="h-20 w-20 border-4 border-pink-200" profile={partner} />
-                                <p className="font-semibold">{partner.full_name}</p>
+                                <p className={cn("font-semibold", partner.is_verified && "font-bold text-white bg-gradient-to-r from-cyan-500 to-blue-500 rounded-md px-2 py-1")}>{partner.full_name}</p>
                             </div>
                         </div>
                         
@@ -356,7 +358,7 @@ export default function AnniversaryPage() {
                                     <div key={friend.id} className="p-4 flex items-center gap-4">
                                         <Avatar className="h-12 w-12" profile={friend} />
                                         <div className="flex-1">
-                                            <p className="font-semibold">{friend.full_name}</p>
+                                            <p className={cn("font-semibold", friend.is_verified && "font-bold text-white bg-gradient-to-r from-cyan-500 to-blue-500 rounded-md px-2 py-1 inline-block")}>{friend.full_name}</p>
                                             <p className="text-sm text-muted-foreground">@{friend.username}</p>
                                         </div>
                                         <Button 
@@ -386,7 +388,7 @@ export default function AnniversaryPage() {
                                    <div key={req.id} className="p-4 flex items-center gap-4">
                                        <Avatar className="h-12 w-12" profile={req.profiles} />
                                        <div className="flex-1">
-                                           <p className="font-semibold">{req.profiles.full_name}</p>
+                                           <p className={cn("font-semibold", req.profiles.is_verified && "font-bold text-white bg-gradient-to-r from-cyan-500 to-blue-500 rounded-md px-2 py-1 inline-block")}>{req.profiles.full_name}</p>
                                            <p className="text-sm text-muted-foreground">@{req.profiles.username}</p>
                                        </div>
                                        <div className="flex gap-2">
@@ -417,7 +419,7 @@ export default function AnniversaryPage() {
                                    <div key={req.id} className="p-4 flex items-center gap-4">
                                        <Avatar className="h-12 w-12" profile={req.profiles} />
                                        <div className="flex-1">
-                                           <p className="font-semibold">{req.profiles.full_name}</p>
+                                           <p className={cn("font-semibold", req.profiles.is_verified && "font-bold text-white bg-gradient-to-r from-cyan-500 to-blue-500 rounded-md px-2 py-1 inline-block")}>{req.profiles.full_name}</p>
                                            <p className="text-sm text-muted-foreground">@{req.profiles.username}</p>
                                        </div>
                                        <Button variant="destructive" onClick={() => handleCancelRequest(req.id)} disabled={handlingRequest === req.id}>

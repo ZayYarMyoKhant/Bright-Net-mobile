@@ -17,6 +17,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { formatDistanceToNow, isBefore, subMinutes } from "date-fns";
+import { cn } from "@/lib/utils";
 
 type ProfileData = Profile & {
   following: number;
@@ -175,7 +176,7 @@ export default function UserProfilePageContent({ initialData, params }: { initia
                 </Link>
               <PresenceIndicator user={profile} />
             </div>
-            <h2 className="mt-3 text-xl font-bold">{profile.full_name}</h2>
+            <h2 className={cn("mt-3 text-xl", profile.is_verified && "font-bold text-white bg-gradient-to-r from-cyan-500 to-blue-500 rounded-md px-2 py-1")}>{profile.full_name}</h2>
             <p className="text-sm text-muted-foreground">@{profile.username}</p>
             {isProfileOnline 
                 ? <p className="text-xs text-green-500 mt-1">Online</p>

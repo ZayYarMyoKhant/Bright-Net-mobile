@@ -12,6 +12,7 @@ import { Post, Profile } from "@/lib/data";
 import { User } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { cn } from "@/lib/utils";
 
 type ShareSheetProps = {
   post: Post;
@@ -210,7 +211,7 @@ export function ShareSheet({ post, currentUser }: ShareSheetProps) {
                     <Avatar className="h-10 w-10" profile={friend}>
                     </Avatar>
                     <div className="flex-1">
-                        <p className="font-semibold">{friend.full_name || friend.username}</p>
+                        <p className={cn("font-semibold", friend.is_verified && "text-white bg-gradient-to-r from-cyan-500 to-blue-500 rounded-md px-2 py-1 inline-block")}>{friend.full_name || friend.username}</p>
                     </div>
                     <Checkbox 
                         id={`friend-${friend.id}`}
@@ -239,5 +240,3 @@ export function ShareSheet({ post, currentUser }: ShareSheetProps) {
     </>
   );
 }
-
-    

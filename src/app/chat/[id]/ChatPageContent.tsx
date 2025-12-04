@@ -174,7 +174,7 @@ const ChatMessage = ({ message, isSender, onReply, onDelete, onReaction, current
                      message.media_type && ['sticker', 'audio'].includes(message.media_type) ? "bg-transparent" : (isSender ? 'bg-primary text-primary-foreground' : 'bg-muted')
                 )}>
                      <div className="px-3 py-2">
-                        {!isSender && !message.is_shared_post && !message.parent_message && <p className="font-semibold text-xs mb-1">{message.profiles.full_name}</p>}
+                        {!isSender && !message.is_shared_post && !message.parent_message && <p className={cn("font-semibold text-xs mb-1", message.profiles.is_verified && "text-white bg-gradient-to-r from-cyan-500 to-blue-500 rounded-md px-2 py-1 inline-block")}>{message.profiles.full_name}</p>}
                         
                          {message.parent_message && (
                             <div className="bg-black/10 p-2 rounded-md mb-2">
@@ -750,7 +750,7 @@ export default function ChatPageContent({ initialData, params }: { initialData: 
                 <PresenceIndicator user={otherUser} />
             </Link>
             <div>
-                <p className="font-bold">{otherUser.full_name}</p>
+                <p className={cn("font-bold", otherUser.is_verified && "text-white bg-gradient-to-r from-cyan-500 to-blue-500 rounded-md px-2 py-1")}>{otherUser.full_name}</p>
                 {getStatusText()}
             </div>
         </div>

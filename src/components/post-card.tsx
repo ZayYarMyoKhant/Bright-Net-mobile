@@ -79,7 +79,7 @@ export function PostCard({ post }: { post: Post }) {
         </Link>
         <div className="flex-1">
             <Link href={`/profile/${post.user.id}`}>
-                <p className="font-semibold hover:underline">{post.user.username}</p>
+                <p className={cn("font-semibold hover:underline", post.user.is_verified && "text-white bg-gradient-to-r from-cyan-500 to-blue-500 rounded-md px-2 py-1 inline-block")}>{post.user.username}</p>
             </Link>
             <p className="text-xs text-muted-foreground">{timeAgo}</p>
         </div>

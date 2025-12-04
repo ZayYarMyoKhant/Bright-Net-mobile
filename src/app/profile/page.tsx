@@ -14,6 +14,7 @@ import { useToast } from '@/hooks/use-toast';
 import { createClient } from '@/lib/supabase/client';
 import type { Post, Profile } from '@/lib/data';
 import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
 
 type ProfileData = Profile & {
   following: number;
@@ -153,7 +154,7 @@ export default function ProfilePage() {
           <div className="flex flex-col items-center">
             <Avatar className="h-24 w-24 border-2 border-primary" profile={user}>
             </Avatar>
-            <h2 className="mt-3 text-xl font-bold">{user.full_name}</h2>
+            <h2 className={cn("mt-3 text-xl", user.is_verified && "font-bold text-white bg-gradient-to-r from-cyan-500 to-blue-500 rounded-md px-2 py-1")}>{user.full_name}</h2>
             <p className="text-sm text-muted-foreground">@{user.username}</p>
             <p className="mt-2 text-center text-sm">{user.bio}</p>
           </div>
