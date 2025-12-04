@@ -21,24 +21,32 @@ export function BottomNav() {
       setHasUnread(false);
       return;
     }
-
+    
+    // Check if there's any message sent by others that is not seen by the current user
     const { count, error } = await supabase
-        .from('direct_messages')
-        .select('*', { count: 'exact', head: true })
-        .eq('is_seen', false)
-        .neq('sender_id', user.id);
+      .from('direct_messages')
+      .select('*', { count: 'exact', head: true })
+      .eq('is_seen', false)
+      .neq('sender_id', user.id);
 
     if (error) {
-        console.error("Error counting unread messages:", error);
-        setHasUnread(false);
+      console.error("Error counting unread messages:", error);
+      setHasUnread(false);
     } else {
-        setHasUnread((count || 0) > 0);
+      setHasUnread((count || 0) > 0);
     }
   }, [supabase]);
 
 
   useEffect(() => {
-    checkUnreadMessages();
+    const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
+        if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') {
+             checkUnreadMessages();
+        } else if (event === 'SIGNED_OUT') {
+            setHasUnread(false);
+        }
+    });
+
     const channel = supabase.channel('public:direct_messages:bottom-nav-realtime')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'direct_messages' }, 
         () => checkUnreadMessages()
@@ -50,6 +58,7 @@ export function BottomNav() {
 
     return () => {
       supabase.removeChannel(channel);
+      authListener.subscription.unsubscribe();
     };
   }, [supabase, checkUnreadMessages]);
 
