@@ -34,7 +34,13 @@ export function BottomNav() {
 
 
   useEffect(() => {
-    checkUnreadMessages();
+    const checkUserAndMessages = async () => {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+            checkUnreadMessages();
+        }
+    };
+    checkUserAndMessages();
 
     const channel = supabase.channel('public:direct_messages:bottom-nav-realtime')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'direct_messages' }, 

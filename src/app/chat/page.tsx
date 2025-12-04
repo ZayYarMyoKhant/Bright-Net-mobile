@@ -86,7 +86,6 @@ export default function ChatListPage() {
                 media_type: c.last_message_media_type,
                 created_at: c.last_message_created_at,
                 sender_id: c.last_message_sender_id,
-                is_seen: false // This is simplified, real value is in unread_count
             } : null,
             unread_count: c.unread_count
         }));
@@ -171,7 +170,7 @@ export default function ChatListPage() {
           ) : (
             <div className="divide-y">
               {conversations.map((convo) => {
-                if (!convo.other_user) return null;
+                if (!convo.other_user && !convo.is_self_chat) return null;
                 
                 const isSavedMessages = convo.is_self_chat;
                 const lastMessage = convo.last_message;
@@ -193,7 +192,7 @@ export default function ChatListPage() {
                 }
 
                 return (
-                  <Link href={`/chat/${convo.other_user.id}`} key={convo.id}>
+                  <Link href={`/chat/${isSavedMessages ? currentUser?.id : convo.other_user.id}`} key={convo.id}>
                     <div className="p-4 flex items-center gap-4 hover:bg-muted/50">
                       <div className="relative">
                         {isSavedMessages ? (

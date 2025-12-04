@@ -18,7 +18,7 @@ import { formatDistanceToNow } from "date-fns";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { EmojiPicker } from "@/components/emoji-picker";
 
 
@@ -54,7 +54,6 @@ type RecordingStatus = 'idle' | 'recording' | 'preview';
 const ChatMessage = ({ message, isSender, totalMembers }: { message: ClassMessage, isSender: boolean, totalMembers: number }) => {
     const msgRef = useRef<HTMLDivElement>(null);
     const supabase = createClient();
-    const [hasBeenSeen, setHasBeenSeen] = useState(false);
     const [currentUser, setCurrentUser] = useState<User | null>(null);
 
     useEffect(() => {
@@ -65,35 +64,33 @@ const ChatMessage = ({ message, isSender, totalMembers }: { message: ClassMessag
 
 
     useEffect(() => {
-      const observer = new IntersectionObserver(
-        async ([entry]) => {
-          if (entry.isIntersecting && !hasBeenSeen && !isSender && currentUser) {
-            setHasBeenSeen(true);
-            
-            const { error } = await supabase.from('class_message_read_status').insert({
-                message_id: message.id,
-                user_id: currentUser.id
-            }, { onConflict: 'message_id, user_id' });
+        if (!currentUser || isSender) return;
 
-            if (!error) {
-                observer.disconnect();
-            }
-          }
-        },
-        { threshold: 0.5 }
-      );
-  
-      if (msgRef.current) {
-        observer.observe(msgRef.current);
-      }
-  
-      return () => {
+        const observer = new IntersectionObserver(
+            async ([entry]) => {
+                if (entry.isIntersecting) {
+                    observer.disconnect(); // Disconnect to prevent multiple triggers
+                    
+                    await supabase.from('class_message_read_status').insert({
+                        message_id: message.id,
+                        user_id: currentUser.id
+                    }, { onConflict: 'message_id, user_id' });
+                }
+            },
+            { threshold: 0.5 }
+        );
+
         if (msgRef.current) {
-          // @ts-ignore
-          observer.unobserve(msgRef.current);
+            observer.observe(msgRef.current);
         }
-      };
-    }, [isSender, message.id, supabase, hasBeenSeen, currentUser]);
+
+        return () => {
+            if (msgRef.current) {
+                // eslint-disable-next-line react-hooks/exhaustive-deps
+                observer.unobserve(msgRef.current);
+            }
+        };
+    }, [isSender, message.id, supabase, currentUser]);
 
     const renderMedia = () => {
         if (message.media_type === 'image' && message.media_url) {
@@ -221,7 +218,7 @@ export default function IndividualClassPageContent({ initialData }: { initialDat
                         .single();
 
                     if (!error && fullMessage) {
-                        const newMsg = { ...fullMessage, read_by_count: fullMessage.read_by[0]?.count || 0 };
+                        const newMsg = { ...fullMessage, read_by_count: fullMessage.read_by[0]?.count || 0 } as ClassMessage;
                         setMessages((prevMessages) => [...prevMessages, newMsg]);
                     }
                 }
@@ -558,9 +555,3 @@ export default function IndividualClassPageContent({ initialData }: { initialDat
         </div>
     );
 }
-
-    
-
-    
-
-    
