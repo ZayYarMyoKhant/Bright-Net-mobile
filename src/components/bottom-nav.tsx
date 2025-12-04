@@ -22,23 +22,9 @@ export function BottomNav() {
       return;
     }
 
-    const { data: userConvos, error: convoError } = await supabase
-      .from('conversation_participants')
-      .select('conversation_id')
-      .eq('user_id', user.id);
-
-    if (convoError || !userConvos || userConvos.length === 0) {
-      if (convoError) console.error("Error fetching user conversations:", convoError);
-      setHasUnread(false);
-      return;
-    }
-
-    const convoIds = userConvos.map(c => c.conversation_id);
-
     const { count, error } = await supabase
       .from('direct_messages')
       .select('*', { count: 'exact', head: true })
-      .in('conversation_id', convoIds)
       .eq('is_seen', false)
       .neq('sender_id', user.id);
 
@@ -151,3 +137,5 @@ export function BottomNav() {
     </footer>
   );
 }
+
+    

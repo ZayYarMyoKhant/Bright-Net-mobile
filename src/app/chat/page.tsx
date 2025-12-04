@@ -77,7 +77,6 @@ export default function ChatListPage() {
     }
 
     const convoPromises = convoIds.map(async (convoId) => {
-      // Get all participants for this convo
       const { data: participants, error: pError } = await supabase
         .from('conversation_participants')
         .select('profiles:user_id(*)')
@@ -90,17 +89,16 @@ export default function ChatListPage() {
 
       if (participants.length === 1 && participants[0].profiles.id === user.id) {
         isSelfChat = true;
-        otherUser = participants[0].profiles; // For saved messages, other user is self
+        otherUser = participants[0].profiles;
       } else {
         const otherParticipant = participants.find(p => p.profiles.id !== user.id);
         if (otherParticipant) {
           otherUser = otherParticipant.profiles;
         } else {
-            return null; // Should not happen in a 2-person chat
+            return null;
         }
       }
       
-      // Get last message
       const { data: lastMessage, error: lmError } = await supabase
         .from('direct_messages')
         .select('content, media_type, created_at, sender_id')
@@ -109,7 +107,6 @@ export default function ChatListPage() {
         .limit(1)
         .single();
         
-      // Get unread count
       const { count: unreadCount, error: ucError } = await supabase
         .from('direct_messages')
         .select('*', { count: 'exact', head: true })
@@ -128,7 +125,6 @@ export default function ChatListPage() {
 
     const resolvedConvos = (await Promise.all(convoPromises)).filter(Boolean) as Conversation[];
 
-    // Sort conversations by the last message timestamp
     resolvedConvos.sort((a, b) => {
         if (!a.last_message) return 1;
         if (!b.last_message) return -1;
@@ -278,5 +274,7 @@ export default function ChatListPage() {
     </>
   );
 }
+
+    
 
     
