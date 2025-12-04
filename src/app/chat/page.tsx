@@ -107,12 +107,19 @@ export default function ChatListPage() {
         .limit(1)
         .single();
         
+      const { data: readStatuses, error: readStatusError } = await supabase
+        .from('direct_message_read_status')
+        .select('message_id')
+        .eq('user_id', user.id);
+
+      const readMessageIds = readStatusError ? [] : readStatuses.map(r => r.message_id);
+
       const { count: unreadCount, error: ucError } = await supabase
         .from('direct_messages')
         .select('*', { count: 'exact', head: true })
         .eq('conversation_id', convoId)
         .neq('sender_id', user.id)
-        .not.in('id', (await supabase.from('direct_message_read_status').select('message_id').eq('user_id', user.id)).data?.map(r => r.message_id) || ['']);
+        .not('id', 'in', `(${readMessageIds.join(',')})`);
 
 
       return {
@@ -275,3 +282,5 @@ export default function ChatListPage() {
     </>
   );
 }
+
+    
