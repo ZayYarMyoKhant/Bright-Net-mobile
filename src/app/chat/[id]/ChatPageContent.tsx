@@ -512,43 +512,70 @@ export default function ChatPageContent({ initialData, params }: { initialData: 
     if ((!newMessage.trim() && !mediaFile) || !currentUser || !conversationId) return;
     
     setSending(true);
+    
+    // --- Optimistic UI Update ---
+    const tempId = `temp_${Date.now()}`;
+    const tempMessage: DirectMessage = {
+      id: tempId,
+      conversation_id: conversationId,
+      sender_id: currentUser.id,
+      content: newMessage.trim() || null,
+      media_url: mediaFile ? URL.createObjectURL(mediaFile) : null,
+      media_type: mediaFile ? mediaFile.type.split('/')[0] : null,
+      created_at: new Date().toISOString(),
+      profiles: (messages.find(m => m.sender_id === currentUser.id)?.profiles) || { id: currentUser.id, username: currentUser.email || 'You' } as Profile,
+      parent_message_id: replyingTo?.id || null,
+      parent_message: replyingTo ? { content: replyingTo.content, media_type: replyingTo.media_type, profiles: { full_name: replyingTo.profiles.full_name } } : undefined,
+      direct_message_reactions: [],
+      is_seen_by_other: false,
+      is_shared_post: false,
+    };
+    setMessages(prev => [...prev, tempMessage]);
+    
+    setNewMessage("");
+    setReplyingTo(null);
+    const tempMediaFile = mediaFile;
+    setMediaFile(null);
+    setMediaPreview(null);
+    // --- End Optimistic UI Update ---
+
+
     let publicMediaUrl = null;
     let mediaType = null;
     
-    if (mediaFile) {
-        const fileExtension = mediaFile.name.split('.').pop();
+    if (tempMediaFile) {
+        const fileExtension = tempMediaFile.name.split('.').pop();
         const fileName = `${currentUser.id}-${Date.now()}.${fileExtension}`;
         const filePath = `public/${fileName}`;
         
-        const { error: uploadError } = await supabase.storage.from('direct-messages-media').upload(filePath, mediaFile);
+        const { error: uploadError } = await supabase.storage.from('direct-messages-media').upload(filePath, tempMediaFile);
         if (uploadError) {
             toast({ variant: "destructive", title: "Media upload failed", description: uploadError.message });
+            setMessages(prev => prev.filter(m => m.id !== tempId)); // Remove optimistic message on fail
             setSending(false);
             return;
         }
         const { data: { publicUrl } } = supabase.storage.from('direct-messages-media').getPublicUrl(filePath);
         publicMediaUrl = publicUrl;
-        mediaType = mediaFile.type.split('/')[0];
+        mediaType = tempMediaFile.type.split('/')[0];
     }
 
     const { error: insertError } = await supabase.from('direct_messages').insert({
         conversation_id: conversationId,
         sender_id: currentUser.id,
-        content: newMessage || null,
+        content: tempMessage.content,
         media_url: publicMediaUrl,
         media_type: mediaType,
         parent_message_id: replyingTo?.id || null,
     });
     
-    setNewMessage("");
-    handleRemoveMedia();
-    setReplyingTo(null);
-    setSending(false);
-    setShowEmojiPicker(false);
-    
     if (insertError) {
         toast({ variant: "destructive", title: "Failed to send message", description: insertError.message });
+        setMessages(prev => prev.filter(m => m.id !== tempId)); // Remove optimistic message on fail
     }
+
+    setSending(false);
+    setShowEmojiPicker(false);
   }
   
   const handleReaction = async (messageId: string, emoji: string) => {
@@ -586,15 +613,36 @@ export default function ChatPageContent({ initialData, params }: { initialData: 
   const handleSendSticker = async (stickerUrl: string) => {
     if (!currentUser || !conversationId) return;
     setShowEmojiPicker(false);
-    setSending(true);
+    
+    const tempId = `temp_${Date.now()}`;
+    const tempMessage: DirectMessage = {
+      id: tempId,
+      conversation_id: conversationId,
+      sender_id: currentUser.id,
+      content: null,
+      media_url: stickerUrl,
+      media_type: 'sticker',
+      created_at: new Date().toISOString(),
+      profiles: (messages.find(m => m.sender_id === currentUser.id)?.profiles) || { id: currentUser.id, username: currentUser.email || 'You' } as Profile,
+      parent_message_id: null,
+      direct_message_reactions: [],
+      is_seen_by_other: false,
+      is_shared_post: false,
+    };
+    setMessages(prev => [...prev, tempMessage]);
 
-    await supabase.from('direct_messages').insert({
+
+    const { error } = await supabase.from('direct_messages').insert({
         conversation_id: conversationId,
         sender_id: currentUser.id,
         media_url: stickerUrl,
         media_type: 'sticker'
     });
-    setSending(false);
+    
+    if (error) {
+        toast({ variant: "destructive", title: "Failed to send sticker" });
+        setMessages(prev => prev.filter(m => m.id !== tempId));
+    }
   }
 
  const startRecording = async () => {
@@ -908,5 +956,7 @@ export default function ChatPageContent({ initialData, params }: { initialData: 
     </div>
   );
 }
+
+    
 
     
