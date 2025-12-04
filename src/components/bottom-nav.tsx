@@ -22,30 +22,10 @@ export function BottomNav() {
       return;
     }
 
-    // Get all conversation IDs for the user
-    const { data: convoParticipants, error: convoError } = await supabase
-        .from('conversation_participants')
-        .select('conversation_id')
-        .eq('user_id', user.id);
+    const { count, error } = await supabase.rpc('count_unread_conversations_for_user', { p_user_id: user.id });
 
-    if (convoError || !convoParticipants || convoParticipants.length === 0) {
-        if(convoError) console.error("Error fetching user conversations:", convoError);
-        setHasUnread(false);
-        return;
-    }
-
-    const conversationIds = convoParticipants.map(p => p.conversation_id);
-
-    // Count unread messages across all those conversations
-    const { count, error: countError } = await supabase
-        .from('direct_messages')
-        .select('*', { count: 'exact', head: true })
-        .in('conversation_id', conversationIds)
-        .eq('is_seen', false)
-        .neq('sender_id', user.id);
-    
-    if (countError) {
-        console.error("Error counting unread messages:", countError);
+    if (error) {
+        console.error("Error checking unread messages:", error);
         setHasUnread(false);
     } else {
         setHasUnread((count || 0) > 0);
