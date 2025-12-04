@@ -106,7 +106,7 @@ const ChatMessage = ({ message, isSender, onReply, onDelete, onReaction, current
      useEffect(() => {
         const observer = new IntersectionObserver(
             async ([entry]) => {
-                if (entry.isIntersecting && !isSender && !message.is_seen_by_other && currentUser) {
+                if (entry.isIntersecting && !isSender && currentUser) {
                     const { error } = await supabase.from('direct_message_read_status').insert({
                         message_id: message.id,
                         user_id: currentUser.id
@@ -130,7 +130,7 @@ const ChatMessage = ({ message, isSender, onReply, onDelete, onReaction, current
                 observer.unobserve(msgRef.current);
             }
         };
-    }, [isSender, message.id, message.is_seen_by_other, supabase, currentUser]);
+    }, [isSender, message.id, supabase, currentUser]);
 
     const renderMedia = (isShared: boolean) => {
         const mediaClass = isShared ? "w-48 h-48 mt-2" : "w-48 h-48";
@@ -370,13 +370,7 @@ export default function ChatPageContent({ initialData, params }: { initialData: 
         .on('postgres_changes',
           { event: 'INSERT', schema: 'public', table: 'direct_message_read_status', filter: `user_id=eq.${params.id}` },
           (payload) => {
-            const { message_id } = payload.new;
-            setMessages(prev => prev.map(msg => 
-                msg.id === message_id && msg.sender_id === currentUser.id
-                ? { ...msg, is_seen_by_other: true } 
-                : msg
-            ));
-             // Mark all previous messages as read too
+             // Mark all messages up to this point as seen
             setMessages(prev => prev.map(msg => {
                 if (msg.sender_id === currentUser.id && !msg.is_seen_by_other && new Date(msg.created_at) <= new Date(payload.new.read_at)) {
                     return { ...msg, is_seen_by_other: true };
@@ -847,9 +841,3 @@ export default function ChatPageContent({ initialData, params }: { initialData: 
     </div>
   );
 }
-
-    
-
-    
-
-    

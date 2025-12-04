@@ -22,18 +22,45 @@ export function BottomNav() {
       return;
     }
 
-    const { count, error } = await supabase
-      .from('direct_messages')
-      .select('*', { count: 'exact', head: true })
-      .eq('is_seen', false)
-      .neq('sender_id', user.id);
+    const { data: userConvoIds, error: convoIdError } = await supabase
+      .from('conversation_participants')
+      .select('conversation_id')
+      .eq('user_id', user.id);
 
-    if (error) {
-      console.error("Error counting unread messages:", error);
+    if (convoIdError || !userConvoIds || userConvoIds.length === 0) {
       setHasUnread(false);
-    } else {
-      setHasUnread((count ?? 0) > 0);
+      return;
     }
+    const conversationIds = userConvoIds.map(c => c.conversation_id);
+    
+    const { data: unreadMessages, error: unreadError } = await supabase
+      .from('direct_messages')
+      .select('id')
+      .in('conversation_id', conversationIds)
+      .neq('sender_id', user.id);
+      
+    if (unreadError || !unreadMessages || unreadMessages.length === 0) {
+        setHasUnread(false);
+        return;
+    }
+    
+    const unreadMessageIds = unreadMessages.map(m => m.id);
+    const { data: readStatuses, error: readStatusError } = await supabase
+      .from('direct_message_read_status')
+      .select('message_id')
+      .eq('user_id', user.id)
+      .in('message_id', unreadMessageIds);
+      
+    if(readStatusError){
+        setHasUnread(false);
+        return;
+    }
+
+    const readMessageIds = new Set(readStatuses.map(s => s.message_id));
+    const finalUnreadCount = unreadMessageIds.filter(id => !readMessageIds.has(id)).length;
+    
+    setHasUnread(finalUnreadCount > 0);
+
   }, [supabase]);
 
 
@@ -137,5 +164,3 @@ export function BottomNav() {
     </footer>
   );
 }
-
-    

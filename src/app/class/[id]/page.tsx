@@ -51,19 +51,24 @@ export default async function IndividualClassPage({ params }: { params: { id:str
   const isUserEnrolled = (isEnrolledRes.count ?? 0) > 0;
   let messages = [];
 
-  if (isUserEnrolled) {
-      const { data: messagesData, error: messagesError } = await supabase
-          .from('class_messages')
-          .select('*, profiles:user_id(*)')
-          .eq('class_id', classId)
-          .order('created_at', { ascending: true })
-          .limit(100);
+  if (isUserEnrolled && user) {
+    const { data: messagesData, error: messagesError } = await supabase
+      .from('class_messages')
+      .select('*, profiles:user_id(*), read_by:class_message_read_status(count)')
+      .eq('class_id', classId)
+      .order('created_at', { ascending: true })
+      .limit(100);
 
-      if (messagesError) {
-          const initialData = { classData: null, isEnrolled: false, messages: [], error: messagesError.message };
-          return <IndividualClassPageContent initialData={initialData} />;
-      }
-      messages = messagesData || [];
+    if (messagesError) {
+      const initialData = { classData: null, isEnrolled: false, messages: [], error: messagesError.message };
+      return <IndividualClassPageContent initialData={initialData} />;
+    }
+    
+    // @ts-ignore
+    messages = (messagesData || []).map(msg => ({
+        ...msg,
+        read_by_count: msg.read_by[0]?.count || 0
+    }));
   }
 
 
@@ -83,4 +88,3 @@ export default async function IndividualClassPage({ params }: { params: { id:str
     </Suspense>
   );
 }
-

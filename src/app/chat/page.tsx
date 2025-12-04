@@ -111,8 +111,9 @@ export default function ChatListPage() {
         .from('direct_messages')
         .select('*', { count: 'exact', head: true })
         .eq('conversation_id', convoId)
-        .eq('is_seen', false)
-        .neq('sender_id', user.id);
+        .neq('sender_id', user.id)
+        .not.in('id', (await supabase.from('direct_message_read_status').select('message_id').eq('user_id', user.id)).data?.map(r => r.message_id) || ['']);
+
 
       return {
         id: convoId,
@@ -274,7 +275,3 @@ export default function ChatListPage() {
     </>
   );
 }
-
-    
-
-    
