@@ -22,29 +22,14 @@ export function BottomNav() {
       return;
     }
 
-    // Get conversations user is in
-    const { data: convoData, error: convoError } = await supabase
-      .from('conversation_participants')
-      .select('conversation_id')
-      .eq('user_id', user.id);
-
-    if (convoError || !convoData || convoData.length === 0) {
-      if (convoError) console.error("Error checking unread messages:", convoError);
-      setHasUnread(false);
-      return;
-    }
-    const convoIds = convoData.map(c => c.conversation_id);
-
-    // Check for any message in those convos that is not from the current user and is not seen
-    const { count, error: unreadError } = await supabase
+    const { count, error } = await supabase
         .from('direct_messages')
         .select('*', { count: 'exact', head: true })
-        .in('conversation_id', convoIds)
-        .neq('sender_id', user.id)
-        .eq('is_seen', false);
+        .eq('is_seen', false)
+        .neq('sender_id', user.id);
 
-    if (unreadError) {
-        console.error("Error counting unread messages:", unreadError);
+    if (error) {
+        console.error("Error counting unread messages:", error);
         setHasUnread(false);
     } else {
         setHasUnread((count || 0) > 0);
@@ -53,14 +38,7 @@ export function BottomNav() {
 
 
   useEffect(() => {
-    const checkUserAndMessages = async () => {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
-            checkUnreadMessages();
-        }
-    };
-    checkUserAndMessages();
-
+    checkUnreadMessages();
     const channel = supabase.channel('public:direct_messages:bottom-nav-realtime')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'direct_messages' }, 
         () => checkUnreadMessages()
@@ -149,3 +127,5 @@ export function BottomNav() {
     </footer>
   );
 }
+
+    
