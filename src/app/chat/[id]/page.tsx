@@ -171,7 +171,7 @@ export default async function ChatPage({ params }: { params: { id: string } }) {
   // Fetch other user's data (or own data for saved messages)
   const { data: otherUserData, error: otherUserError } = await supabase
     .from('profiles')
-    .select('id, username, full_name, avatar_url, last_seen, show_active_status, is_verified')
+    .select('id, username, full_name, avatar_url, last_seen, show_active_status, is_verified, active_conversation_id')
     .eq('id', otherUserId)
     .single();
 

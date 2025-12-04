@@ -9,6 +9,7 @@ export type Profile = {
   win_streak_10?: boolean;
   is_in_relationship?: boolean;
   is_verified?: boolean;
+  active_conversation_id?: string | null;
 };
 
 export type Comment = {

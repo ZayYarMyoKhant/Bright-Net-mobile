@@ -32,6 +32,7 @@ type Reaction = {
 type OtherUserWithPresence = Profile & {
     last_seen: string | null;
     show_active_status: boolean;
+    active_conversation_id?: string | null;
 }
 
 type DirectMessage = {
@@ -67,6 +68,7 @@ type InitialChatData = {
 }
 
 type RecordingStatus = 'idle' | 'recording' | 'preview';
+type OtherUserActivity = 'online' | 'offline' | 'typing' | 'busy';
 
 
 function PresenceIndicator({ user }: { user: OtherUserWithPresence | null }) {
@@ -294,6 +296,12 @@ export default function ChatPageContent({ initialData, params }: { initialData: 
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [sending, setSending] = useState(false);
 
+  // Advanced presence
+  const [isTyping, setIsTyping] = useState(false);
+  const [otherUserActivity, setOtherUserActivity] = useState<OtherUserActivity>('offline');
+  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+
   // Voice Message State
   const [recordingStatus, setRecordingStatus] = useState<RecordingStatus>('idle');
   const [recordingTime, setRecordingTime] = useState(0);
@@ -322,7 +330,15 @@ export default function ChatPageContent({ initialData, params }: { initialData: 
   useEffect(() => {
     if (!conversationId || !currentUser) return;
     
-    const messageChannel = supabase.channel(`direct-messages-${conversationId}`)
+    const realtimeChannel = supabase.channel(`chat-${conversationId}`, {
+        config: {
+            presence: {
+                key: currentUser.id,
+            },
+        },
+    });
+
+    realtimeChannel
       .on<DirectMessage>(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'direct_messages', filter: `conversation_id=eq.${conversationId}` },
@@ -337,10 +353,8 @@ export default function ChatPageContent({ initialData, params }: { initialData: 
                  setMessages((prevMessages) => [...prevMessages, newMessage]);
             }
         }
-      ).subscribe();
-      
-    const reactionChannel = supabase.channel(`reactions-${conversationId}`)
-        .on( 'postgres_changes',
+      )
+      .on( 'postgres_changes',
           { event: '*', schema: 'public', table: 'direct_message_reactions' },
           async (payload) => {
               if (payload.eventType === 'INSERT') {
@@ -350,7 +364,7 @@ export default function ChatPageContent({ initialData, params }: { initialData: 
 
                    setMessages(prev => prev.map(msg => {
                        if (msg.id === newReaction.message_id) {
-                           return { ...msg, direct_message_reactions: [...msg.direct_message_reactions, { ...newReaction, profiles: profile }] };
+                           return { ...msg, direct_message_reactions: [...msg.direct_message_reactions, { ...newReaction, profiles: profile as Profile }] };
                        }
                        return msg;
                    }));
@@ -364,13 +378,10 @@ export default function ChatPageContent({ initialData, params }: { initialData: 
                   }));
               }
           }
-      ).subscribe();
-
-    const readStatusChannel = supabase.channel(`read-status-${conversationId}`)
-        .on('postgres_changes',
+      )
+      .on('postgres_changes',
           { event: 'INSERT', schema: 'public', table: 'direct_message_read_status', filter: `user_id=eq.${params.id}` },
           (payload) => {
-             // Mark all messages up to this point as seen
             setMessages(prev => prev.map(msg => {
                 if (msg.sender_id === currentUser.id && !msg.is_seen_by_other && new Date(msg.created_at) <= new Date(payload.new.read_at)) {
                     return { ...msg, is_seen_by_other: true };
@@ -378,59 +389,83 @@ export default function ChatPageContent({ initialData, params }: { initialData: 
                 return msg;
             }));
           }
-      ).subscribe();
-
-    const presenceChannel = supabase.channel(`presence-${params.id}`)
+      )
       .on('postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'profiles',
-          filter: `id=eq.${params.id}`
-        },
+        { event: 'UPDATE', schema: 'public', table: 'profiles', filter: `id=eq.${params.id}` },
         (payload) => {
           const newProfileData = payload.new as OtherUserWithPresence;
           setOtherUser(currentOtherUser => ({
             ...(currentOtherUser as OtherUserWithPresence),
             last_seen: newProfileData.last_seen,
             show_active_status: newProfileData.show_active_status,
+            active_conversation_id: newProfileData.active_conversation_id,
           }));
         }
       )
-      .subscribe();
-      
-    const blockChannel = supabase.channel(`blocks-${conversationId}`)
       .on('postgres_changes',
           { event: '*', schema: 'public', table: 'blocks' },
           (payload) => {
               if (currentUser && otherUser) {
-                  // Re-fetch block status when something changes in the blocks table
-                  if(payload.new.blocker_id === currentUser.id && payload.new.blocked_id === otherUser.id) {
-                    setIsBlocked(true);
-                  }
-                  if(payload.new.blocker_id === otherUser.id && payload.new.blocked_id === currentUser.id) {
-                    setIsBlockedBy(true);
-                  }
-                   if(payload.eventType === "DELETE") {
-                    if(payload.old.blocker_id === currentUser.id && payload.old.blocked_id === otherUser.id) {
-                        setIsBlocked(false);
-                    }
-                    if(payload.old.blocker_id === otherUser.id && payload.old.blocked_id === currentUser.id) {
-                        setIsBlockedBy(false);
-                    }
+                  if(payload.new.blocker_id === currentUser.id && payload.new.blocked_id === otherUser.id) setIsBlocked(true);
+                  if(payload.new.blocker_id === otherUser.id && payload.new.blocked_id === currentUser.id) setIsBlockedBy(true);
+                  if(payload.eventType === "DELETE") {
+                    if(payload.old.blocker_id === currentUser.id && payload.old.blocked_id === otherUser.id) setIsBlocked(false);
+                    if(payload.old.blocker_id === otherUser.id && payload.old.blocked_id === currentUser.id) setIsBlockedBy(false);
                   }
               }
           }
-      ).subscribe();
+      )
+      .on('presence', { event: 'sync' }, () => {
+        const presenceState = realtimeChannel.presenceState();
+        const otherUserPresence = Object.keys(presenceState).some(key => key === otherUser?.id);
+        if (otherUserPresence && presenceState[otherUser.id as string]) {
+            // @ts-ignore
+            const isTyping = presenceState[otherUser.id as string][0]?.is_typing || false;
+            setOtherUserActivity(isTyping ? 'typing' : 'online');
+        }
+      })
+      .on('presence', { event: 'join' }, ({ key, newPresences }) => {
+        if (key === otherUser?.id) setOtherUserActivity('online');
+      })
+      .on('presence', { event: 'leave' }, ({ key, leftPresences }) => {
+        if (key === otherUser?.id) setOtherUserActivity('offline');
+      })
+      .subscribe(async (status) => {
+        if (status === 'SUBSCRIBED') {
+          await realtimeChannel.track({ is_typing: isTyping });
+          await supabase.from('profiles').update({ active_conversation_id: conversationId }).eq('id', currentUser.id);
+        }
+      });
     
     return () => {
-      supabase.removeChannel(messageChannel);
-      supabase.removeChannel(reactionChannel);
-      supabase.removeChannel(readStatusChannel);
-      supabase.removeChannel(presenceChannel);
-      supabase.removeChannel(blockChannel);
+      supabase.removeChannel(realtimeChannel);
+      // When leaving the chat, clear the active conversation
+      if(currentUser) {
+        supabase.from('profiles').update({ active_conversation_id: null }).eq('id', currentUser.id).then();
+      }
     };
-  }, [conversationId, supabase, currentUser, params.id, otherUser]);
+  }, [conversationId, supabase, currentUser, params.id, otherUser, isTyping]);
+
+
+  // Effect for determining the final displayed status string
+  useEffect(() => {
+    if (!otherUser) return;
+    
+    const twoMinutesAgo = subMinutes(new Date(), 2);
+    const isOtherUserOnline = otherUser.show_active_status && otherUser.last_seen && isBefore(twoMinutesAgo, new Date(otherUser.last_seen));
+
+    if (isOtherUserOnline) {
+        if (otherUserActivity === 'typing') {
+             // 'typing' has highest priority
+        } else if (otherUser.active_conversation_id && otherUser.active_conversation_id !== conversationId) {
+            setOtherUserActivity('busy');
+        } else {
+            setOtherUserActivity('online');
+        }
+    } else {
+        setOtherUserActivity('offline');
+    }
+  }, [otherUser, otherUserActivity, conversationId]);
 
 
   const handleReply = (message: any) => {
@@ -442,7 +477,6 @@ export default function ChatPageContent({ initialData, params }: { initialData: 
     const { error } = await supabase.from('direct_messages').delete().eq('id', messageId);
     if (error) {
         toast({ variant: 'destructive', title: "Failed to delete message."});
-        // Re-fetch data might be better here, but for now we just show an error.
     }
   };
   
@@ -518,7 +552,6 @@ export default function ChatPageContent({ initialData, params }: { initialData: 
     const existingReaction = msg.direct_message_reactions.find(r => r.user_id === currentUser.id && r.emoji === emoji);
 
     if (existingReaction) {
-        // Optimistically remove reaction
         setMessages(prev => prev.map(m => 
             m.id === messageId 
                 ? { ...m, direct_message_reactions: m.direct_message_reactions.filter(r => r.id !== existingReaction.id) } 
@@ -534,7 +567,6 @@ export default function ChatPageContent({ initialData, params }: { initialData: 
             emoji: emoji,
             profiles: { id: currentUser.id, username: currentUser.user_metadata.user_name, avatar_url: currentUser.user_metadata.avatar_url, full_name: currentUser.user_metadata.full_name }
         };
-        // Optimistically add reaction
         setMessages(prev => prev.map(m => 
             m.id === messageId 
                 ? { ...m, direct_message_reactions: [...m.direct_message_reactions, newReaction as Reaction] } 
@@ -647,6 +679,22 @@ export default function ChatPageContent({ initialData, params }: { initialData: 
       }
   };
 
+  const handleTyping = () => {
+    const channel = supabase.channel(`chat-${conversationId}`);
+    if (!isTyping) {
+        setIsTyping(true);
+        channel.track({ is_typing: true });
+    }
+    if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+    }
+    typingTimeoutRef.current = setTimeout(() => {
+        setIsTyping(false);
+        channel.track({ is_typing: false });
+    }, 2000); // 2 seconds timeout
+  };
+
+
   if (error) {
       return (
         <div className="flex h-dvh w-full items-center justify-center bg-background p-4">
@@ -664,13 +712,27 @@ export default function ChatPageContent({ initialData, params }: { initialData: 
   }
 
   if (!otherUser) {
-      // This case should ideally not happen if data is fetched on server, but as a fallback.
       return <div className="flex h-dvh w-full items-center justify-center"><p>User not found.</p></div>
   }
 
   const isChatDisabled = isBlocked || isBlockedBy;
-  const isOtherUserOnline = otherUser?.show_active_status && otherUser?.last_seen && isBefore(subMinutes(new Date(), 2), new Date(otherUser.last_seen));
-  const otherUserLastSeen = otherUser?.show_active_status && otherUser?.last_seen ? formatDistanceToNow(new Date(otherUser.last_seen), { addSuffix: true }) : null;
+  
+  const getStatusText = () => {
+    switch (otherUserActivity) {
+      case 'typing':
+        return <p className="text-xs text-green-500 animate-pulse">typing...</p>;
+      case 'busy':
+         return <p className="text-xs text-yellow-500">Busy with another</p>;
+      case 'online':
+        return <p className="text-xs text-green-500">Online</p>;
+      case 'offline':
+        return otherUser.show_active_status && otherUser.last_seen 
+            ? <p className="text-xs text-muted-foreground">Active {formatDistanceToNow(new Date(otherUser.last_seen), { addSuffix: true })}</p>
+            : null;
+      default:
+        return null;
+    }
+  };
 
 
   return (
@@ -689,10 +751,7 @@ export default function ChatPageContent({ initialData, params }: { initialData: 
             </Link>
             <div>
                 <p className="font-bold">{otherUser.full_name}</p>
-                {isOtherUserOnline 
-                    ? <p className="text-xs text-green-500">Online</p>
-                    : otherUserLastSeen && <p className="text-xs text-muted-foreground">Active {otherUserLastSeen}</p>
-                }
+                {getStatusText()}
             </div>
         </div>
         <div className="flex items-center gap-2">
@@ -815,6 +874,7 @@ export default function ChatPageContent({ initialData, params }: { initialData: 
                                 e.preventDefault();
                                 handleSendMessage();
                             }
+                            handleTyping();
                           }}
                         />
                     </>
