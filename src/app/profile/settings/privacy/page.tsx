@@ -5,7 +5,7 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { ArrowLeft, Loader2, ChevronRight } from "lucide-react";
+import { ArrowLeft, Loader2, ChevronRight, Bell } from "lucide-react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -16,6 +16,7 @@ export default function PrivacySettingsPage() {
     const [saving, setSaving] = useState(false);
     const [showActive, setShowActive] = useState(true);
     const [isPrivateAccount, setIsPrivateAccount] = useState(false);
+    const [allowNotifications, setAllowNotifications] = useState(true);
     
     const supabase = createClient();
     const { toast } = useToast();
@@ -31,16 +32,16 @@ export default function PrivacySettingsPage() {
             }
             const { data: profile, error } = await supabase
                 .from('profiles')
-                .select('show_active_status, is_private')
+                .select('show_active_status, is_private, allow_push_notifications')
                 .eq('id', user.id)
                 .single();
             
             if (error) {
                 toast({ variant: 'destructive', title: 'Error loading settings' });
             } else if (profile) {
-                // If the value from the DB is not null, use it. Otherwise, default to true.
                 setShowActive(profile.show_active_status ?? true);
                 setIsPrivateAccount(profile.is_private ?? false);
+                setAllowNotifications(profile.allow_push_notifications ?? true);
             }
             setLoading(false);
         };
@@ -61,7 +62,8 @@ export default function PrivacySettingsPage() {
             .from('profiles')
             .update({ 
                 show_active_status: showActive,
-                is_private: isPrivateAccount
+                is_private: isPrivateAccount,
+                allow_push_notifications: allowNotifications,
             })
             .eq('id', user.id);
         
@@ -105,6 +107,13 @@ export default function PrivacySettingsPage() {
                             <p className="text-sm text-muted-foreground">Only approved followers can see your content.</p>
                         </div>
                         <Switch id="private-account" checked={isPrivateAccount} onCheckedChange={setIsPrivateAccount} />
+                    </div>
+                     <div className="flex items-center justify-between py-4">
+                         <div>
+                            <Label htmlFor="push-notifications" className="font-semibold text-base flex items-center gap-2"><Bell className="h-4 w-4" /> Push Notifications</Label>
+                            <p className="text-sm text-muted-foreground">Receive notifications for new messages, followers, etc.</p>
+                        </div>
+                        <Switch id="push-notifications" checked={allowNotifications} onCheckedChange={setAllowNotifications} />
                     </div>
                      <Link href="/privacy" className="block">
                         <div className="flex items-center justify-between py-4 hover:bg-muted/50 -mx-4 px-4">

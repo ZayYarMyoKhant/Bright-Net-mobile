@@ -281,7 +281,8 @@ export default function ChatPageContent({ initialData, params }: { initialData: 
   const supabase = createClient();
   
   const [currentUser, setCurrentUser] = useState<User | null>(null);
-  
+  const [currentUserProfile, setCurrentUserProfile] = useState<Profile | null>(null);
+
   const [otherUser, setOtherUser] = useState<OtherUserWithPresence | null>(initialData.otherUser);
   const [conversationId, setConversationId] = useState<string | null>(initialData.conversationId);
   const [messages, setMessages] = useState<DirectMessage[]>(initialData.messages);
@@ -313,14 +314,18 @@ export default function ChatPageContent({ initialData, params }: { initialData: 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => {
+    supabase.auth.getUser().then(async ({ data: { user } }) => {
         if (!user) {
             router.push('/signup');
             return;
         }
         setCurrentUser(user);
+        const { data: profile } = await supabase.from('profiles').select('*').eq('id', user.id).single();
+        if (profile) {
+            setCurrentUserProfile(profile);
+        }
     });
-  }, [supabase.auth, router]);
+  }, [supabase, router]);
 
 
   useEffect(() => {
@@ -342,24 +347,21 @@ export default function ChatPageContent({ initialData, params }: { initialData: 
       .on<DirectMessage>(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'direct_messages', filter: `conversation_id=eq.${conversationId}` },
-        async (payload) => {
-           // Optimistic UI for incoming messages
-           // This avoids an extra fetch and makes the UI feel instant
+        (payload) => {
            const newMessagePayload = payload.new as DirectMessage;
            
            setMessages((prevMessages) => {
-               // Prevent duplicates from showing up
                if (prevMessages.some(msg => msg.id === newMessagePayload.id)) {
                    return prevMessages;
                }
 
                const messageSenderProfile = newMessagePayload.sender_id === currentUser.id 
-                    ? (prevMessages.find(m => m.sender_id === currentUser.id)?.profiles) // Find our own profile from existing messages
+                    ? currentUserProfile
                     : otherUser;
                
                const fullMessage: DirectMessage = {
                    ...newMessagePayload,
-                   profiles: messageSenderProfile as Profile, // Assign the correct profile
+                   profiles: messageSenderProfile as Profile,
                    direct_message_reactions: [],
                    is_seen_by_other: false,
                };
@@ -458,7 +460,7 @@ export default function ChatPageContent({ initialData, params }: { initialData: 
         supabase.from('profiles').update({ active_conversation_id: null }).eq('id', currentUser.id).then();
       }
     };
-  }, [conversationId, supabase, currentUser, params.id, otherUser, isTyping]);
+  }, [conversationId, supabase, currentUser, params.id, otherUser, isTyping, currentUserProfile]);
 
 
   // Effect for determining the final displayed status string
@@ -530,7 +532,7 @@ export default function ChatPageContent({ initialData, params }: { initialData: 
       media_url: mediaFile ? URL.createObjectURL(mediaFile) : null,
       media_type: mediaFile ? mediaFile.type.split('/')[0] : null,
       created_at: new Date().toISOString(),
-      profiles: (messages.find(m => m.sender_id === currentUser.id)?.profiles) || { id: currentUser.id, username: currentUser.email || 'You' } as Profile,
+      profiles: currentUserProfile || { id: currentUser.id, username: currentUser.email || 'You' } as Profile,
       parent_message_id: replyingTo?.id || null,
       parent_message: replyingTo ? { content: replyingTo.content, media_type: replyingTo.media_type, profiles: { full_name: replyingTo.profiles.full_name } } : undefined,
       direct_message_reactions: [],
@@ -631,7 +633,7 @@ export default function ChatPageContent({ initialData, params }: { initialData: 
       media_url: stickerUrl,
       media_type: 'sticker',
       created_at: new Date().toISOString(),
-      profiles: (messages.find(m => m.sender_id === currentUser.id)?.profiles) || { id: currentUser.id, username: currentUser.email || 'You' } as Profile,
+      profiles: currentUserProfile || { id: currentUser.id, username: currentUser.email || 'You' } as Profile,
       parent_message_id: null,
       direct_message_reactions: [],
       is_seen_by_other: false,

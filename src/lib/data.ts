@@ -10,6 +10,7 @@ export type Profile = {
   is_in_relationship?: boolean;
   is_verified?: boolean;
   active_conversation_id?: string | null;
+  allow_push_notifications?: boolean;
 };
 
 export type Comment = {
