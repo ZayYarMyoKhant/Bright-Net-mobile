@@ -668,7 +668,8 @@ export default function ChatPageContent({ initialData, params }: { initialData: 
       setRecordingTime(0);
       recordingTimerRef.current = setInterval(() => setRecordingTime(prev => prev + 1), 1000);
     } catch (error) {
-      toast({ variant: "destructive", title: "Microphone Access Denied"});
+      console.error('Mic access error:', error)
+      toast({ variant: "destructive", title: "Microphone Access Denied", description: "Please enable microphone permissions in your browser settings."});
     }
   }
 
