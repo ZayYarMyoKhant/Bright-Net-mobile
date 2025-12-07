@@ -14,6 +14,9 @@ import { TypingBattleRequestBanner } from '@/components/typing-battle-request-ba
 import { CoupleRequestBanner } from '@/components/couple-request-banner';
 import { OfflineProvider, OfflineContext } from '@/context/offline-context';
 import OfflinePage from '@/app/offline/page';
+import { PushNotifications } from '@capacitor/push-notifications';
+import { Capacitor } from '@capacitor/core';
+import { useToast } from '@/hooks/use-toast';
 
 const ptSans = PT_Sans({
   subsets: ['latin'],
@@ -25,6 +28,7 @@ function AppLayout({ children }: { children: React.ReactNode }) {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const supabase = createClient();
   const isOffline = useContext(OfflineContext);
+  const { toast } = useToast();
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
@@ -62,6 +66,53 @@ function AppLayout({ children }: { children: React.ReactNode }) {
         }
     };
 }, [currentUser, supabase]);
+
+  // Push Notification Registration
+  useEffect(() => {
+    if (Capacitor.isNativePlatform() && currentUser) {
+      const registerForPushNotifications = async () => {
+        try {
+          let permStatus = await PushNotifications.checkPermissions();
+
+          if (permStatus.receive === 'prompt') {
+            permStatus = await PushNotifications.requestPermissions();
+          }
+
+          if (permStatus.receive !== 'granted') {
+            throw new Error('User denied permissions!');
+          }
+
+          await PushNotifications.register();
+        } catch (error) {
+          console.error('Error requesting push permissions', error);
+        }
+      };
+
+      const addListeners = async () => {
+         await PushNotifications.addListener('registration', async (token) => {
+          console.info('Registration token: ', token.value);
+          // Save the token to the database
+          const { error } = await supabase.from('push_notification_tokens').upsert({
+            user_id: currentUser.id,
+            token: token.value,
+            device_type: Capacitor.getPlatform(),
+          }, { onConflict: 'user_id, token' });
+
+          if (error) {
+            console.error('Failed to save push token:', error);
+          }
+        });
+
+        await PushNotifications.addListener('registrationError', (err) => {
+          console.error('Registration error: ', err.error);
+        });
+      };
+      
+      registerForPushNotifications();
+      addListeners();
+
+    }
+  }, [currentUser, supabase]);
 
 
   if (isOffline) {
