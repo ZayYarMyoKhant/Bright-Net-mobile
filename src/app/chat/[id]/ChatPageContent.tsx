@@ -340,6 +340,8 @@ export default function ChatPageContent({ initialData, params }: { initialData: 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const recordingTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const [showMicPermissionDialog, setShowMicPermissionDialog] = useState(false);
+
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -760,8 +762,9 @@ export default function ChatPageContent({ initialData, params }: { initialData: 
       setRecordingTime(0);
       recordingTimerRef.current = setInterval(() => setRecordingTime(prev => prev + 1), 1000);
     } catch (error) {
-      console.error('Mic access error:', error)
-      toast({ variant: "destructive", title: "Microphone Access Denied" });
+      console.error('Mic access error:', error);
+      setShowMicPermissionDialog(false); // Close dialog if it was open
+      toast({ variant: "destructive", title: "Microphone Access Denied", description: "Please enable microphone permissions in your device settings." });
     }
   }
 
@@ -785,11 +788,17 @@ export default function ChatPageContent({ initialData, params }: { initialData: 
 
   const handleMicClick = () => {
     if (recordingStatus === 'idle') {
-        startRecording();
+        setShowMicPermissionDialog(true);
     } else if (recordingStatus === 'recording') {
         stopRecording();
     }
   };
+
+  const handleAllowMic = () => {
+    setShowMicPermissionDialog(false);
+    startRecording();
+  };
+
 
   const formatRecordingTime = (time: number) => {
     const minutes = Math.floor(time / 60);
@@ -885,6 +894,22 @@ export default function ChatPageContent({ initialData, params }: { initialData: 
 
   return (
     <div className="flex h-dvh flex-col bg-background text-foreground">
+      <AlertDialog open={showMicPermissionDialog} onOpenChange={setShowMicPermissionDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Microphone Access Required</AlertDialogTitle>
+            <AlertDialogDescription>
+              Please allow microphone access to record voice messages.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleAllowMic}>Allow</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+
       <header className="flex h-16 flex-shrink-0 items-center justify-between border-b px-4">
         <div className="flex items-center gap-3">
             <Link href="/chat">
@@ -1065,5 +1090,3 @@ export default function ChatPageContent({ initialData, params }: { initialData: 
     </div>
   );
 }
-
-    

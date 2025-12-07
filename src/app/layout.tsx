@@ -17,6 +17,8 @@ import OfflinePage from '@/app/offline/page';
 import { PushNotifications, Token, PermissionState } from '@capacitor/push-notifications';
 import { Capacitor } from '@capacitor/core';
 import { useToast } from '@/hooks/use-toast';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { Bell } from 'lucide-react';
 
 const ptSans = PT_Sans({
   subsets: ['latin'],
@@ -29,6 +31,7 @@ function AppLayout({ children }: { children: React.ReactNode }) {
   const supabase = createClient();
   const isOffline = useContext(OfflineContext);
   const { toast } = useToast();
+  const [showNotificationDialog, setShowNotificationDialog] = useState(false);
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
@@ -70,56 +73,63 @@ function AppLayout({ children }: { children: React.ReactNode }) {
   // Push Notification Registration
   useEffect(() => {
     if (Capacitor.isNativePlatform() && currentUser) {
-      
-      const registerForPushNotifications = async () => {
-        try {
-          let permStatus: PermissionState = await PushNotifications.checkPermissions();
-
-          if (permStatus.receive === 'prompt') {
-            permStatus = await PushNotifications.requestPermissions();
-          }
-
-          if (permStatus.receive !== 'granted') {
-            console.warn('User denied push notification permissions.');
-            return; // Stop if permission is not granted
-          }
-          
-          await PushNotifications.register();
-
-        } catch (error) {
-          console.error('Error during push notification registration process:', error);
+      const checkAndRequestPushPermissions = async () => {
+        let permStatus: PermissionState = await PushNotifications.checkPermissions();
+        if (permStatus.receive === 'prompt') {
+          setShowNotificationDialog(true);
+        } else if (permStatus.receive === 'granted') {
+          await registerPushToken();
         }
       };
-
-      const addListeners = () => {
-         PushNotifications.addListener('registration', async (token: Token) => {
-          console.info('Push registration success, token: ', token.value);
-          if (currentUser) {
-            const { error } = await supabase.from('push_notification_tokens').upsert({
-              user_id: currentUser.id,
-              token: token.value,
-              device_type: Capacitor.getPlatform(),
-            }, { onConflict: 'user_id, token' });
-
-            if (error) {
-              console.error('Failed to save push token:', error);
-            }
-          }
-        });
-
-        PushNotifications.addListener('registrationError', (err: any) => {
-          console.error('Push registration error: ', err.error);
-        });
-      };
       
-      registerForPushNotifications();
-      addListeners();
-      
-      return () => {
-        PushNotifications.removeAllListeners();
-      }
+      checkAndRequestPushPermissions();
     }
-  }, [currentUser, supabase]);
+  }, [currentUser]);
+
+  const registerPushToken = async () => {
+    try {
+      await PushNotifications.register();
+      
+      PushNotifications.addListener('registration', async (token: Token) => {
+        console.info('Push registration success, token: ', token.value);
+        if (currentUser) {
+          const { error } = await supabase.from('push_notification_tokens').upsert({
+            user_id: currentUser.id,
+            token: token.value,
+            device_type: Capacitor.getPlatform(),
+          }, { onConflict: 'user_id, token' });
+
+          if (error) {
+            console.error('Failed to save push token:', error);
+          }
+        }
+      });
+
+      PushNotifications.addListener('registrationError', (err: any) => {
+        console.error('Push registration error: ', err.error);
+        toast({ variant: 'destructive', title: 'Push Notification Error', description: 'Failed to register for push notifications.' });
+      });
+
+    } catch (e) {
+      console.error('Error in registration process', e);
+    }
+  };
+  
+  const handleNotificationPermissionRequest = async () => {
+    try {
+        const permStatus = await PushNotifications.requestPermissions();
+        if (permStatus.receive === 'granted') {
+            await registerPushToken();
+        } else {
+            toast({ variant: 'destructive', title: 'Notifications Denied', description: 'You will not receive push notifications.' });
+        }
+    } catch (error) {
+        console.error("Error requesting push permissions", error);
+        toast({ variant: 'destructive', title: 'Permission Error', description: 'Could not request push notification permissions.' });
+    } finally {
+        setShowNotificationDialog(false);
+    }
+  };
 
 
   if (isOffline) {
@@ -127,11 +137,33 @@ function AppLayout({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="relative h-dvh w-full md:h-screen overflow-hidden">
-        {currentUser && <TypingBattleRequestBanner userId={currentUser.id} />}
-        {currentUser && <CoupleRequestBanner userId={currentUser.id} />}
-        {children}
-    </div>
+    <>
+      <AlertDialog open={showNotificationDialog} onOpenChange={setShowNotificationDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <div className="flex justify-center">
+              <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
+                  <Bell className="h-6 w-6 text-primary" />
+              </div>
+            </div>
+            <AlertDialogTitle className="text-center">Enable Push Notifications</AlertDialogTitle>
+            <AlertDialogDescription className="text-center">
+              Stay updated with new messages, followers, and other important alerts.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="sm:justify-center flex-col-reverse sm:flex-row-reverse gap-2 sm:gap-0">
+            <AlertDialogAction onClick={handleNotificationPermissionRequest}>Allow</AlertDialogAction>
+            <AlertDialogCancel>Don't Allow</AlertDialogCancel>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <div className="relative h-dvh w-full md:h-screen overflow-hidden">
+          {currentUser && <TypingBattleRequestBanner userId={currentUser.id} />}
+          {currentUser && <CoupleRequestBanner userId={currentUser.id} />}
+          {children}
+      </div>
+    </>
   );
 }
 
@@ -158,5 +190,3 @@ export default function RootLayout({
     </html>
   );
 }
-
-    
