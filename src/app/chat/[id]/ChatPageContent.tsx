@@ -328,7 +328,7 @@ export default function ChatPageContent({ initialData, params }: { initialData: 
   }, [messages]);
   
   useEffect(() => {
-    if (!conversationId || !currentUser) return;
+    if (!conversationId || !currentUser || !otherUser) return;
     
     const realtimeChannel = supabase.channel(`chat-${conversationId}`, {
         config: {
@@ -343,22 +343,29 @@ export default function ChatPageContent({ initialData, params }: { initialData: 
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'direct_messages', filter: `conversation_id=eq.${conversationId}` },
         async (payload) => {
-           const { data: fullMessage, error } = await supabase
-                .from('direct_messages')
-                .select('*, profiles:sender_id(*), direct_message_reactions(*, profiles:user_id(*)), parent_message:parent_message_id(content, media_type, profiles:sender_id(full_name))')
-                .eq('id', payload.new.id)
-                .single();
+           // Optimistic UI for incoming messages
+           // This avoids an extra fetch and makes the UI feel instant
+           const newMessagePayload = payload.new as DirectMessage;
+           
+           setMessages((prevMessages) => {
+               // Prevent duplicates from showing up
+               if (prevMessages.some(msg => msg.id === newMessagePayload.id)) {
+                   return prevMessages;
+               }
 
-            if (!error && fullMessage) {
-                 const newMessage = { ...fullMessage, is_seen_by_other: false } as DirectMessage;
-                 setMessages((prevMessages) => {
-                    // Prevent duplicates from showing up
-                    if (prevMessages.some(msg => msg.id === newMessage.id)) {
-                        return prevMessages;
-                    }
-                    return [...prevMessages, newMessage]
-                 });
-            }
+               const messageSenderProfile = newMessagePayload.sender_id === currentUser.id 
+                    ? (prevMessages.find(m => m.sender_id === currentUser.id)?.profiles) // Find our own profile from existing messages
+                    : otherUser;
+               
+               const fullMessage: DirectMessage = {
+                   ...newMessagePayload,
+                   profiles: messageSenderProfile as Profile, // Assign the correct profile
+                   direct_message_reactions: [],
+                   is_seen_by_other: false,
+               };
+               
+               return [...prevMessages, fullMessage];
+            });
         }
       )
       .on( 'postgres_changes',
@@ -537,6 +544,7 @@ export default function ChatPageContent({ initialData, params }: { initialData: 
     const tempMediaFile = mediaFile;
     setMediaFile(null);
     setMediaPreview(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
     // --- End Optimistic UI Update ---
 
 
@@ -957,9 +965,3 @@ export default function ChatPageContent({ initialData, params }: { initialData: 
     </div>
   );
 }
-
-    
-
-    
-
-    
