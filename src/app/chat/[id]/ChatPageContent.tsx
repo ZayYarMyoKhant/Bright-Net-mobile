@@ -5,7 +5,7 @@ import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { ArrowLeft, Mic, Image as ImageIcon, Send, Smile, MoreVertical, MessageSquareReply, Trash2, X, Loader2, Waves, Heart, ThumbsUp, Laugh, Frown, Check, CheckCheck, Ban, Share2, AlertTriangle, StopCircle, Pencil } from "lucide-react";
+import { ArrowLeft, Mic, Image as ImageIcon, Send, Smile, MoreVertical, MessageSquareReply, Trash2, X, Loader2, Waves, Heart, ThumbsUp, Laugh, Frown, Check, CheckCheck, Ban, Share2, AlertTriangle, StopCircle, Pencil, ClipboardCopy } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useState, useRef, useEffect, useCallback } from "react";
@@ -95,6 +95,7 @@ const ChatMessage = ({ message, isSender, onReply, onDelete, onEdit, onReaction,
     const timeAgo = formatDistanceToNow(new Date(message.created_at), { addSuffix: true });
     const msgRef = useRef<HTMLDivElement>(null);
     const supabase = createClient();
+    const { toast } = useToast();
     
     const aggregatedReactions = message.direct_message_reactions.reduce((acc, reaction) => {
         if (!acc[reaction.emoji]) {
@@ -134,6 +135,19 @@ const ChatMessage = ({ message, isSender, onReply, onDelete, onEdit, onReaction,
             }
         };
     }, [isSender, message.id, supabase, currentUser]);
+
+    const handleCopy = () => {
+        if (message.content) {
+            navigator.clipboard.writeText(message.content)
+                .then(() => {
+                    toast({ title: "Copied to clipboard" });
+                })
+                .catch(err => {
+                    toast({ variant: 'destructive', title: "Failed to copy" });
+                    console.error('Failed to copy text: ', err);
+                });
+        }
+    };
 
     const renderMedia = (isShared: boolean) => {
         const mediaClass = isShared ? "w-48 h-48 mt-2" : "w-48 h-48";
@@ -253,13 +267,13 @@ const ChatMessage = ({ message, isSender, onReply, onDelete, onEdit, onReaction,
                         <DropdownMenuContent>
                              {isSender && (
                                 <>
-                                    <DropdownMenuItem className="text-destructive" onClick={() => onDelete(message.id)}>
-                                        <Trash2 className="mr-2 h-4 w-4" />
-                                        <span>Delete</span>
-                                    </DropdownMenuItem>
-                                     <DropdownMenuItem onClick={() => onEdit(message)}>
+                                    <DropdownMenuItem onClick={() => onEdit(message)}>
                                         <Pencil className="mr-2 h-4 w-4" />
                                         <span>Edit</span>
+                                    </DropdownMenuItem>
+                                     <DropdownMenuItem className="text-destructive" onClick={() => onDelete(message.id)}>
+                                        <Trash2 className="mr-2 h-4 w-4" />
+                                        <span>Delete</span>
                                     </DropdownMenuItem>
                                 </>
                             )}
@@ -267,6 +281,12 @@ const ChatMessage = ({ message, isSender, onReply, onDelete, onEdit, onReaction,
                                 <MessageSquareReply className="mr-2 h-4 w-4" />
                                 <span>Reply</span>
                             </DropdownMenuItem>
+                            {message.content && (
+                                <DropdownMenuItem onClick={handleCopy}>
+                                    <ClipboardCopy className="mr-2 h-4 w-4" />
+                                    <span>Copy</span>
+                                </DropdownMenuItem>
+                            )}
                         </DropdownMenuContent>
                     </DropdownMenu>
                 </div>
