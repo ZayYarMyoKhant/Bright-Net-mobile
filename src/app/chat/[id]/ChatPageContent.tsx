@@ -265,18 +265,20 @@ const ChatMessage = ({ message, isSender, onReply, onDelete, onEdit, onReaction,
                             </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent>
-                             {isSender && (
+                             {isSender && message.content && (
                                 <>
                                     <DropdownMenuItem onClick={() => onEdit(message)}>
                                         <Pencil className="mr-2 h-4 w-4" />
                                         <span>Edit</span>
                                     </DropdownMenuItem>
-                                     <DropdownMenuItem className="text-destructive" onClick={() => onDelete(message.id)}>
-                                        <Trash2 className="mr-2 h-4 w-4" />
-                                        <span>Delete</span>
-                                    </DropdownMenuItem>
                                 </>
                             )}
+                             {isSender && (
+                                <DropdownMenuItem className="text-destructive" onClick={() => onDelete(message.id)}>
+                                    <Trash2 className="mr-2 h-4 w-4" />
+                                    <span>Delete</span>
+                                </DropdownMenuItem>
+                             )}
                              <DropdownMenuItem onClick={() => onReply(message)}>
                                 <MessageSquareReply className="mr-2 h-4 w-4" />
                                 <span>Reply</span>
@@ -569,20 +571,25 @@ export default function ChatPageContent({ initialData, params }: { initialData: 
     if (!editingMessage || !newMessage.trim() || !currentUser) return;
     setSending(true);
 
+    const contentToSave = newMessage.trim();
+
+    // Optimistic UI update
+    setMessages(prev => prev.map(msg => msg.id === editingMessage.id ? { ...msg, content: contentToSave, is_edited: true } : msg));
+    setNewMessage("");
+    setEditingMessage(null);
+    setSending(false);
+
+
     const { error } = await supabase
         .from('direct_messages')
-        .update({ content: newMessage.trim(), is_edited: true })
+        .update({ content: contentToSave, is_edited: true })
         .eq('id', editingMessage.id);
 
     if (error) {
         toast({ variant: 'destructive', title: 'Failed to update message', description: error.message });
-    } else {
-        setMessages(prev => prev.map(msg => msg.id === editingMessage.id ? { ...msg, content: newMessage.trim(), is_edited: true } : msg));
+        // Revert optimistic update
+        setMessages(prev => prev.map(msg => msg.id === editingMessage.id ? { ...editingMessage } : msg));
     }
-
-    setSending(false);
-    setNewMessage("");
-    setEditingMessage(null);
   };
   
   const handleSendMessage = async (e?: React.FormEvent) => {
@@ -754,7 +761,7 @@ export default function ChatPageContent({ initialData, params }: { initialData: 
       recordingTimerRef.current = setInterval(() => setRecordingTime(prev => prev + 1), 1000);
     } catch (error) {
       console.error('Mic access error:', error)
-      toast({ variant: "destructive", title: "Microphone Access Denied", description: "Please enable microphone permissions in your browser settings."});
+      toast({ variant: "destructive", title: "Microphone Access Denied" });
     }
   }
 
@@ -1058,5 +1065,3 @@ export default function ChatPageContent({ initialData, params }: { initialData: 
     </div>
   );
 }
-
-    

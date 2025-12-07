@@ -14,7 +14,7 @@ import { TypingBattleRequestBanner } from '@/components/typing-battle-request-ba
 import { CoupleRequestBanner } from '@/components/couple-request-banner';
 import { OfflineProvider, OfflineContext } from '@/context/offline-context';
 import OfflinePage from '@/app/offline/page';
-import { PushNotifications } from '@capacitor/push-notifications';
+import { PushNotifications, PermissionState } from '@capacitor/push-notifications';
 import { Capacitor } from '@capacitor/core';
 import { useToast } from '@/hooks/use-toast';
 
@@ -72,25 +72,28 @@ function AppLayout({ children }: { children: React.ReactNode }) {
     if (Capacitor.isNativePlatform() && currentUser) {
       const registerForPushNotifications = async () => {
         try {
-          let permStatus = await PushNotifications.checkPermissions();
+          let permStatus: PermissionState = await PushNotifications.checkPermissions();
 
           if (permStatus.receive === 'prompt') {
             permStatus = await PushNotifications.requestPermissions();
           }
 
           if (permStatus.receive !== 'granted') {
-            throw new Error('User denied permissions!');
+            console.warn('User denied push notification permissions.');
+            return; // Stop if permission is not granted
           }
 
+          // Now, register for remote notifications
           await PushNotifications.register();
+
         } catch (error) {
-          console.error('Error requesting push permissions', error);
+          console.error('Error during push notification registration process:', error);
         }
       };
 
-      const addListeners = async () => {
-         await PushNotifications.addListener('registration', async (token) => {
-          console.info('Registration token: ', token.value);
+      const addListeners = () => {
+         PushNotifications.addListener('registration', async (token) => {
+          console.info('Push registration success, token: ', token.value);
           // Save the token to the database
           const { error } = await supabase.from('push_notification_tokens').upsert({
             user_id: currentUser.id,
@@ -103,14 +106,17 @@ function AppLayout({ children }: { children: React.ReactNode }) {
           }
         });
 
-        await PushNotifications.addListener('registrationError', (err) => {
-          console.error('Registration error: ', err.error);
+        PushNotifications.addListener('registrationError', (err) => {
+          console.error('Push registration error: ', err.error);
         });
       };
       
       registerForPushNotifications();
       addListeners();
-
+      
+      return () => {
+        PushNotifications.removeAllListeners();
+      }
     }
   }, [currentUser, supabase]);
 
