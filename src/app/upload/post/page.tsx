@@ -134,9 +134,8 @@ export default function UploadPostPage() {
                     <video
                       src={previewUrl}
                       className="h-full w-full object-contain"
-                      controls={false}
+                      controls={true}
                       autoPlay
-                      muted
                       loop
                     />
                   ) : (

@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useEffect, useState } from "react";
@@ -63,17 +64,24 @@ export default function SplashPage() {
   }, [router, supabase, toast]);
 
   return (
-    <div className="bg-black flex h-dvh w-full flex-col items-center justify-center gap-4">
-      <h1 className="text-4xl font-bold text-center">
-        <span className="animate-fade-in-1 inline-block text-white">
-          Welcome to
-        </span>
-        <span className="animate-fade-in-2 ml-3 inline-block text-blue-500">
-          Bright-Net
-        </span>
-      </h1>
-      <Loader2 className="h-8 w-8 animate-spin text-white mt-4" />
-      <p className="text-sm text-muted-foreground mt-2">{status}</p>
+    <div className="bg-black flex h-dvh w-full flex-col items-center justify-center gap-4 relative">
+      <div className="flex flex-col items-center justify-center gap-4">
+        <h1 className="text-4xl font-bold text-center">
+          <span className="animate-fade-in-1 inline-block text-white">
+            Welcome to
+          </span>
+          <span className="animate-fade-in-2 ml-3 inline-block text-blue-500">
+            Bright-Net
+          </span>
+        </h1>
+        <Loader2 className="h-8 w-8 animate-spin text-white mt-4" />
+        <p className="text-sm text-muted-foreground mt-2">{status}</p>
+      </div>
+      <div className="absolute bottom-8 text-center">
+          <p className="text-sm text-muted-foreground">
+              By <span className="font-semibold text-blue-500">ZMT - Net</span>
+          </p>
+      </div>
     </div>
   );
 }
