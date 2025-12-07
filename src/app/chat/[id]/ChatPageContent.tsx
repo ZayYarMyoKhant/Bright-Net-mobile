@@ -5,7 +5,7 @@ import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { ArrowLeft, Mic, Image as ImageIcon, Send, Smile, MoreVertical, MessageSquareReply, Trash2, X, Loader2, Waves, Heart, ThumbsUp, Laugh, Frown, Check, CheckCheck, Ban, Share2, AlertTriangle, StopCircle } from "lucide-react";
+import { ArrowLeft, Mic, Image as ImageIcon, Send, Smile, MoreVertical, MessageSquareReply, Trash2, X, Loader2, Waves, Heart, ThumbsUp, Laugh, Frown, Check, CheckCheck, Ban, Share2, AlertTriangle, StopCircle, Pencil } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useState, useRef, useEffect, useCallback } from "react";
@@ -49,6 +49,7 @@ type DirectMessage = {
   direct_message_reactions: Reaction[];
   is_seen_by_other: boolean;
   is_shared_post: boolean;
+  is_edited?: boolean;
 };
 
 const ReactionEmojis = {
@@ -89,7 +90,7 @@ function PresenceIndicator({ user }: { user: OtherUserWithPresence | null }) {
 }
 
 
-const ChatMessage = ({ message, isSender, onReply, onDelete, onReaction, currentUser }: { message: DirectMessage, isSender: boolean, onReply: (message: any) => void, onDelete: (messageId: string) => void, onReaction: (messageId: string, emoji: string) => void, currentUser: User | null }) => {
+const ChatMessage = ({ message, isSender, onReply, onDelete, onEdit, onReaction, currentUser }: { message: DirectMessage, isSender: boolean, onReply: (message: any) => void, onDelete: (messageId: string) => void, onEdit: (message: DirectMessage) => void, onReaction: (messageId: string, emoji: string) => void, currentUser: User | null }) => {
     
     const timeAgo = formatDistanceToNow(new Date(message.created_at), { addSuffix: true });
     const msgRef = useRef<HTMLDivElement>(null);
@@ -251,10 +252,16 @@ const ChatMessage = ({ message, isSender, onReply, onDelete, onReaction, current
                         </DropdownMenuTrigger>
                         <DropdownMenuContent>
                              {isSender && (
-                                <DropdownMenuItem className="text-destructive" onClick={() => onDelete(message.id)}>
-                                    <Trash2 className="mr-2 h-4 w-4" />
-                                    <span>Delete</span>
-                                </DropdownMenuItem>
+                                <>
+                                    <DropdownMenuItem className="text-destructive" onClick={() => onDelete(message.id)}>
+                                        <Trash2 className="mr-2 h-4 w-4" />
+                                        <span>Delete</span>
+                                    </DropdownMenuItem>
+                                     <DropdownMenuItem onClick={() => onEdit(message)}>
+                                        <Pencil className="mr-2 h-4 w-4" />
+                                        <span>Edit</span>
+                                    </DropdownMenuItem>
+                                </>
                             )}
                              <DropdownMenuItem onClick={() => onReply(message)}>
                                 <MessageSquareReply className="mr-2 h-4 w-4" />
@@ -264,6 +271,7 @@ const ChatMessage = ({ message, isSender, onReply, onDelete, onReaction, current
                     </DropdownMenu>
                 </div>
                  <div className="flex items-center justify-end gap-1.5 px-2 py-0.5 mt-1">
+                    {message.is_edited && <span className="text-xs text-muted-foreground">(edited)</span>}
                     <span className="text-xs text-muted-foreground">{timeAgo}</span>
                     {isSender && (
                       message.is_seen_by_other 
@@ -292,6 +300,7 @@ export default function ChatPageContent({ initialData, params }: { initialData: 
 
   const [newMessage, setNewMessage] = useState("");
   const [replyingTo, setReplyingTo] = useState<any | null>(null);
+  const [editingMessage, setEditingMessage] = useState<DirectMessage | null>(null);
   const [mediaFile, setMediaFile] = useState<File | null>(null);
   const [mediaPreview, setMediaPreview] = useState<string | null>(null);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
@@ -350,24 +359,30 @@ export default function ChatPageContent({ initialData, params }: { initialData: 
         (payload) => {
            const newMessagePayload = payload.new as DirectMessage;
            
-           setMessages((prevMessages) => {
-               if (prevMessages.some(msg => msg.id === newMessagePayload.id)) {
-                   return prevMessages;
-               }
+           if (messages.some(msg => msg.id === newMessagePayload.id)) {
+               return;
+           }
+           
+           if (newMessagePayload.sender_id === currentUser.id) {
+               return;
+           }
 
-               const messageSenderProfile = newMessagePayload.sender_id === currentUser.id 
-                    ? currentUserProfile
-                    : otherUser;
-               
-               const fullMessage: DirectMessage = {
-                   ...newMessagePayload,
-                   profiles: messageSenderProfile as Profile,
-                   direct_message_reactions: [],
-                   is_seen_by_other: false,
-               };
-               
-               return [...prevMessages, fullMessage];
-            });
+           const fullMessage: DirectMessage = {
+               ...newMessagePayload,
+               profiles: otherUser as Profile, // It's from the other user
+               direct_message_reactions: [],
+               is_seen_by_other: false,
+           };
+           
+           setMessages((prevMessages) => [...prevMessages, fullMessage]);
+        }
+      )
+      .on<DirectMessage>(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'direct_messages', filter: `conversation_id=eq.${conversationId}`},
+        (payload) => {
+            const updatedMessage = payload.new as DirectMessage;
+            setMessages(prev => prev.map(msg => msg.id === updatedMessage.id ? { ...msg, content: updatedMessage.content, is_edited: updatedMessage.is_edited } : msg));
         }
       )
       .on( 'postgres_changes',
@@ -460,7 +475,7 @@ export default function ChatPageContent({ initialData, params }: { initialData: 
         supabase.from('profiles').update({ active_conversation_id: null }).eq('id', currentUser.id).then();
       }
     };
-  }, [conversationId, supabase, currentUser, params.id, otherUser, isTyping, currentUserProfile]);
+  }, [conversationId, supabase, currentUser, params.id, otherUser, isTyping, currentUserProfile, messages]);
 
 
   // Effect for determining the final displayed status string
@@ -486,6 +501,7 @@ export default function ChatPageContent({ initialData, params }: { initialData: 
 
   const handleReply = (message: any) => {
     setReplyingTo(message);
+    setEditingMessage(null);
   };
   
   const handleDelete = async (messageId: string) => {
@@ -494,6 +510,14 @@ export default function ChatPageContent({ initialData, params }: { initialData: 
     if (error) {
         toast({ variant: 'destructive', title: "Failed to delete message."});
     }
+  };
+
+  const handleEdit = (message: DirectMessage) => {
+      if (message.content) {
+        setEditingMessage(message);
+        setNewMessage(message.content);
+        setReplyingTo(null);
+      }
   };
   
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -515,9 +539,40 @@ export default function ChatPageContent({ initialData, params }: { initialData: 
     if (fileInputRef.current) fileInputRef.current.value = "";
     setRecordingStatus('idle');
   };
+
+  const handleCancelEdit = () => {
+      setEditingMessage(null);
+      setNewMessage("");
+  };
+
+  const handleUpdateMessage = async () => {
+    if (!editingMessage || !newMessage.trim() || !currentUser) return;
+    setSending(true);
+
+    const { error } = await supabase
+        .from('direct_messages')
+        .update({ content: newMessage.trim(), is_edited: true })
+        .eq('id', editingMessage.id);
+
+    if (error) {
+        toast({ variant: 'destructive', title: 'Failed to update message', description: error.message });
+    } else {
+        setMessages(prev => prev.map(msg => msg.id === editingMessage.id ? { ...msg, content: newMessage.trim(), is_edited: true } : msg));
+    }
+
+    setSending(false);
+    setNewMessage("");
+    setEditingMessage(null);
+  };
   
   const handleSendMessage = async (e?: React.FormEvent) => {
     e?.preventDefault();
+
+    if (editingMessage) {
+        await handleUpdateMessage();
+        return;
+    }
+
     if ((!newMessage.trim() && !mediaFile) || !currentUser || !conversationId) return;
     
     setSending(true);
@@ -577,7 +632,7 @@ export default function ChatPageContent({ initialData, params }: { initialData: 
         media_url: publicMediaUrl,
         media_type: mediaType,
         parent_message_id: replyingTo?.id || null,
-    });
+    }).select().single();
     
     if (insertError) {
         toast({ variant: "destructive", title: "Failed to send message", description: insertError.message });
@@ -859,7 +914,7 @@ export default function ChatPageContent({ initialData, params }: { initialData: 
       
       <main className="flex-1 overflow-y-auto p-4 space-y-6">
         {messages.map((msg) => (
-            <ChatMessage key={msg.id} message={msg} isSender={msg.sender_id === currentUser?.id} onReply={handleReply} onDelete={handleDelete} onReaction={handleReaction} currentUser={currentUser}/>
+            <ChatMessage key={msg.id} message={msg} isSender={msg.sender_id === currentUser?.id} onReply={handleReply} onDelete={handleDelete} onEdit={handleEdit} onReaction={handleReaction} currentUser={currentUser}/>
         ))}
         <div ref={messagesEndRef} />
       </main>
@@ -871,7 +926,17 @@ export default function ChatPageContent({ initialData, params }: { initialData: 
             </div>
         )}
         <div className="p-2">
-            {replyingTo && (
+            {editingMessage ? (
+                 <div className="flex items-center justify-between bg-muted/50 px-3 py-1.5 text-xs">
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                        <Pencil className="h-4 w-4 text-primary" />
+                        <span className="font-semibold text-foreground">Editing message</span>
+                    </div>
+                    <Button variant="ghost" size="icon" className="h-5 w-5" onClick={handleCancelEdit}>
+                        <X className="h-4 w-4" />
+                    </Button>
+                </div>
+            ) : replyingTo && (
                 <div className="flex items-center justify-between bg-muted/50 px-3 py-1.5 text-xs">
                     <div className="truncate">
                         <span className="text-muted-foreground">Replying to </span>
@@ -916,20 +981,24 @@ export default function ChatPageContent({ initialData, params }: { initialData: 
                     </div>
                 ) : (
                     <>
-                        <input 
-                            type="file" 
-                            ref={fileInputRef} 
-                            onChange={handleFileChange}
-                            className="hidden" 
-                            accept="image/*,video/*"
-                            disabled={isChatDisabled}
-                        />
-                        <Button variant="ghost" size="icon" type="button" onClick={() => fileInputRef.current?.click()} disabled={isChatDisabled}><ImageIcon className="h-5 w-5 text-muted-foreground" /></Button>
-                        <Button variant="ghost" size="icon" type="button" onClick={() => setShowEmojiPicker(!showEmojiPicker)} disabled={isChatDisabled}>
-                            <Smile className={cn("h-5 w-5 text-muted-foreground", showEmojiPicker && "text-primary")} />
-                        </Button>
+                        {!editingMessage && (
+                            <>
+                                <input 
+                                    type="file" 
+                                    ref={fileInputRef} 
+                                    onChange={handleFileChange}
+                                    className="hidden" 
+                                    accept="image/*,video/*"
+                                    disabled={isChatDisabled}
+                                />
+                                <Button variant="ghost" size="icon" type="button" onClick={() => fileInputRef.current?.click()} disabled={isChatDisabled}><ImageIcon className="h-5 w-5 text-muted-foreground" /></Button>
+                                <Button variant="ghost" size="icon" type="button" onClick={() => setShowEmojiPicker(!showEmojiPicker)} disabled={isChatDisabled}>
+                                    <Smile className={cn("h-5 w-5 text-muted-foreground", showEmojiPicker && "text-primary")} />
+                                </Button>
+                            </>
+                        )}
                         <Input 
-                          placeholder="Type a message..." 
+                          placeholder={editingMessage ? "Edit your message..." : "Type a message..."} 
                           className="flex-1"
                           value={newMessage}
                           onChange={(e) => setNewMessage(e.target.value)}
@@ -940,20 +1009,22 @@ export default function ChatPageContent({ initialData, params }: { initialData: 
                                 e.preventDefault();
                                 handleSendMessage();
                             }
-                            handleTyping();
+                            if (!editingMessage) {
+                                handleTyping();
+                            }
                           }}
                         />
                     </>
                 )}
                 
-                {recordingStatus !== 'preview' && (
+                {recordingStatus !== 'preview' && !editingMessage && (
                      <Button variant="ghost" size="icon" type="button" onClick={handleMicClick} disabled={isChatDisabled}>
                         {recordingStatus === 'recording' ? <StopCircle className="h-5 w-5 text-red-500" /> : <Mic className="h-5 w-5 text-muted-foreground" />}
                     </Button>
                 )}
 
-                <Button size="icon" type="submit" disabled={(!newMessage.trim() && !mediaFile) || sending || isChatDisabled}>
-                    {sending ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
+                <Button size="icon" type="submit" disabled={(!newMessage.trim() && !mediaFile && !editingMessage) || sending || isChatDisabled}>
+                    {sending ? <Loader2 className="h-5 w-5 animate-spin" /> : editingMessage ? <Check className="h-5 w-5" /> : <Send className="h-5 w-5" />}
                 </Button>
             </form>
         </div>
@@ -967,3 +1038,5 @@ export default function ChatPageContent({ initialData, params }: { initialData: 
     </div>
   );
 }
+
+    
