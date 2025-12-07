@@ -14,7 +14,7 @@ import { TypingBattleRequestBanner } from '@/components/typing-battle-request-ba
 import { CoupleRequestBanner } from '@/components/couple-request-banner';
 import { OfflineProvider, OfflineContext } from '@/context/offline-context';
 import OfflinePage from '@/app/offline/page';
-import { PushNotifications, PermissionState } from '@capacitor/push-notifications';
+import { PushNotifications, Token, PermissionState } from '@capacitor/push-notifications';
 import { Capacitor } from '@capacitor/core';
 import { useToast } from '@/hooks/use-toast';
 
@@ -70,6 +70,7 @@ function AppLayout({ children }: { children: React.ReactNode }) {
   // Push Notification Registration
   useEffect(() => {
     if (Capacitor.isNativePlatform() && currentUser) {
+      
       const registerForPushNotifications = async () => {
         try {
           let permStatus: PermissionState = await PushNotifications.checkPermissions();
@@ -82,8 +83,7 @@ function AppLayout({ children }: { children: React.ReactNode }) {
             console.warn('User denied push notification permissions.');
             return; // Stop if permission is not granted
           }
-
-          // Now, register for remote notifications
+          
           await PushNotifications.register();
 
         } catch (error) {
@@ -92,21 +92,22 @@ function AppLayout({ children }: { children: React.ReactNode }) {
       };
 
       const addListeners = () => {
-         PushNotifications.addListener('registration', async (token) => {
+         PushNotifications.addListener('registration', async (token: Token) => {
           console.info('Push registration success, token: ', token.value);
-          // Save the token to the database
-          const { error } = await supabase.from('push_notification_tokens').upsert({
-            user_id: currentUser.id,
-            token: token.value,
-            device_type: Capacitor.getPlatform(),
-          }, { onConflict: 'user_id, token' });
+          if (currentUser) {
+            const { error } = await supabase.from('push_notification_tokens').upsert({
+              user_id: currentUser.id,
+              token: token.value,
+              device_type: Capacitor.getPlatform(),
+            }, { onConflict: 'user_id, token' });
 
-          if (error) {
-            console.error('Failed to save push token:', error);
+            if (error) {
+              console.error('Failed to save push token:', error);
+            }
           }
         });
 
-        PushNotifications.addListener('registrationError', (err) => {
+        PushNotifications.addListener('registrationError', (err: any) => {
           console.error('Push registration error: ', err.error);
         });
       };
@@ -157,3 +158,5 @@ export default function RootLayout({
     </html>
   );
 }
+
+    
