@@ -5,7 +5,7 @@ import { useEffect, useState, useCallback } from "react";
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Grid3x3, Clapperboard, ArrowLeft, CameraOff, Loader2, MoreVertical, Trash2, Lock, AlertTriangle } from "lucide-react";
+import { Grid3x3, Clapperboard, ArrowLeft, CameraOff, Loader2, MoreVertical, Trash2, Lock, AlertTriangle, MessageCircle } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { BottomNav } from '@/components/bottom-nav';
@@ -210,9 +210,17 @@ export default function UserProfilePageContent({ initialData, params }: { initia
                 <Button variant="outline" className="w-full">Edit Profile</Button>
               </Link>
             ) : (
-              <Button className="w-full" variant={isFollowing ? 'secondary' : 'default'} onClick={handleFollowToggle}>
-                  {isFollowing ? 'Following' : 'Follow'}
-              </Button>
+              <>
+                <Button className="flex-1" variant={isFollowing ? 'secondary' : 'default'} onClick={handleFollowToggle}>
+                    {isFollowing ? 'Following' : 'Follow'}
+                </Button>
+                <Link href={`/chat/${profile.id}`} className="flex-1">
+                    <Button variant="outline" className="w-full">
+                        <MessageCircle className="mr-2 h-4 w-4" />
+                        Message
+                    </Button>
+                </Link>
+              </>
             )}
           </div>
 
