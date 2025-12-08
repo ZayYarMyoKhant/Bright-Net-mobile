@@ -101,12 +101,6 @@ export default function ChatZMTPage() {
                     <div className="p-4 space-y-6">
                         {messages.map((msg, index) => (
                             <div key={index} className={cn("flex items-start gap-3", msg.sender === 'user' ? 'justify-end' : 'justify-start')}>
-                                {msg.sender === 'ai' && (
-                                    <Avatar className="h-8 w-8">
-                                        <AvatarImage src="https://blbqaojfppwybkjqiyeb.supabase.co/storage/v1/object/public/assets/Screenshot_2025-12-08-20-50-51-25.jpg" alt="ZMT AI" />
-                                        <AvatarFallback className="bg-black text-blue-500 font-bold">ZMT</AvatarFallback>
-                                    </Avatar>
-                                )}
                                  <Tooltip>
                                     <TooltipTrigger asChild>
                                         <div 
@@ -127,10 +121,6 @@ export default function ChatZMTPage() {
                         ))}
                         {loading && (
                              <div className="flex items-start gap-3 justify-start">
-                                <Avatar className="h-8 w-8">
-                                     <AvatarImage src="https://blbqaojfppwybkjqiyeb.supabase.co/storage/v1/object/public/assets/Screenshot_2025-12-08-20-50-51-25.jpg" alt="ZMT AI" />
-                                     <AvatarFallback className="bg-black text-blue-500 font-bold">ZMT</AvatarFallback>
-                                </Avatar>
                                 <div className="max-w-sm rounded-lg px-4 py-2 bg-muted flex items-center">
                                     <Loader2 className="h-5 w-5 animate-spin" />
                                 </div>
