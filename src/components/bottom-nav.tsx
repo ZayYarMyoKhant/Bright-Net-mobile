@@ -3,7 +3,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Search, PlusSquare, User, MessageCircle, Heart, BookOpen } from "lucide-react";
+import { Home, Search, PlusSquare, User, MessageCircle, Heart, BookOpen, Bot } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTranslation } from "@/context/language-context";
 import { useEffect, useState, useCallback } from "react";
@@ -95,7 +95,7 @@ export function BottomNav() {
     { href: "/search", label: t('bottomNav.search'), icon: Search },
     { href: "/bliss-zone", label: 'Bliss Zone', icon: Heart },
     { href: "/upload", label: 'Create', icon: PlusSquare, isSpecial: true },
-    { href: "/class", label: 'Class', icon: BookOpen },
+    { href: "/bliss-zone/chat-zmt", label: 'AI', icon: Bot },
     { href: "/chat", label: t('bottomNav.chat'), icon: MessageCircle, notification: hasUnread },
     { href: "/profile", label: t('bottomNav.profile'), icon: User },
   ];
