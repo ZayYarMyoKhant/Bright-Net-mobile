@@ -216,13 +216,13 @@ export default function ChatListPage() {
                 <Link href="/bliss-zone/chat-zmt">
                     <div className="p-4 flex items-center gap-4 hover:bg-muted/50">
                         <div className="relative">
-                            <Avatar className="h-14 w-14 bg-blue-500/20">
+                            <Avatar className="h-14 w-14">
                                <AvatarImage src="https://blbqaojfppwybkjqiyeb.supabase.co/storage/v1/object/public/assets/Screenshot_2025-12-08-20-50-51-25.jpg" alt="ZMT AI" />
                             </Avatar>
                         </div>
                         <div className="flex-1 overflow-hidden">
                              <p className="font-semibold">Chat-ZMT</p>
-                             <p className="text-sm truncate text-muted-foreground">Chat with ZMT - Bright AI</p>
+                             <p className="text-sm truncate text-muted-foreground">Chat with ZMT Thinking model</p>
                         </div>
                     </div>
                 </Link>
