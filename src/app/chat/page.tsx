@@ -7,7 +7,7 @@ import { useRouter } from 'next/navigation';
 import { User } from '@supabase/supabase-js';
 import { BottomNav } from '@/components/bottom-nav';
 import { Avatar } from '@/components/ui/avatar';
-import { Loader2, MessageSquarePlus, Bookmark } from 'lucide-react';
+import { Loader2, MessageSquarePlus, Bookmark, Bot } from 'lucide-react';
 import Link from 'next/link';
 import { formatDistanceToNow, isBefore, subMinutes } from 'date-fns';
 import { Profile } from '@/lib/data';
@@ -211,14 +211,24 @@ export default function ChatListPage() {
             <div className="flex h-full w-full items-center justify-center">
               <Loader2 className="h-8 w-8 animate-spin" />
             </div>
-          ) : conversations.length === 0 ? (
-            <div className="flex flex-col items-center justify-center text-center text-muted-foreground pt-20">
-              <MessageSquarePlus className="h-16 w-16" />
-              <h2 className="mt-4 text-lg font-semibold">No Chats Yet</h2>
-              <p className="mt-1 text-sm">Start a conversation from a user's profile.</p>
-            </div>
           ) : (
             <div className="divide-y">
+                <Link href="/bliss-zone/chat-zmt">
+                    <div className="p-4 flex items-center gap-4 hover:bg-muted/50">
+                        <div className="relative">
+                            <Avatar className="h-14 w-14 bg-blue-500/20">
+                               <div className="w-full h-full flex items-center justify-center">
+                                 <Bot className="h-8 w-8 text-blue-500" />
+                               </div>
+                            </Avatar>
+                        </div>
+                        <div className="flex-1 overflow-hidden">
+                             <p className="font-semibold">Chat-ZMT</p>
+                             <p className="text-sm truncate text-muted-foreground">Chat with ZMT - Bright AI</p>
+                        </div>
+                    </div>
+                </Link>
+
               {conversations.map((convo) => {
                 if (!convo.other_user && !convo.is_self_chat) return null;
                 
@@ -276,6 +286,14 @@ export default function ChatListPage() {
               })}
             </div>
           )}
+
+           {conversations.length === 0 && !loading && (
+             <div className="flex flex-col items-center justify-center text-center text-muted-foreground pt-20">
+              <MessageSquarePlus className="h-16 w-16" />
+              <h2 className="mt-4 text-lg font-semibold">No Chats Yet</h2>
+              <p className="mt-1 text-sm">Start a conversation from a user's profile.</p>
+            </div>
+           )}
         </main>
       </div>
       <BottomNav />

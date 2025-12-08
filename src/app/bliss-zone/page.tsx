@@ -18,14 +18,6 @@ export default function BlissZonePage() {
             color: "bg-primary/10 border-primary/20",
             disabled: false,
         },
-        {
-            title: "Chat-ZMT",
-            description: "Chat with ZMT - Bright AI.",
-            icon: <Bot className="h-8 w-8 text-blue-500" />,
-            href: "/bliss-zone/chat-zmt",
-            color: "bg-blue-500/10 border-blue-500/20",
-            disabled: false,
-        }
     ]
 
     return (

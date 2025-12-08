@@ -72,12 +72,12 @@ export default function ChatZMTPage() {
     return (
         <div className="flex h-dvh flex-col bg-background text-foreground">
             <header className="flex h-16 flex-shrink-0 items-center justify-between bg-blue-600 text-white px-4">
-                <Link href="/bliss-zone">
+                <Link href="/chat">
                     <Button variant="ghost" size="icon" className="hover:bg-white/20">
                         <ArrowLeft className="h-5 w-5" />
                     </Button>
                 </Link>
-                <h1 className="text-xl font-bold">ZMT - Bright ai</h1>
+                <h1 className="text-xl font-bold">Chat-ZMT</h1>
                 <div className="w-10"></div>
             </header>
 
@@ -96,11 +96,6 @@ export default function ChatZMTPage() {
                             )}>
                                 <p className="text-sm">{msg.text}</p>
                             </div>
-                             {msg.sender === 'user' && (
-                                <Avatar className="bg-muted">
-                                    <AvatarFallback><User /></AvatarFallback>
-                                </Avatar>
-                            )}
                         </div>
                     ))}
                     {loading && (
