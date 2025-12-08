@@ -4,7 +4,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { ArrowLeft, Send, Loader2, Bot, User } from 'lucide-react';
+import { ArrowLeft, Send, Loader2, User } from 'lucide-react';
 import Link from 'next/link';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -86,8 +86,8 @@ export default function ChatZMTPage() {
                     {messages.map((msg, index) => (
                         <div key={index} className={cn("flex items-start gap-3", msg.sender === 'user' ? 'justify-end' : 'justify-start')}>
                              {msg.sender === 'ai' && (
-                                <Avatar className="bg-blue-500 text-white">
-                                    <AvatarFallback><Bot /></AvatarFallback>
+                                <Avatar>
+                                    <AvatarFallback className="bg-black text-blue-500 font-bold">ZMT</AvatarFallback>
                                 </Avatar>
                             )}
                             <div className={cn(
@@ -100,8 +100,8 @@ export default function ChatZMTPage() {
                     ))}
                     {loading && (
                          <div className="flex items-start gap-3 justify-start">
-                            <Avatar className="bg-blue-500 text-white">
-                                <AvatarFallback><Bot /></AvatarFallback>
+                             <Avatar>
+                                <AvatarFallback className="bg-black text-blue-500 font-bold">ZMT</AvatarFallback>
                             </Avatar>
                             <div className="max-w-sm rounded-lg px-4 py-2 bg-muted flex items-center">
                                 <Loader2 className="h-5 w-5 animate-spin" />
