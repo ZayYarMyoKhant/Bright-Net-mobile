@@ -6,7 +6,7 @@ import { createClient } from '@/lib/supabase/client';
 import { useRouter } from 'next/navigation';
 import { User } from '@supabase/supabase-js';
 import { BottomNav } from '@/components/bottom-nav';
-import { Avatar, AvatarImage } from '@/components/ui/avatar';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Loader2, MessageSquarePlus, Bookmark, Bot } from 'lucide-react';
 import Link from 'next/link';
 import { formatDistanceToNow, isBefore, subMinutes } from 'date-fns';
@@ -218,10 +218,11 @@ export default function ChatListPage() {
                         <div className="relative">
                             <Avatar className="h-14 w-14">
                                <AvatarImage src="https://blbqaojfppwybkjqiyeb.supabase.co/storage/v1/object/public/assets/Screenshot_2025-12-08-20-50-51-25.jpg" alt="ZMT AI" />
+                               <AvatarFallback className="bg-black text-blue-500 font-bold">ZMT</AvatarFallback>
                             </Avatar>
                         </div>
                         <div className="flex-1 overflow-hidden">
-                             <p className="font-semibold">Chat-ZMT</p>
+                             <p className="font-semibold">ZMT Thinking model</p>
                              <p className="text-sm truncate text-muted-foreground">Chat with ZMT Thinking model</p>
                         </div>
                     </div>

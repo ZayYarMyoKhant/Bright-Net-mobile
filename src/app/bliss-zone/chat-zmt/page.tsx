@@ -4,24 +4,27 @@
 import { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { ArrowLeft, Send, Loader2 } from 'lucide-react';
+import { ArrowLeft, Send, Loader2, Bot, ClipboardCopy } from 'lucide-react';
 import Link from 'next/link';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 
 type Message = {
     sender: 'user' | 'ai';
     text: string;
 }
 
-const aiAvatarUrl = "https://blbqaojfppwybkjqiyeb.supabase.co/storage/v1/object/public/assets/Screenshot_2025-12-08-20-50-51-25.jpg";
-
-
 export default function ChatZMTPage() {
     const [messages, setMessages] = useState<Message[]>([
-        { sender: 'ai', text: "Hello! I'm ZMT-Bright AI. How can I help you today?" }
+        { sender: 'ai', text: "Hello! I'm ZMT AI." }
     ]);
     const [input, setInput] = useState('');
     const [loading, setLoading] = useState(false);
@@ -32,11 +35,20 @@ export default function ChatZMTPage() {
         // Scroll to bottom when new messages are added
         if (scrollAreaRef.current) {
             scrollAreaRef.current.scrollTo({
-                top: scrollAreaRef.current.scrollHeight,
+                top: scrollAreaf.current.scrollHeight,
                 behavior: 'smooth'
             });
         }
     }, [messages]);
+    
+    const handleCopy = (text: string) => {
+        navigator.clipboard.writeText(text).then(() => {
+            toast({ title: "Copied to clipboard" });
+        }).catch(err => {
+            console.error('Could not copy text: ', err);
+            toast({ variant: "destructive", title: "Copy Failed" });
+        });
+    };
 
     const handleSendMessage = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -85,35 +97,37 @@ export default function ChatZMTPage() {
             </header>
 
             <ScrollArea className="flex-1" ref={scrollAreaRef}>
-                <div className="p-4 space-y-6">
-                    {messages.map((msg, index) => (
-                        <div key={index} className={cn("flex items-start gap-3", msg.sender === 'user' ? 'justify-end' : 'justify-start')}>
-                             {msg.sender === 'ai' && (
-                                <Avatar>
-                                    <AvatarImage src={aiAvatarUrl} alt="ZMT AI" />
-                                    <AvatarFallback className="bg-black text-blue-500 font-bold">ZMT</AvatarFallback>
-                                </Avatar>
-                            )}
-                            <div className={cn(
-                                "max-w-sm rounded-lg px-4 py-2",
-                                msg.sender === 'user' ? 'bg-primary text-primary-foreground' : 'bg-muted'
-                            )}>
-                                <p className="text-sm">{msg.text}</p>
+                 <TooltipProvider>
+                    <div className="p-4 space-y-6">
+                        {messages.map((msg, index) => (
+                            <div key={index} className={cn("flex items-start gap-3", msg.sender === 'user' ? 'justify-end' : 'justify-start')}>
+                                 <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <div 
+                                            className={cn(
+                                                "max-w-sm rounded-lg px-4 py-2 cursor-pointer",
+                                                msg.sender === 'user' ? 'bg-primary text-primary-foreground' : 'bg-muted'
+                                            )}
+                                            onClick={() => handleCopy(msg.text)}
+                                        >
+                                            <p className="text-sm">{msg.text}</p>
+                                        </div>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                        <p>Copy to clipboard</p>
+                                    </TooltipContent>
+                                </Tooltip>
                             </div>
-                        </div>
-                    ))}
-                    {loading && (
-                         <div className="flex items-start gap-3 justify-start">
-                             <Avatar>
-                                <AvatarImage src={aiAvatarUrl} alt="ZMT AI" />
-                                <AvatarFallback className="bg-black text-blue-500 font-bold">ZMT</AvatarFallback>
-                            </Avatar>
-                            <div className="max-w-sm rounded-lg px-4 py-2 bg-muted flex items-center">
-                                <Loader2 className="h-5 w-5 animate-spin" />
+                        ))}
+                        {loading && (
+                             <div className="flex items-start gap-3 justify-start">
+                                <div className="max-w-sm rounded-lg px-4 py-2 bg-muted flex items-center">
+                                    <Loader2 className="h-5 w-5 animate-spin" />
+                                </div>
                             </div>
-                        </div>
-                    )}
-                </div>
+                        )}
+                    </div>
+                </TooltipProvider>
             </ScrollArea>
             
             <footer className="border-t p-2">
