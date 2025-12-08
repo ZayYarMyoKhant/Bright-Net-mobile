@@ -4,10 +4,10 @@
 import { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { ArrowLeft, Send, Loader2, User } from 'lucide-react';
+import { ArrowLeft, Send, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 
@@ -15,6 +15,9 @@ type Message = {
     sender: 'user' | 'ai';
     text: string;
 }
+
+const aiAvatarUrl = "https://blbqaojfppwybkjqiyeb.supabase.co/storage/v1/object/public/assets/Screenshot_2025-12-08-20-50-51-25.jpg";
+
 
 export default function ChatZMTPage() {
     const [messages, setMessages] = useState<Message[]>([
@@ -77,7 +80,7 @@ export default function ChatZMTPage() {
                         <ArrowLeft className="h-5 w-5" />
                     </Button>
                 </Link>
-                <h1 className="text-xl font-bold">Chat-ZMT</h1>
+                <h1 className="text-xl font-bold">ZMT Thinking model</h1>
                 <div className="w-10"></div>
             </header>
 
@@ -87,6 +90,7 @@ export default function ChatZMTPage() {
                         <div key={index} className={cn("flex items-start gap-3", msg.sender === 'user' ? 'justify-end' : 'justify-start')}>
                              {msg.sender === 'ai' && (
                                 <Avatar>
+                                    <AvatarImage src={aiAvatarUrl} alt="ZMT AI" />
                                     <AvatarFallback className="bg-black text-blue-500 font-bold">ZMT</AvatarFallback>
                                 </Avatar>
                             )}
@@ -101,6 +105,7 @@ export default function ChatZMTPage() {
                     {loading && (
                          <div className="flex items-start gap-3 justify-start">
                              <Avatar>
+                                <AvatarImage src={aiAvatarUrl} alt="ZMT AI" />
                                 <AvatarFallback className="bg-black text-blue-500 font-bold">ZMT</AvatarFallback>
                             </Avatar>
                             <div className="max-w-sm rounded-lg px-4 py-2 bg-muted flex items-center">
