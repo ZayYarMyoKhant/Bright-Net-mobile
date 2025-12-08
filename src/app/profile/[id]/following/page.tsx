@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect, useCallback, use } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Loader2, UserX } from "lucide-react";
 import { Avatar } from "@/components/ui/avatar";
@@ -17,8 +17,7 @@ type FollowingProfile = Profile & { is_also_following: boolean };
 
 
 export default function FollowingPage({ params }: { params: { id: string } }) {
-    const resolvedParams = use(params);
-    const profileId = resolvedParams.id;
+    const profileId = params.id;
     const router = useRouter();
     const { toast } = useToast();
     const supabase = createClient();
