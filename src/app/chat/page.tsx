@@ -7,7 +7,7 @@ import { useRouter } from 'next/navigation';
 import { User } from '@supabase/supabase-js';
 import { BottomNav } from '@/components/bottom-nav';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
-import { Loader2, MessageSquarePlus, Bookmark, Bot } from 'lucide-react';
+import { Loader2, MessageSquarePlus, Bookmark, Bot, Bell } from 'lucide-react';
 import Link from 'next/link';
 import { formatDistanceToNow, isBefore, subMinutes } from 'date-fns';
 import { Profile } from '@/lib/data';
@@ -15,6 +15,7 @@ import { AdBanner } from '@/components/ad-banner';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
+import { useNotifications } from '@/hooks/use-notifications';
 
 type Conversation = {
   id: string;
@@ -52,6 +53,8 @@ export default function ChatListPage() {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const supabase = createClient();
   const router = useRouter();
+  const { unreadCount } = useNotifications();
+
 
   const fetchConversations = useCallback(async (user: User) => {
     setLoading(true);
@@ -195,11 +198,23 @@ export default function ChatListPage() {
       <div className="flex h-dvh flex-col bg-background text-foreground pb-16">
         <header className="flex h-16 flex-shrink-0 items-center justify-center bg-primary text-primary-foreground px-4 relative">
           <h1 className="text-xl font-bold">Chats</h1>
-          {currentUser && (
-            <Button variant="ghost" size="icon" className="absolute right-2" onClick={handleSavedMessageClick}>
-                <Bookmark />
-            </Button>
-          )}
+           <div className="absolute right-2 flex items-center">
+             <Link href="/notifications" className="relative">
+                <Button variant="ghost" size="icon">
+                    <Bell className={cn(unreadCount > 0 && "text-red-500 fill-red-500")} />
+                </Button>
+                 {unreadCount > 0 && (
+                    <Badge variant="destructive" className="absolute -top-1 -right-1 h-5 w-5 justify-center rounded-full p-0 text-xs">
+                        {unreadCount}
+                    </Badge>
+                )}
+             </Link>
+             {currentUser && (
+                <Button variant="ghost" size="icon" onClick={handleSavedMessageClick}>
+                    <Bookmark />
+                </Button>
+            )}
+           </div>
         </header>
 
         <div className="p-4 border-b">
@@ -293,5 +308,3 @@ export default function ChatListPage() {
     </>
   );
 }
-
-    
