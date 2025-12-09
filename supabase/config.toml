@@ -1,0 +1,69 @@
+# Supabase Project Configuration
+
+project_id = "blbqaojfppwybkjqiyeb"
+
+[api]
+# The port that the API will be exposed on.
+# Note: This is not the same as the Supabase Studio port.
+port = 54321
+# Schemas to expose in the API.
+# The `public` and `storage` schemas are exposed by default.
+schemas = ["public", "storage", "graphql_public"]
+# The maximum number of rows that can be returned in a single request.
+max_rows = 1000
+
+[db]
+# The port that the database will be exposed on.
+port = 54322
+# Use a major version of Postgres.
+# Run `supabase start` to apply the new major version.
+major_version = 15
+
+[studio]
+# The port that Supabase Studio will be exposed on.
+port = 54323
+
+# Email testing server.
+# To view the emails, go to http://localhost:54324
+[inbucket]
+port = 54324
+
+[functions]
+  [functions.send-push-notification]
+    # To run this function locally, you will need to create a
+    # .env.local file with the following variables:
+    #   - FCM_PRIVATE_KEY
+    #   - FCM_PROJECT_ID
+    #   - FCM_CLIENT_EMAIL
+    # To get these values, go to your Firebase project settings and
+    # generate a new private key for your service account.
+    # The JWT is not verified for this function.
+    verify_jwt = false
+
+[auth]
+# The base URL of your website.
+# Used for constructing password recovery links.
+site_url = "http://localhost:3000"
+# A list of extra URLs that can be used for password recovery.
+# This is useful for deploying previews of your app.
+additional_redirect_urls = ["http://localhost:3000"]
+# Whether to enable email confirmations.
+enable_email_confirmations = false
+# The time limit for email confirmations.
+email_confirmations_expiry = 86400
+# Whether to enable phone confirmations.
+enable_phone_confirmations = true
+# The time limit for phone confirmations.
+phone_confirmations_expiry = 600
+
+# The an on-signup hook.
+# To disable, set it to ""
+# on_signup_hook = "hooks/on-signup"
+
+[analytics]
+# The default is "false".
+# To disable, set it to "false".
+enabled = false
+# The endpoint for the analytics server.
+# The default is "https://api.supabase-visits.com/v1"
+endpoint = ""
