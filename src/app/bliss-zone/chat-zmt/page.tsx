@@ -60,7 +60,7 @@ export default function ChatZMTPage() {
         setLoading(true);
 
         try {
-            const response = await fetch(`https://zmt-ai-te.primren685.workers.dev/api/ai/${encodeURIComponent(input)}`);
+            const response = await fetch(`https://zmt.moemintun2381956.workers.dev/?prompt=${encodeURIComponent(input)}`);
             if (!response.ok) {
                 throw new Error(`API request failed with status ${response.status}`);
             }
