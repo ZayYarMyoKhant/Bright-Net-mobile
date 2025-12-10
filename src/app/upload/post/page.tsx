@@ -5,12 +5,13 @@ import { useState, useRef, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { ImagePlus, X, ArrowLeft, Loader2 } from "lucide-react";
+import { ImagePlus, X, ArrowLeft, Loader2, Camera } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useToast } from "@/hooks/use-toast";
 import { createClient } from "@/lib/supabase/client";
 import { Progress } from "@/components/ui/progress";
+import { Separator } from "@/components/ui/separator";
 
 export default function UploadPostPage() {
   const [caption, setCaption] = useState("");
@@ -191,7 +192,7 @@ export default function UploadPostPage() {
               />
             </div>
             
-            <div className="pt-4">
+            <div className="pt-4 space-y-4">
                {isPending && uploadProgress !== null ? (
                   <div className="space-y-2">
                     <Progress value={uploadProgress} />
@@ -211,6 +212,15 @@ export default function UploadPostPage() {
                     )}
                   </Button>
                 )}
+
+                <Separator />
+
+                <Link href="/upload/customize" className="w-full">
+                  <Button variant="outline" className="w-full">
+                    <Camera className="mr-2 h-4 w-4" />
+                    Customize Post
+                  </Button>
+                </Link>
             </div>
           </form>
         </main>
