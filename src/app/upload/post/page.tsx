@@ -26,12 +26,14 @@ export default function UploadPostPage() {
 
   useEffect(() => {
     const mediaDataUrl = searchParams.get('mediaUrl');
-    const type = searchParams.get('mediaType');
+    const typeParam = searchParams.get('mediaType');
 
-    if (mediaDataUrl && type) {
+    if (mediaDataUrl && typeParam) {
       const decodedUrl = decodeURIComponent(mediaDataUrl);
+      const type = decodeURIComponent(typeParam) as 'image' | 'video';
+
       setPreviewUrl(decodedUrl);
-      setMediaType(type as 'image' | 'video');
+      setMediaType(type);
 
       fetch(decodedUrl)
         .then(res => res.blob())

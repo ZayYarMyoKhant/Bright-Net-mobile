@@ -19,53 +19,68 @@ type OverlayText = {
 type Effect = {
     name: string;
     class: string;
+    filter: string;
 }
 
 const effects: Effect[] = [
-    { name: "None", class: "" },
-    { name: "Mono", class: "grayscale" },
-    { name: "Sepia", class: "sepia" },
-    { name: "Vivid", class: "saturate-200" },
-    { name: "Pop", class: "hue-rotate-90" },
-    { name: "Invert", class: "invert" },
-    { name: "Cool", class: "hue-rotate-180" },
-    { name: "Blur", class: "blur-sm" },
+    { name: "None", class: "", filter: "none" },
+    { name: "Mono", class: "grayscale", filter: "grayscale(1)" },
+    { name: "Sepia", class: "sepia", filter: "sepia(1)" },
+    { name: "Vivid", class: "saturate-200", filter: "saturate(2)" },
+    { name: "Pop", class: "hue-rotate-90", filter: "hue-rotate(90deg)" },
+    { name: "Invert", class: "invert", filter: "invert(1)" },
+    { name: "Cool", class: "hue-rotate-180", filter: "hue-rotate(180deg)" },
+    { name: "Blur", class: "blur-sm", filter: "blur(4px)" },
 ];
 
-const convertToDataURL = (mediaUrl: string, mediaType: 'image' | 'video', effectClass: string, texts: OverlayText[], callback: (dataUrl: string) => void) => {
+const convertToDataURL = (mediaUrl: string, mediaType: 'image' | 'video', effectFilter: string, texts: OverlayText[], callback: (dataUrl: string) => void) => {
+    if (mediaType === 'video') {
+        // For video, client-side processing is too heavy.
+        // We will just pass the original URL. A more advanced solution would use a server-side processor.
+        callback(mediaUrl);
+        return;
+    }
+
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    if (mediaType === 'image') {
-        const img = new window.Image();
-        img.crossOrigin = 'anonymous';
-        img.onload = () => {
-            canvas.width = img.naturalWidth;
-            canvas.height = img.naturalHeight;
-            if (effectClass) ctx.filter = getComputedStyle(document.documentElement).getPropertyValue(`--filter-${effectClass}`);
-            ctx.drawImage(img, 0, 0);
+    const img = new window.Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+        canvas.width = img.naturalWidth;
+        canvas.height = img.naturalHeight;
+        
+        if (effectFilter) {
+            ctx.filter = effectFilter;
+        }
+        
+        ctx.drawImage(img, 0, 0);
 
-            texts.forEach(text => {
-                ctx.font = 'bold 50px sans-serif';
-                ctx.fillStyle = 'white';
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'middle';
-                const x = (text.position.x / 100) * canvas.width;
-                const y = (text.position.y / 100) * canvas.height;
-                ctx.shadowColor = 'black';
-                ctx.shadowBlur = 7;
-                ctx.fillText(text.text, x, y);
-            });
+        // Reset filter before drawing text, so text isn't affected
+        ctx.filter = 'none';
+
+        texts.forEach(text => {
+            const fontSize = canvas.width * 0.05; // Make font size relative to image width
+            ctx.font = `bold ${fontSize}px sans-serif`;
+            ctx.fillStyle = 'white';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            const x = (text.position.x / 100) * canvas.width;
+            const y = (text.position.y / 100) * canvas.height;
             
-            callback(canvas.toDataURL('image/jpeg', 0.9));
-        };
-        img.src = mediaUrl;
-    } else {
-        // For video, we just pass the URL as we can't easily apply effects/text on the client-side
-        // A more advanced implementation would use server-side processing or client-side libraries like ffmpeg.wasm
-        callback(mediaUrl);
-    }
+            // Add text shadow for better visibility
+            ctx.shadowColor = 'black';
+            ctx.shadowBlur = 7;
+            ctx.shadowOffsetX = 2;
+            ctx.shadowOffsetY = 2;
+
+            ctx.fillText(text.text, x, y);
+        });
+        
+        callback(canvas.toDataURL('image/jpeg', 0.9));
+    };
+    img.src = mediaUrl;
 };
 
 
@@ -84,7 +99,7 @@ export default function CustomizePostPage() {
   const [overlayTexts, setOverlayTexts] = useState<OverlayText[]>([]);
   const [draggingText, setDraggingText] = useState<number | null>(null);
   const [dragStart, setDragStart] = useState<{x: number, y: number} | null>(null);
-  const [selectedEffect, setSelectedEffect] = useState<string>("");
+  const [selectedEffect, setSelectedEffect] = useState<Effect>(effects[0]);
   const [activeToolbar, setActiveToolbar] = useState<'effects' | 'layout' | 'boomerang' | null>(null);
   const [isLoadingNext, setIsLoadingNext] = useState(false);
 
@@ -120,11 +135,13 @@ export default function CustomizePostPage() {
 
     useEffect(() => {
         if (mediaPreview) {
+            // If there's a preview, we should stop the camera stream
             if (videoRef.current && videoRef.current.srcObject) {
                 const stream = videoRef.current.srcObject as MediaStream;
                 stream.getTracks().forEach(track => track.stop());
             }
         } else {
+            // No preview, set up the camera
             setupCamera();
         }
     }, [mediaPreview, setupCamera]);
@@ -148,7 +165,7 @@ export default function CustomizePostPage() {
     setFacingMode(prev => prev === 'user' ? 'environment' : 'user');
   };
 
-  const handleTakePhoto = () => {
+  const handleShutterClick = () => {
     if (!videoRef.current) return;
     const canvas = document.createElement('canvas');
     canvas.width = videoRef.current.videoWidth;
@@ -166,7 +183,7 @@ export default function CustomizePostPage() {
       setMediaPreview(null);
       setMediaType(null);
       setOverlayTexts([]);
-      setSelectedEffect("");
+      setSelectedEffect(effects[0]);
   };
   
   const handleToolbarClick = (tool: 'text' | 'layout' | 'boomerang' | 'more' | 'effects') => {
@@ -233,9 +250,10 @@ export default function CustomizePostPage() {
     }
     setIsLoadingNext(true);
 
-    convertToDataURL(mediaPreview, mediaType, selectedEffect, overlayTexts, (dataUrl) => {
+    convertToDataURL(mediaPreview, mediaType, selectedEffect.filter, overlayTexts, (dataUrl) => {
         const encodedUrl = encodeURIComponent(dataUrl);
-        router.push(`/upload/post?mediaUrl=${encodedUrl}&mediaType=${mediaType}`);
+        const encodedMediaType = encodeURIComponent(mediaType);
+        router.push(`/upload/post?mediaUrl=${encodedUrl}&mediaType=${encodedMediaType}`);
         setIsLoadingNext(false);
     });
   };
@@ -244,27 +262,18 @@ export default function CustomizePostPage() {
     if (!mediaPreview) return null;
     
     if (mediaType === 'image') {
-      return <Image src={mediaPreview} alt="Preview" fill className={cn("object-contain", selectedEffect)} />;
+      return <Image src={mediaPreview} alt="Preview" fill className={cn("object-contain", selectedEffect.class)} />;
     }
     
     if (mediaType === 'video') {
-      return <video src={mediaPreview} controls autoPlay loop className={cn("w-full h-full object-contain", selectedEffect)} />;
+      return <video src={mediaPreview} controls autoPlay loop className={cn("w-full h-full object-contain", selectedEffect.class)} />;
     }
 
     return null;
   }
 
   return (
-    <div className="flex h-dvh w-full flex-col bg-black text-white" style={{
-        // @ts-ignore
-        '--filter-grayscale': 'grayscale(1)',
-        '--filter-sepia': 'sepia(1)',
-        '--filter-saturate': 'saturate(2)',
-        '--filter-hue-rotate-90': 'hue-rotate(90deg)',
-        '--filter-invert': 'invert(1)',
-        '--filter-hue-rotate-180': 'hue-rotate(180deg)',
-        '--filter-blur-sm': 'blur(4px)',
-    }}>
+    <div className="flex h-dvh w-full flex-col bg-black text-white">
       <header className="absolute top-0 left-0 right-0 z-20 flex h-16 items-center justify-between p-4 bg-gradient-to-b from-black/50 to-transparent">
         <Button variant="ghost" size="icon" onClick={() => router.back()} className="h-10 w-10 bg-black/40 hover:bg-black/60 rounded-full">
           <X className="h-5 w-5" />
@@ -301,7 +310,24 @@ export default function CustomizePostPage() {
         onPointerLeave={handleTextDragEnd}
       >
         {mediaPreview ? (
-            renderMediaPreview()
+            <div className='relative w-full h-full'>
+              {renderMediaPreview()}
+              {overlayTexts.map(text => (
+                  <div
+                      key={text.id}
+                      onPointerDown={(e) => handleTextDragStart(e, text.id)}
+                      className="absolute text-2xl font-bold text-white cursor-move shadow-black [text-shadow:0_2px_4px_var(--tw-shadow-color)] p-2 select-none"
+                      style={{ 
+                          top: `${text.position.y}%`, 
+                          left: `${text.position.x}%`, 
+                          transform: 'translate(-50%, -50%)',
+                          touchAction: 'none' 
+                      }}
+                  >
+                      {text.text}
+                  </div>
+              ))}
+            </div>
         ) : (
              <>
                 {hasCameraPermission === null ? (
@@ -309,7 +335,7 @@ export default function CustomizePostPage() {
                         <Loader2 className="h-8 w-8 animate-spin" />
                     </div>
                 ) : hasCameraPermission === true ? (
-                  <video ref={videoRef} className={cn("w-full h-full object-cover", selectedEffect)} autoPlay muted playsInline />
+                  <video ref={videoRef} className={cn("w-full h-full object-cover", selectedEffect.class)} autoPlay muted playsInline />
                 ) : (
                     <div className="flex h-full w-full flex-col items-center justify-center p-4 text-center">
                         <CameraOff className="h-16 w-16 text-red-500" />
@@ -321,19 +347,9 @@ export default function CustomizePostPage() {
                 )}
             </>
         )}
-        
-         {overlayTexts.map(text => (
-            <div
-                key={text.id}
-                onPointerDown={(e) => handleTextDragStart(e, text.id)}
-                className="absolute text-2xl font-bold text-white cursor-move shadow-black [text-shadow:0_2px_4px_var(--tw-shadow-color)] p-2"
-                style={{ top: `${text.position.y}%`, left: `${text.position.x}%`, touchAction: 'none' }}
-            >
-                {text.text}
-            </div>
-        ))}
       </main>
 
+       {mediaPreview && (
         <div className="absolute left-4 top-1/2 -translate-y-1/2 z-20 flex flex-col items-center gap-4 bg-black/40 p-2 rounded-full">
             <Button variant="ghost" size="icon" className="h-10 w-10 hover:bg-white/20 rounded-full" onClick={() => handleToolbarClick('text')}>
                 <Type className="h-6 w-6" />
@@ -348,6 +364,7 @@ export default function CustomizePostPage() {
                 <ChevronDown className="h-6 w-6" />
             </Button>
         </div>
+       )}
       
       {activeToolbar && (
         <div className="absolute bottom-32 left-4 right-4 z-20 bg-black/50 p-2 rounded-lg backdrop-blur-sm">
@@ -358,8 +375,8 @@ export default function CustomizePostPage() {
              {activeToolbar === 'effects' && (
                 <div className="flex gap-3 overflow-x-auto pb-2">
                     {effects.map((effect) => (
-                        <button key={effect.name} onClick={() => setSelectedEffect(effect.class)} className="flex flex-col items-center gap-1.5 flex-shrink-0 w-16">
-                            <div className={cn("h-12 w-12 rounded-md border-2 bg-blue-500 flex items-center justify-center", selectedEffect === effect.class ? "border-white" : "border-transparent")}>
+                        <button key={effect.name} onClick={() => setSelectedEffect(effect)} className="flex flex-col items-center gap-1.5 flex-shrink-0 w-16">
+                            <div className={cn("h-12 w-12 rounded-md border-2 bg-blue-500 flex items-center justify-center", selectedEffect.name === effect.name ? "border-white" : "border-transparent")}>
                                     <div className={cn("h-full w-full bg-cover bg-center rounded", effect.class)} style={{backgroundImage: 'url(/placeholder-effect.jpg)'}}/>
                             </div>
                             <span className="text-xs">{effect.name}</span>
@@ -372,9 +389,11 @@ export default function CustomizePostPage() {
 
 
       <footer className="absolute bottom-0 left-0 right-0 z-20 p-4 bg-gradient-to-t from-black/50 to-transparent">
-        <Button variant="ghost" className="absolute bottom-32 left-1/2 -translate-x-1/2 bg-black/40" onClick={() => setActiveToolbar(activeToolbar === 'effects' ? null : 'effects')}>
-            <Wand className="h-5 w-5 mr-2"/> Effects
-        </Button>
+        {mediaPreview && (
+          <Button variant="ghost" className="absolute bottom-32 left-1/2 -translate-x-1/2 bg-black/40" onClick={() => setActiveToolbar(activeToolbar === 'effects' ? null : 'effects')}>
+              <Wand className="h-5 w-5 mr-2"/> Effects
+          </Button>
+        )}
 
         <div className="flex items-end justify-between">
             <div className="w-24">
@@ -403,7 +422,7 @@ export default function CustomizePostPage() {
                     </Button>
                 ) : (
                     <div 
-                        onClick={handleTakePhoto}
+                        onClick={handleShutterClick}
                         className="h-16 w-16 rounded-full border-4 border-white bg-white/30 flex items-center justify-center cursor-pointer active:scale-95 transition-all"
                     >
                     </div>
