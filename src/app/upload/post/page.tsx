@@ -2,12 +2,11 @@
 "use client";
 
 import { useState, useRef, useTransition, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { ImagePlus, X, ArrowLeft, Loader2 } from "lucide-react";
+import { ArrowLeft, Loader2 } from "lucide-react";
 import Image from "next/image";
-import Link from "next/link";
 import { useToast } from "@/hooks/use-toast";
 import { createClient } from "@/lib/supabase/client";
 import { Progress } from "@/components/ui/progress";
@@ -16,34 +15,36 @@ export default function UploadPostPage() {
   const [caption, setCaption] = useState("");
   const [mediaFile, setMediaFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [mediaType, setMediaType] = useState<'image' | 'video' | null>(null);
   const [isPending, startTransition] = useTransition();
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
 
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { toast } = useToast();
   const supabase = createClient();
 
   useEffect(() => {
-    const mediaDataUrl = localStorage.getItem('customizedMedia');
-    const mediaType = localStorage.getItem('customizedMediaType');
+    const mediaDataUrl = searchParams.get('mediaUrl');
+    const type = searchParams.get('mediaType');
 
-    if (mediaDataUrl && mediaType) {
-      fetch(mediaDataUrl)
+    if (mediaDataUrl && type) {
+      const decodedUrl = decodeURIComponent(mediaDataUrl);
+      setPreviewUrl(decodedUrl);
+      setMediaType(type as 'image' | 'video');
+
+      fetch(decodedUrl)
         .then(res => res.blob())
         .then(blob => {
-          const file = new File([blob], "customized_media", { type: mediaType });
+          const fileName = `post-media-${Date.now()}.${type === 'image' ? 'jpeg' : 'mp4'}`;
+          const file = new File([blob], fileName, { type: blob.type });
           setMediaFile(file);
-          setPreviewUrl(URL.createObjectURL(file));
         });
-      
-      localStorage.removeItem('customizedMedia');
-      localStorage.removeItem('customizedMediaType');
     } else {
-      // If no media is passed, redirect back to create flow
       toast({ variant: 'destructive', title: 'No Media Found', description: 'Please create or select media first.' });
       router.push('/upload/customize');
     }
-  }, [router, toast]);
+  }, [router, toast, searchParams]);
 
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -62,7 +63,7 @@ export default function UploadPostPage() {
         return;
       }
       
-      const fileExtension = mediaFile.name.split('.').pop() || (mediaFile.type.startsWith('image') ? 'jpg' : 'mp4');
+      const fileExtension = mediaFile.type.split('/')[1] || (mediaFile.type.startsWith('image') ? 'jpg' : 'mp4');
       const fileName = `${user.id}-${Date.now()}.${fileExtension}`;
       const filePath = `public/${fileName}`;
 
@@ -83,7 +84,7 @@ export default function UploadPostPage() {
       const { error: insertError } = await supabase.from('posts').insert({
         user_id: user.id,
         media_url: publicUrl,
-        media_type: mediaFile.type.startsWith('image') ? 'image' : 'video',
+        media_type: mediaType,
         caption: caption,
       });
 
@@ -99,8 +100,6 @@ export default function UploadPostPage() {
       setUploadProgress(null);
     });
   };
-
-  const isVideo = mediaFile?.type.startsWith("video");
 
   return (
     <>
@@ -119,7 +118,7 @@ export default function UploadPostPage() {
             >
               {previewUrl ? (
                 <>
-                  {isVideo ? (
+                  {mediaType === 'video' ? (
                     <video
                       src={previewUrl}
                       className="h-full w-full object-contain"

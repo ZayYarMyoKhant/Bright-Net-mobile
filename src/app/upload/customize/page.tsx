@@ -32,6 +32,42 @@ const effects: Effect[] = [
     { name: "Blur", class: "blur-sm" },
 ];
 
+const convertToDataURL = (mediaUrl: string, mediaType: 'image' | 'video', effectClass: string, texts: OverlayText[], callback: (dataUrl: string) => void) => {
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    if (mediaType === 'image') {
+        const img = new window.Image();
+        img.crossOrigin = 'anonymous';
+        img.onload = () => {
+            canvas.width = img.naturalWidth;
+            canvas.height = img.naturalHeight;
+            if (effectClass) ctx.filter = getComputedStyle(document.documentElement).getPropertyValue(`--filter-${effectClass}`);
+            ctx.drawImage(img, 0, 0);
+
+            texts.forEach(text => {
+                ctx.font = 'bold 50px sans-serif';
+                ctx.fillStyle = 'white';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                const x = (text.position.x / 100) * canvas.width;
+                const y = (text.position.y / 100) * canvas.height;
+                ctx.shadowColor = 'black';
+                ctx.shadowBlur = 7;
+                ctx.fillText(text.text, x, y);
+            });
+            
+            callback(canvas.toDataURL('image/jpeg', 0.9));
+        };
+        img.src = mediaUrl;
+    } else {
+        // For video, we just pass the URL as we can't easily apply effects/text on the client-side
+        // A more advanced implementation would use server-side processing or client-side libraries like ffmpeg.wasm
+        callback(mediaUrl);
+    }
+};
+
 
 export default function CustomizePostPage() {
   const router = useRouter();
@@ -50,6 +86,7 @@ export default function CustomizePostPage() {
   const [dragStart, setDragStart] = useState<{x: number, y: number} | null>(null);
   const [selectedEffect, setSelectedEffect] = useState<string>("");
   const [activeToolbar, setActiveToolbar] = useState<'effects' | 'layout' | 'boomerang' | null>(null);
+  const [isLoadingNext, setIsLoadingNext] = useState(false);
 
 
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -83,24 +120,14 @@ export default function CustomizePostPage() {
 
     useEffect(() => {
         if (mediaPreview) {
-            // If there's a preview, stop the camera stream.
             if (videoRef.current && videoRef.current.srcObject) {
                 const stream = videoRef.current.srcObject as MediaStream;
                 stream.getTracks().forEach(track => track.stop());
             }
         } else {
-            // If no preview, set up the camera.
             setupCamera();
         }
-
-        // Cleanup function to stop camera when component unmounts or preview changes
-        return () => {
-            if (videoRef.current && videoRef.current.srcObject) {
-                const stream = videoRef.current.srcObject as MediaStream;
-                stream.getTracks().forEach(track => track.stop());
-            }
-        }
-    }, [mediaPreview, facingMode, setupCamera]);
+    }, [mediaPreview, setupCamera]);
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -128,19 +155,11 @@ export default function CustomizePostPage() {
     canvas.height = videoRef.current.videoHeight;
     const ctx = canvas.getContext('2d');
     if (ctx) {
-        if(selectedEffect) {
-            const filterValue = getComputedStyle(document.documentElement).getPropertyValue(`--filter-${selectedEffect.split('-')[0]}`);
-            if(filterValue) ctx.filter = filterValue;
-        }
         ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
         const dataUrl = canvas.toDataURL('image/jpeg');
         setMediaPreview(dataUrl);
         setMediaType('image');
     }
-  };
-
-  const handleShutterClick = () => {
-    handleTakePhoto();
   };
   
   const handleRetake = () => {
@@ -156,7 +175,7 @@ export default function CustomizePostPage() {
     } else if (tool === 'layout' || tool === 'boomerang') {
         toast({ title: "Coming soon!", description: `The ${tool} feature is under development.` });
     } else if (tool === 'effects') {
-        setActiveToolbar(activeToolbar === tool ? null : tool);
+        setActiveToolbar(activeToolbar === tool ? null : 'effects');
     } else {
         toast({ title: "More options coming soon!" });
     }
@@ -212,12 +231,13 @@ export default function CustomizePostPage() {
         toast({ variant: 'destructive', title: 'No Media', description: 'Please take a photo or select media first.' });
         return;
     }
-    
-    // We need to handle canvas-based final image generation if effects or text are applied.
-    // For now, let's pass the media as is.
-    localStorage.setItem('customizedMedia', mediaPreview);
-    localStorage.setItem('customizedMediaType', mediaType);
-    router.push('/upload/post');
+    setIsLoadingNext(true);
+
+    convertToDataURL(mediaPreview, mediaType, selectedEffect, overlayTexts, (dataUrl) => {
+        const encodedUrl = encodeURIComponent(dataUrl);
+        router.push(`/upload/post?mediaUrl=${encodedUrl}&mediaType=${mediaType}`);
+        setIsLoadingNext(false);
+    });
   };
 
   const renderMediaPreview = () => {
@@ -239,7 +259,7 @@ export default function CustomizePostPage() {
         // @ts-ignore
         '--filter-grayscale': 'grayscale(1)',
         '--filter-sepia': 'sepia(1)',
-        '--filter-saturate-200': 'saturate(2)',
+        '--filter-saturate': 'saturate(2)',
         '--filter-hue-rotate-90': 'hue-rotate(90deg)',
         '--filter-invert': 'invert(1)',
         '--filter-hue-rotate-180': 'hue-rotate(180deg)',
@@ -250,8 +270,9 @@ export default function CustomizePostPage() {
           <X className="h-5 w-5" />
         </Button>
         {mediaPreview && (
-          <Button onClick={handleNext} className="bg-primary hover:bg-primary/90">
-              Next <Check className="h-4 w-4 ml-2" />
+          <Button onClick={handleNext} className="bg-primary hover:bg-primary/90" disabled={isLoadingNext}>
+              {isLoadingNext ? <Loader2 className="h-4 w-4 animate-spin"/> : <Check className="h-4 w-4 mr-2" />}
+              Next
           </Button>
         )}
       </header>
@@ -334,18 +355,6 @@ export default function CustomizePostPage() {
                 <p className="text-sm font-semibold capitalize">{activeToolbar}</p>
                 <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setActiveToolbar(null)}><XCircle className="h-5 w-5" /></Button>
             </div>
-             {activeToolbar === 'boomerang' && (
-                <div className="p-2">
-                     <p className="text-center text-xs mt-2">Coming Soon!</p>
-                </div>
-            )}
-             {activeToolbar === 'layout' && (
-                 <div className="grid grid-cols-3 gap-2">
-                    <div className="aspect-square bg-white/20 rounded-md border-2 border-white"></div>
-                    <div className="aspect-square bg-white/20 rounded-md"></div>
-                    <div className="aspect-square bg-white/20 rounded-md"></div>
-                 </div>
-            )}
              {activeToolbar === 'effects' && (
                 <div className="flex gap-3 overflow-x-auto pb-2">
                     {effects.map((effect) => (
@@ -376,10 +385,14 @@ export default function CustomizePostPage() {
                     className="hidden"
                     accept="image/*,video/*"
                 />
-                <Button variant="ghost" size="icon" onClick={() => fileInputRef.current?.click()} className="h-12 w-12 hover:bg-white/10 rounded-lg bg-black/40">
-                    <ImageIcon className="h-7 w-7" />
-                    <span className="sr-only">Open Gallery</span>
-                </Button>
+                 {mediaPreview ? (
+                    <div /> // Placeholder to keep layout consistent
+                 ) : (
+                    <Button variant="ghost" size="icon" onClick={() => fileInputRef.current?.click()} className="h-12 w-12 hover:bg-white/10 rounded-lg bg-black/40">
+                        <ImageIcon className="h-7 w-7" />
+                        <span className="sr-only">Open Gallery</span>
+                    </Button>
+                 )}
             </div>
            
             <div className="flex flex-col items-center">
@@ -390,7 +403,7 @@ export default function CustomizePostPage() {
                     </Button>
                 ) : (
                     <div 
-                        onClick={handleShutterClick}
+                        onClick={handleTakePhoto}
                         className="h-16 w-16 rounded-full border-4 border-white bg-white/30 flex items-center justify-center cursor-pointer active:scale-95 transition-all"
                     >
                     </div>
