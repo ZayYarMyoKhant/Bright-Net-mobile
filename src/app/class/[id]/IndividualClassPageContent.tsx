@@ -300,7 +300,6 @@ export default function IndividualClassPageContent({ initialData }: { initialDat
 
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
-    const isCreator = classData?.creator_id === currentUser?.id;
 
 
     useEffect(() => {
@@ -537,19 +536,16 @@ export default function IndividualClassPageContent({ initialData }: { initialDat
                 </div>
                 {isEnrolled ? (
                     <div className="flex items-center">
-                        {isCreator && (
-                            <Sheet>
-                                <SheetTrigger asChild>
-                                    <Button variant="outline" size="sm" className="flex items-center gap-1.5">
-                                        <UserPlus className="h-4 w-4" />
-                                        <span className="text-xs hidden sm:inline">Add Member</span>
-                                    </Button>
-                                </SheetTrigger>
-                                <SheetContent className="p-0">
-                                    <AddMemberSheet classId={classData.id} currentUser={currentUser} />
-                                </SheetContent>
-                            </Sheet>
-                        )}
+                        <Sheet>
+                            <SheetTrigger asChild>
+                                <Button variant="ghost" size="icon">
+                                    <UserPlus className="h-5 w-5" />
+                                </Button>
+                            </SheetTrigger>
+                            <SheetContent className="p-0">
+                                <AddMemberSheet classId={classData.id} currentUser={currentUser} />
+                            </SheetContent>
+                        </Sheet>
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                                 <Button variant="ghost" size="icon">
