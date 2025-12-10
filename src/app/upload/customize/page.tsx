@@ -157,6 +157,7 @@ export default function CustomizePostPage() {
         setMediaPreview(url);
         setMediaType('video');
         if (recordingTimerRef.current) clearInterval(recordingTimerRef.current);
+        setIsRecording(false); 
     };
 
     mediaRecorderRef.current.start();
@@ -170,7 +171,6 @@ export default function CustomizePostPage() {
  const stopRecording = () => {
       if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
         mediaRecorderRef.current.stop();
-        setIsRecording(false); 
       }
   };
 
@@ -392,12 +392,12 @@ export default function CustomizePostPage() {
 
       <footer className="absolute bottom-0 left-0 right-0 z-20 p-4 bg-gradient-to-t from-black/50 to-transparent">
        {!mediaPreview && !isRecording && activeToolbar !== 'effects' && (
-            <Button variant="ghost" className="absolute bottom-24 left-1/2 -translate-x-1/2 bg-black/40" onClick={() => setActiveToolbar(activeToolbar === 'effects' ? null : 'effects')}>
+            <Button variant="ghost" className="absolute bottom-32 left-1/2 -translate-x-1/2 bg-black/40" onClick={() => setActiveToolbar(activeToolbar === 'effects' ? null : 'effects')}>
                 <Wand className="h-5 w-5 mr-2"/> Effects
             </Button>
         )}
         {activeToolbar === 'effects' && !mediaPreview && !isRecording && (
-             <div className="absolute bottom-24 left-0 right-0 w-full px-2">
+             <div className="absolute bottom-32 left-0 right-0 w-full px-2">
                 <div className="bg-black/50 p-2 rounded-lg backdrop-blur-sm">
                      <div className="flex justify-between items-center mb-2 px-2">
                         <p className="text-sm font-semibold">Effects</p>
