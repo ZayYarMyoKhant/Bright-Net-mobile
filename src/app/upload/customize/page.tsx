@@ -4,18 +4,36 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { X, Image as ImageIcon, CameraOff, Loader2, Type, Infinity, LayoutGrid, ChevronDown, Camera, Check, RotateCcw, StopCircle } from 'lucide-react';
+import { X, Image as ImageIcon, CameraOff, Loader2, Type, Infinity as InfinityIcon, LayoutGrid, ChevronDown, Camera, Check, RotateCcw, StopCircle, Wand, XCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import Image from 'next/image';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
 import { Textarea } from '@/components/ui/textarea';
+import { Slider } from '@/components/ui/slider';
 
 type OverlayText = {
     id: number;
     text: string;
     position: { x: number; y: number };
 }
+
+type Effect = {
+    name: string;
+    class: string;
+}
+
+const effects: Effect[] = [
+    { name: "None", class: "" },
+    { name: "Mono", class: "grayscale" },
+    { name: "Sepia", class: "sepia" },
+    { name: "Vivid", class: "saturate-200" },
+    { name: "Pop", class: "hue-rotate-90" },
+    { name: "Invert", class: "invert" },
+    { name: "Cool", class: "hue-rotate-180" },
+    { name: "Blur", class: "blur-sm" },
+];
+
 
 export default function CustomizePostPage() {
   const router = useRouter();
@@ -29,12 +47,14 @@ export default function CustomizePostPage() {
   const [isRecording, setIsRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
 
-  // Text overlay state
+  // Editing states
   const [isTextMode, setIsTextMode] = useState(false);
   const [currentText, setCurrentText] = useState("");
   const [overlayTexts, setOverlayTexts] = useState<OverlayText[]>([]);
   const [draggingText, setDraggingText] = useState<number | null>(null);
   const [dragStart, setDragStart] = useState<{x: number, y: number} | null>(null);
+  const [selectedEffect, setSelectedEffect] = useState<string>("");
+  const [activeToolbar, setActiveToolbar] = useState<'effects' | 'layout' | 'boomerang' | null>(null);
 
 
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -110,6 +130,7 @@ export default function CustomizePostPage() {
     canvas.height = videoRef.current.videoHeight;
     const ctx = canvas.getContext('2d');
     if (ctx) {
+        if(selectedEffect) ctx.filter = getComputedStyle(document.documentElement).getPropertyValue(`--filter-${selectedEffect}`);
         ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
         const dataUrl = canvas.toDataURL('image/jpeg');
         setMediaPreview(dataUrl);
@@ -146,9 +167,10 @@ export default function CustomizePostPage() {
     }, 1000);
   };
   
-  const stopRecording = () => {
+ const stopRecording = () => {
       if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
         mediaRecorderRef.current.stop();
+        setIsRecording(false); 
       }
   };
 
@@ -158,7 +180,6 @@ export default function CustomizePostPage() {
     } else {
         if (isRecording) {
             stopRecording();
-            setIsRecording(false); // Immediately update UI state
         } else {
             startRecording();
         }
@@ -169,14 +190,17 @@ export default function CustomizePostPage() {
       setMediaPreview(null);
       setMediaType(null);
       setOverlayTexts([]);
+      setSelectedEffect("");
       setupCamera();
   };
   
-  const handleToolbarClick = (tool: string) => {
+  const handleToolbarClick = (tool: 'text' | 'layout' | 'boomerang' | 'more' | 'effects') => {
     if (tool === 'text') {
         setIsTextMode(true);
+    } else if (tool === 'layout' || tool === 'boomerang' || tool === 'effects') {
+        setActiveToolbar(activeToolbar === tool ? null : tool);
     } else {
-        toast({ title: "Coming soon!", description: `The ${tool} feature is under development.` });
+        toast({ title: "More options coming soon!" });
     }
   };
   
@@ -209,8 +233,8 @@ export default function CustomizePostPage() {
   };
   
   const handleTextDrag = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (draggingText !== null && dragStart) {
-        const parentRect = (e.currentTarget.parentElement as HTMLElement).getBoundingClientRect();
+    if (draggingText !== null && dragStart && e.currentTarget) {
+        const parentRect = (e.currentTarget as HTMLElement).getBoundingClientRect();
         const newX = ((e.clientX - parentRect.left - dragStart.x) / parentRect.width) * 100;
         const newY = ((e.clientY - parentRect.top - dragStart.y) / parentRect.height) * 100;
 
@@ -230,11 +254,11 @@ export default function CustomizePostPage() {
     if (!mediaPreview) return null;
 
     if (mediaType === 'image') {
-      return <Image src={mediaPreview} alt="Preview" fill className="object-contain" />;
+      return <Image src={mediaPreview} alt="Preview" fill className={cn("object-contain", selectedEffect)} />;
     }
 
     if (mediaType === 'video') {
-      return <video src={mediaPreview} controls autoPlay loop className="w-full h-full object-contain" />;
+      return <video src={mediaPreview} controls autoPlay loop className={cn("w-full h-full object-contain", selectedEffect)} />;
     }
     return null;
   };
@@ -246,7 +270,16 @@ export default function CustomizePostPage() {
   };
 
   return (
-    <div className="flex h-dvh w-full flex-col bg-black text-white">
+    <div className="flex h-dvh w-full flex-col bg-black text-white" style={{
+        // @ts-ignore
+        '--filter-grayscale': 'grayscale(1)',
+        '--filter-sepia': 'sepia(1)',
+        '--filter-saturate-200': 'saturate(2)',
+        '--filter-hue-rotate-90': 'hue-rotate(90deg)',
+        '--filter-invert': 'invert(1)',
+        '--filter-hue-rotate-180': 'hue-rotate(180deg)',
+        '--filter-blur-sm': 'blur(4px)',
+    }}>
       <header className="absolute top-0 left-0 right-0 z-20 flex h-16 items-center justify-between p-4 bg-gradient-to-b from-black/50 to-transparent">
         <Button variant="ghost" size="icon" onClick={() => router.back()} className="h-10 w-10 bg-black/40 hover:bg-black/60 rounded-full">
           <X className="h-5 w-5" />
@@ -276,7 +309,7 @@ export default function CustomizePostPage() {
 
 
       <main 
-        className="flex-1 relative bg-black"
+        className="flex-1 relative bg-black overflow-hidden"
         onPointerMove={handleTextDrag}
         onPointerUp={handleTextDragEnd}
         onPointerLeave={handleTextDragEnd}
@@ -288,7 +321,7 @@ export default function CustomizePostPage() {
                 <Loader2 className="h-8 w-8 animate-spin" />
             </div>
         ) : hasCameraPermission === true ? (
-          <video ref={videoRef} className="w-full h-full object-cover" autoPlay muted playsInline />
+          <video ref={videoRef} className={cn("w-full h-full object-cover", selectedEffect)} autoPlay muted playsInline />
         ) : (
             <div className="flex h-full w-full flex-col items-center justify-center p-4 text-center">
                 <CameraOff className="h-16 w-16 text-red-500" />
@@ -309,7 +342,7 @@ export default function CustomizePostPage() {
             <div
                 key={text.id}
                 onPointerDown={(e) => handleTextDragStart(e, text.id)}
-                className="absolute text-2xl font-bold text-white cursor-move shadow-black [text-shadow:0_2px_4px_var(--tw-shadow-color)]"
+                className="absolute text-2xl font-bold text-white cursor-move shadow-black [text-shadow:0_2px_4px_var(--tw-shadow-color)] p-2"
                 style={{ top: `${text.position.y}%`, left: `${text.position.x}%`, touchAction: 'none' }}
             >
                 {text.text}
@@ -323,7 +356,7 @@ export default function CustomizePostPage() {
                 <Type className="h-6 w-6" />
             </Button>
             <Button variant="ghost" size="icon" className="h-10 w-10 hover:bg-white/20 rounded-full" onClick={() => handleToolbarClick('boomerang')}>
-                <Infinity className="h-6 w-6" />
+                <InfinityIcon className="h-6 w-6" />
             </Button>
             <Button variant="ghost" size="icon" className="h-10 w-10 hover:bg-white/20 rounded-full" onClick={() => handleToolbarClick('layout')}>
                 <LayoutGrid className="h-6 w-6" />
@@ -333,8 +366,57 @@ export default function CustomizePostPage() {
             </Button>
         </div>
       )}
+      
+      {activeToolbar && !mediaPreview && !isRecording && (
+        <div className="absolute bottom-32 left-4 right-4 z-20 bg-black/50 p-2 rounded-lg backdrop-blur-sm">
+            <div className="flex justify-between items-center mb-2">
+                <p className="text-sm font-semibold capitalize">{activeToolbar}</p>
+                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setActiveToolbar(null)}><XCircle className="h-5 w-5" /></Button>
+            </div>
+             {activeToolbar === 'boomerang' && (
+                <div className="p-2">
+                     <Slider defaultValue={[1]} min={0.25} max={2} step={0.25} />
+                     <p className="text-center text-xs mt-2">Adjust Speed</p>
+                </div>
+            )}
+             {activeToolbar === 'layout' && (
+                 <div className="grid grid-cols-3 gap-2">
+                    <div className="aspect-square bg-white/20 rounded-md border-2 border-white"></div>
+                    <div className="aspect-square bg-white/20 rounded-md"></div>
+                    <div className="aspect-square bg-white/20 rounded-md"></div>
+                 </div>
+            )}
+        </div>
+      )}
+
 
       <footer className="absolute bottom-0 left-0 right-0 z-20 p-4 bg-gradient-to-t from-black/50 to-transparent">
+       {!mediaPreview && !isRecording && activeToolbar !== 'effects' && (
+            <Button variant="ghost" className="absolute bottom-24 left-1/2 -translate-x-1/2 bg-black/40" onClick={() => setActiveToolbar(activeToolbar === 'effects' ? null : 'effects')}>
+                <Wand className="h-5 w-5 mr-2"/> Effects
+            </Button>
+        )}
+        {activeToolbar === 'effects' && !mediaPreview && !isRecording && (
+             <div className="absolute bottom-24 left-0 right-0 w-full px-2">
+                <div className="bg-black/50 p-2 rounded-lg backdrop-blur-sm">
+                     <div className="flex justify-between items-center mb-2 px-2">
+                        <p className="text-sm font-semibold">Effects</p>
+                        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setActiveToolbar(null)}><XCircle className="h-5 w-5" /></Button>
+                    </div>
+                    <div className="flex gap-3 overflow-x-auto pb-2">
+                        {effects.map((effect) => (
+                            <button key={effect.name} onClick={() => setSelectedEffect(effect.class)} className="flex flex-col items-center gap-1.5 flex-shrink-0 w-16">
+                                <div className={cn("h-12 w-12 rounded-md border-2 bg-blue-500 flex items-center justify-center", selectedEffect === effect.class ? "border-white" : "border-transparent")}>
+                                     <div className={cn("h-full w-full bg-cover bg-center rounded", effect.class)} style={{backgroundImage: 'url(/placeholder-effect.jpg)'}}/>
+                                </div>
+                                <span className="text-xs">{effect.name}</span>
+                            </button>
+                        ))}
+                    </div>
+                </div>
+             </div>
+        )}
+
         <div className="flex items-end justify-between">
             <div className="w-24">
                  {mediaPreview ? (
@@ -364,10 +446,10 @@ export default function CustomizePostPage() {
                     onClick={handleShutterClick}
                     className={cn(
                         "h-16 w-16 rounded-full border-4 border-white bg-white/30 flex items-center justify-center cursor-pointer active:scale-95 transition-all",
-                        isRecording && "rounded-md bg-red-500 border-red-300"
+                        isRecording && "rounded-md bg-red-500 border-red-300 animate-pulse"
                     )} 
                 >
-                  {mode === 'video' && isRecording ? <StopCircle className="h-8 w-8 text-white" /> : null}
+                  {mode === 'video' && isRecording ? <div className="h-6 w-6 bg-white rounded-sm"></div> : null}
                 </div>
                  {!isRecording && !mediaPreview && (
                      <Tabs value={mode} onValueChange={(value) => setMode(value as 'photo' | 'video')} className="w-full max-w-xs mt-4">
