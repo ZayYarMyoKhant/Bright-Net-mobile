@@ -157,7 +157,6 @@ export default function CustomizePostPage() {
         setMediaPreview(url);
         setMediaType('video');
         if (recordingTimerRef.current) clearInterval(recordingTimerRef.current);
-        setIsRecording(false); 
     };
 
     mediaRecorderRef.current.start();
@@ -171,6 +170,7 @@ export default function CustomizePostPage() {
  const stopRecording = () => {
       if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
         mediaRecorderRef.current.stop();
+        setIsRecording(false); 
       }
   };
 
