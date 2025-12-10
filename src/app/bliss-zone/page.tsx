@@ -3,7 +3,7 @@
 
 import { BottomNav } from "@/components/bottom-nav";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
-import { Heart, Bot } from "lucide-react";
+import { Heart, Calculator } from "lucide-react";
 import Link from "next/link";
 import { AdBanner } from "@/components/ad-banner";
 
@@ -16,6 +16,14 @@ export default function BlissZonePage() {
             icon: <Heart className="h-8 w-8 text-pink-500" />,
             href: "/bliss-zone/anniversary",
             color: "bg-primary/10 border-primary/20",
+            disabled: false,
+        },
+        {
+            title: "Scientific Calculator",
+            description: "Solve complex math problems with ease.",
+            icon: <Calculator className="h-8 w-8 text-green-500" />,
+            href: "/bliss-zone/scientific-calculator",
+            color: "bg-green-500/10 border-green-500/20",
             disabled: false,
         },
     ]
