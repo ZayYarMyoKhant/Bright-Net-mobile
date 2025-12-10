@@ -82,7 +82,9 @@ export default function CustomizePostPage() {
   }, [facingMode, toast]);
 
   useEffect(() => {
-    setupCamera();
+    if (!mediaPreview) {
+        setupCamera();
+    }
 
     return () => {
         if (videoRef.current && videoRef.current.srcObject) {
@@ -90,7 +92,7 @@ export default function CustomizePostPage() {
             stream.getTracks().forEach(track => track.stop());
         }
     }
-  }, [setupCamera]);
+  }, [setupCamera, facingMode, mediaPreview]);
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -119,7 +121,6 @@ export default function CustomizePostPage() {
     const ctx = canvas.getContext('2d');
     if (ctx) {
         if(selectedEffect) {
-            // This is a simplified way to apply filter. For more complex filters, more work is needed.
             const filterValue = getComputedStyle(document.documentElement).getPropertyValue(`--filter-${selectedEffect.split('-')[0]}`);
             if(filterValue) ctx.filter = filterValue;
         }
@@ -139,7 +140,6 @@ export default function CustomizePostPage() {
       setMediaType(null);
       setOverlayTexts([]);
       setSelectedEffect("");
-      setupCamera();
   };
   
   const handleToolbarClick = (tool: 'text' | 'layout' | 'boomerang' | 'more' | 'effects') => {
@@ -160,7 +160,7 @@ export default function CustomizePostPage() {
     const newText: OverlayText = {
         id: Date.now(),
         text: currentText,
-        position: { x: 50, y: 50 }, // Initial position in percentage
+        position: { x: 50, y: 50 },
     };
     setOverlayTexts([...overlayTexts, newText]);
     setCurrentText("");
@@ -290,13 +290,13 @@ export default function CustomizePostPage() {
             <Button variant="ghost" size="icon" className="h-10 w-10 hover:bg-white/20 rounded-full" onClick={() => handleToolbarClick('text')}>
                 <Type className="h-6 w-6" />
             </Button>
-            <Button variant="ghost" size="icon" className="h-10 w-10 hover:bg-white/20 rounded-full" onClick={() => toast({ title: "Coming Soon!" })}>
+            <Button variant="ghost" size="icon" className="h-10 w-10 hover:bg-white/20 rounded-full" onClick={() => handleToolbarClick('boomerang')}>
                 <InfinityIcon className="h-6 w-6" />
             </Button>
-            <Button variant="ghost" size="icon" className="h-10 w-10 hover:bg-white/20 rounded-full" onClick={() => toast({ title: "Coming Soon!" })}>
+            <Button variant="ghost" size="icon" className="h-10 w-10 hover:bg-white/20 rounded-full" onClick={() => handleToolbarClick('layout')}>
                 <LayoutGrid className="h-6 w-6" />
             </Button>
-            <Button variant="ghost" size="icon" className="h-10 w-10 hover:bg-white/20 rounded-full" onClick={() => toast({ title: "Coming Soon!" })}>
+            <Button variant="ghost" size="icon" className="h-10 w-10 hover:bg-white/20 rounded-full" onClick={() => toast({ title: "More options coming soon!" })}>
                 <ChevronDown className="h-6 w-6" />
             </Button>
         </div>
@@ -342,34 +342,32 @@ export default function CustomizePostPage() {
 
         <div className="flex items-end justify-between">
             <div className="w-24">
-                 {mediaPreview ? (
-                    <Button variant="ghost" size="icon" onClick={handleRetake} className="h-12 w-12 hover:bg-white/10 rounded-lg bg-black/40">
-                        <RotateCcw className="h-7 w-7" />
-                        <span className="sr-only">Retake</span>
-                    </Button>
-                 ) : (
-                    <>
-                        <input
-                            type="file"
-                            ref={fileInputRef}
-                            onChange={handleFileChange}
-                            className="hidden"
-                            accept="image/*,video/*"
-                        />
-                        <Button variant="ghost" size="icon" onClick={() => fileInputRef.current?.click()} className="h-12 w-12 hover:bg-white/10 rounded-lg bg-black/40">
-                            <ImageIcon className="h-7 w-7" />
-                            <span className="sr-only">Open Gallery</span>
-                        </Button>
-                    </>
-                 )}
+                <input
+                    type="file"
+                    ref={fileInputRef}
+                    onChange={handleFileChange}
+                    className="hidden"
+                    accept="image/*,video/*"
+                />
+                <Button variant="ghost" size="icon" onClick={() => fileInputRef.current?.click()} className="h-12 w-12 hover:bg-white/10 rounded-lg bg-black/40">
+                    <ImageIcon className="h-7 w-7" />
+                    <span className="sr-only">Open Gallery</span>
+                </Button>
             </div>
            
             <div className="flex flex-col items-center">
-                <div 
-                    onClick={handleShutterClick}
-                    className="h-16 w-16 rounded-full border-4 border-white bg-white/30 flex items-center justify-center cursor-pointer active:scale-95 transition-all"
-                >
-                </div>
+                {mediaPreview ? (
+                     <Button variant="ghost" size="icon" onClick={handleRetake} className="h-16 w-16 rounded-full hover:bg-white/10 bg-black/40">
+                        <RotateCcw className="h-8 w-8" />
+                        <span className="sr-only">Retake</span>
+                    </Button>
+                ) : (
+                    <div 
+                        onClick={handleShutterClick}
+                        className="h-16 w-16 rounded-full border-4 border-white bg-white/30 flex items-center justify-center cursor-pointer active:scale-95 transition-all"
+                    >
+                    </div>
+                )}
             </div>
 
              <div className="w-24 flex justify-end">
@@ -385,4 +383,3 @@ export default function CustomizePostPage() {
     </div>
   );
 }
-
