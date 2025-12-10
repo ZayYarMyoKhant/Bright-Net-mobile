@@ -64,6 +64,9 @@ export default function ScientificCalculatorPage() {
             // Handle DEG/RAD for trig functions
             if (angleMode === 'DEG') {
                 evalExpression = evalExpression.replace(/(Math\.sin|Math\.cos|Math\.tan)\(([^)]+)\)/g, (match, func, angle) => {
+                    // This regex needs to be careful not to double-convert
+                    // We can add a marker or check if it's already converted
+                    // For simplicity here, we assume simple inputs. A robust calculator would need a proper parser.
                     return `${func}(${angle} * (Math.PI / 180))`;
                 });
             }
@@ -86,6 +89,7 @@ export default function ScientificCalculatorPage() {
             setDisplay(funcWithParen);
             setExpression(funcWithParen);
         } else {
+            // A more intelligent system would check if the last input was an operator
             setDisplay(prev => prev + funcWithParen);
             setExpression(prev => prev + funcWithParen);
         }
@@ -120,8 +124,8 @@ export default function ScientificCalculatorPage() {
         { label: 'sin', action: () => handleFunction('sin'), type: 'func' },
         { label: 'cos', action: () => handleFunction('cos'), type: 'func' },
         { label: 'tan', action: () => handleFunction('tan'), type: 'func' },
+        { label: 'DEL', action: handleBackspace, type: 'del' },
         { label: 'AC', action: handleClear, type: 'clear' },
-        { label: '⌫', action: handleBackspace, type: 'clear' },
         
         { label: 'log', action: () => handleFunction('log'), type: 'func' },
         { label: 'ln', action: () => handleFunction('ln'), type: 'func' },
@@ -157,8 +161,9 @@ export default function ScientificCalculatorPage() {
     const getButtonClass = (type: string) => {
         switch(type) {
             case 'op': return 'bg-amber-500 hover:bg-amber-600 text-white';
-            case 'clear': return 'bg-rose-500 hover:bg-rose-600 text-white';
-            case 'equal': return 'bg-green-500 hover:bg-green-600 text-white col-span-1';
+            case 'del': return 'bg-green-600 hover:bg-green-700 text-white';
+            case 'clear': return 'bg-green-600 hover:bg-green-700 text-white';
+            case 'equal': return 'bg-green-500 hover:bg-green-600 text-white';
             case 'func': return 'bg-muted hover:bg-muted/80';
             default: return 'bg-secondary hover:bg-secondary/80';
         }
@@ -175,7 +180,7 @@ export default function ScientificCalculatorPage() {
             </header>
 
             <main className="flex-1 p-4 flex flex-col justify-end">
-                <div className="bg-card text-card-foreground rounded-xl p-4 mb-4 shadow-inner">
+                <div className="bg-card text-card-foreground rounded-xl p-4 mb-4 shadow-inner border">
                      <div className="text-right text-muted-foreground text-sm h-6 break-all truncate">{expression || ' '}</div>
                      <div className="text-right text-4xl font-bold h-12 break-all truncate">{display}</div>
                      <div className='flex justify-end mt-2'>
