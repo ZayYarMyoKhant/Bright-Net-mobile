@@ -43,17 +43,23 @@ async function getOrCreateConversation(
                  )?.conversation_id;
 
                  if (matchingConvoId) {
-                    const { data: convoDetails, error: convoDetailsError } = await supabase
-                        .from('conversations')
-                        .select('id, pinned_message_id, conversation_participants(count)')
-                        .eq('id', matchingConvoId)
-                        .single();
-                    
-                    if (convoDetailsError) throw convoDetailsError;
-                    
-                    // @ts-ignore
-                    if (convoDetails.conversation_participants[0].count === 2) {
-                         return { id: convoDetails.id, pinned_message_id: convoDetails.pinned_message_id };
+                    // Check if it's a 2-person chat
+                    const { count, error: countError } = await supabase
+                        .from('conversation_participants')
+                        .select('*', { count: 'exact', head: true })
+                        .eq('conversation_id', matchingConvoId);
+
+                    if (countError) throw countError;
+
+                    if (count === 2) {
+                        const { data: convoDetails, error: convoDetailsError } = await supabase
+                            .from('conversations')
+                            .select('id, pinned_message_id')
+                            .eq('id', matchingConvoId)
+                            .single();
+                        
+                        if (convoDetailsError) throw convoDetailsError;
+                        return convoDetails;
                     }
                  }
             }

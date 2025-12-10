@@ -9,7 +9,7 @@ import { Profile } from "@/lib/data";
 
 // This is the Server Page component that handles the route.
 export default async function IndividualClassPage({ params }: { params: { id:string } }) {
-  const supabase = createClient(cookies());
+  const supabase = createClient();
   const classId = params.id;
 
   const { data: { user } } = await supabase.auth.getUser();
@@ -23,7 +23,7 @@ export default async function IndividualClassPage({ params }: { params: { id:str
   // Fetch class info and student count in parallel
   const classInfoPromise = supabase
       .from('classes')
-      .select('id, name, description, avatar_url')
+      .select('id, name, description, avatar_url, creator_id')
       .eq('id', classId)
       .single();
       

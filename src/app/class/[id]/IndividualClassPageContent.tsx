@@ -4,7 +4,7 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Loader2, Users, Send, BookOpenText, MoreVertical, Trash2, Mic, ImagePlus, Smile, X, StopCircle, CheckCheck } from "lucide-react";
+import { ArrowLeft, Loader2, Users, Send, BookOpenText, MoreVertical, Trash2, Mic, ImagePlus, Smile, X, StopCircle, CheckCheck, UserPlus, Checkbox } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { User } from "@supabase/supabase-js";
@@ -20,6 +20,8 @@ import Image from "next/image";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { EmojiPicker } from "@/components/emoji-picker";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 
 type ClassData = {
@@ -28,6 +30,7 @@ type ClassData = {
     description: string;
     avatar_url: string | null;
     student_count: number;
+    creator_id: string;
 };
 
 type ClassMessage = {
@@ -151,6 +154,124 @@ const ChatMessage = ({ message, isSender, totalMembers }: { message: ClassMessag
     );
 };
 
+const AddMemberSheet = ({ classId, currentUser }: { classId: string, currentUser: User | null }) => {
+    const [following, setFollowing] = useState<Profile[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [selectedMembers, setSelectedMembers] = useState<string[]>([]);
+    const [adding, setAdding] = useState(false);
+    const supabase = createClient();
+    const { toast } = useToast();
+
+    useEffect(() => {
+        const fetchFollowing = async () => {
+            if (!currentUser) return;
+            setLoading(true);
+
+            // Fetch following
+            const { data: followingData, error: followingError } = await supabase
+                .from('followers')
+                .select('profiles!followers_user_id_fkey(*)')
+                .eq('follower_id', currentUser.id);
+
+            if (followingError) {
+                toast({ variant: 'destructive', title: 'Error fetching following list' });
+                setLoading(false);
+                return;
+            }
+            
+            const followedProfiles = followingData.map((f: any) => f.profiles);
+
+            // Fetch existing members to filter them out
+            const { data: membersData, error: membersError } = await supabase
+                .from('class_members')
+                .select('user_id')
+                .eq('class_id', classId);
+            
+            if (membersError) {
+                toast({ variant: 'destructive', title: 'Error fetching class members' });
+                setFollowing(followedProfiles);
+                setLoading(false);
+                return;
+            }
+
+            const memberIds = new Set(membersData.map(m => m.user_id));
+            const nonMemberFollowing = followedProfiles.filter(p => !memberIds.has(p.id));
+
+            setFollowing(nonMemberFollowing);
+            setLoading(false);
+        };
+
+        fetchFollowing();
+    }, [classId, currentUser, supabase, toast]);
+
+    const handleSelectMember = (id: string) => {
+        setSelectedMembers(prev => prev.includes(id) ? prev.filter(mId => mId !== id) : [...prev, id]);
+    };
+
+    const handleAddMembers = async () => {
+        if (selectedMembers.length === 0) return;
+        setAdding(true);
+
+        const membersToAdd = selectedMembers.map(userId => ({
+            class_id: classId,
+            user_id: userId
+        }));
+
+        const { error } = await supabase.from('class_members').insert(membersToAdd);
+        setAdding(false);
+
+        if (error) {
+            toast({ variant: 'destructive', title: 'Failed to add members', description: error.message });
+        } else {
+            toast({ title: 'Members added!', description: `${selectedMembers.length} new members have been added to the class.` });
+            setSelectedMembers([]);
+            // Optionally, we can close the sheet here. A simple way:
+            document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+        }
+    };
+
+    return (
+        <div className="flex flex-col h-full">
+            <SheetHeader className="p-4 border-b">
+                <SheetTitle>Add Members to Class</SheetTitle>
+            </SheetHeader>
+            <ScrollArea className="flex-1">
+                {loading ? (
+                    <div className="flex justify-center items-center h-full pt-10"><Loader2 className="h-6 w-6 animate-spin" /></div>
+                ) : following.length === 0 ? (
+                    <div className="text-center p-10 text-muted-foreground flex flex-col items-center">
+                        <Users className="h-12 w-12 mb-4" />
+                        <p className="font-bold">No one to add</p>
+                        <p className="text-sm mt-1">All your friends are already in this class, or you're not following anyone.</p>
+                    </div>
+                ) : (
+                    <div className="p-4 space-y-4">
+                        {following.map(user => (
+                            <div key={user.id} className="flex items-center gap-4">
+                                <Avatar profile={user} className="h-10 w-10" />
+                                <div className="flex-1">
+                                    <p className="font-semibold">{user.full_name}</p>
+                                    <p className="text-sm text-muted-foreground">@{user.username}</p>
+                                </div>
+                                <Checkbox 
+                                    checked={selectedMembers.includes(user.id)}
+                                    onCheckedChange={() => handleSelectMember(user.id)}
+                                />
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </ScrollArea>
+            <footer className="p-4 border-t">
+                <Button className="w-full" disabled={selectedMembers.length === 0 || adding} onClick={handleAddMembers}>
+                    {adding ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <UserPlus className="mr-2 h-4 w-4" />}
+                    Add {selectedMembers.length > 0 ? `(${selectedMembers.length})` : ''} Members
+                </Button>
+            </footer>
+        </div>
+    );
+};
+
 
 export default function IndividualClassPageContent({ initialData }: { initialData: InitialClassData }) {
     const router = useRouter();
@@ -179,6 +300,7 @@ export default function IndividualClassPageContent({ initialData }: { initialDat
 
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const isCreator = classData?.creator_id === currentUser?.id;
 
 
     useEffect(() => {
@@ -217,7 +339,7 @@ export default function IndividualClassPageContent({ initialData }: { initialDat
                         .eq('id', payload.new.id)
                         .single();
 
-                    if (!error && fullMessage) {
+                    if (!error && fullMessage && !messages.some(m => m.id === fullMessage.id)) {
                         const newMsg = { ...fullMessage, read_by_count: fullMessage.read_by[0]?.count || 0 } as ClassMessage;
                         setMessages((prevMessages) => [...prevMessages, newMsg]);
                     }
@@ -241,7 +363,7 @@ export default function IndividualClassPageContent({ initialData }: { initialDat
         return () => {
             supabase.removeChannel(channel);
         }
-    }, [isEnrolled, classData, supabase]);
+    }, [isEnrolled, classData, supabase, messages]);
 
     const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
@@ -414,35 +536,50 @@ export default function IndividualClassPageContent({ initialData }: { initialDat
                     {isEnrolled && <p className="text-xs text-muted-foreground">{classData.student_count} members</p>}
                 </div>
                 {isEnrolled ? (
-                    <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon">
-                                <MoreVertical className="h-5 w-5" />
-                            </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent>
-                            <AlertDialog>
-                                <AlertDialogTrigger asChild>
-                                    <DropdownMenuItem className="text-destructive" onSelect={(e) => e.preventDefault()}>
-                                        <Trash2 className="mr-2 h-4 w-4" />
-                                        <span>Leave Class</span>
-                                    </DropdownMenuItem>
-                                </AlertDialogTrigger>
-                                <AlertDialogContent>
-                                    <AlertDialogHeader>
-                                        <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                                        <AlertDialogDescription>
-                                            This will remove you from the class. You can rejoin later from the search page.
-                                        </AlertDialogDescription>
-                                    </AlertDialogHeader>
-                                    <AlertDialogFooter>
-                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                        <AlertDialogAction onClick={handleLeaveClass} className="bg-destructive hover:bg-destructive/80">Confirm</AlertDialogAction>
-                                    </AlertDialogFooter>
-                                </AlertDialogContent>
-                            </AlertDialog>
-                        </DropdownMenuContent>
-                    </DropdownMenu>
+                    <div className="flex items-center">
+                        {isCreator && (
+                            <Sheet>
+                                <SheetTrigger asChild>
+                                    <Button variant="outline" size="sm" className="flex items-center gap-1.5">
+                                        <UserPlus className="h-4 w-4" />
+                                        <span className="text-xs hidden sm:inline">Add Member</span>
+                                    </Button>
+                                </SheetTrigger>
+                                <SheetContent className="p-0">
+                                    <AddMemberSheet classId={classData.id} currentUser={currentUser} />
+                                </SheetContent>
+                            </Sheet>
+                        )}
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon">
+                                    <MoreVertical className="h-5 w-5" />
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent>
+                                <AlertDialog>
+                                    <AlertDialogTrigger asChild>
+                                        <DropdownMenuItem className="text-destructive" onSelect={(e) => e.preventDefault()}>
+                                            <Trash2 className="mr-2 h-4 w-4" />
+                                            <span>Leave Class</span>
+                                        </DropdownMenuItem>
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent>
+                                        <AlertDialogHeader>
+                                            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                            <AlertDialogDescription>
+                                                This will remove you from the class. You can rejoin later from the search page.
+                                            </AlertDialogDescription>
+                                        </AlertDialogHeader>
+                                        <AlertDialogFooter>
+                                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                            <AlertDialogAction onClick={handleLeaveClass} className="bg-destructive hover:bg-destructive/80">Confirm</AlertDialogAction>
+                                        </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                </AlertDialog>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+                    </div>
                 ) : <div className="w-10"></div>}
             </header>
 
