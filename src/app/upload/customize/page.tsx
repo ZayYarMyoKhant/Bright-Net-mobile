@@ -9,7 +9,13 @@ import { useToast } from '@/hooks/use-toast';
 import Image from 'next/image';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
-import { Progress } from '@/components/ui/progress';
+import { Textarea } from '@/components/ui/textarea';
+
+type OverlayText = {
+    id: number;
+    text: string;
+    position: { x: number; y: number };
+}
 
 export default function CustomizePostPage() {
   const router = useRouter();
@@ -22,6 +28,14 @@ export default function CustomizePostPage() {
   const [facingMode, setFacingMode] = useState<'environment' | 'user'>('environment');
   const [isRecording, setIsRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
+
+  // Text overlay state
+  const [isTextMode, setIsTextMode] = useState(false);
+  const [currentText, setCurrentText] = useState("");
+  const [overlayTexts, setOverlayTexts] = useState<OverlayText[]>([]);
+  const [draggingText, setDraggingText] = useState<number | null>(null);
+  const [dragStart, setDragStart] = useState<{x: number, y: number} | null>(null);
+
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -154,8 +168,58 @@ export default function CustomizePostPage() {
   const handleRetake = () => {
       setMediaPreview(null);
       setMediaType(null);
+      setOverlayTexts([]);
       setupCamera();
   };
+  
+  const handleToolbarClick = (tool: string) => {
+    if (tool === 'text') {
+        setIsTextMode(true);
+    } else {
+        toast({ title: "Coming soon!", description: `The ${tool} feature is under development.` });
+    }
+  };
+  
+  const handleAddText = () => {
+    if (currentText.trim() === "") {
+        setIsTextMode(false);
+        return;
+    }
+    const newText: OverlayText = {
+        id: Date.now(),
+        text: currentText,
+        position: { x: 50, y: 50 }, // Initial position in percentage
+    };
+    setOverlayTexts([...overlayTexts, newText]);
+    setCurrentText("");
+    setIsTextMode(false);
+  };
+
+  const handleTextDragStart = (e: React.PointerEvent<HTMLDivElement>, id: number) => {
+    e.preventDefault();
+    setDraggingText(id);
+    const target = e.target as HTMLDivElement;
+    const rect = target.getBoundingClientRect();
+    setDragStart({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+  };
+  
+  const handleTextDrag = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (draggingText !== null && dragStart) {
+        const parentRect = (e.currentTarget.parentElement as HTMLElement).getBoundingClientRect();
+        const newX = ((e.clientX - parentRect.left - dragStart.x) / parentRect.width) * 100;
+        const newY = ((e.clientY - parentRect.top - dragStart.y) / parentRect.height) * 100;
+
+        setOverlayTexts(texts => texts.map(t => 
+            t.id === draggingText ? { ...t, position: { x: newX, y: newY } } : t
+        ));
+    }
+  };
+  
+  const handleTextDragEnd = () => {
+    setDraggingText(null);
+    setDragStart(null);
+  };
+
 
   const renderMediaPreview = () => {
     if (!mediaPreview) return null;
@@ -188,8 +252,30 @@ export default function CustomizePostPage() {
           </Button>
         )}
       </header>
+      
+      {isTextMode && (
+         <div className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-black/70">
+            <Textarea
+                className="w-4/5 bg-transparent text-white text-2xl font-bold text-center border-none focus-visible:ring-0 resize-none shadow-white [text-shadow:0_2px_4px_var(--tw-shadow-color)]"
+                placeholder="Start typing..."
+                value={currentText}
+                onChange={(e) => setCurrentText(e.target.value)}
+                rows={3}
+            />
+            <div className="absolute top-4 right-4 flex gap-2">
+                 <Button onClick={handleAddText}>Done</Button>
+                 <Button variant="ghost" onClick={() => setIsTextMode(false)}>Cancel</Button>
+            </div>
+         </div>
+      )}
 
-      <main className="flex-1 relative bg-black">
+
+      <main 
+        className="flex-1 relative bg-black"
+        onPointerMove={handleTextDrag}
+        onPointerUp={handleTextDragEnd}
+        onPointerLeave={handleTextDragEnd}
+      >
         {mediaPreview ? (
           renderMediaPreview()
         ) : hasCameraPermission === null ? (
@@ -213,20 +299,31 @@ export default function CustomizePostPage() {
                 <p className="text-sm font-mono">{formatRecordingTime(recordingTime)}</p>
             </div>
         )}
+        
+         {overlayTexts.map(text => (
+            <div
+                key={text.id}
+                onPointerDown={(e) => handleTextDragStart(e, text.id)}
+                className="absolute text-2xl font-bold text-white cursor-move shadow-black [text-shadow:0_2px_4px_var(--tw-shadow-color)]"
+                style={{ top: `${text.position.y}%`, left: `${text.position.x}%`, touchAction: 'none' }}
+            >
+                {text.text}
+            </div>
+        ))}
       </main>
 
       {!mediaPreview && !isRecording && (
         <div className="absolute left-4 top-1/2 -translate-y-1/2 z-20 flex flex-col items-center gap-4 bg-black/40 p-2 rounded-full">
-            <Button variant="ghost" size="icon" className="h-10 w-10 hover:bg-white/20 rounded-full">
+            <Button variant="ghost" size="icon" className="h-10 w-10 hover:bg-white/20 rounded-full" onClick={() => handleToolbarClick('text')}>
                 <Type className="h-6 w-6" />
             </Button>
-            <Button variant="ghost" size="icon" className="h-10 w-10 hover:bg-white/20 rounded-full">
+            <Button variant="ghost" size="icon" className="h-10 w-10 hover:bg-white/20 rounded-full" onClick={() => handleToolbarClick('boomerang')}>
                 <Infinity className="h-6 w-6" />
             </Button>
-            <Button variant="ghost" size="icon" className="h-10 w-10 hover:bg-white/20 rounded-full">
+            <Button variant="ghost" size="icon" className="h-10 w-10 hover:bg-white/20 rounded-full" onClick={() => handleToolbarClick('layout')}>
                 <LayoutGrid className="h-6 w-6" />
             </Button>
-            <Button variant="ghost" size="icon" className="h-10 w-10 hover:bg-white/20 rounded-full">
+            <Button variant="ghost" size="icon" className="h-10 w-10 hover:bg-white/20 rounded-full" onClick={() => handleToolbarClick('more')}>
                 <ChevronDown className="h-6 w-6" />
             </Button>
         </div>
@@ -264,7 +361,9 @@ export default function CustomizePostPage() {
                         "h-16 w-16 rounded-full border-4 border-white bg-white/30 flex items-center justify-center cursor-pointer active:scale-95 transition-all",
                         isRecording && "rounded-md bg-red-500 border-red-300"
                     )} 
-                />
+                >
+                  {isRecording && <div className="h-6 w-6 bg-white rounded-sm"></div>}
+                </div>
                  {!isRecording && !mediaPreview && (
                      <Tabs value={mode} onValueChange={(value) => setMode(value as 'photo' | 'video')} className="w-full max-w-xs mt-4">
                         <TabsList className="grid w-full grid-cols-2 bg-black/40 h-auto p-1">
@@ -288,5 +387,3 @@ export default function CustomizePostPage() {
     </div>
   );
 }
-
-    
