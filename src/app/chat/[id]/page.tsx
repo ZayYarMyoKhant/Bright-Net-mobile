@@ -10,7 +10,7 @@ async function getOrCreateConversation(
     supabase: ReturnType<typeof createClient>,
     currentUser: { id: string },
     otherUserId: string
-): Promise<{ id: string } | { error: string }> {
+): Promise<{ id: string, pinned_message_id: string | null } | { error: string }> {
     
     // 1. Find existing conversation between the two users
     try {
@@ -38,18 +38,22 @@ async function getOrCreateConversation(
 
             // Find a matching conversation ID
             if (otherUserConvos && otherUserConvos.length > 0) {
-                 const matchingConvo = userConvos.find(uc => 
+                 const matchingConvoId = userConvos.find(uc => 
                     otherUserConvos.some(ouc => ouc.conversation_id === uc.conversation_id)
-                 );
-                 if (matchingConvo) {
-                    // Make sure it's not a group chat by checking participant count
-                    const { count } = await supabase
-                        .from('conversation_participants')
-                        .select('*', { count: 'exact', head: true })
-                        .eq('conversation_id', matchingConvo.conversation_id);
+                 )?.conversation_id;
 
-                    if (count === 2) {
-                         return { id: matchingConvo.conversation_id };
+                 if (matchingConvoId) {
+                    const { data: convoDetails, error: convoDetailsError } = await supabase
+                        .from('conversations')
+                        .select('id, pinned_message_id, conversation_participants(count)')
+                        .eq('id', matchingConvoId)
+                        .single();
+                    
+                    if (convoDetailsError) throw convoDetailsError;
+                    
+                    // @ts-ignore
+                    if (convoDetails.conversation_participants[0].count === 2) {
+                         return { id: convoDetails.id, pinned_message_id: convoDetails.pinned_message_id };
                     }
                  }
             }
@@ -63,7 +67,7 @@ async function getOrCreateConversation(
     const { data: newConvo, error: newConvoError } = await supabase
         .from('conversations')
         .insert({})
-        .select('id')
+        .select('id, pinned_message_id')
         .single();
     
     if (newConvoError) return { error: newConvoError.message };
@@ -81,24 +85,24 @@ async function getOrCreateConversation(
         return { error: participantsError.message };
     }
 
-    return { id: newConvo.id };
+    return newConvo;
 }
 
 
 async function getOrCreateSelfConversation(
     supabase: ReturnType<typeof createClient>,
     currentUser: { id: string }
-): Promise<{ id: string } | { error: string }> {
+): Promise<{ id: string, pinned_message_id: string | null } | { error: string }> {
      try {
         const { data: userConvos, error: userConvosError } = await supabase
             .from('conversation_participants')
-            .select('conversation_id')
+            .select('conversation:conversation_id(id, pinned_message_id)')
             .eq('user_id', currentUser.id);
 
         if (userConvosError) throw userConvosError;
         if (!userConvos) return { error: "Could not fetch user conversations." };
 
-        const convoIds = userConvos.map(c => c.conversation_id);
+        const convoIds = userConvos.map(c => c.conversation?.id).filter(Boolean) as string[];
         
         if (convoIds.length > 0) {
             const { data: convoParticipants, error: participantsError } = await supabase
@@ -113,9 +117,9 @@ async function getOrCreateSelfConversation(
                 conversationCounts[participant.conversation_id] = (conversationCounts[participant.conversation_id] || 0) + 1;
             }
             
-            for (const convoId of convoIds) {
-                if(conversationCounts[convoId] === 1) {
-                    return { id: convoId };
+            for (const convo of userConvos) {
+                if(convo.conversation && conversationCounts[convo.conversation.id] === 1) {
+                    return { id: convo.conversation.id, pinned_message_id: convo.conversation.pinned_message_id };
                 }
             }
         }
@@ -127,7 +131,7 @@ async function getOrCreateSelfConversation(
     const { data: newConvo, error: newConvoError } = await supabase
         .from('conversations')
         .insert({})
-        .select('id')
+        .select('id, pinned_message_id')
         .single();
     
     if (newConvoError) return { error: newConvoError.message };
@@ -141,7 +145,7 @@ async function getOrCreateSelfConversation(
         return { error: participantsError.message };
     }
 
-    return { id: newConvo.id };
+    return newConvo;
 }
 
 
@@ -176,7 +180,7 @@ export default async function ChatPage({ params }: { params: { id: string } }) {
     .single();
 
   if (otherUserError) {
-    const initialData = { otherUser: null, conversationId: null, messages: [], isBlocked, isBlockedBy, error: `User with ID ${otherUserId} not found.` };
+    const initialData = { otherUser: null, conversationId: null, messages: [], isBlocked, isBlockedBy, error: `User with ID ${otherUserId} not found.`, pinnedMessage: null };
     return <ChatPageContent params={params} initialData={initialData} />;
   }
   
@@ -192,11 +196,11 @@ export default async function ChatPage({ params }: { params: { id: string } }) {
     : await getOrCreateConversation(supabase, currentUser, otherUserId);
   
   if ('error' in convoResult) {
-      const initialData = { otherUser: otherUserData, conversationId: null, messages: [], isBlocked, isBlockedBy, error: convoResult.error || 'Could not start conversation.' };
+      const initialData = { otherUser: otherUserData, conversationId: null, messages: [], isBlocked, isBlockedBy, error: convoResult.error || 'Could not start conversation.', pinnedMessage: null };
       return <ChatPageContent params={params} initialData={initialData} />;
   }
 
-  const conversationId = convoResult.id;
+  const { id: conversationId, pinned_message_id: pinnedMessageId } = convoResult;
 
 
   // Fetch messages
@@ -207,10 +211,24 @@ export default async function ChatPage({ params }: { params: { id: string } }) {
     .order('created_at', { ascending: true });
 
   if (messagesError) {
-    const initialData = { otherUser: otherUserData, conversationId, messages: [], isBlocked, isBlockedBy, error: messagesError.message };
+    const initialData = { otherUser: otherUserData, conversationId, messages: [], isBlocked, isBlockedBy, error: messagesError.message, pinnedMessage: null };
     return <ChatPageContent params={params} initialData={initialData} />;
   }
   
+    // Fetch pinned message details
+    let pinnedMessage = null;
+    if (pinnedMessageId) {
+        const { data: pinnedData, error: pinnedError } = await supabase
+            .from('direct_messages')
+            .select('id, content, media_type, profiles:sender_id(*)')
+            .eq('id', pinnedMessageId)
+            .single();
+        if (!pinnedError && pinnedData) {
+            pinnedMessage = pinnedData;
+        }
+    }
+
+
     const messageIds = messagesData.map(msg => msg.id);
     let readMessageIds = new Set();
     
@@ -240,6 +258,7 @@ export default async function ChatPage({ params }: { params: { id: string } }) {
     isBlocked,
     isBlockedBy,
     error: null,
+    pinnedMessage,
   };
 
   return (

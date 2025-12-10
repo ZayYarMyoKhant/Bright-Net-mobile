@@ -5,7 +5,7 @@ import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { ArrowLeft, Mic, Image as ImageIcon, Send, Smile, MoreVertical, MessageSquareReply, Trash2, X, Loader2, Waves, Heart, ThumbsUp, Laugh, Frown, Check, CheckCheck, Ban, Share2, AlertTriangle, StopCircle, Pencil, ClipboardCopy } from "lucide-react";
+import { ArrowLeft, Mic, Image as ImageIcon, Send, Smile, MoreVertical, MessageSquareReply, Trash2, X, Loader2, Waves, Heart, ThumbsUp, Laugh, Frown, Check, CheckCheck, Ban, Share2, AlertTriangle, StopCircle, Pencil, ClipboardCopy, Pin, PinOff } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useState, useRef, useEffect, useCallback } from "react";
@@ -52,6 +52,13 @@ type DirectMessage = {
   is_edited?: boolean;
 };
 
+type PinnedMessage = {
+    id: string;
+    content: string | null;
+    media_type: string | null;
+    profiles: Profile;
+}
+
 const ReactionEmojis = {
   '👍': ThumbsUp,
   '❤️': Heart,
@@ -66,6 +73,7 @@ type InitialChatData = {
     isBlocked: boolean;
     isBlockedBy: boolean;
     error: string | null;
+    pinnedMessage: PinnedMessage | null;
 }
 
 type RecordingStatus = 'idle' | 'recording' | 'preview';
@@ -90,7 +98,7 @@ function PresenceIndicator({ user }: { user: OtherUserWithPresence | null }) {
 }
 
 
-const ChatMessage = ({ message, isSender, onReply, onDelete, onEdit, onReaction, currentUser }: { message: DirectMessage, isSender: boolean, onReply: (message: any) => void, onDelete: (messageId: string) => void, onEdit: (message: DirectMessage) => void, onReaction: (messageId: string, emoji: string) => void, currentUser: User | null }) => {
+const ChatMessage = ({ message, isSender, onReply, onDelete, onEdit, onReaction, onPin, currentUser }: { message: DirectMessage, isSender: boolean, onReply: (message: DirectMessage) => void, onDelete: (messageId: string) => void, onEdit: (message: DirectMessage) => void, onReaction: (messageId: string, emoji: string) => void, onPin: (messageId: string) => void, currentUser: User | null }) => {
     
     const timeAgo = formatDistanceToNow(new Date(message.created_at), { addSuffix: true });
     const msgRef = useRef<HTMLDivElement>(null);
@@ -176,7 +184,7 @@ const ChatMessage = ({ message, isSender, onReply, onDelete, onEdit, onReaction,
 
 
     return (
-        <div ref={msgRef} className={`flex items-start gap-3 ${isSender ? 'justify-end' : 'justify-start'}`}>
+        <div ref={msgRef} id={`message-${message.id}`} className={`flex items-start gap-3 ${isSender ? 'justify-end' : 'justify-start'}`}>
             {!isSender && (
                 <Link href={`/profile/${message.profiles.id}`}>
                     <Avatar className="h-8 w-8" profile={message.profiles} />
@@ -265,6 +273,10 @@ const ChatMessage = ({ message, isSender, onReply, onDelete, onEdit, onReaction,
                             </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent>
+                             <DropdownMenuItem onClick={() => onPin(message.id)}>
+                                <Pin className="mr-2 h-4 w-4" />
+                                <span>Pin</span>
+                            </DropdownMenuItem>
                              {isSender && message.content && (
                                 <>
                                     <DropdownMenuItem onClick={() => onEdit(message)}>
@@ -319,9 +331,11 @@ export default function ChatPageContent({ initialData, params }: { initialData: 
   const [error, setError] = useState<string | null>(initialData.error);
   const [isBlocked, setIsBlocked] = useState(initialData.isBlocked);
   const [isBlockedBy, setIsBlockedBy] = useState(initialData.isBlockedBy);
+  const [pinnedMessage, setPinnedMessage] = useState<PinnedMessage | null>(initialData.pinnedMessage);
+
 
   const [newMessage, setNewMessage] = useState("");
-  const [replyingTo, setReplyingTo] = useState<any | null>(null);
+  const [replyingTo, setReplyingTo] = useState<DirectMessage | null>(null);
   const [editingMessage, setEditingMessage] = useState<DirectMessage | null>(null);
   const [mediaFile, setMediaFile] = useState<File | null>(null);
   const [mediaPreview, setMediaPreview] = useState<string | null>(null);
@@ -380,7 +394,7 @@ export default function ChatPageContent({ initialData, params }: { initialData: 
       .on<DirectMessage>(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'direct_messages', filter: `conversation_id=eq.${conversationId}` },
-        (payload) => {
+        async (payload) => {
            const newMessagePayload = payload.new as DirectMessage;
            
            if (messages.some(msg => msg.id === newMessagePayload.id)) {
@@ -391,9 +405,15 @@ export default function ChatPageContent({ initialData, params }: { initialData: 
                return;
            }
 
+            const { data: profileData, error: profileError } = await supabase.from('profiles').select('*').eq('id', newMessagePayload.sender_id).single();
+            if (profileError) {
+                console.error("Could not fetch profile for new message", profileError);
+                return;
+            }
+
            const fullMessage: DirectMessage = {
                ...newMessagePayload,
-               profiles: otherUser as Profile, // It's from the other user
+               profiles: profileData as Profile, 
                direct_message_reactions: [],
                is_seen_by_other: false,
            };
@@ -409,6 +429,18 @@ export default function ChatPageContent({ initialData, params }: { initialData: 
             setMessages(prev => prev.map(msg => msg.id === updatedMessage.id ? { ...msg, content: updatedMessage.content, is_edited: updatedMessage.is_edited } : msg));
         }
       )
+      .on('postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'conversations', filter: `id=eq.${conversationId}` },
+        async (payload) => {
+            const newPinnedMessageId = payload.new.pinned_message_id;
+            if (newPinnedMessageId) {
+                const { data, error } = await supabase.from('direct_messages').select('*, profiles:sender_id(*)').eq('id', newPinnedMessageId).single();
+                if (data) setPinnedMessage(data as PinnedMessage);
+            } else {
+                setPinnedMessage(null);
+            }
+        }
+       )
       .on( 'postgres_changes',
           { event: '*', schema: 'public', table: 'direct_message_reactions' },
           async (payload) => {
@@ -523,7 +555,7 @@ export default function ChatPageContent({ initialData, params }: { initialData: 
   }, [otherUser, otherUserActivity, conversationId]);
 
 
-  const handleReply = (message: any) => {
+  const handleReply = (message: DirectMessage) => {
     setReplyingTo(message);
     setEditingMessage(null);
   };
@@ -623,7 +655,6 @@ export default function ChatPageContent({ initialData, params }: { initialData: 
       is_seen_by_other: false,
       is_shared_post: false,
     };
-    setMessages(prev => [...prev, tempMessage]);
     
     setNewMessage("");
     setReplyingTo(null);
@@ -654,7 +685,7 @@ export default function ChatPageContent({ initialData, params }: { initialData: 
         mediaType = tempMediaFile.type.split('/')[0];
     }
 
-    const { error: insertError } = await supabase.from('direct_messages').insert({
+    const { data: newMessageData, error: insertError } = await supabase.from('direct_messages').insert({
         conversation_id: conversationId,
         sender_id: currentUser.id,
         content: tempMessage.content,
@@ -663,6 +694,9 @@ export default function ChatPageContent({ initialData, params }: { initialData: 
         parent_message_id: replyingTo?.id || null,
     }).select().single();
     
+    // Replace temp message with real one from DB
+    setMessages(prev => prev.map(m => m.id === tempId ? { ...m, ...newMessageData, profiles: tempMessage.profiles } : m));
+
     if (insertError) {
         toast({ variant: "destructive", title: "Failed to send message", description: insertError.message });
         setMessages(prev => prev.filter(m => m.id !== tempId)); // Remove optimistic message on fail
@@ -703,6 +737,40 @@ export default function ChatPageContent({ initialData, params }: { initialData: 
         await supabase.from('direct_message_reactions').insert({ message_id: messageId, user_id: currentUser.id, emoji: emoji });
     }
   }
+
+    const handlePinMessage = async (messageId: string) => {
+        if (!conversationId) return;
+        const isCurrentlyPinned = pinnedMessage?.id === messageId;
+        const newPinnedId = isCurrentlyPinned ? null : messageId;
+
+        // Optimistic update
+        if (newPinnedId) {
+            const messageToPin = messages.find(m => m.id === newPinnedId);
+            if (messageToPin) {
+                setPinnedMessage(messageToPin as PinnedMessage);
+            }
+        } else {
+            setPinnedMessage(null);
+        }
+        
+        const { error } = await supabase
+            .from('conversations')
+            .update({ pinned_message_id: newPinnedId })
+            .eq('id', conversationId);
+
+        if (error) {
+            toast({ variant: 'destructive', title: 'Failed to pin message', description: error.message });
+            // Revert optimistic update
+            setPinnedMessage(initialData.pinnedMessage);
+        } else {
+             toast({ title: newPinnedId ? 'Message pinned' : 'Message unpinned' });
+        }
+    };
+    
+    const scrollToMessage = (messageId: string) => {
+        const element = document.getElementById(`message-${messageId}`);
+        element?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    };
 
   const handleSendSticker = async (stickerUrl: string) => {
     if (!currentUser || !conversationId) return;
@@ -935,6 +1003,12 @@ export default function ChatPageContent({ initialData, params }: { initialData: 
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent>
+              {pinnedMessage && (
+                  <DropdownMenuItem onClick={() => handlePinMessage(pinnedMessage.id)}>
+                      <PinOff className="mr-2 h-4 w-4" />
+                      <span>Unpin Message</span>
+                  </DropdownMenuItem>
+              )}
               <DropdownMenuItem className="text-destructive" onClick={handleBlockUser} disabled={isBlocked}>
                 <Ban className="mr-2 h-4 w-4" />
                 <span>Block user</span>
@@ -965,8 +1039,27 @@ export default function ChatPageContent({ initialData, params }: { initialData: 
       </header>
       
       <main className="flex-1 overflow-y-auto p-4 space-y-6">
+        {pinnedMessage && (
+            <div 
+                className="sticky top-0 z-10 bg-background/80 backdrop-blur-sm -mx-4 -mt-4 mb-4 p-2 border-b cursor-pointer hover:bg-muted/50"
+                onClick={() => scrollToMessage(pinnedMessage.id)}
+            >
+                <div className="flex items-center gap-2 px-2">
+                    <Pin className="h-4 w-4 text-primary" />
+                    <div className="flex-1 truncate">
+                        <p className="font-bold text-primary text-sm">Pinned Message</p>
+                        <p className="text-xs text-muted-foreground truncate">
+                            {pinnedMessage.profiles.full_name}: {pinnedMessage.content || `Sent a ${pinnedMessage.media_type}`}
+                        </p>
+                    </div>
+                    <Button variant="ghost" size="icon" className="h-6 w-6" onClick={(e) => { e.stopPropagation(); handlePinMessage(pinnedMessage.id); }}>
+                        <X className="h-4 w-4"/>
+                    </Button>
+                </div>
+            </div>
+        )}
         {messages.map((msg) => (
-            <ChatMessage key={msg.id} message={msg} isSender={msg.sender_id === currentUser?.id} onReply={handleReply} onDelete={handleDelete} onEdit={handleEdit} onReaction={handleReaction} currentUser={currentUser}/>
+            <ChatMessage key={msg.id} message={msg} isSender={msg.sender_id === currentUser?.id} onReply={handleReply} onDelete={handleDelete} onEdit={handleEdit} onReaction={handleReaction} onPin={handlePinMessage} currentUser={currentUser}/>
         ))}
         <div ref={messagesEndRef} />
       </main>
