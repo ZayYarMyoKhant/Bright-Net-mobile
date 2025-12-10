@@ -207,20 +207,6 @@ export default function CustomizePostPage() {
     setDragStart(null);
   };
 
-
-  const renderMediaPreview = () => {
-    if (!mediaPreview) return null;
-
-    if (mediaType === 'image') {
-      return <Image src={mediaPreview} alt="Preview" fill className={cn("object-contain", selectedEffect)} />;
-    }
-
-    if (mediaType === 'video') {
-      return <video src={mediaPreview} controls autoPlay loop className={cn("w-full h-full object-contain", selectedEffect)} />;
-    }
-    return null;
-  };
-
   return (
     <div className="flex h-dvh w-full flex-col bg-black text-white" style={{
         // @ts-ignore
@@ -267,21 +253,28 @@ export default function CustomizePostPage() {
         onPointerLeave={handleTextDragEnd}
       >
         {mediaPreview ? (
-          renderMediaPreview()
-        ) : hasCameraPermission === null ? (
-            <div className="flex h-full w-full items-center justify-center text-muted-foreground">
-                <Loader2 className="h-8 w-8 animate-spin" />
-            </div>
-        ) : hasCameraPermission === true ? (
-          <video ref={videoRef} className={cn("w-full h-full object-cover", selectedEffect)} autoPlay muted playsInline />
+            <>
+                {mediaType === 'image' && <Image src={mediaPreview} alt="Preview" fill className={cn("object-contain", selectedEffect)} />}
+                {mediaType === 'video' && <video src={mediaPreview} controls autoPlay loop className={cn("w-full h-full object-contain", selectedEffect)} />}
+            </>
         ) : (
-            <div className="flex h-full w-full flex-col items-center justify-center p-4 text-center">
-                <CameraOff className="h-16 w-16 text-red-500" />
-                <h2 className="mt-4 text-xl font-bold">Camera Access Required</h2>
-                <p className="text-muted-foreground mt-2">
-                    To use this feature, please allow camera access in your browser or device settings.
-                </p>
-            </div>
+             <>
+                {hasCameraPermission === null ? (
+                    <div className="flex h-full w-full items-center justify-center text-muted-foreground">
+                        <Loader2 className="h-8 w-8 animate-spin" />
+                    </div>
+                ) : hasCameraPermission === true ? (
+                  <video ref={videoRef} className={cn("w-full h-full object-cover", selectedEffect)} autoPlay muted playsInline />
+                ) : (
+                    <div className="flex h-full w-full flex-col items-center justify-center p-4 text-center">
+                        <CameraOff className="h-16 w-16 text-red-500" />
+                        <h2 className="mt-4 text-xl font-bold">Camera Access Required</h2>
+                        <p className="text-muted-foreground mt-2">
+                            To use this feature, please allow camera access in your browser or device settings.
+                        </p>
+                    </div>
+                )}
+            </>
         )}
         
          {overlayTexts.map(text => (
