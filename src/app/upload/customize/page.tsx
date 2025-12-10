@@ -4,10 +4,11 @@
 import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { X, Image as ImageIcon, CameraOff, Loader2 } from 'lucide-react';
+import { X, Image as ImageIcon, CameraOff, Loader2, Type, Infinity, LayoutGrid, ChevronDown, Camera } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import Image from 'next/image';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { cn } from '@/lib/utils';
 
 export default function CustomizePostPage() {
   const router = useRouter();
@@ -16,6 +17,7 @@ export default function CustomizePostPage() {
   const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
   const [mediaPreview, setMediaPreview] = useState<string | null>(null);
   const [mediaType, setMediaType] = useState<'image' | 'video' | null>(null);
+  const [mode, setMode] = useState<'photo' | 'video'>('photo');
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -97,11 +99,11 @@ export default function CustomizePostPage() {
   return (
     <div className="flex h-dvh w-full flex-col bg-black text-white">
       <header className="absolute top-0 left-0 right-0 z-20 flex h-16 items-center justify-between p-4 bg-gradient-to-b from-black/50 to-transparent">
-        <Button variant="ghost" size="icon" onClick={() => router.back()} className="h-8 w-8 hover:bg-white/10">
+        <Button variant="ghost" size="icon" onClick={() => router.back()} className="h-10 w-10 bg-black/40 hover:bg-black/60 rounded-full">
           <X className="h-5 w-5" />
         </Button>
         {/* Placeholder for other controls */}
-        <div className="w-8"></div>
+        <div className="w-10"></div>
       </header>
 
       <main className="flex-1 relative bg-black">
@@ -124,21 +126,59 @@ export default function CustomizePostPage() {
         )}
       </main>
 
-      <footer className="absolute bottom-0 left-0 right-0 z-20 flex h-28 items-center justify-between p-4 bg-gradient-to-t from-black/50 to-transparent">
-        <input
-            type="file"
-            ref={fileInputRef}
-            onChange={handleFileChange}
-            className="hidden"
-            accept="image/*,video/*"
-        />
-        <Button variant="ghost" size="icon" onClick={() => fileInputRef.current?.click()} className="h-12 w-12 hover:bg-white/10">
-          <ImageIcon className="h-7 w-7" />
-          <span className="sr-only">Open Gallery</span>
-        </Button>
-        {/* Placeholder for shutter button and other options */}
-        <div className="h-16 w-16 rounded-full border-4 border-white bg-white/30" />
-        <div className="w-12"></div>
+      {/* Left Vertical Toolbar */}
+      <div className="absolute left-4 top-1/2 -translate-y-1/2 z-20 flex flex-col items-center gap-4 bg-black/40 p-2 rounded-full">
+            <Button variant="ghost" size="icon" className="h-10 w-10 hover:bg-white/20 rounded-full">
+                <Type className="h-6 w-6" />
+            </Button>
+            <Button variant="ghost" size="icon" className="h-10 w-10 hover:bg-white/20 rounded-full">
+                <Infinity className="h-6 w-6" />
+            </Button>
+            <Button variant="ghost" size="icon" className="h-10 w-10 hover:bg-white/20 rounded-full">
+                <LayoutGrid className="h-6 w-6" />
+            </Button>
+            <Button variant="ghost" size="icon" className="h-10 w-10 hover:bg-white/20 rounded-full">
+                <ChevronDown className="h-6 w-6" />
+            </Button>
+      </div>
+
+
+      <footer className="absolute bottom-0 left-0 right-0 z-20 p-4 bg-gradient-to-t from-black/50 to-transparent">
+        <div className="flex items-end justify-between">
+            {/* Gallery Picker */}
+            <div className="w-24">
+                 <input
+                    type="file"
+                    ref={fileInputRef}
+                    onChange={handleFileChange}
+                    className="hidden"
+                    accept="image/*,video/*"
+                />
+                <Button variant="ghost" size="icon" onClick={() => fileInputRef.current?.click()} className="h-12 w-12 hover:bg-white/10 rounded-lg bg-black/40">
+                    <ImageIcon className="h-7 w-7" />
+                    <span className="sr-only">Open Gallery</span>
+                </Button>
+            </div>
+           
+            {/* Shutter and Mode Switch */}
+            <div className="flex flex-col items-center">
+                <div className="h-16 w-16 rounded-full border-4 border-white bg-white/30 flex items-center justify-center cursor-pointer active:scale-95 transition-transform" />
+                 <Tabs value={mode} onValueChange={(value) => setMode(value as 'photo' | 'video')} className="w-full max-w-xs mt-4">
+                    <TabsList className="grid w-full grid-cols-2 bg-black/40 h-auto p-1">
+                        <TabsTrigger value="photo" className={cn("text-white/70 data-[state=active]:bg-white/20 data-[state=active]:text-white")}>Photo</TabsTrigger>
+                        <TabsTrigger value="video" className={cn("text-white/70 data-[state=active]:bg-white/20 data-[state=active]:text-white")}>Video</TabsTrigger>
+                    </TabsList>
+                </Tabs>
+            </div>
+
+            {/* Camera Flip */}
+             <div className="w-24 flex justify-end">
+                 <Button variant="ghost" size="icon" className="h-12 w-12 hover:bg-white/10 rounded-full bg-black/40">
+                    <Camera className="h-7 w-7" />
+                    <span className="sr-only">Flip camera</span>
+                </Button>
+            </div>
+        </div>
       </footer>
     </div>
   );
