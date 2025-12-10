@@ -4,13 +4,11 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { X, Image as ImageIcon, CameraOff, Loader2, Type, Infinity as InfinityIcon, LayoutGrid, ChevronDown, Camera, Check, RotateCcw, StopCircle, Wand, XCircle } from 'lucide-react';
+import { X, Image as ImageIcon, CameraOff, Loader2, Type, Infinity as InfinityIcon, LayoutGrid, ChevronDown, Camera, Check, RotateCcw, Wand, XCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import Image from 'next/image';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
 import { Textarea } from '@/components/ui/textarea';
-import { Slider } from '@/components/ui/slider';
 
 type OverlayText = {
     id: number;
@@ -42,10 +40,7 @@ export default function CustomizePostPage() {
   const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
   const [mediaPreview, setMediaPreview] = useState<string | null>(null);
   const [mediaType, setMediaType] = useState<'image' | 'video' | null>(null);
-  const [mode, setMode] = useState<'photo' | 'video'>('photo');
   const [facingMode, setFacingMode] = useState<'environment' | 'user'>('environment');
-  const [isRecording, setIsRecording] = useState(false);
-  const [recordingTime, setRecordingTime] = useState(0);
 
   // Editing states
   const [isTextMode, setIsTextMode] = useState(false);
@@ -59,9 +54,6 @@ export default function CustomizePostPage() {
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const recordingTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const recordedChunksRef = useRef<Blob[]>([]);
 
   const setupCamera = useCallback(async () => {
     try {
@@ -71,8 +63,7 @@ export default function CustomizePostPage() {
       }
 
       const stream = await navigator.mediaDevices.getUserMedia({ 
-        video: { facingMode: facingMode }, 
-        audio: true 
+        video: { facingMode: facingMode }
       });
       setHasCameraPermission(true);
 
@@ -97,9 +88,6 @@ export default function CustomizePostPage() {
         if (videoRef.current && videoRef.current.srcObject) {
             const stream = videoRef.current.srcObject as MediaStream;
             stream.getTracks().forEach(track => track.stop());
-        }
-        if (recordingTimerRef.current) {
-            clearInterval(recordingTimerRef.current);
         }
     }
   }, [setupCamera]);
@@ -130,7 +118,11 @@ export default function CustomizePostPage() {
     canvas.height = videoRef.current.videoHeight;
     const ctx = canvas.getContext('2d');
     if (ctx) {
-        if(selectedEffect) ctx.filter = getComputedStyle(document.documentElement).getPropertyValue(`--filter-${selectedEffect}`);
+        if(selectedEffect) {
+            // This is a simplified way to apply filter. For more complex filters, more work is needed.
+            const filterValue = getComputedStyle(document.documentElement).getPropertyValue(`--filter-${selectedEffect.split('-')[0]}`);
+            if(filterValue) ctx.filter = filterValue;
+        }
         ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
         const dataUrl = canvas.toDataURL('image/jpeg');
         setMediaPreview(dataUrl);
@@ -138,52 +130,8 @@ export default function CustomizePostPage() {
     }
   };
 
-  const startRecording = () => {
-    if (!videoRef.current || !videoRef.current.srcObject) return;
-
-    recordedChunksRef.current = [];
-    const stream = videoRef.current.srcObject as MediaStream;
-    mediaRecorderRef.current = new MediaRecorder(stream, { mimeType: 'video/webm' });
-    
-    mediaRecorderRef.current.ondataavailable = (event) => {
-        if (event.data.size > 0) {
-            recordedChunksRef.current.push(event.data);
-        }
-    };
-    
-    mediaRecorderRef.current.onstop = () => {
-        const blob = new Blob(recordedChunksRef.current, { type: 'video/webm' });
-        const url = URL.createObjectURL(blob);
-        setMediaPreview(url);
-        setMediaType('video');
-        if (recordingTimerRef.current) clearInterval(recordingTimerRef.current);
-    };
-
-    mediaRecorderRef.current.start();
-    setIsRecording(true);
-    setRecordingTime(0);
-    recordingTimerRef.current = setInterval(() => {
-        setRecordingTime(prev => prev + 1);
-    }, 1000);
-  };
-  
- const stopRecording = () => {
-      if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
-        mediaRecorderRef.current.stop();
-        setIsRecording(false); 
-      }
-  };
-
   const handleShutterClick = () => {
-    if (mode === 'photo') {
-        handleTakePhoto();
-    } else {
-        if (isRecording) {
-            stopRecording();
-        } else {
-            startRecording();
-        }
-    }
+    handleTakePhoto();
   };
   
   const handleRetake = () => {
@@ -263,12 +211,6 @@ export default function CustomizePostPage() {
     return null;
   };
 
-  const formatRecordingTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60).toString().padStart(2, '0');
-    const secs = (seconds % 60).toString().padStart(2, '0');
-    return `${mins}:${secs}`;
-  };
-
   return (
     <div className="flex h-dvh w-full flex-col bg-black text-white" style={{
         // @ts-ignore
@@ -331,12 +273,6 @@ export default function CustomizePostPage() {
                 </p>
             </div>
         )}
-        {isRecording && (
-            <div className="absolute top-20 left-1/2 -translate-x-1/2 bg-black/50 px-3 py-1 rounded-full flex items-center gap-2">
-                <div className="h-2 w-2 bg-red-500 rounded-full animate-pulse"></div>
-                <p className="text-sm font-mono">{formatRecordingTime(recordingTime)}</p>
-            </div>
-        )}
         
          {overlayTexts.map(text => (
             <div
@@ -350,7 +286,6 @@ export default function CustomizePostPage() {
         ))}
       </main>
 
-      {!mediaPreview && !isRecording && (
         <div className="absolute left-4 top-1/2 -translate-y-1/2 z-20 flex flex-col items-center gap-4 bg-black/40 p-2 rounded-full">
             <Button variant="ghost" size="icon" className="h-10 w-10 hover:bg-white/20 rounded-full" onClick={() => handleToolbarClick('text')}>
                 <Type className="h-6 w-6" />
@@ -365,9 +300,8 @@ export default function CustomizePostPage() {
                 <ChevronDown className="h-6 w-6" />
             </Button>
         </div>
-      )}
       
-      {activeToolbar && !mediaPreview && !isRecording && (
+      {activeToolbar && (
         <div className="absolute bottom-32 left-4 right-4 z-20 bg-black/50 p-2 rounded-lg backdrop-blur-sm">
             <div className="flex justify-between items-center mb-2">
                 <p className="text-sm font-semibold capitalize">{activeToolbar}</p>
@@ -375,8 +309,7 @@ export default function CustomizePostPage() {
             </div>
              {activeToolbar === 'boomerang' && (
                 <div className="p-2">
-                     <Slider defaultValue={[1]} min={0.25} max={2} step={0.25} />
-                     <p className="text-center text-xs mt-2">Adjust Speed</p>
+                     <p className="text-center text-xs mt-2">Coming Soon!</p>
                 </div>
             )}
              {activeToolbar === 'layout' && (
@@ -386,36 +319,26 @@ export default function CustomizePostPage() {
                     <div className="aspect-square bg-white/20 rounded-md"></div>
                  </div>
             )}
+             {activeToolbar === 'effects' && (
+                <div className="flex gap-3 overflow-x-auto pb-2">
+                    {effects.map((effect) => (
+                        <button key={effect.name} onClick={() => setSelectedEffect(effect.class)} className="flex flex-col items-center gap-1.5 flex-shrink-0 w-16">
+                            <div className={cn("h-12 w-12 rounded-md border-2 bg-blue-500 flex items-center justify-center", selectedEffect === effect.class ? "border-white" : "border-transparent")}>
+                                    <div className={cn("h-full w-full bg-cover bg-center rounded", effect.class)} style={{backgroundImage: 'url(/placeholder-effect.jpg)'}}/>
+                            </div>
+                            <span className="text-xs">{effect.name}</span>
+                        </button>
+                    ))}
+                </div>
+             )}
         </div>
       )}
 
 
       <footer className="absolute bottom-0 left-0 right-0 z-20 p-4 bg-gradient-to-t from-black/50 to-transparent">
-       {!mediaPreview && !isRecording && activeToolbar !== 'effects' && (
-            <Button variant="ghost" className="absolute bottom-32 left-1/2 -translate-x-1/2 bg-black/40" onClick={() => setActiveToolbar(activeToolbar === 'effects' ? null : 'effects')}>
-                <Wand className="h-5 w-5 mr-2"/> Effects
-            </Button>
-        )}
-        {activeToolbar === 'effects' && !mediaPreview && !isRecording && (
-             <div className="absolute bottom-32 left-0 right-0 w-full px-2">
-                <div className="bg-black/50 p-2 rounded-lg backdrop-blur-sm">
-                     <div className="flex justify-between items-center mb-2 px-2">
-                        <p className="text-sm font-semibold">Effects</p>
-                        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setActiveToolbar(null)}><XCircle className="h-5 w-5" /></Button>
-                    </div>
-                    <div className="flex gap-3 overflow-x-auto pb-2">
-                        {effects.map((effect) => (
-                            <button key={effect.name} onClick={() => setSelectedEffect(effect.class)} className="flex flex-col items-center gap-1.5 flex-shrink-0 w-16">
-                                <div className={cn("h-12 w-12 rounded-md border-2 bg-blue-500 flex items-center justify-center", selectedEffect === effect.class ? "border-white" : "border-transparent")}>
-                                     <div className={cn("h-full w-full bg-cover bg-center rounded", effect.class)} style={{backgroundImage: 'url(/placeholder-effect.jpg)'}}/>
-                                </div>
-                                <span className="text-xs">{effect.name}</span>
-                            </button>
-                        ))}
-                    </div>
-                </div>
-             </div>
-        )}
+        <Button variant="ghost" className="absolute bottom-32 left-1/2 -translate-x-1/2 bg-black/40" onClick={() => setActiveToolbar(activeToolbar === 'effects' ? null : 'effects')}>
+            <Wand className="h-5 w-5 mr-2"/> Effects
+        </Button>
 
         <div className="flex items-end justify-between">
             <div className="w-24">
@@ -424,7 +347,7 @@ export default function CustomizePostPage() {
                         <RotateCcw className="h-7 w-7" />
                         <span className="sr-only">Retake</span>
                     </Button>
-                 ) : !isRecording && (
+                 ) : (
                     <>
                         <input
                             type="file"
@@ -444,25 +367,13 @@ export default function CustomizePostPage() {
             <div className="flex flex-col items-center">
                 <div 
                     onClick={handleShutterClick}
-                    className={cn(
-                        "h-16 w-16 rounded-full border-4 border-white bg-white/30 flex items-center justify-center cursor-pointer active:scale-95 transition-all",
-                        isRecording && "rounded-md bg-red-500 border-red-300 animate-pulse"
-                    )} 
+                    className="h-16 w-16 rounded-full border-4 border-white bg-white/30 flex items-center justify-center cursor-pointer active:scale-95 transition-all"
                 >
-                  {mode === 'video' && isRecording ? <div className="h-6 w-6 bg-white rounded-sm"></div> : null}
                 </div>
-                 {!isRecording && !mediaPreview && (
-                     <Tabs value={mode} onValueChange={(value) => setMode(value as 'photo' | 'video')} className="w-full max-w-xs mt-4">
-                        <TabsList className="grid w-full grid-cols-2 bg-black/40 h-auto p-1">
-                            <TabsTrigger value="photo" className={cn("text-white/70 data-[state=active]:bg-white/20 data-[state=active]:text-white")}>Photo</TabsTrigger>
-                            <TabsTrigger value="video" className={cn("text-white/70 data-[state=active]:bg-white/20 data-[state=active]:text-white")}>Video</TabsTrigger>
-                        </TabsList>
-                    </Tabs>
-                 )}
             </div>
 
              <div className="w-24 flex justify-end">
-                 {!mediaPreview && !isRecording && (
+                 {!mediaPreview && (
                     <Button variant="ghost" size="icon" onClick={handleFlipCamera} className="h-12 w-12 hover:bg-white/10 rounded-full bg-black/40">
                         <Camera className="h-7 w-7" />
                         <span className="sr-only">Flip camera</span>
@@ -475,4 +386,3 @@ export default function CustomizePostPage() {
   );
 }
 
-    
