@@ -4,7 +4,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { X, Image as ImageIcon, CameraOff, Loader2, Type, Infinity as InfinityIcon, LayoutGrid, ChevronDown, Camera, Check, RotateCcw, Wand, XCircle } from 'lucide-react';
+import { X, Image as ImageIcon, CameraOff, Loader2, Type, Infinity as InfinityIcon, LayoutGrid, ChevronDown, Camera, Check, RotateCcw } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import Image from 'next/image';
 import { cn } from '@/lib/utils';
@@ -16,58 +16,36 @@ type OverlayText = {
     position: { x: number; y: number };
 }
 
-type Effect = {
-    name: string;
-    class: string;
-    filter: string;
-}
-
-const effects: Effect[] = [
-    { name: "None", class: "", filter: "none" },
-    { name: "Mono", class: "grayscale", filter: "grayscale(1)" },
-    { name: "Sepia", class: "sepia", filter: "sepia(1)" },
-    { name: "Vivid", class: "saturate-200", filter: "saturate(2)" },
-    { name: "Pop", class: "hue-rotate-90", filter: "hue-rotate(90deg)" },
-    { name: "Invert", class: "invert", filter: "invert(1)" },
-    { name: "Cool", class: "hue-rotate-180", filter: "hue-rotate(180deg)" },
-    { name: "Blur", class: "blur-sm", filter: "blur(4px)" },
-];
-
-const convertToDataURL = (mediaUrl: string, mediaType: 'image' | 'video', effectFilter: string, texts: OverlayText[], callback: (dataUrl: string) => void) => {
-    if (mediaType === 'video') {
-        // For video, client-side processing is too heavy.
-        // We will just pass the original URL. A more advanced solution would use a server-side processor.
+// This function now only handles text overlays for images. Video is not processed on the client.
+const convertToDataURL = (mediaUrl: string, mediaType: 'image' | 'video', texts: OverlayText[], callback: (dataUrl: string) => void) => {
+    // For video, we don't apply client-side edits. Just pass the original URL.
+    if (mediaType === 'video' || texts.length === 0) {
         callback(mediaUrl);
         return;
     }
 
+    // For images, apply text overlays
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
-    if (!ctx) return;
+    if (!ctx) {
+        callback(mediaUrl); // Fallback to original if canvas fails
+        return;
+    };
 
     const img = new window.Image();
-    img.crossOrigin = 'anonymous';
+    img.crossOrigin = 'anonymous'; // Important for fetching from Supabase storage
     img.onload = () => {
         canvas.width = img.naturalWidth;
         canvas.height = img.naturalHeight;
         
-        if (effectFilter) {
-            ctx.filter = effectFilter;
-        }
-        
         ctx.drawImage(img, 0, 0);
 
-        // Reset filter before drawing text, so text isn't affected
-        ctx.filter = 'none';
-
         texts.forEach(text => {
-            const fontSize = canvas.width * 0.05; // Make font size relative to image width
+            const fontSize = canvas.width * 0.05; // Relative font size
             ctx.font = `bold ${fontSize}px sans-serif`;
             ctx.fillStyle = 'white';
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
-            const x = (text.position.x / 100) * canvas.width;
-            const y = (text.position.y / 100) * canvas.height;
             
             // Add text shadow for better visibility
             ctx.shadowColor = 'black';
@@ -75,11 +53,17 @@ const convertToDataURL = (mediaUrl: string, mediaType: 'image' | 'video', effect
             ctx.shadowOffsetX = 2;
             ctx.shadowOffsetY = 2;
 
+            const x = (text.position.x / 100) * canvas.width;
+            const y = (text.position.y / 100) * canvas.height;
+
             ctx.fillText(text.text, x, y);
         });
         
-        callback(canvas.toDataURL('image/jpeg', 0.9));
+        callback(canvas.toDataURL('image/jpeg', 0.9)); // Use JPEG for smaller size
     };
+    img.onerror = () => {
+        callback(mediaUrl); // Fallback to original on image load error
+    }
     img.src = mediaUrl;
 };
 
@@ -99,8 +83,6 @@ export default function CustomizePostPage() {
   const [overlayTexts, setOverlayTexts] = useState<OverlayText[]>([]);
   const [draggingText, setDraggingText] = useState<number | null>(null);
   const [dragStart, setDragStart] = useState<{x: number, y: number} | null>(null);
-  const [selectedEffect, setSelectedEffect] = useState<Effect>(effects[0]);
-  const [activeToolbar, setActiveToolbar] = useState<'effects' | 'layout' | 'boomerang' | null>(null);
   const [isLoadingNext, setIsLoadingNext] = useState(false);
 
 
@@ -165,7 +147,7 @@ export default function CustomizePostPage() {
     setFacingMode(prev => prev === 'user' ? 'environment' : 'user');
   };
 
-  const handleShutterClick = () => {
+  const handleTakePhoto = () => {
     if (!videoRef.current) return;
     const canvas = document.createElement('canvas');
     canvas.width = videoRef.current.videoWidth;
@@ -183,16 +165,13 @@ export default function CustomizePostPage() {
       setMediaPreview(null);
       setMediaType(null);
       setOverlayTexts([]);
-      setSelectedEffect(effects[0]);
   };
   
-  const handleToolbarClick = (tool: 'text' | 'layout' | 'boomerang' | 'more' | 'effects') => {
+  const handleToolbarClick = (tool: 'text' | 'layout' | 'boomerang' | 'more') => {
     if (tool === 'text') {
         setIsTextMode(true);
     } else if (tool === 'layout' || tool === 'boomerang') {
         toast({ title: "Coming soon!", description: `The ${tool} feature is under development.` });
-    } else if (tool === 'effects') {
-        setActiveToolbar(activeToolbar === tool ? null : 'effects');
     } else {
         toast({ title: "More options coming soon!" });
     }
@@ -250,7 +229,7 @@ export default function CustomizePostPage() {
     }
     setIsLoadingNext(true);
 
-    convertToDataURL(mediaPreview, mediaType, selectedEffect.filter, overlayTexts, (dataUrl) => {
+    convertToDataURL(mediaPreview, mediaType, overlayTexts, (dataUrl) => {
         const encodedUrl = encodeURIComponent(dataUrl);
         const encodedMediaType = encodeURIComponent(mediaType);
         router.push(`/upload/post?mediaUrl=${encodedUrl}&mediaType=${encodedMediaType}`);
@@ -262,11 +241,11 @@ export default function CustomizePostPage() {
     if (!mediaPreview) return null;
     
     if (mediaType === 'image') {
-      return <Image src={mediaPreview} alt="Preview" fill className={cn("object-contain", selectedEffect.class)} />;
+      return <Image src={mediaPreview} alt="Preview" fill className="object-contain" />;
     }
     
     if (mediaType === 'video') {
-      return <video src={mediaPreview} controls autoPlay loop className={cn("w-full h-full object-contain", selectedEffect.class)} />;
+      return <video src={mediaPreview} controls autoPlay loop className="w-full h-full object-contain" />;
     }
 
     return null;
@@ -335,7 +314,7 @@ export default function CustomizePostPage() {
                         <Loader2 className="h-8 w-8 animate-spin" />
                     </div>
                 ) : hasCameraPermission === true ? (
-                  <video ref={videoRef} className={cn("w-full h-full object-cover", selectedEffect.class)} autoPlay muted playsInline />
+                  <video ref={videoRef} className="w-full h-full object-cover" autoPlay muted playsInline />
                 ) : (
                     <div className="flex h-full w-full flex-col items-center justify-center p-4 text-center">
                         <CameraOff className="h-16 w-16 text-red-500" />
@@ -365,36 +344,9 @@ export default function CustomizePostPage() {
             </Button>
         </div>
        )}
-      
-      {activeToolbar && (
-        <div className="absolute bottom-32 left-4 right-4 z-20 bg-black/50 p-2 rounded-lg backdrop-blur-sm">
-            <div className="flex justify-between items-center mb-2">
-                <p className="text-sm font-semibold capitalize">{activeToolbar}</p>
-                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setActiveToolbar(null)}><XCircle className="h-5 w-5" /></Button>
-            </div>
-             {activeToolbar === 'effects' && (
-                <div className="flex gap-3 overflow-x-auto pb-2">
-                    {effects.map((effect) => (
-                        <button key={effect.name} onClick={() => setSelectedEffect(effect)} className="flex flex-col items-center gap-1.5 flex-shrink-0 w-16">
-                            <div className={cn("h-12 w-12 rounded-md border-2 bg-blue-500 flex items-center justify-center", selectedEffect.name === effect.name ? "border-white" : "border-transparent")}>
-                                    <div className={cn("h-full w-full bg-cover bg-center rounded", effect.class)} style={{backgroundImage: 'url(/placeholder-effect.jpg)'}}/>
-                            </div>
-                            <span className="text-xs">{effect.name}</span>
-                        </button>
-                    ))}
-                </div>
-             )}
-        </div>
-      )}
 
 
       <footer className="absolute bottom-0 left-0 right-0 z-20 p-4 bg-gradient-to-t from-black/50 to-transparent">
-        {mediaPreview && (
-          <Button variant="ghost" className="absolute bottom-32 left-1/2 -translate-x-1/2 bg-black/40" onClick={() => setActiveToolbar(activeToolbar === 'effects' ? null : 'effects')}>
-              <Wand className="h-5 w-5 mr-2"/> Effects
-          </Button>
-        )}
-
         <div className="flex items-end justify-between">
             <div className="w-24">
                 <input
@@ -422,7 +374,7 @@ export default function CustomizePostPage() {
                     </Button>
                 ) : (
                     <div 
-                        onClick={handleShutterClick}
+                        onClick={handleTakePhoto}
                         className="h-16 w-16 rounded-full border-4 border-white bg-white/30 flex items-center justify-center cursor-pointer active:scale-95 transition-all"
                     >
                     </div>
@@ -442,3 +394,4 @@ export default function CustomizePostPage() {
     </div>
   );
 }
+

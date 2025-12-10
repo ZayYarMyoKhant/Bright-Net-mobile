@@ -38,9 +38,19 @@ export default function UploadPostPage() {
       fetch(decodedUrl)
         .then(res => res.blob())
         .then(blob => {
+          if (blob.size === 0) {
+              toast({ variant: 'destructive', title: 'Media Error', description: 'Could not load media. It might be too large.' });
+              router.push('/upload/customize');
+              return;
+          }
           const fileName = `post-media-${Date.now()}.${type === 'image' ? 'jpeg' : 'mp4'}`;
           const file = new File([blob], fileName, { type: blob.type });
           setMediaFile(file);
+        })
+        .catch(err => {
+            console.error("Error fetching data URL blob:", err);
+            toast({ variant: 'destructive', title: 'Media Error', description: 'Failed to process the selected media.' });
+            router.push('/upload/customize');
         });
     } else {
       toast({ variant: 'destructive', title: 'No Media Found', description: 'Please create or select media first.' });
