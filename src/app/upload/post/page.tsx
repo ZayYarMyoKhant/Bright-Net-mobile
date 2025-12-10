@@ -1,17 +1,16 @@
 
 "use client";
 
-import { useState, useRef, useTransition } from "react";
+import { useState, useRef, useTransition, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { ImagePlus, X, ArrowLeft, Loader2, Camera } from "lucide-react";
+import { ImagePlus, X, ArrowLeft, Loader2 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useToast } from "@/hooks/use-toast";
 import { createClient } from "@/lib/supabase/client";
 import { Progress } from "@/components/ui/progress";
-import { Separator } from "@/components/ui/separator";
 
 export default function UploadPostPage() {
   const [caption, setCaption] = useState("");
@@ -20,36 +19,32 @@ export default function UploadPostPage() {
   const [isPending, startTransition] = useTransition();
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
 
-
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
   const { toast } = useToast();
   const supabase = createClient();
 
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      if (file.type.startsWith("image/") || file.type.startsWith("video/")) {
-        setMediaFile(file);
-        setPreviewUrl(URL.createObjectURL(file));
-      } else {
-        toast({
-          variant: "destructive",
-          title: "Unsupported File Type",
-          description: "Please select an image or video file.",
-        });
-        handleRemoveMedia();
-      }
-    }
-  };
+  useEffect(() => {
+    const mediaDataUrl = localStorage.getItem('customizedMedia');
+    const mediaType = localStorage.getItem('customizedMediaType');
 
-  const handleRemoveMedia = () => {
-    setMediaFile(null);
-    setPreviewUrl(null);
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
+    if (mediaDataUrl && mediaType) {
+      fetch(mediaDataUrl)
+        .then(res => res.blob())
+        .then(blob => {
+          const file = new File([blob], "customized_media", { type: mediaType });
+          setMediaFile(file);
+          setPreviewUrl(URL.createObjectURL(file));
+        });
+      
+      localStorage.removeItem('customizedMedia');
+      localStorage.removeItem('customizedMediaType');
+    } else {
+      // If no media is passed, redirect back to create flow
+      toast({ variant: 'destructive', title: 'No Media Found', description: 'Please create or select media first.' });
+      router.push('/upload/customize');
     }
-  };
+  }, [router, toast]);
+
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -67,7 +62,7 @@ export default function UploadPostPage() {
         return;
       }
       
-      const fileExtension = mediaFile.name.split('.').pop();
+      const fileExtension = mediaFile.name.split('.').pop() || (mediaFile.type.startsWith('image') ? 'jpg' : 'mp4');
       const fileName = `${user.id}-${Date.now()}.${fileExtension}`;
       const filePath = `public/${fileName}`;
 
@@ -75,13 +70,7 @@ export default function UploadPostPage() {
         cacheControl: '3600',
         upsert: false
       });
-      // The onProgress callback is not directly available in the upload method in v2 the same way.
-      // For a real progress bar, a more complex setup using XMLHttpRequest might be needed,
-      // but for this prototype, we'll simulate the progress. For a better UX in a real app,
-      // we would use a library that supports upload progress.
-      // Here, we'll just set it to 100 after upload completes.
       setUploadProgress(100);
-
 
       if (uploadError) {
         toast({ variant: "destructive", title: "Upload failed", description: uploadError.message });
@@ -117,16 +106,15 @@ export default function UploadPostPage() {
     <>
       <div className="flex h-full flex-col bg-background text-foreground">
         <header className="flex h-16 flex-shrink-0 items-center border-b px-4 relative">
-          <Link href="/upload" className="p-2 -ml-2 absolute left-4">
+          <button onClick={() => router.back()} className="p-2 -ml-2 absolute left-4">
             <ArrowLeft className="h-5 w-5" />
-          </Link>
+          </button>
           <h1 className="text-xl font-bold mx-auto">Create your own post</h1>
         </header>
 
         <main className="flex-1 overflow-y-auto p-4">
           <form onSubmit={handleSubmit} className="space-y-4">
             <div
-              onClick={() => !isPending && fileInputRef.current?.click()}
               className="relative flex aspect-video w-full cursor-pointer flex-col items-center justify-center rounded-md border-2 border-dashed bg-muted/50 overflow-hidden"
             >
               {previewUrl ? (
@@ -135,9 +123,10 @@ export default function UploadPostPage() {
                     <video
                       src={previewUrl}
                       className="h-full w-full object-contain"
-                      controls={true}
+                      controls={false}
                       autoPlay
                       loop
+                      muted
                     />
                   ) : (
                     <Image
@@ -148,38 +137,14 @@ export default function UploadPostPage() {
                       data-ai-hint="user upload"
                     />
                   )}
-                  {!isPending && (
-                    <Button
-                      type="button"
-                      variant="destructive"
-                      size="icon"
-                      className="absolute top-2 right-2 h-7 w-7 rounded-full z-10"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleRemoveMedia();
-                      }}
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
-                  )}
                 </>
               ) : (
                 <div className="text-center text-muted-foreground">
-                  <ImagePlus className="mx-auto h-12 w-12" />
-                  <p className="mt-2 text-sm font-medium">Click to upload a photo or video</p>
+                  <Loader2 className="mx-auto h-12 w-12 animate-spin" />
+                  <p className="mt-2 text-sm font-medium">Loading media...</p>
                 </div>
               )}
             </div>
-
-            <input
-              type="file"
-              name="media"
-              ref={fileInputRef}
-              onChange={handleFileChange}
-              className="hidden"
-              accept="image/*,video/*"
-              disabled={isPending}
-            />
 
             <div>
               <Textarea
@@ -212,15 +177,6 @@ export default function UploadPostPage() {
                     )}
                   </Button>
                 )}
-
-                <Separator />
-
-                <Link href="/upload/customize" className="w-full">
-                  <Button variant="outline" className="w-full">
-                    <Camera className="mr-2 h-4 w-4" />
-                    Customize Post
-                  </Button>
-                </Link>
             </div>
           </form>
         </main>

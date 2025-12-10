@@ -207,6 +207,33 @@ export default function CustomizePostPage() {
     setDragStart(null);
   };
 
+  const handleNext = () => {
+    if (!mediaPreview || !mediaType) {
+        toast({ variant: 'destructive', title: 'No Media', description: 'Please take a photo or select media first.' });
+        return;
+    }
+    
+    // We need to handle canvas-based final image generation if effects or text are applied.
+    // For now, let's pass the media as is.
+    localStorage.setItem('customizedMedia', mediaPreview);
+    localStorage.setItem('customizedMediaType', mediaType);
+    router.push('/upload/post');
+  };
+
+  const renderMediaPreview = () => {
+    if (!mediaPreview) return null;
+    
+    if (mediaType === 'image') {
+      return <Image src={mediaPreview} alt="Preview" fill className={cn("object-contain", selectedEffect)} />;
+    }
+    
+    if (mediaType === 'video') {
+      return <video src={mediaPreview} controls autoPlay loop className={cn("w-full h-full object-contain", selectedEffect)} />;
+    }
+
+    return null;
+  }
+
   return (
     <div className="flex h-dvh w-full flex-col bg-black text-white" style={{
         // @ts-ignore
@@ -223,7 +250,7 @@ export default function CustomizePostPage() {
           <X className="h-5 w-5" />
         </Button>
         {mediaPreview && (
-          <Button className="bg-primary hover:bg-primary/90">
+          <Button onClick={handleNext} className="bg-primary hover:bg-primary/90">
               Next <Check className="h-4 w-4 ml-2" />
           </Button>
         )}
@@ -253,10 +280,7 @@ export default function CustomizePostPage() {
         onPointerLeave={handleTextDragEnd}
       >
         {mediaPreview ? (
-            <>
-                {mediaType === 'image' && <Image src={mediaPreview} alt="Preview" fill className={cn("object-contain", selectedEffect)} />}
-                {mediaType === 'video' && <video src={mediaPreview} controls autoPlay loop className={cn("w-full h-full object-contain", selectedEffect)} />}
-            </>
+            renderMediaPreview()
         ) : (
              <>
                 {hasCameraPermission === null ? (

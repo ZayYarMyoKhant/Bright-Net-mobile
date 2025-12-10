@@ -16,7 +16,7 @@ export default function CreatePage() {
         </header>
 
         <main className="flex-1 overflow-y-auto p-4 space-y-4">
-          <Link href="/upload/post">
+          <Link href="/upload/customize">
             <Card className="w-full cursor-pointer bg-primary text-primary-foreground hover:bg-primary/90">
               <CardHeader>
                 <CardTitle className="text-lg">Create Post</CardTitle>
