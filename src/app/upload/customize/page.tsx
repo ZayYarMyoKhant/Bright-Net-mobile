@@ -355,13 +355,13 @@ export default function CustomizePostPage() {
             <Button variant="ghost" size="icon" className="h-10 w-10 hover:bg-white/20 rounded-full" onClick={() => handleToolbarClick('text')}>
                 <Type className="h-6 w-6" />
             </Button>
-            <Button variant="ghost" size="icon" className="h-10 w-10 hover:bg-white/20 rounded-full" onClick={() => handleToolbarClick('boomerang')}>
+            <Button variant="ghost" size="icon" className="h-10 w-10 hover:bg-white/20 rounded-full" onClick={() => toast({ title: "Coming Soon!" })}>
                 <InfinityIcon className="h-6 w-6" />
             </Button>
-            <Button variant="ghost" size="icon" className="h-10 w-10 hover:bg-white/20 rounded-full" onClick={() => handleToolbarClick('layout')}>
+            <Button variant="ghost" size="icon" className="h-10 w-10 hover:bg-white/20 rounded-full" onClick={() => toast({ title: "Coming Soon!" })}>
                 <LayoutGrid className="h-6 w-6" />
             </Button>
-            <Button variant="ghost" size="icon" className="h-10 w-10 hover:bg-white/20 rounded-full" onClick={() => handleToolbarClick('more')}>
+            <Button variant="ghost" size="icon" className="h-10 w-10 hover:bg-white/20 rounded-full" onClick={() => toast({ title: "Coming Soon!" })}>
                 <ChevronDown className="h-6 w-6" />
             </Button>
         </div>
