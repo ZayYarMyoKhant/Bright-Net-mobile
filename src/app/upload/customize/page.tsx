@@ -153,7 +153,9 @@ export default function CustomizePostPage() {
   const handleToolbarClick = (tool: 'text' | 'layout' | 'boomerang' | 'more' | 'effects') => {
     if (tool === 'text') {
         setIsTextMode(true);
-    } else if (tool === 'layout' || tool === 'boomerang' || tool === 'effects') {
+    } else if (tool === 'layout' || tool === 'boomerang') {
+        toast({ title: "Coming soon!", description: `The ${tool} feature is under development.` });
+    } else if (tool === 'effects') {
         setActiveToolbar(activeToolbar === tool ? null : tool);
     } else {
         toast({ title: "More options coming soon!" });
