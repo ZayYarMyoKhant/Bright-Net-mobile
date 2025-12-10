@@ -81,18 +81,26 @@ export default function CustomizePostPage() {
     }
   }, [facingMode, toast]);
 
-  useEffect(() => {
-    if (!mediaPreview) {
-        setupCamera();
-    }
-
-    return () => {
-        if (videoRef.current && videoRef.current.srcObject) {
-            const stream = videoRef.current.srcObject as MediaStream;
-            stream.getTracks().forEach(track => track.stop());
+    useEffect(() => {
+        if (mediaPreview) {
+            // If there's a preview, stop the camera stream.
+            if (videoRef.current && videoRef.current.srcObject) {
+                const stream = videoRef.current.srcObject as MediaStream;
+                stream.getTracks().forEach(track => track.stop());
+            }
+        } else {
+            // If no preview, set up the camera.
+            setupCamera();
         }
-    }
-  }, [setupCamera, facingMode, mediaPreview]);
+
+        // Cleanup function to stop camera when component unmounts or preview changes
+        return () => {
+            if (videoRef.current && videoRef.current.srcObject) {
+                const stream = videoRef.current.srcObject as MediaStream;
+                stream.getTracks().forEach(track => track.stop());
+            }
+        }
+    }, [mediaPreview, facingMode, setupCamera]);
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
