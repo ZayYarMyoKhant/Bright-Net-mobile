@@ -4,7 +4,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { X, Image as ImageIcon, CameraOff, Loader2, Type, Infinity, LayoutGrid, ChevronDown, Camera, Check, RotateCcw } from 'lucide-react';
+import { X, Image as ImageIcon, CameraOff, Loader2, Type, Infinity, LayoutGrid, ChevronDown, Camera, Check, RotateCcw, StopCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import Image from 'next/image';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -147,9 +147,8 @@ export default function CustomizePostPage() {
   };
   
   const stopRecording = () => {
-      if (mediaRecorderRef.current && isRecording) {
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
         mediaRecorderRef.current.stop();
-        setIsRecording(false);
       }
   };
 
@@ -159,6 +158,7 @@ export default function CustomizePostPage() {
     } else {
         if (isRecording) {
             stopRecording();
+            setIsRecording(false); // Immediately update UI state
         } else {
             startRecording();
         }
@@ -198,9 +198,14 @@ export default function CustomizePostPage() {
   const handleTextDragStart = (e: React.PointerEvent<HTMLDivElement>, id: number) => {
     e.preventDefault();
     setDraggingText(id);
-    const target = e.target as HTMLDivElement;
-    const rect = target.getBoundingClientRect();
-    setDragStart({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+    const target = e.currentTarget;
+    const parentRect = (target.offsetParent as HTMLElement)?.getBoundingClientRect();
+    if (!parentRect) return;
+
+    const startX = e.clientX - parentRect.left;
+    const startY = e.clientY - parentRect.top;
+    
+    setDragStart({ x: startX - target.offsetLeft, y: startY - target.offsetTop });
   };
   
   const handleTextDrag = (e: React.PointerEvent<HTMLDivElement>) => {
@@ -210,7 +215,7 @@ export default function CustomizePostPage() {
         const newY = ((e.clientY - parentRect.top - dragStart.y) / parentRect.height) * 100;
 
         setOverlayTexts(texts => texts.map(t => 
-            t.id === draggingText ? { ...t, position: { x: newX, y: newY } } : t
+            t.id === draggingText ? { ...t, position: { x: Math.max(0, Math.min(100, newX)), y: Math.max(0, Math.min(100, newY)) } } : t
         ));
     }
   };
@@ -362,7 +367,7 @@ export default function CustomizePostPage() {
                         isRecording && "rounded-md bg-red-500 border-red-300"
                     )} 
                 >
-                  {isRecording && <div className="h-6 w-6 bg-white rounded-sm"></div>}
+                  {mode === 'video' && isRecording ? <StopCircle className="h-8 w-8 text-white" /> : null}
                 </div>
                  {!isRecording && !mediaPreview && (
                      <Tabs value={mode} onValueChange={(value) => setMode(value as 'photo' | 'video')} className="w-full max-w-xs mt-4">
