@@ -14,11 +14,13 @@ import { TypingBattleRequestBanner } from '@/components/typing-battle-request-ba
 import { CoupleRequestBanner } from '@/components/couple-request-banner';
 import { OfflineProvider, OfflineContext } from '@/context/offline-context';
 import OfflinePage from '@/app/offline/page';
-import { PushNotifications, Token, PermissionState } from '@capacitor/push-notifications';
+import { PushNotifications, Token, PermissionState, PushNotificationSchema, ActionPerformed } from '@capacitor/push-notifications';
 import { Capacitor } from '@capacitor/core';
 import { useToast } from '@/hooks/use-toast';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Bell } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+
 
 const ptSans = PT_Sans({
   subsets: ['latin'],
@@ -31,6 +33,7 @@ function AppLayout({ children }: { children: React.ReactNode }) {
   const supabase = createClient();
   const isOffline = useContext(OfflineContext);
   const { toast } = useToast();
+  const router = useRouter();
   const [showNotificationDialog, setShowNotificationDialog] = useState(false);
 
   useEffect(() => {
@@ -82,9 +85,28 @@ function AppLayout({ children }: { children: React.ReactNode }) {
         }
       };
       
+      const addListeners = () => {
+        PushNotifications.addListener('pushNotificationReceived', (notification: PushNotificationSchema) => {
+            console.log('Push received: ', notification);
+            toast({
+                title: notification.title || "New Notification",
+                description: notification.body || "",
+            });
+        });
+
+        PushNotifications.addListener('pushNotificationActionPerformed', (notification: ActionPerformed) => {
+            console.log('Push action performed: ', notification.notification);
+            const url = notification.notification.data?.url;
+            if (url) {
+                router.push(url);
+            }
+        });
+      }
+      
       checkAndRequestPushPermissions();
+      addListeners();
     }
-  }, [currentUser]);
+  }, [currentUser, router, toast]);
 
   const registerPushToken = async () => {
     try {

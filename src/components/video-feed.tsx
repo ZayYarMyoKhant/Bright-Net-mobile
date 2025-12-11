@@ -5,7 +5,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { VideoDescription } from '@/components/video-description';
 import { Avatar } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { Heart, MessageCircle, Send, Loader2, VideoOff, VolumeOff, Music, Info } from 'lucide-react';
+import { Heart, MessageCircle, Send, Loader2, VideoOff, VolumeOff, Music, Info, Volume2, Play } from 'lucide-react';
 import {
   Sheet,
   SheetContent,
@@ -35,11 +35,12 @@ const AdPost = () => {
     )
 }
 
-const VideoPost = ({ post, index }: { post: Post; index: number }) => {
+const VideoPost = ({ post, isInitiallyVisible }: { post: Post; isInitiallyVisible: boolean }) => {
     const [isLiked, setIsLiked] = useState(post.isLiked);
     const [likesCount, setLikesCount] = useState(post.likes);
     const [commentsCount, setCommentsCount] = useState(post.comments);
-    const [isMuted, setIsMuted] = useState(index !== 0); 
+    const [isMuted, setIsMuted] = useState(!isInitiallyVisible);
+    const [isPlaying, setIsPlaying] = useState(isInitiallyVisible);
     const videoRef = useRef<HTMLVideoElement>(null);
     const [currentUser, setCurrentUser] = useState<User | null>(null);
     const { toast } = useToast();
@@ -58,26 +59,28 @@ const VideoPost = ({ post, index }: { post: Post; index: number }) => {
         const options = {
             root: null,
             rootMargin: '0px',
-            threshold: 0.5 
+            threshold: 0.8
         };
 
         const callback = (entries: IntersectionObserverEntry[]) => {
             entries.forEach(entry => {
                 if (entry.isIntersecting) {
+                    setIsPlaying(true);
                     const playPromise = (entry.target as HTMLVideoElement).play();
                     if (playPromise !== undefined) {
                         playPromise.catch(e => {
-                            // Ignore interrupt errors as they are expected when quickly scrolling
                             if (e.name !== 'AbortError') {
                                 console.error("Autoplay failed", e);
                             }
                         });
                     }
-                    if (!isMuted) {
-                      (entry.target as HTMLVideoElement).muted = false;
+                    if (!isInitiallyVisible) {
+                        (entry.target as HTMLVideoElement).muted = false;
+                        setIsMuted(false);
                     }
                 } else {
                     (entry.target as HTMLVideoElement).pause();
+                    setIsPlaying(false);
                 }
             });
         };
@@ -90,7 +93,19 @@ const VideoPost = ({ post, index }: { post: Post; index: number }) => {
               observer.unobserve(video);
             }
         };
-    }, [isMuted]);
+    }, [isInitiallyVisible]);
+    
+    const handleVideoClick = () => {
+        if (!videoRef.current) return;
+        if (videoRef.current.paused) {
+            videoRef.current.play();
+            setIsPlaying(true);
+        } else {
+            videoRef.current.pause();
+            setIsPlaying(false);
+        }
+    };
+
 
     const handleLike = async (e: React.MouseEvent) => {
         e.stopPropagation();
@@ -99,26 +114,21 @@ const VideoPost = ({ post, index }: { post: Post; index: number }) => {
           return;
         }
         
-        // Optimistic update
         const newLikedState = !isLiked;
         setIsLiked(newLikedState);
         setLikesCount(prev => newLikedState ? prev + 1 : prev - 1);
     
         if (newLikedState) {
-          // Like the post
           const { error } = await supabase.from('post_likes').insert({ post_id: post.id, user_id: currentUser.id });
           if (error) {
             toast({ variant: "destructive", title: "Failed to like post", description: error.message });
-            // Revert optimistic update
             setIsLiked(false);
             setLikesCount(prev => prev - 1);
           }
         } else {
-          // Unlike the post
           const { error } = await supabase.from('post_likes').delete().match({ post_id: post.id, user_id: currentUser.id });
           if (error) {
             toast({ variant: "destructive", title: "Failed to unlike post", description: error.message });
-            // Revert optimistic update
             setIsLiked(true);
             setLikesCount(prev => prev + 1);
           }
@@ -136,20 +146,24 @@ const VideoPost = ({ post, index }: { post: Post; index: number }) => {
 
 
     return (
-        <div key={post.id} className="relative h-full w-full snap-start flex-shrink-0" id={`post-${post.id}`} onClick={toggleMute}>
+        <div key={post.id} className="relative h-full w-full snap-start flex-shrink-0" id={`post-${post.id}`} onClick={handleVideoClick}>
             <video
                 ref={videoRef}
                 src={post.media_url}
                 loop
                 playsInline
-                muted={isMuted}
+                muted={isMuted || isInitiallyVisible} // Mute first video initially
                 className="w-full h-full object-cover"
+                preload="auto"
             />
-             {isMuted && (
+             {!isPlaying && (
                 <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-black/50 p-4 rounded-full pointer-events-none">
-                    <VolumeOff className="h-8 w-8 text-white" />
+                    <Play className="h-12 w-12 text-white" />
                 </div>
             )}
+             <button onClick={toggleMute} className="absolute top-5 right-5 bg-black/40 p-2 rounded-full z-10">
+                {isMuted ? <VolumeOff className="h-5 w-5 text-white" /> : <Volume2 className="h-5 w-5 text-white" />}
+             </button>
             <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent pointer-events-none" />
             <div className="absolute bottom-20 left-4 right-16 pointer-events-none">
                  <VideoDescription
@@ -223,7 +237,7 @@ export function VideoFeed({ posts, loading }: { posts: Post[], loading: boolean 
 
     const items = [];
     for (let i = 0; i < posts.length; i++) {
-        items.push(<VideoPost key={posts[i].id} post={posts[i]} index={i} />);
+        items.push(<VideoPost key={posts[i].id} post={posts[i]} isInitiallyVisible={i === 0} />);
         if ((i + 1) % 3 === 0 && i < posts.length - 1) {
             items.push(<AdPost key={`ad-${i}`} />);
         }
