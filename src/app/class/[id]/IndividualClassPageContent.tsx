@@ -156,7 +156,7 @@ const ChatMessage = ({ message, isSender, totalMembers }: { message: ClassMessag
     );
 };
 
-const AddMemberSheet = ({ classId, currentUser }: { classId: string, currentUser: User | null }) => {
+const AddMemberSheet = ({ classId, currentUser, onOpenChange }: { classId: string, currentUser: User | null, onOpenChange: (open: boolean) => void }) => {
     const [following, setFollowing] = useState<Profile[]>([]);
     const [loading, setLoading] = useState(true);
     const [selectedMembers, setSelectedMembers] = useState<string[]>([]);
@@ -164,30 +164,30 @@ const AddMemberSheet = ({ classId, currentUser }: { classId: string, currentUser
     const supabase = createClient();
     const { toast } = useToast();
 
-    useEffect(() => {
-        const fetchFollowing = async () => {
-            if (!currentUser) return;
-            setLoading(true);
+    const fetchFollowing = useCallback(async () => {
+        if (!currentUser) return;
+        setLoading(true);
 
-            // RPC call to get following who are not yet members of the class
-            const { data, error } = await supabase
-                .rpc('get_followings_not_in_class', {
-                    p_user_id: currentUser.id,
-                    p_class_id: classId
-                });
+        const { data, error } = await supabase
+            .rpc('get_followings_not_in_class', {
+                p_user_id: currentUser.id,
+                p_class_id: classId
+            });
 
-            if (error) {
-                toast({ variant: 'destructive', title: 'Error fetching following list', description: error.message });
-                console.error("Error fetching non-member followings:", error);
-            } else {
-                setFollowing(data as Profile[]);
-            }
+        if (error) {
+            toast({ variant: 'destructive', title: 'Error fetching following list', description: error.message });
+            console.error("Error fetching non-member followings:", error);
+        } else {
+            setFollowing(data as Profile[]);
+        }
 
-            setLoading(false);
-        };
-
-        fetchFollowing();
+        setLoading(false);
     }, [classId, currentUser, supabase, toast]);
+
+    useEffect(() => {
+        fetchFollowing();
+    }, [fetchFollowing]);
+
 
     const handleSelectMember = (id: string) => {
         setSelectedMembers(prev => prev.includes(id) ? prev.filter(mId => mId !== id) : [...prev, id]);
@@ -206,12 +206,15 @@ const AddMemberSheet = ({ classId, currentUser }: { classId: string, currentUser
         setAdding(false);
 
         if (error) {
-            toast({ variant: 'destructive', title: 'Failed to add members', description: error.message });
+            if (error.code === '23505') { // Unique constraint violation
+                 toast({ variant: 'destructive', title: 'Already a Member', description: 'One or more selected users are already in the class.' });
+            } else {
+                toast({ variant: 'destructive', title: 'Failed to add members', description: error.message });
+            }
         } else {
             toast({ title: 'Members added!', description: `${selectedMembers.length} new members have been added to the class.` });
             setSelectedMembers([]);
-            // Optionally, we can close the sheet here. A simple way:
-            document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+            onOpenChange(false); // Close the sheet on success
         }
     };
 
@@ -285,6 +288,7 @@ export default function IndividualClassPageContent({ initialData }: { initialDat
 
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const [isSheetOpen, setIsSheetOpen] = useState(false);
 
 
     useEffect(() => {
@@ -521,7 +525,7 @@ export default function IndividualClassPageContent({ initialData }: { initialDat
                 </div>
                 {isEnrolled ? (
                     <div className="flex items-center">
-                        <Sheet>
+                        <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
                             <SheetTrigger asChild>
                                 <Button variant="outline" size="sm">
                                     <UserPlus className="h-4 w-4 md:mr-2" />
@@ -529,7 +533,7 @@ export default function IndividualClassPageContent({ initialData }: { initialDat
                                 </Button>
                             </SheetTrigger>
                             <SheetContent className="p-0 flex flex-col">
-                                <AddMemberSheet classId={classData.id} currentUser={currentUser} />
+                                <AddMemberSheet classId={classData.id} currentUser={currentUser} onOpenChange={setIsSheetOpen} />
                             </SheetContent>
                         </Sheet>
                         <DropdownMenu>
@@ -674,8 +678,3 @@ export default function IndividualClassPageContent({ initialData }: { initialDat
         </div>
     );
 }
-
-    
-
-    
-
