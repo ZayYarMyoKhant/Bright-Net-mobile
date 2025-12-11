@@ -5,7 +5,7 @@ import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { ArrowLeft, Mic, Image as ImageIcon, Send, Smile, MoreVertical, MessageSquareReply, Trash2, X, Loader2, Waves, Heart, ThumbsUp, Laugh, Frown, Check, CheckCheck, Ban, Share2, AlertTriangle, StopCircle, Pencil, ClipboardCopy, Pin, PinOff } from "lucide-react";
+import { ArrowLeft, Mic, Image as ImageIcon, Send, Smile, MoreVertical, MessageSquareReply, Trash2, X, Loader2, Waves, Heart, ThumbsUp, Laugh, Frown, Check, CheckCheck, Ban, Share2, AlertTriangle, StopCircle, Pencil, ClipboardCopy, Pin, PinOff, ChevronLeft, ChevronRight } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useState, useRef, useEffect, useCallback } from "react";
@@ -20,6 +20,7 @@ import { formatDistanceToNow, isBefore, subMinutes } from "date-fns";
 import { useRouter } from "next/navigation";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
+import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious, type CarouselApi } from "@/components/ui/carousel";
 
 
 type Reaction = {
@@ -53,10 +54,13 @@ type DirectMessage = {
 };
 
 type PinnedMessage = {
-    id: string;
-    content: string | null;
-    media_type: string | null;
-    profiles: Profile;
+    id: string; // This is the pinned_messages table ID
+    message_id: string;
+    direct_messages: {
+        content: string | null;
+        media_type: string | null;
+        profiles: Profile;
+    }
 }
 
 const ReactionEmojis = {
@@ -73,7 +77,7 @@ type InitialChatData = {
     isBlocked: boolean;
     isBlockedBy: boolean;
     error: string | null;
-    pinnedMessage: PinnedMessage | null;
+    pinnedMessages: PinnedMessage[];
 }
 
 type RecordingStatus = 'idle' | 'recording' | 'preview';
@@ -98,7 +102,7 @@ function PresenceIndicator({ user }: { user: OtherUserWithPresence | null }) {
 }
 
 
-const ChatMessage = ({ message, isSender, onReply, onDelete, onEdit, onReaction, onPin, currentUser }: { message: DirectMessage, isSender: boolean, onReply: (message: DirectMessage) => void, onDelete: (messageId: string) => void, onEdit: (message: DirectMessage) => void, onReaction: (messageId: string, emoji: string) => void, onPin: (messageId: string) => void, currentUser: User | null }) => {
+const ChatMessage = ({ message, isSender, isPinned, onReply, onDelete, onEdit, onReaction, onPin, currentUser }: { message: DirectMessage, isSender: boolean, isPinned: boolean, onReply: (message: DirectMessage) => void, onDelete: (messageId: string) => void, onEdit: (message: DirectMessage) => void, onReaction: (messageId: string, emoji: string) => void, onPin: (messageId: string, isPinned: boolean) => void, currentUser: User | null }) => {
     
     const timeAgo = formatDistanceToNow(new Date(message.created_at), { addSuffix: true });
     const msgRef = useRef<HTMLDivElement>(null);
@@ -273,9 +277,9 @@ const ChatMessage = ({ message, isSender, onReply, onDelete, onEdit, onReaction,
                             </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent>
-                             <DropdownMenuItem onClick={() => onPin(message.id)}>
-                                <Pin className="mr-2 h-4 w-4" />
-                                <span>Pin</span>
+                             <DropdownMenuItem onClick={() => onPin(message.id, isPinned)}>
+                                {isPinned ? <PinOff className="mr-2 h-4 w-4" /> : <Pin className="mr-2 h-4 w-4" />}
+                                <span>{isPinned ? 'Unpin' : 'Pin'}</span>
                             </DropdownMenuItem>
                              {isSender && message.content && (
                                 <>
@@ -331,7 +335,7 @@ export default function ChatPageContent({ initialData, params }: { initialData: 
   const [error, setError] = useState<string | null>(initialData.error);
   const [isBlocked, setIsBlocked] = useState(initialData.isBlocked);
   const [isBlockedBy, setIsBlockedBy] = useState(initialData.isBlockedBy);
-  const [pinnedMessage, setPinnedMessage] = useState<PinnedMessage | null>(initialData.pinnedMessage);
+  const [pinnedMessages, setPinnedMessages] = useState<PinnedMessage[]>(initialData.pinnedMessages);
 
 
   const [newMessage, setNewMessage] = useState("");
@@ -346,6 +350,10 @@ export default function ChatPageContent({ initialData, params }: { initialData: 
   const [isTyping, setIsTyping] = useState(false);
   const [otherUserActivity, setOtherUserActivity] = useState<OtherUserActivity>('offline');
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Pinned messages carousel
+  const [carouselApi, setCarouselApi] = useState<CarouselApi>();
+  const [currentSlide, setCurrentSlide] = useState(0);
 
 
   // Voice Message State
@@ -378,6 +386,14 @@ export default function ChatPageContent({ initialData, params }: { initialData: 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  useEffect(() => {
+    if (!carouselApi) return;
+    setCurrentSlide(carouselApi.selectedScrollSnap());
+    carouselApi.on("select", () => {
+      setCurrentSlide(carouselApi.selectedScrollSnap());
+    });
+  }, [carouselApi]);
   
   useEffect(() => {
     if (!conversationId || !currentUser || !otherUser) return;
@@ -429,17 +445,20 @@ export default function ChatPageContent({ initialData, params }: { initialData: 
             setMessages(prev => prev.map(msg => msg.id === updatedMessage.id ? { ...msg, content: updatedMessage.content, is_edited: updatedMessage.is_edited } : msg));
         }
       )
-      .on('postgres_changes',
-        { event: 'UPDATE', schema: 'public', table: 'conversations', filter: `id=eq.${conversationId}` },
-        async (payload) => {
-            const newPinnedMessageId = payload.new.pinned_message_id;
-            if (newPinnedMessageId) {
-                const { data, error } = await supabase.from('direct_messages').select('*, profiles:sender_id(*)').eq('id', newPinnedMessageId).single();
-                if (data) setPinnedMessage(data as PinnedMessage);
-            } else {
-                setPinnedMessage(null);
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'pinned_messages', filter: `conversation_id=eq.${conversationId}`},
+         async (payload) => {
+            if (payload.eventType === 'INSERT') {
+                const newPin = payload.new as { message_id: string };
+                const { data, error } = await supabase.from('pinned_messages').select('*, direct_messages!inner(*, profiles!inner(*))').eq('id', payload.new.id).single();
+
+                if (data && !pinnedMessages.some(p => p.id === data.id)) {
+                    setPinnedMessages(prev => [...prev, data as PinnedMessage]);
+                }
+            } else if (payload.eventType === 'DELETE') {
+                const oldPin = payload.old as { id: string };
+                setPinnedMessages(prev => prev.filter(p => p.id !== oldPin.id));
             }
-        }
+         }
        )
       .on( 'postgres_changes',
           { event: '*', schema: 'public', table: 'direct_message_reactions' },
@@ -531,7 +550,7 @@ export default function ChatPageContent({ initialData, params }: { initialData: 
         supabase.from('profiles').update({ active_conversation_id: null }).eq('id', currentUser.id).then();
       }
     };
-  }, [conversationId, supabase, currentUser, params.id, otherUser, isTyping, currentUserProfile, messages]);
+  }, [conversationId, supabase, currentUser, params.id, otherUser, isTyping, currentUserProfile, messages, pinnedMessages]);
 
 
   // Effect for determining the final displayed status string
@@ -738,32 +757,36 @@ export default function ChatPageContent({ initialData, params }: { initialData: 
     }
   }
 
-    const handlePinMessage = async (messageId: string) => {
-        if (!conversationId) return;
-        const isCurrentlyPinned = pinnedMessage?.id === messageId;
-        const newPinnedId = isCurrentlyPinned ? null : messageId;
-
-        // Optimistic update
-        if (newPinnedId) {
-            const messageToPin = messages.find(m => m.id === newPinnedId);
-            if (messageToPin) {
-                setPinnedMessage(messageToPin as PinnedMessage);
+    const handlePinMessage = async (messageId: string, isCurrentlyPinned: boolean) => {
+        if (!conversationId || !currentUser) return;
+        
+        if (isCurrentlyPinned) {
+            // Unpin
+            const pinToDelete = pinnedMessages.find(p => p.message_id === messageId);
+            if(pinToDelete) {
+                setPinnedMessages(prev => prev.filter(p => p.message_id !== messageId));
+                const { error } = await supabase.from('pinned_messages').delete().eq('id', pinToDelete.id);
+                if (error) {
+                    toast({ variant: 'destructive', title: 'Failed to unpin message', description: error.message });
+                    setPinnedMessages(prev => [...prev, pinToDelete]); // Revert
+                } else {
+                    toast({ title: 'Message unpinned' });
+                }
             }
         } else {
-            setPinnedMessage(null);
-        }
-        
-        const { error } = await supabase
-            .from('conversations')
-            .update({ pinned_message_id: newPinnedId })
-            .eq('id', conversationId);
+            // Pin
+            const { data, error } = await supabase.from('pinned_messages').insert({
+                conversation_id: conversationId,
+                message_id: messageId,
+                pinned_by_user_id: currentUser.id
+            }).select('*, direct_messages!inner(*, profiles!inner(*))').single();
 
-        if (error) {
-            toast({ variant: 'destructive', title: 'Failed to pin message', description: error.message });
-            // Revert optimistic update
-            setPinnedMessage(initialData.pinnedMessage);
-        } else {
-             toast({ title: newPinnedId ? 'Message pinned' : 'Message unpinned' });
+            if (error) {
+                toast({ variant: 'destructive', title: 'Failed to pin message', description: error.message });
+            } else {
+                setPinnedMessages(prev => [...prev, data as PinnedMessage]);
+                toast({ title: 'Message pinned' });
+            }
         }
     };
     
@@ -1003,12 +1026,6 @@ export default function ChatPageContent({ initialData, params }: { initialData: 
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent>
-              {pinnedMessage && (
-                  <DropdownMenuItem onClick={() => handlePinMessage(pinnedMessage.id)}>
-                      <PinOff className="mr-2 h-4 w-4" />
-                      <span>Unpin Message</span>
-                  </DropdownMenuItem>
-              )}
               <DropdownMenuItem className="text-destructive" onClick={handleBlockUser} disabled={isBlocked}>
                 <Ban className="mr-2 h-4 w-4" />
                 <span>Block user</span>
@@ -1039,28 +1056,40 @@ export default function ChatPageContent({ initialData, params }: { initialData: 
       </header>
       
       <main className="flex-1 overflow-y-auto p-4 space-y-6">
-        {pinnedMessage && (
-            <div 
-                className="sticky top-0 z-10 bg-background/80 backdrop-blur-sm -mx-4 -mt-4 mb-4 p-2 border-b cursor-pointer hover:bg-muted/50"
-                onClick={() => scrollToMessage(pinnedMessage.id)}
-            >
-                <div className="flex items-center gap-2 px-2">
-                    <Pin className="h-4 w-4 text-primary" />
-                    <div className="flex-1 truncate">
-                        <p className="font-bold text-primary text-sm">Pinned Message</p>
-                        <p className="text-xs text-muted-foreground truncate">
-                            {pinnedMessage.profiles.full_name}: {pinnedMessage.content || `Sent a ${pinnedMessage.media_type}`}
+        {pinnedMessages.length > 0 && (
+            <div className="sticky top-0 z-10 bg-background/80 backdrop-blur-sm -mx-4 -mt-4 mb-4 p-2 border-b">
+               <Carousel setApi={setCarouselApi} className="w-full">
+                    <CarouselContent>
+                        {pinnedMessages.map((pin) => (
+                             <CarouselItem key={pin.id} onClick={() => scrollToMessage(pin.message_id)} className="cursor-pointer">
+                                <div className="flex items-center gap-2 px-2">
+                                    <Pin className="h-4 w-4 text-primary flex-shrink-0" />
+                                    <div className="flex-1 truncate">
+                                        <p className="font-bold text-primary text-sm">{pin.direct_messages.profiles.full_name}</p>
+                                        <p className="text-xs text-muted-foreground truncate">
+                                            {pin.direct_messages.content || `Sent a ${pin.direct_messages.media_type}`}
+                                        </p>
+                                    </div>
+                                </div>
+                            </CarouselItem>
+                        ))}
+                    </CarouselContent>
+                    <div className="flex items-center justify-between mt-2 px-2">
+                        <div className="flex items-center gap-1">
+                            <CarouselPrevious className="static -translate-x-0 -translate-y-0 h-6 w-6" />
+                            <CarouselNext className="static -translate-x-0 -translate-y-0 h-6 w-6" />
+                        </div>
+                        <p className="text-xs text-muted-foreground font-semibold">
+                            Pinned {currentSlide + 1} / {pinnedMessages.length}
                         </p>
                     </div>
-                    <Button variant="ghost" size="icon" className="h-6 w-6" onClick={(e) => { e.stopPropagation(); handlePinMessage(pinnedMessage.id); }}>
-                        <X className="h-4 w-4"/>
-                    </Button>
-                </div>
+                </Carousel>
             </div>
         )}
-        {messages.map((msg) => (
-            <ChatMessage key={msg.id} message={msg} isSender={msg.sender_id === currentUser?.id} onReply={handleReply} onDelete={handleDelete} onEdit={handleEdit} onReaction={handleReaction} onPin={handlePinMessage} currentUser={currentUser}/>
-        ))}
+        {messages.map((msg) => {
+            const isPinned = pinnedMessages.some(p => p.message_id === msg.id);
+            return <ChatMessage key={msg.id} message={msg} isSender={msg.sender_id === currentUser?.id} isPinned={isPinned} onReply={handleReply} onDelete={handleDelete} onEdit={handleEdit} onReaction={handleReaction} onPin={handlePinMessage} currentUser={currentUser}/>
+        })}
         <div ref={messagesEndRef} />
       </main>
 
