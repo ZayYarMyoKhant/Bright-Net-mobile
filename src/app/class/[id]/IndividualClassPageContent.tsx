@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useEffect, useState, useCallback, useRef } from "react";
@@ -677,3 +678,4 @@ export default function IndividualClassPageContent({ initialData }: { initialDat
     
 
     
+
