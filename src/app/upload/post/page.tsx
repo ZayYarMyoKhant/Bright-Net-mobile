@@ -1,6 +1,7 @@
 
 "use client";
 
+import { Suspense } from "react";
 import { useState, useRef, useTransition, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -11,7 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import { createClient } from "@/lib/supabase/client";
 import { Progress } from "@/components/ui/progress";
 
-export default function UploadPostPage() {
+function UploadPostPageContent() {
   const [caption, setCaption] = useState("");
   const [mediaFile, setMediaFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -194,4 +195,17 @@ export default function UploadPostPage() {
       </div>
     </>
   );
+}
+
+
+export default function UploadPostPage() {
+    return (
+        <Suspense fallback={
+            <div className="flex h-dvh w-full items-center justify-center">
+                 <Loader2 className="h-8 w-8 animate-spin" />
+            </div>
+        }>
+            <UploadPostPageContent />
+        </Suspense>
+    );
 }
