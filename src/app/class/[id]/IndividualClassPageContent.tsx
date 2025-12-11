@@ -156,7 +156,7 @@ const ChatMessage = ({ message, isSender, totalMembers }: { message: ClassMessag
     );
 };
 
-const AddMemberSheet = ({ classId, currentUser, onOpenChange }: { classId: string, currentUser: User | null, onOpenChange: (open: boolean) => void }) => {
+const AddMemberSheet = ({ classId, currentUser, onOpenChange, isOpen }: { classId: string, currentUser: User | null, onOpenChange: (open: boolean) => void, isOpen: boolean }) => {
     const [following, setFollowing] = useState<Profile[]>([]);
     const [loading, setLoading] = useState(true);
     const [selectedMembers, setSelectedMembers] = useState<string[]>([]);
@@ -185,8 +185,10 @@ const AddMemberSheet = ({ classId, currentUser, onOpenChange }: { classId: strin
     }, [classId, currentUser, supabase, toast]);
 
     useEffect(() => {
-        fetchFollowing();
-    }, [fetchFollowing]);
+        if (isOpen) {
+            fetchFollowing();
+        }
+    }, [isOpen, fetchFollowing]);
 
 
     const handleSelectMember = (id: string) => {
@@ -533,7 +535,7 @@ export default function IndividualClassPageContent({ initialData }: { initialDat
                                 </Button>
                             </SheetTrigger>
                             <SheetContent className="p-0 flex flex-col">
-                                <AddMemberSheet classId={classData.id} currentUser={currentUser} onOpenChange={setIsSheetOpen} />
+                                <AddMemberSheet classId={classData.id} currentUser={currentUser} onOpenChange={setIsSheetOpen} isOpen={isSheetOpen} />
                             </SheetContent>
                         </Sheet>
                         <DropdownMenu>
@@ -678,3 +680,5 @@ export default function IndividualClassPageContent({ initialData }: { initialDat
         </div>
     );
 }
+
+    
