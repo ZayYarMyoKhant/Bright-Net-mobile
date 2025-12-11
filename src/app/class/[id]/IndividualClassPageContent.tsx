@@ -4,7 +4,7 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Loader2, Users, Send, BookOpen, MoreVertical, Trash2, Mic, ImagePlus, Smile, X, StopCircle, CheckCheck, UserPlus } from "lucide-react";
+import { ArrowLeft, Loader2, Users, Send, BookOpen, MoreVertical, Trash2, Mic, ImagePlus, Smile, X, StopCircle, CheckCheck, UserPlus, BookOpenText } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { User } from "@supabase/supabase-js";
@@ -168,53 +168,20 @@ const AddMemberSheet = ({ classId, currentUser }: { classId: string, currentUser
             if (!currentUser) return;
             setLoading(true);
 
-            // Fetch users the current user is following
-            const { data: followingData, error: followingError } = await supabase
-                .from('followers')
-                .select('profiles!followers_user_id_fkey(*)')
-                .eq('follower_id', currentUser.id);
+            // RPC call to get following who are not yet members of the class
+            const { data, error } = await supabase
+                .rpc('get_followings_not_in_class', {
+                    p_user_id: currentUser.id,
+                    p_class_id: classId
+                });
 
-            if (followingError) {
-                toast({ variant: 'destructive', title: 'Error fetching following list' });
-                setLoading(false);
-                return;
-            }
-            
-            if (!followingData) {
-                setFollowing([]);
-                setLoading(false);
-                return;
-            }
-            
-            // @ts-ignore
-            const followedProfiles: Profile[] = followingData.map((f: any) => f.profiles).filter(Boolean);
-
-            if (followedProfiles.length === 0) {
-                 setFollowing([]);
-                 setLoading(false);
-                 return;
+            if (error) {
+                toast({ variant: 'destructive', title: 'Error fetching following list', description: error.message });
+                console.error("Error fetching non-member followings:", error);
+            } else {
+                setFollowing(data as Profile[]);
             }
 
-            // Fetch existing members to filter them out
-            const followedIds = followedProfiles.map(p => p.id);
-            const { data: membersData, error: membersError } = await supabase
-                .from('class_members')
-                .select('user_id')
-                .eq('class_id', classId)
-                .in('user_id', followedIds);
-            
-            if (membersError) {
-                toast({ variant: 'destructive', title: 'Error fetching class members' });
-                // Show all followed profiles as a fallback
-                setFollowing(followedProfiles);
-                setLoading(false);
-                return;
-            }
-
-            const memberIds = new Set(membersData.map(m => m.user_id));
-            const nonMemberFollowing = followedProfiles.filter(p => !memberIds.has(p.id));
-
-            setFollowing(nonMemberFollowing);
             setLoading(false);
         };
 
@@ -555,12 +522,12 @@ export default function IndividualClassPageContent({ initialData }: { initialDat
                     <div className="flex items-center">
                         <Sheet>
                             <SheetTrigger asChild>
-                                <Button>
-                                    <UserPlus className="h-5 w-5 md:mr-2" />
+                                <Button variant="outline" size="sm">
+                                    <UserPlus className="h-4 w-4 md:mr-2" />
                                     <span className="hidden md:inline">Add Member</span>
                                 </Button>
                             </SheetTrigger>
-                            <SheetContent className="p-0">
+                            <SheetContent className="p-0 flex flex-col">
                                 <AddMemberSheet classId={classData.id} currentUser={currentUser} />
                             </SheetContent>
                         </Sheet>
@@ -594,7 +561,7 @@ export default function IndividualClassPageContent({ initialData }: { initialDat
                             </DropdownMenuContent>
                         </DropdownMenu>
                     </div>
-                ) : <div className="w-10"></div>}
+                ) : <div className="w-10 h-10"></div>}
             </header>
 
             {isEnrolled ? (
