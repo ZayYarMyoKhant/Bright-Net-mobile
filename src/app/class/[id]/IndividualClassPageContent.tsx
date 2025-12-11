@@ -4,7 +4,7 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Loader2, Users, Send, BookOpenText, MoreVertical, Trash2, Mic, ImagePlus, Smile, X, StopCircle, CheckCheck, UserPlus, Checkbox } from "lucide-react";
+import { ArrowLeft, Loader2, Users, Send, BookOpenText, MoreVertical, Trash2, Mic, ImagePlus, Smile, X, StopCircle, CheckCheck, UserPlus } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { User } from "@supabase/supabase-js";
@@ -22,6 +22,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { EmojiPicker } from "@/components/emoji-picker";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Checkbox } from "@/components/ui/checkbox";
 
 
 type ClassData = {
@@ -538,8 +539,9 @@ export default function IndividualClassPageContent({ initialData }: { initialDat
                     <div className="flex items-center">
                         <Sheet>
                             <SheetTrigger asChild>
-                                <Button variant="ghost" size="icon">
-                                    <UserPlus className="h-5 w-5" />
+                                <Button>
+                                    <UserPlus className="h-5 w-5 md:mr-2" />
+                                    <span className="hidden md:inline">Add Member</span>
                                 </Button>
                             </SheetTrigger>
                             <SheetContent className="p-0">
