@@ -3,7 +3,6 @@
 
 import * as React from "react"
 import * as AvatarPrimitive from "@radix-ui/react-avatar"
-import Image from "next/image";
 import { cn } from "@/lib/utils"
 import type { Profile } from "@/lib/data";
 import { Rose } from "@/components/icons";
@@ -15,31 +14,11 @@ interface AvatarProps extends React.ComponentPropsWithoutRef<typeof AvatarPrimit
     alt?: string;
 }
 
-const AvatarFrame = ({ isStreak10 }: { isStreak10?: boolean }) => {
-    const frameUrl = isStreak10 
-        ? "https://blbqaojfppwybkjqiyeb.supabase.co/storage/v1/object/public/avatars/gold_frame.png"
-        : "https://blbqaojfppwybkjqiyeb.supabase.co/storage/v1/object/public/avatars/blue_frame.png";
-
-    return (
-        <div className="absolute inset-[-11%] pointer-events-none z-10">
-            <Image
-                src={frameUrl}
-                alt={isStreak10 ? "Gold Frame" : "Blue Frame"}
-                fill
-                className="object-contain"
-                unoptimized
-            />
-        </div>
-    );
-}
-
-
 const Avatar = React.forwardRef<
   React.ElementRef<typeof AvatarPrimitive.Root>,
   AvatarProps
 >(({ className, profile, src, alt, ...props }, ref) => {
     
-    const showFrame = profile?.win_streak_3 || profile?.win_streak_10;
     const imageUrl = src ?? profile?.avatar_url;
     const username = alt ?? profile?.username;
         
@@ -58,7 +37,6 @@ const Avatar = React.forwardRef<
             </AvatarFallback>
           </AvatarPrimitive.Root>
           
-          {showFrame && <AvatarFrame isStreak10={profile?.win_streak_10} />}
           {profile?.is_in_relationship && <Rose className="absolute -top-2 -right-2 h-5 w-5 z-20" />}
           {profile?.is_verified && (
               <BadgeCheck className="absolute -bottom-1 -right-1 h-5 w-5 text-white bg-blue-500 rounded-full z-20 p-0.5" />

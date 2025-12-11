@@ -5,8 +5,6 @@ export type Profile = {
   avatar_url: string;
   full_name?: string;
   bio?: string;
-  win_streak_3?: boolean;
-  win_streak_10?: boolean;
   is_in_relationship?: boolean;
   is_verified?: boolean;
   active_conversation_id?: string | null;
