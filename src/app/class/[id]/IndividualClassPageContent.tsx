@@ -4,7 +4,7 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Loader2, Users, Send, BookOpenText, MoreVertical, Trash2, Mic, ImagePlus, Smile, X, StopCircle, CheckCheck, UserPlus } from "lucide-react";
+import { ArrowLeft, Loader2, Users, Send, BookOpen, MoreVertical, Trash2, Mic, ImagePlus, Smile, X, StopCircle, CheckCheck, UserPlus } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { User } from "@supabase/supabase-js";
@@ -168,7 +168,7 @@ const AddMemberSheet = ({ classId, currentUser }: { classId: string, currentUser
             if (!currentUser) return;
             setLoading(true);
 
-            // Fetch following
+            // Fetch users the current user is following
             const { data: followingData, error: followingError } = await supabase
                 .from('followers')
                 .select('profiles!followers_user_id_fkey(*)')
@@ -180,16 +180,32 @@ const AddMemberSheet = ({ classId, currentUser }: { classId: string, currentUser
                 return;
             }
             
-            const followedProfiles = followingData.map((f: any) => f.profiles);
+            if (!followingData) {
+                setFollowing([]);
+                setLoading(false);
+                return;
+            }
+            
+            // @ts-ignore
+            const followedProfiles: Profile[] = followingData.map((f: any) => f.profiles).filter(Boolean);
+
+            if (followedProfiles.length === 0) {
+                 setFollowing([]);
+                 setLoading(false);
+                 return;
+            }
 
             // Fetch existing members to filter them out
+            const followedIds = followedProfiles.map(p => p.id);
             const { data: membersData, error: membersError } = await supabase
                 .from('class_members')
                 .select('user_id')
-                .eq('class_id', classId);
+                .eq('class_id', classId)
+                .in('user_id', followedIds);
             
             if (membersError) {
                 toast({ variant: 'destructive', title: 'Error fetching class members' });
+                // Show all followed profiles as a fallback
                 setFollowing(followedProfiles);
                 setLoading(false);
                 return;
@@ -690,5 +706,7 @@ export default function IndividualClassPageContent({ initialData }: { initialDat
         </div>
     );
 }
+
+    
 
     
