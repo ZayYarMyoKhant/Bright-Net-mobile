@@ -46,8 +46,7 @@ export default function UploadMusicPage() {
       }
       
       const fileExtension = audioFile.name.split('.').pop() || 'mp3';
-      // Sanitize the file path to prevent "Invalid key" errors.
-      // Use only safe characters for the file path.
+      // Use a secure, timestamp-based name to avoid invalid characters from original filename
       const filePath = `${user.id}-track-${Date.now()}.${fileExtension}`;
 
       const { error: uploadError } = await supabase.storage.from('music').upload(filePath, audioFile);
