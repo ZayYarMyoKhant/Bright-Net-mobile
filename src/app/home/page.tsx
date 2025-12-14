@@ -71,10 +71,12 @@ const AudioPlayer = ({ track }: { track: Track }) => {
 
         return () => {
             try {
-                // Unsubscribe from all events before destroying
+                // This is the robust way to clean up to avoid AbortError in React 18 Strict Mode
                 ws.unAll();
                 ws.destroy();
             } catch (e) {
+                // In some rare race conditions, destroy() might still throw.
+                // We can safely ignore AbortError during cleanup.
                 if (e instanceof Error && e.name === 'AbortError') {
                     // This is an expected error during cleanup in React 18 Strict Mode, so we can ignore it.
                 } else {
