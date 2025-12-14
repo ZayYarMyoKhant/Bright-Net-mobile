@@ -71,10 +71,10 @@ const AudioPlayer = ({ track }: { track: Track }) => {
 
         return () => {
             try {
-                if (ws) {
-                    ws.unAll();
-                    ws.destroy();
-                }
+                // This is the most robust way to clean up in React 18 Strict Mode
+                // Unsubscribe from all events before destroying
+                ws.unAll();
+                ws.destroy();
             } catch (e) {
                 // This can happen if the component unmounts while wavesurfer is still initializing.
                 // We can safely ignore this error.
