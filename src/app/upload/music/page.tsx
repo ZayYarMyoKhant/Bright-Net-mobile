@@ -25,21 +25,9 @@ export default function UploadMusicPage() {
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
-      if (file.type.startsWith("audio/")) {
-        setAudioFile(file);
-        setFileName(file.name);
-      } else {
-        toast({
-          variant: "destructive",
-          title: "Unsupported File Type",
-          description: "Please select an audio file (e.g., MP3, M4A, WAV).",
-        });
-        setAudioFile(null);
-        setFileName("");
-        if (fileInputRef.current) {
-          fileInputRef.current.value = "";
-        }
-      }
+      // Allow any file selected by the user, removing the strict "audio/" check
+      setAudioFile(file);
+      setFileName(file.name);
     }
   };
 
