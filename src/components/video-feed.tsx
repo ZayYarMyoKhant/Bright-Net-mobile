@@ -71,6 +71,8 @@ const VideoPost = ({ post, isInitiallyVisible }: { post: Post; isInitiallyVisibl
                         playPromise.catch(e => {
                             if (e.name !== 'AbortError') {
                                 console.error("Autoplay failed", e);
+                                // Show play button if autoplay fails
+                                setIsPlaying(false);
                             }
                         });
                     }
@@ -152,9 +154,10 @@ const VideoPost = ({ post, isInitiallyVisible }: { post: Post; isInitiallyVisibl
                 src={post.media_url}
                 loop
                 playsInline
-                muted={isMuted || isInitiallyVisible} // Mute first video initially
+                muted={isMuted || isInitiallyVisible}
                 className="w-full h-full object-cover"
                 preload="auto"
+                loading="lazy"
             />
              {!isPlaying && (
                 <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-black/50 p-4 rounded-full pointer-events-none">
