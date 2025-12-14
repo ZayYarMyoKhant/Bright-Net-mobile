@@ -56,9 +56,13 @@ export default function UploadMusicPage() {
         return;
       }
       
-      const fileExtension = audioFile.name.split('.').pop() || 'mp3';
+      // --- THE FIX ---
+      // Generate a safe file path that does not depend on the original filename.
+      // Use MIME type to determine a safe extension.
+      const fileExtension = audioFile.type.split('/')[1] || 'mp3';
       const safeFileName = `${user.id}-track-${Date.now()}.${fileExtension}`;
       const filePath = `public/${safeFileName}`;
+      // --- END FIX ---
 
       const { error: uploadError } = await supabase.storage.from('music').upload(filePath, audioFile);
 
