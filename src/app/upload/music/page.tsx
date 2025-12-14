@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useRef, useTransition } from "react";
+import { useState, useRef, useTransition, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,7 +14,7 @@ export default function UploadMusicPage() {
   const [title, setTitle] = useState("");
   const [artist, setArtist] = useState("");
   const [audioFile, setAudioFile] = useState<File | null>(null);
-  const [fileName, setFileName] = useState("");
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -22,11 +22,23 @@ export default function UploadMusicPage() {
   const { toast } = useToast();
   const supabase = createClient();
 
+  useEffect(() => {
+    // Cleanup object URL when component unmounts or file changes
+    return () => {
+      if (previewUrl) {
+        URL.revokeObjectURL(previewUrl);
+      }
+    };
+  }, [previewUrl]);
+
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
       setAudioFile(file);
-      setFileName(file.name);
+      if (previewUrl) {
+        URL.revokeObjectURL(previewUrl);
+      }
+      setPreviewUrl(URL.createObjectURL(file));
     }
   };
 
@@ -48,8 +60,6 @@ export default function UploadMusicPage() {
       const safeFileName = `${user.id}-track-${Date.now()}.${fileExtension}`;
       const filePath = `public/${safeFileName}`;
 
-
-      // Correctly call the upload function with the generated filePath as the first argument
       const { error: uploadError } = await supabase.storage.from('music').upload(filePath, audioFile);
 
       if (uploadError) {
@@ -102,7 +112,16 @@ export default function UploadMusicPage() {
           >
             <UploadCloud className="h-12 w-12 text-muted-foreground" />
             <p className="mt-2 text-sm text-muted-foreground">Click to select an audio file</p>
-            {fileName && <p className="mt-2 text-sm font-semibold text-primary">{fileName}</p>}
+            {audioFile && (
+                <div className="mt-4 w-full">
+                    <p className="text-sm font-semibold text-primary text-center truncate">{audioFile.name}</p>
+                    {previewUrl && (
+                        <audio controls src={previewUrl} className="w-full mt-2">
+                            Your browser does not support the audio element.
+                        </audio>
+                    )}
+                </div>
+            )}
           </div>
 
           <input
