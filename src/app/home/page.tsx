@@ -60,6 +60,7 @@ const AudioPlayer = ({ track }: { track: Track }) => {
         ws.on('finish', () => setIsPlaying(false));
         
         ws.on('error', (err) => {
+            // AbortError is expected on rapid navigation, so we can ignore it.
             if (err.name !== 'AbortError') {
               console.error("Wavesurfer error:", err);
               toast({ variant: "destructive", title: "Audio Error", description: "Could not load the track." });
