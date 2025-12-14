@@ -70,9 +70,18 @@ const AudioPlayer = ({ track }: { track: Track }) => {
         ws.load(track.audio_url);
 
         return () => {
-            // Unsubscribe from all events before destroying
-            ws.unAll();
-            ws.destroy();
+            try {
+                if (ws) {
+                    ws.unAll();
+                    ws.destroy();
+                }
+            } catch (e) {
+                // This can happen if the component unmounts while wavesurfer is still initializing.
+                // We can safely ignore this error.
+                if (!(e instanceof DOMException && e.name === 'AbortError')) {
+                     console.error("Error destroying wavesurfer:", e);
+                }
+            }
         };
     }, [track.audio_url, toast]);
 
