@@ -10,7 +10,7 @@ import { VideoFeed } from '@/components/video-feed';
 import { createClient } from '@/lib/supabase/client';
 import type { Post, Profile } from '@/lib/data';
 import { useToast } from '@/hooks/use-toast';
-import { useSearchParams, useRouter } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Avatar } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
