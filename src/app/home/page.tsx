@@ -60,7 +60,6 @@ const AudioPlayer = ({ track }: { track: Track }) => {
         ws.on('finish', () => setIsPlaying(false));
         
         ws.on('error', (err) => {
-            // AbortError is expected on rapid navigation, so we can ignore it.
             if (err.name !== 'AbortError') {
               console.error("Wavesurfer error:", err);
               toast({ variant: "destructive", title: "Audio Error", description: "Could not load the track." });
@@ -71,16 +70,18 @@ const AudioPlayer = ({ track }: { track: Track }) => {
         ws.load(track.audio_url);
 
         return () => {
-            try {
-                // This is the most robust way to clean up in React 18 Strict Mode
-                // Unsubscribe from all events before destroying
-                ws.unAll();
-                ws.destroy();
-            } catch (e) {
-                // This can happen if the component unmounts while wavesurfer is still initializing.
-                // We can safely ignore this error.
-                if (!(e instanceof DOMException && e.name === 'AbortError')) {
-                     console.error("Error destroying wavesurfer:", e);
+            if (ws) {
+                try {
+                    // Unsubscribe from all events before destroying
+                    ws.unAll();
+                    ws.destroy();
+                } catch (e) {
+                    if (e instanceof Error && e.name === 'AbortError') {
+                        // This is an expected error during cleanup in React 18 Strict Mode, so we can ignore it.
+                    } else {
+                        // For any other unexpected errors, we might want to see them.
+                        console.error("Error destroying wavesurfer:", e);
+                    }
                 }
             }
         };
