@@ -51,8 +51,6 @@ const AudioPlayer = ({ track }: { track: Track }) => {
 
         wavesurferRef.current = ws;
 
-        ws.load(track.audio_url);
-        
         ws.on('ready', () => {
             setIsLoading(false);
         });
@@ -67,12 +65,16 @@ const AudioPlayer = ({ track }: { track: Track }) => {
             setIsLoading(false);
         });
 
+        ws.load(track.audio_url);
+
         return () => {
-            // Check if the instance is still valid before destroying
-            if (wavesurferRef.current) {
-                wavesurferRef.current.destroy();
-                wavesurferRef.current = null;
-            }
+            // Unsubscribe from all events before destroying
+            ws.un('ready');
+            ws.un('play');
+            ws.un('pause');
+            ws.un('finish');
+            ws.un('error');
+            ws.destroy();
         };
     }, [track.audio_url, toast]);
 
