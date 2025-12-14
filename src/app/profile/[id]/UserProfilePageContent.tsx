@@ -73,6 +73,22 @@ export default function UserProfilePageContent({ initialData, params }: { initia
       });
   }, [supabase]);
 
+  // Track profile view
+  useEffect(() => {
+    if (profile && currentUser && !isOwnProfile) {
+        const trackView = async () => {
+            // Upsert ensures we only record one view per user, updating the timestamp
+            await supabase.from('profile_views').upsert({
+                profile_id: profile.id,
+                viewer_id: currentUser.id,
+                viewed_at: new Date().toISOString()
+            }, { onConflict: 'profile_id, viewer_id' });
+        };
+        trackView();
+    }
+  }, [profile, currentUser, isOwnProfile, supabase]);
+
+
   useEffect(() => {
      if (!profile?.id) return;
      const channel = supabase.channel(`profile-${profile?.id}`)

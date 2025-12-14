@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Grid3x3, Settings, UserPlus, Clapperboard, Loader2, CameraOff } from "lucide-react";
+import { Grid3x3, Settings, UserPlus, Clapperboard, Loader2, CameraOff, Eye } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { BottomNav } from '@/components/bottom-nav';
@@ -142,12 +142,20 @@ export default function ProfilePage() {
             )}
           </Link>
           <h1 className="font-bold">{user.username}</h1>
-          <Link href="/profile/settings">
-            <Button variant="ghost" size="icon">
-              <Settings className="h-5 w-5" />
-              <span className="sr-only">Settings</span>
-            </Button>
-          </Link>
+          <div className="flex items-center">
+            <Link href="/profile/viewers">
+              <Button variant="ghost" size="icon">
+                <Eye className="h-5 w-5" />
+                <span className="sr-only">Profile Viewers</span>
+              </Button>
+            </Link>
+            <Link href="/profile/settings">
+              <Button variant="ghost" size="icon">
+                <Settings className="h-5 w-5" />
+                <span className="sr-only">Settings</span>
+              </Button>
+            </Link>
+          </div>
         </header>
 
         <main className="flex-1 overflow-y-auto p-4">
