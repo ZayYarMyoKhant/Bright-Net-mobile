@@ -60,8 +60,10 @@ const AudioPlayer = ({ track }: { track: Track }) => {
         ws.on('finish', () => setIsPlaying(false));
         
         ws.on('error', (err) => {
-            console.error("Wavesurfer error:", err);
-            toast({ variant: "destructive", title: "Audio Error", description: "Could not load the track." });
+            if (err.name !== 'AbortError') {
+              console.error("Wavesurfer error:", err);
+              toast({ variant: "destructive", title: "Audio Error", description: "Could not load the track." });
+            }
             setIsLoading(false);
         });
 
