@@ -21,7 +21,7 @@ export type Comment = {
 };
 
 export type Post = {
-  id: string; 
+  id: number; 
   user: Profile;
   media_url: string;
   media_type: 'image' | 'video';
