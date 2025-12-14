@@ -3,14 +3,15 @@
 
 import { Suspense, useEffect, useState, useCallback } from 'react';
 import { BottomNav } from "@/components/bottom-nav";
-import { Loader2 } from "lucide-react";
+import { Loader2, Headphones } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PostFeed } from '@/components/post-feed';
 import { VideoFeed } from '@/components/video-feed';
 import { createClient } from '@/lib/supabase/client';
 import type { Post } from '@/lib/data';
 import { useToast } from '@/hooks/use-toast';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
+import Link from 'next/link';
 
 function FeedFallback() {
   return (
@@ -26,13 +27,13 @@ function HomePageContent() {
   const [loading, setLoading] = useState(true);
   const supabase = createClient();
   const { toast } = useToast();
+  const router = useRouter();
 
   const fetchPosts = useCallback(async () => {
     setLoading(true);
 
     const { data: { user: currentUser } } = await supabase.auth.getUser();
 
-    // Get the timestamp of the last viewed post
     const lastViewedTimestamp = localStorage.getItem('lastViewedPostTimestamp');
 
     let query = supabase
@@ -40,9 +41,6 @@ function HomePageContent() {
       .select('*, profiles!posts_user_id_fkey(*), likes:post_likes(count), comments:post_comments(count)')
       .order('created_at', { ascending: false });
 
-    // If we have a last viewed timestamp, fetch posts created after it.
-    // This is a simple implementation. A more robust solution might involve pagination
-    // and storing seen post IDs.
     if (lastViewedTimestamp) {
       query = query.gt('created_at', lastViewedTimestamp);
     }
@@ -58,7 +56,6 @@ function HomePageContent() {
     } 
     
     if (!posts || posts.length === 0) {
-        // If no new posts, fetch the most recent 10 posts as a fallback
         const { data: fallbackPosts, error: fallbackError } = await supabase
             .from('posts')
             .select('*, profiles!posts_user_id_fkey(*), likes:post_likes(count), comments:post_comments(count)')
@@ -76,7 +73,6 @@ function HomePageContent() {
     
     processAndSetPosts(posts, currentUser);
     
-    // Store the timestamp of the newest post from this batch
     if (posts.length > 0) {
         localStorage.setItem('lastViewedPostTimestamp', posts[0].created_at);
     }
@@ -119,8 +115,12 @@ function HomePageContent() {
       <Tabs defaultValue="news" className="w-full">
         <div className="flex h-dvh flex-col bg-background text-foreground pb-16">
           <header className="fixed top-0 left-0 right-0 z-10 flex h-16 flex-shrink-0 items-center justify-center bg-background/80 px-4 text-center backdrop-blur-sm">
-              <TabsList className="grid w-full grid-cols-2">
+              <TabsList className="grid w-full grid-cols-3">
                   <TabsTrigger value="news">News</TabsTrigger>
+                  <TabsTrigger value="relax" onClick={() => router.push('/relax')}>
+                      <Headphones className="h-5 w-5 mr-1.5"/>
+                      Relax
+                  </TabsTrigger>
                   <TabsTrigger value="lite">Lite</TabsTrigger>
               </TabsList>
           </header>
