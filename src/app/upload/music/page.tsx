@@ -25,7 +25,6 @@ export default function UploadMusicPage() {
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
-      // Allow any file selected by the user, removing the strict "audio/" check
       setAudioFile(file);
       setFileName(file.name);
     }
@@ -46,18 +45,18 @@ export default function UploadMusicPage() {
       }
       
       const fileExtension = audioFile.name.split('.').pop() || 'mp3';
-      // Create a secure and valid file path using a timestamp to avoid naming conflicts and invalid characters.
       const safeFileName = `${user.id}-track-${Date.now()}.${fileExtension}`;
       const filePath = `public/${safeFileName}`;
 
 
+      // Correctly call the upload function with the generated filePath as the first argument
       const { error: uploadError } = await supabase.storage.from('music').upload(filePath, audioFile);
 
       if (uploadError) {
         toast({ 
           variant: "destructive", 
           title: "Audio upload failed", 
-          description: `Error: ${uploadError.message}` // Show specific Supabase error
+          description: `Error: ${uploadError.message}`
         });
         return;
       }
@@ -74,7 +73,7 @@ export default function UploadMusicPage() {
         toast({ 
             variant: "destructive", 
             title: "Failed to create track", 
-            description: `Database Error: ${insertError.message}` // Show specific DB error
+            description: `Database Error: ${insertError.message}`
         });
         return;
       }
