@@ -46,13 +46,19 @@ export default function UploadMusicPage() {
       }
       
       const fileExtension = audioFile.name.split('.').pop() || 'mp3';
-      // Use a secure, timestamp-based name to avoid invalid characters from original filename
-      const filePath = `${user.id}-track-${Date.now()}.${fileExtension}`;
+      // Create a secure and valid file path using a timestamp to avoid naming conflicts and invalid characters.
+      const safeFileName = `${user.id}-track-${Date.now()}.${fileExtension}`;
+      const filePath = `public/${safeFileName}`;
+
 
       const { error: uploadError } = await supabase.storage.from('music').upload(filePath, audioFile);
 
       if (uploadError) {
-        toast({ variant: "destructive", title: "Audio upload failed", description: uploadError.message });
+        toast({ 
+          variant: "destructive", 
+          title: "Audio upload failed", 
+          description: `Error: ${uploadError.message}` // Show specific Supabase error
+        });
         return;
       }
       const { data: { publicUrl } } = supabase.storage.from('music').getPublicUrl(filePath);
@@ -65,7 +71,11 @@ export default function UploadMusicPage() {
       });
 
       if (insertError) {
-        toast({ variant: "destructive", title: "Failed to create track", description: insertError.message });
+        toast({ 
+            variant: "destructive", 
+            title: "Failed to create track", 
+            description: `Database Error: ${insertError.message}` // Show specific DB error
+        });
         return;
       }
 
