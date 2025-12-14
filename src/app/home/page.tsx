@@ -69,11 +69,7 @@ const AudioPlayer = ({ track }: { track: Track }) => {
 
         return () => {
             // Unsubscribe from all events before destroying
-            ws.un('ready');
-            ws.un('play');
-            ws.un('pause');
-            ws.un('finish');
-            ws.un('error');
+            ws.unAll();
             ws.destroy();
         };
     }, [track.audio_url, toast]);
