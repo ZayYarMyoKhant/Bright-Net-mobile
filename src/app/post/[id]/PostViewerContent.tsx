@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Loader2, Heart, MessageCircle, Send, MoreVertical, Trash2, AlertTriangle } from "lucide-react";
+import { ArrowLeft, Loader2, Heart, MessageCircle, Send, MoreVertical, Trash2, AlertTriangle, ChevronDown } from "lucide-react";
 import { Avatar } from "@/components/ui/avatar";
 import { Card, CardHeader, CardContent, CardFooter } from "@/components/ui/card";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -14,7 +14,7 @@ import { CommentSheet } from "@/components/comment-sheet";
 import { ShareSheet } from "@/components/share-sheet";
 import { createClient } from "@/lib/supabase/client";
 import { User } from "@supabase/supabase-js";
-import { Post } from "@/lib/data";
+import { Post, Profile } from "@/lib/data";
 import { formatDistanceToNow } from 'date-fns';
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
@@ -22,18 +22,38 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
+type ViewerProfile = Pick<Profile, 'id' | 'avatar_url'>;
 
-export default function PostViewerContent({ post: initialPost, error: initialError, currentUser }: { post: Post | null, error: string | null, currentUser: User | null }) {
+type PostWithViewers = Post & {
+  viewer_profiles: ViewerProfile[] | null;
+};
+
+
+export default function PostViewerContent({ post: initialPost, error: initialError, currentUser }: { post: PostWithViewers | null, error: string | null, currentUser: User | null }) {
   const router = useRouter();
   const { toast } = useToast();
   const supabase = createClient();
 
-  const [post, setPost] = useState<Post | null>(initialPost);
+  const [post, setPost] = useState<PostWithViewers | null>(initialPost);
   const [error, setError] = useState<string | null>(initialError);
   const [isLiked, setIsLiked] = useState(initialPost?.isLiked ?? false);
   const [likesCount, setLikesCount] = useState(initialPost?.likes ?? 0);
   const [commentsCount, setCommentsCount] = useState(initialPost?.comments ?? 0);
   const isOwner = currentUser?.id === post?.user.id;
+
+  // Track post view
+   useEffect(() => {
+    if (post && currentUser && currentUser.id !== post.user.id) {
+      const trackView = async () => {
+        await supabase.from('post_views').insert({
+          post_id: post.id,
+          user_id: currentUser.id
+        }, { onConflict: 'post_id, user_id' });
+      };
+      trackView();
+    }
+  }, [post, currentUser, supabase]);
+
 
   const handleLike = async () => {
     if (!currentUser || !post) {
@@ -117,6 +137,7 @@ export default function PostViewerContent({ post: initialPost, error: initialErr
   }
 
   const timeAgo = formatDistanceToNow(new Date(post.created_at), { addSuffix: true });
+  const viewerProfiles = post.viewer_profiles || [];
 
   return (
     <div className="flex h-dvh w-full items-center justify-center bg-black">
@@ -189,6 +210,18 @@ export default function PostViewerContent({ post: initialPost, error: initialErr
 
         <div className="p-4 border-t">
           <p className="text-sm">{post.caption}</p>
+           {isOwner && post.views > 0 && (
+            <div className="mt-3 flex items-center gap-2 text-sm text-muted-foreground cursor-pointer hover:underline">
+              <div className="flex -space-x-2">
+                {viewerProfiles.map((viewer, index) => (
+                    <Avatar key={viewer.id || index} className="h-5 w-5 border-2 border-background" profile={viewer}/>
+                ))}
+              </div>
+              <span className="font-semibold text-foreground">{post.views}</span>
+              <span>viewers</span>
+              <ChevronDown className="h-4 w-4" />
+            </div>
+           )}
         </div>
 
         <CardFooter className="p-2 flex justify-between border-t">

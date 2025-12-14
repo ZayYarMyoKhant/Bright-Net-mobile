@@ -5,7 +5,13 @@ import { Loader2 } from "lucide-react";
 import PostViewerContent from "./PostViewerContent";
 import { createClient } from "@/lib/supabase/server";
 import { cookies } from "next/headers";
-import type { Post } from "@/lib/data";
+import type { Post, Profile } from "@/lib/data";
+
+type ViewerProfile = Pick<Profile, 'id' | 'avatar_url'>;
+
+type PostWithViewers = Post & {
+  viewer_profiles: ViewerProfile[] | null;
+};
 
 // This is the Server Page component that handles the route.
 export default async function FullScreenPostPage({ params }: { params: { id: string } }) {
@@ -19,18 +25,27 @@ export default async function FullScreenPostPage({ params }: { params: { id: str
     .eq('id', params.id)
     .single();
 
-  let post: Post | null = null;
+  let post: PostWithViewers | null = null;
   let pageError: string | null = null;
 
   if (error || !postData) {
     pageError = error?.message || "Post not found";
   } else {
-    const { data: userLike } = user ? await supabase
+    
+    // Fetch like status and viewer info in parallel
+    const likePromise = user ? supabase
       .from('post_likes')
       .select('post_id')
       .eq('user_id', user.id)
       .eq('post_id', postData.id)
-      .single() : { data: null };
+      .single() : Promise.resolve({ data: null });
+
+    const viewerPromise = supabase.rpc('get_post_viewers', {
+        p_post_id: postData.id,
+        p_post_owner_id: postData.user_id,
+      }).single();
+      
+    const [likeRes, viewerRes] = await Promise.all([likePromise, viewerPromise]);
 
     post = {
       id: postData.id,
@@ -44,7 +59,9 @@ export default async function FullScreenPostPage({ params }: { params: { id: str
       likes: postData.likes[0]?.count || 0,
       // @ts-ignore
       comments: postData.comments[0]?.count || 0,
-      isLiked: !!userLike,
+      isLiked: !!likeRes.data,
+      views: viewerRes.data?.total_views || 0,
+      viewer_profiles: viewerRes.data?.viewer_profiles || []
     };
   }
   

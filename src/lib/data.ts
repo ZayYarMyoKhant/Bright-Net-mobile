@@ -1,4 +1,5 @@
 
+
 export type Profile = {
   id: string;
   username: string;
@@ -28,11 +29,8 @@ export type Post = {
   created_at: string;
   likes: number;
   comments: number;
+  views: number;
   isLiked?: boolean;
-};
-
-export type PostWithViews = Post & {
-    views: number;
 };
 
 export type TypingBattle = {
