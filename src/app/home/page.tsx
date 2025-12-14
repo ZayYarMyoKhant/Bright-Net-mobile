@@ -70,18 +70,16 @@ const AudioPlayer = ({ track }: { track: Track }) => {
         ws.load(track.audio_url);
 
         return () => {
-            if (ws) {
-                try {
-                    // Unsubscribe from all events before destroying
-                    ws.unAll();
-                    ws.destroy();
-                } catch (e) {
-                    if (e instanceof Error && e.name === 'AbortError') {
-                        // This is an expected error during cleanup in React 18 Strict Mode, so we can ignore it.
-                    } else {
-                        // For any other unexpected errors, we might want to see them.
-                        console.error("Error destroying wavesurfer:", e);
-                    }
+            try {
+                // Unsubscribe from all events before destroying
+                ws.unAll();
+                ws.destroy();
+            } catch (e) {
+                if (e instanceof Error && e.name === 'AbortError') {
+                    // This is an expected error during cleanup in React 18 Strict Mode, so we can ignore it.
+                } else {
+                    // For any other unexpected errors, we might want to see them.
+                    console.error("Error destroying wavesurfer:", e);
                 }
             }
         };
