@@ -12,6 +12,7 @@ import { useRouter } from 'next/navigation';
 import WaveSurfer from 'wavesurfer.js';
 import { Profile } from '@/lib/data';
 import { useToast } from '@/hooks/use-toast';
+import { cn } from '@/lib/utils';
 
 type Track = {
   id: number;
@@ -38,14 +39,17 @@ const AudioPlayer = ({ track }: { track: Track }) => {
             container: waveformRef.current,
             waveColor: 'hsl(var(--muted-foreground))',
             progressColor: 'hsl(var(--primary))',
-            url: track.audio_url,
-            barWidth: 2,
-            barGap: 1,
-            barRadius: 2,
-            height: 64,
+            barWidth: 3,
+            barGap: 2,
+            barRadius: 3,
+            height: 48,
+            cursorWidth: 0,
         });
 
         wavesurferRef.current = ws;
+
+        // More reliable loading method
+        ws.load(track.audio_url);
         
         ws.on('ready', () => {
             setIsLoading(false);
@@ -54,11 +58,18 @@ const AudioPlayer = ({ track }: { track: Track }) => {
         ws.on('play', () => setIsPlaying(true));
         ws.on('pause', () => setIsPlaying(false));
         ws.on('finish', () => setIsPlaying(false));
+        
+        ws.on('error', (err) => {
+            console.error("Wavesurfer error:", err);
+            toast({ variant: "destructive", title: "Audio Error", description: "Could not load the track." });
+            setIsLoading(false);
+        });
+
 
         return () => {
             ws.destroy();
         };
-    }, [track.audio_url]);
+    }, [track.audio_url, toast]);
 
     const handlePlayPause = () => {
         if (wavesurferRef.current) {
@@ -87,36 +98,24 @@ const AudioPlayer = ({ track }: { track: Track }) => {
     };
 
     return (
-        <Card className="overflow-hidden">
-            <CardContent className="p-4 flex items-center gap-4">
-                <div className="flex-1 space-y-2">
-                    <div className="flex items-center gap-3">
-                         <Avatar className="h-10 w-10" profile={track.profiles}/>
-                         <div>
-                            <p className="font-bold truncate">{track.title}</p>
-                            <p className="text-sm text-muted-foreground">{track.artist_name || track.profiles.username}</p>
-                         </div>
+        <Card className="overflow-hidden bg-muted/50 border-border">
+            <CardContent className="p-3 flex items-center gap-4">
+                <Avatar className="h-12 w-12" profile={track.profiles}/>
+                <div className="flex-1 space-y-1">
+                    <div>
+                        <p className="font-bold truncate text-sm">{track.title}</p>
+                        <p className="text-xs text-muted-foreground">{track.artist_name || track.profiles.username}</p>
                     </div>
-                    
-                    <div className="relative">
-                        {isLoading && (
-                            <div className="absolute inset-0 flex items-center justify-center bg-background/50">
-                                <Loader2 className="h-6 w-6 animate-spin" />
-                            </div>
-                        )}
-                        <div ref={waveformRef} className="w-full h-16" />
-                    </div>
-
-                    <div className="flex items-center justify-between">
-                         <Button variant="ghost" size="icon" onClick={handlePlayPause} disabled={isLoading}>
-                            {isPlaying ? <Pause className="h-6 w-6" /> : <Play className="h-6 w-6" />}
+                    <div className="relative flex items-center gap-3">
+                         <Button variant="ghost" size="icon" onClick={handlePlayPause} disabled={isLoading} className="h-8 w-8">
+                            {isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : isPlaying ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5" />}
                         </Button>
-                        <Button variant="outline" size="sm" onClick={handleDownload}>
-                            <Download className="mr-2 h-4 w-4" />
-                            Download
-                        </Button>
+                        <div ref={waveformRef} className="w-full" />
                     </div>
                 </div>
+                <Button variant="ghost" size="icon" onClick={handleDownload}>
+                    <Download className="h-5 w-5 text-muted-foreground" />
+                </Button>
             </CardContent>
         </Card>
     );
