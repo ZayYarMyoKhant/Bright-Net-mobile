@@ -16,6 +16,7 @@ import { Avatar } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import WaveSurfer from 'wavesurfer.js';
+import { AdBanner } from '@/components/ad-banner';
 
 type Track = {
   id: number;
@@ -68,23 +69,10 @@ const AudioPlayer = ({ track }: { track: Track }) => {
         ws.load(track.audio_url);
 
         return () => {
-            const currentWs = wavesurferRef.current;
-            if (currentWs) {
-                // Unsubscribe from all events to prevent memory leaks
-                if (typeof currentWs.unAll === 'function') {
-                    currentWs.unAll();
-                }
-                // Destroy with specific error handling for AbortError
-                try {
-                    currentWs.destroy();
-                } catch (e) {
-                    if (e instanceof Error && e.name === 'AbortError') {
-                        // This is an expected error during cleanup in React 18 Strict Mode, so we can safely ignore it.
-                    } else {
-                        // For any other unexpected errors, we should see them.
-                        console.error("Error destroying wavesurfer:", e);
-                    }
-                }
+            // This cleanup function makes the destroy call idempotent and respects React Strict Mode.
+            if (wavesurferRef.current) {
+                wavesurferRef.current.unAll();
+                wavesurferRef.current.destroy();
                 wavesurferRef.current = null;
             }
         };
