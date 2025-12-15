@@ -25,16 +25,19 @@ export function PostFeed({ posts, loading }: { posts: Post[], loading: boolean }
     )
   }
 
+  const itemsWithAds = [];
+  for (let i = 0; i < posts.length; i++) {
+    itemsWithAds.push(<PostCard key={posts[i].id} post={posts[i]} />);
+    // Insert a Native Ad after every 3 posts
+    if ((i + 1) % 3 === 0) {
+      itemsWithAds.push(<NativeAd key={`ad-${i}`} />);
+    }
+  }
+
 
   return (
     <div className="w-full max-w-lg mx-auto py-4 space-y-4">
-      {posts.map((post, index) => (
-        <React.Fragment key={post.id}>
-          <PostCard post={post} />
-          {/* Insert a Native Ad every 3 posts */}
-          {(index + 1) % 3 === 0 && <NativeAd />}
-        </React.Fragment>
-      ))}
+      {itemsWithAds}
     </div>
   );
 }

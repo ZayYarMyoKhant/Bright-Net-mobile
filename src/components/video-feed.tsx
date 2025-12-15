@@ -248,7 +248,7 @@ export function VideoFeed({ posts, loading }: { posts: Post[], loading: boolean 
 
 
     return (
-        <div className="relative h-[calc(100dvh-8rem)] w-full snap-y snap-mandatory overflow-y-scroll bg-black">
+        <div className="relative h-[calc(100dvh-8rem)] w-full snap-y snap-mandatory overflow-y-scroll scroll-smooth bg-black">
             {items}
         </div>
     );

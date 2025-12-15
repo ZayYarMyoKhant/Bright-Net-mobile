@@ -60,7 +60,7 @@ const AudioPlayer = ({ track }: { track: Track }) => {
         ws.on('finish', () => setIsPlaying(false));
         
         ws.on('error', (err) => {
-            if (err.name !== 'AbortError') {
+            if (!(err instanceof Error && err.name === 'AbortError')) {
               console.error("Wavesurfer error:", err);
               toast({ variant: "destructive", title: "Audio Error", description: "Could not load the track." });
             }
@@ -70,8 +70,8 @@ const AudioPlayer = ({ track }: { track: Track }) => {
         ws.load(track.audio_url);
 
         return () => {
-            if (wavesurferRef.current) {
-                const currentWs = wavesurferRef.current;
+            const currentWs = wavesurferRef.current;
+            if (currentWs) {
                 // Unsubscribe from all events before destroying
                 if (typeof currentWs.unAll === 'function') {
                     currentWs.unAll();
