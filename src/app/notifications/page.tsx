@@ -21,7 +21,7 @@ type Notification = {
   recipient_id: string;
   type: 'new_comment' | 'new_follower';
   is_read: boolean;
-  target_id: string; // Can be comment_id etc. (remains for other notification types)
+  target_id: string | null; // Can be comment_id etc. (remains for other notification types)
   target_post_id: number | null; // For comments on posts
   created_at: string;
   actor: Profile;
@@ -226,7 +226,7 @@ export default function NotificationsPage() {
         </main>
         </div>
          <SheetContent side="bottom" className="h-[75dvh] flex flex-col p-0">
-            {postForCommentSheet && <CommentSheet post={postForCommentSheet} currentUser={currentUser} />}
+            {postForCommentSheet && currentUser && <CommentSheet post={postForCommentSheet} currentUser={currentUser} />}
         </SheetContent>
     </Sheet>
   );
