@@ -21,8 +21,7 @@ type Notification = {
   recipient_id: string;
   type: 'new_comment' | 'new_follower';
   is_read: boolean;
-  target_id: string | null; // For follower notifications etc.
-  target_post_id: number | null; // For comments on posts
+  target_id: string | null; // For follower notifications, this is the user ID. For comments, this will be the post ID as a string.
   created_at: string;
   actor: Profile;
 };
@@ -95,16 +94,22 @@ export default function NotificationsPage() {
   }, [currentUser, supabase, fetchNotifications]);
   
   const handleNotificationClick = async (notification: Notification) => {
-     if (notification.type === 'new_comment' && notification.target_post_id) {
+     if (notification.type === 'new_comment' && notification.target_id) {
+        const postId = parseInt(notification.target_id, 10);
+        if (isNaN(postId)) {
+             console.error("Invalid post ID in notification:", notification.target_id);
+             return;
+        }
+
         const { data: postData, error } = await supabase
             .from('posts')
             .select('*, profiles!posts_user_id_fkey(*), likes:post_likes(count), comments:post_comments(count)')
-            .eq('id', notification.target_post_id)
+            .eq('id', postId)
             .single();
 
         if (error || !postData) {
             console.error("Post for comment not found");
-            router.push(`/post/${notification.target_post_id}`);
+            router.push(`/post/${postId}`);
             return;
         }
         
