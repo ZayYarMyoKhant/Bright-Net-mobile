@@ -21,8 +21,8 @@ type Notification = {
   recipient_id: string;
   type: 'new_comment' | 'new_follower';
   is_read: boolean;
-  target_id: string; // Can be post_id, comment_id, etc.
-  target_parent_id: string | null; // e.g., post_id for a comment
+  target_id: string; // Can be comment_id etc. (remains for other notification types)
+  target_post_id: number | null; // For comments on posts
   created_at: string;
   actor: Profile;
 };
@@ -95,16 +95,16 @@ export default function NotificationsPage() {
   }, [currentUser, supabase, fetchNotifications]);
   
   const handleNotificationClick = async (notification: Notification) => {
-     if (notification.type === 'new_comment' && notification.target_parent_id) {
+     if (notification.type === 'new_comment' && notification.target_post_id) {
         const { data: postData, error } = await supabase
             .from('posts')
             .select('*, profiles!posts_user_id_fkey(*), likes:post_likes(count), comments:post_comments(count)')
-            .eq('id', notification.target_parent_id)
+            .eq('id', notification.target_post_id)
             .single();
 
         if (error || !postData) {
             console.error("Post for comment not found");
-            router.push(`/post/${notification.target_parent_id}`);
+            router.push(`/post/${notification.target_post_id}`);
             return;
         }
         
