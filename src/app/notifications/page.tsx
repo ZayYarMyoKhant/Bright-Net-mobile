@@ -21,7 +21,8 @@ type Notification = {
   recipient_id: string;
   type: 'new_comment' | 'new_follower';
   is_read: boolean;
-  target_id: string | null; // For follower notifications, this is the user ID. For comments, this will be the post ID as a string.
+  target_id: string | null;
+  target_post_id: number | null; // Use this for post-related notifications
   created_at: string;
   actor: Profile;
 };
@@ -94,13 +95,9 @@ export default function NotificationsPage() {
   }, [currentUser, supabase, fetchNotifications]);
   
   const handleNotificationClick = async (notification: Notification) => {
-     if (notification.type === 'new_comment' && notification.target_id) {
-        const postId = parseInt(notification.target_id, 10);
-        if (isNaN(postId)) {
-             console.error("Invalid post ID in notification:", notification.target_id);
-             return;
-        }
-
+     if (notification.type === 'new_comment' && notification.target_post_id) {
+        const postId = notification.target_post_id;
+        
         const { data: postData, error } = await supabase
             .from('posts')
             .select('*, profiles!posts_user_id_fkey(*), likes:post_likes(count), comments:post_comments(count)')
