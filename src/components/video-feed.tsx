@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { VideoDescription } from '@/components/video-description';
 import { Avatar } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -23,7 +23,7 @@ import { Card } from './ui/card';
 
 const AdPost = () => {
     return (
-        <div className="relative h-full w-full snap-start flex-shrink-0 bg-black flex flex-col items-center justify-center p-4">
+        <div className="relative h-full w-full flex-shrink-0 bg-black flex flex-col items-center justify-center p-4">
              <Card className="w-full max-w-md bg-muted/20 border-muted/30 text-white">
                 <div className="p-4 flex items-center gap-3">
                     <Info className="h-5 w-5 text-blue-400" />
@@ -35,12 +35,11 @@ const AdPost = () => {
     )
 }
 
-const VideoPost = ({ post, isInitiallyVisible }: { post: Post; isInitiallyVisible: boolean }) => {
+const VideoPost = ({ post, isActive }: { post: Post; isActive: boolean }) => {
     const [isLiked, setIsLiked] = useState(post.isLiked);
     const [likesCount, setLikesCount] = useState(post.likes);
-    const [commentsCount, setCommentsCount] = useState(post.comments);
-    const [isMuted, setIsMuted] = useState(!isInitiallyVisible);
-    const [isPlaying, setIsPlaying] = useState(isInitiallyVisible);
+    const [isMuted, setIsMuted] = useState(true);
+    const [isPlaying, setIsPlaying] = useState(false);
     const videoRef = useRef<HTMLVideoElement>(null);
     const [currentUser, setCurrentUser] = useState<User | null>(null);
     const { toast } = useToast();
@@ -52,50 +51,24 @@ const VideoPost = ({ post, isInitiallyVisible }: { post: Post; isInitiallyVisibl
         });
     }, [supabase.auth]);
 
-     useEffect(() => {
+    useEffect(() => {
         const video = videoRef.current;
         if (!video) return;
 
-        const options = {
-            root: null,
-            rootMargin: '0px',
-            threshold: 0.8
-        };
-
-        const callback = (entries: IntersectionObserverEntry[]) => {
-            entries.forEach(entry => {
-                if (entry.isIntersecting) {
-                    setIsPlaying(true);
-                    const playPromise = (entry.target as HTMLVideoElement).play();
-                    if (playPromise !== undefined) {
-                        playPromise.catch(e => {
-                            if (e.name !== 'AbortError') {
-                                console.error("Autoplay failed", e);
-                                // Show play button if autoplay fails
-                                setIsPlaying(false);
-                            }
-                        });
-                    }
-                    if (!isInitiallyVisible) {
-                        (entry.target as HTMLVideoElement).muted = false;
-                        setIsMuted(false);
-                    }
-                } else {
-                    (entry.target as HTMLVideoElement).pause();
+        if (isActive) {
+            video.play().then(() => {
+                setIsPlaying(true);
+            }).catch(e => {
+                if (e.name !== 'AbortError') {
                     setIsPlaying(false);
                 }
             });
-        };
-
-        const observer = new IntersectionObserver(callback, options);
-        observer.observe(video);
-
-        return () => {
-            if (video) {
-              observer.unobserve(video);
-            }
-        };
-    }, [isInitiallyVisible]);
+        } else {
+            video.pause();
+            video.currentTime = 0;
+            setIsPlaying(false);
+        }
+    }, [isActive]);
     
     const handleVideoClick = () => {
         if (!videoRef.current) return;
@@ -140,7 +113,7 @@ const VideoPost = ({ post, isInitiallyVisible }: { post: Post; isInitiallyVisibl
     const toggleMute = (e: React.MouseEvent) => {
         e.stopPropagation();
         if (videoRef.current) {
-            const newMutedState = !videoRef.current.muted;
+            const newMutedState = !isMuted;
             videoRef.current.muted = newMutedState;
             setIsMuted(newMutedState);
         }
@@ -148,18 +121,18 @@ const VideoPost = ({ post, isInitiallyVisible }: { post: Post; isInitiallyVisibl
 
 
     return (
-        <div key={post.id} className="relative h-full w-full snap-start flex-shrink-0" id={`post-${post.id}`} onClick={handleVideoClick}>
+        <div className="relative h-full w-full flex-shrink-0" id={`post-${post.id}`} onClick={handleVideoClick}>
             <video
                 ref={videoRef}
                 src={post.media_url}
                 loop
                 playsInline
-                muted={isMuted || isInitiallyVisible}
+                muted={isMuted}
                 className="w-full h-full object-cover"
                 preload="auto"
                 loading="lazy"
             />
-             {!isPlaying && (
+             {!isPlaying && isActive && (
                 <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-black/50 p-4 rounded-full pointer-events-none">
                     <Play className="h-12 w-12 text-white" />
                 </div>
@@ -198,7 +171,7 @@ const VideoPost = ({ post, isInitiallyVisible }: { post: Post; isInitiallyVisibl
                             <CommentSheet post={post} currentUser={currentUser}/>
                         </SheetContent>
                     </Sheet>
-                    <span className="text-sm font-semibold shadow-black [text-shadow:0_1px_2px_var(--tw-shadow-color)]">{commentsCount}</span>
+                    <span className="text-sm font-semibold shadow-black [text-shadow:0_1px_2px_var(--tw-shadow-color)]">{post.comments}</span>
                 </div>
                  <div className="flex flex-col items-center gap-1 text-white">
                     <Sheet>
@@ -219,6 +192,54 @@ const VideoPost = ({ post, isInitiallyVisible }: { post: Post; isInitiallyVisibl
 }
 
 export function VideoFeed({ posts, loading }: { posts: Post[], loading: boolean }) {
+    const [currentIndex, setCurrentIndex] = useState(0);
+    const [isScrolling, setIsScrolling] = useState(false);
+    const touchStartY = useRef(0);
+
+    const items = [];
+    for (let i = 0; i < posts.length; i++) {
+        items.push({ type: 'post', component: <VideoPost key={posts[i].id} post={posts[i]} isActive={false} /> }); // isActive will be handled later
+        if ((i + 1) % 3 === 0 && i < posts.length - 1) {
+            items.push({ type: 'ad', component: <AdPost key={`ad-${i}`} /> });
+        }
+    }
+
+    const handleWheel = (e: React.WheelEvent) => {
+        if (isScrolling) return;
+
+        setIsScrolling(true);
+        if (e.deltaY > 0) {
+            // Scrolling down
+            setCurrentIndex(prev => Math.min(prev + 1, items.length - 1));
+        } else if (e.deltaY < 0) {
+            // Scrolling up
+            setCurrentIndex(prev => Math.max(0, prev - 1));
+        }
+        setTimeout(() => setIsScrolling(false), 500); // Debounce
+    };
+
+    const handleTouchStart = (e: React.TouchEvent) => {
+        touchStartY.current = e.touches[0].clientY;
+    };
+
+    const handleTouchEnd = (e: React.TouchEvent) => {
+        if (isScrolling) return;
+
+        const touchEndY = e.changedTouches[0].clientY;
+        const deltaY = touchStartY.current - touchEndY;
+
+        if (Math.abs(deltaY) > 50) { // Threshold to detect swipe
+            setIsScrolling(true);
+            if (deltaY > 0) {
+                // Swiping up
+                setCurrentIndex(prev => Math.min(prev + 1, items.length - 1));
+            } else {
+                // Swiping down
+                setCurrentIndex(prev => Math.max(0, prev - 1));
+            }
+            setTimeout(() => setIsScrolling(false), 500); // Debounce
+        }
+    };
     
     if (loading) {
         return (
@@ -238,18 +259,24 @@ export function VideoFeed({ posts, loading }: { posts: Post[], loading: boolean 
         )
     }
 
-    const items = [];
-    for (let i = 0; i < posts.length; i++) {
-        items.push(<VideoPost key={posts[i].id} post={posts[i]} isInitiallyVisible={i === 0} />);
-        if ((i + 1) % 3 === 0 && i < posts.length - 1) {
-            items.push(<AdPost key={`ad-${i}`} />);
-        }
-    }
-
-
     return (
-        <div className="relative h-[calc(100dvh-8rem)] w-full snap-y snap-mandatory overflow-y-scroll scroll-smooth bg-black">
-            {items}
+        <div 
+            className="relative h-[calc(100dvh-8rem)] w-full overflow-hidden bg-black"
+            onWheel={handleWheel}
+            onTouchStart={handleTouchStart}
+            onTouchEnd={handleTouchEnd}
+        >
+            <div
+                className="h-full w-full transition-transform duration-500 ease-out"
+                style={{ transform: `translateY(-${currentIndex * 100}%)` }}
+            >
+                {items.map((item, index) => (
+                    <div key={index} className="h-full w-full">
+                        {React.cloneElement(item.component, { isActive: index === currentIndex })}
+                    </div>
+                ))}
+            </div>
         </div>
     );
 }
+
