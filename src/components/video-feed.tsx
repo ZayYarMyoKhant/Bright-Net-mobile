@@ -195,27 +195,28 @@ export function VideoFeed({ posts, loading }: { posts: Post[], loading: boolean 
     const [currentIndex, setCurrentIndex] = useState(0);
     const [isScrolling, setIsScrolling] = useState(false);
     const touchStartY = useRef(0);
+    const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-    const items = [];
-    for (let i = 0; i < posts.length; i++) {
-        items.push({ type: 'post', component: <VideoPost key={posts[i].id} post={posts[i]} isActive={false} /> }); // isActive will be handled later
-        if ((i + 1) % 3 === 0 && i < posts.length - 1) {
-            items.push({ type: 'ad', component: <AdPost key={`ad-${i}`} /> });
+    const items: { type: 'post' | 'ad'; component: React.ReactElement }[] = [];
+    posts.forEach((post, index) => {
+        items.push({ type: 'post', component: <VideoPost key={post.id} post={post} isActive={false} /> });
+        if ((index + 1) % 3 === 0 && index < posts.length - 1) {
+            items.push({ type: 'ad', component: <AdPost key={`ad-${index}`} /> });
         }
-    }
+    });
 
     const handleWheel = (e: React.WheelEvent) => {
         if (isScrolling) return;
 
         setIsScrolling(true);
         if (e.deltaY > 0) {
-            // Scrolling down
             setCurrentIndex(prev => Math.min(prev + 1, items.length - 1));
         } else if (e.deltaY < 0) {
-            // Scrolling up
             setCurrentIndex(prev => Math.max(0, prev - 1));
         }
-        setTimeout(() => setIsScrolling(false), 500); // Debounce
+        
+        if (scrollTimeoutRef.current) clearTimeout(scrollTimeoutRef.current);
+        scrollTimeoutRef.current = setTimeout(() => setIsScrolling(false), 500); // Debounce
     };
 
     const handleTouchStart = (e: React.TouchEvent) => {
@@ -237,7 +238,8 @@ export function VideoFeed({ posts, loading }: { posts: Post[], loading: boolean 
                 // Swiping down
                 setCurrentIndex(prev => Math.max(0, prev - 1));
             }
-            setTimeout(() => setIsScrolling(false), 500); // Debounce
+             if (scrollTimeoutRef.current) clearTimeout(scrollTimeoutRef.current);
+             scrollTimeoutRef.current = setTimeout(() => setIsScrolling(false), 500); // Debounce
         }
     };
     
@@ -279,4 +281,3 @@ export function VideoFeed({ posts, loading }: { posts: Post[], loading: boolean 
         </div>
     );
 }
-
