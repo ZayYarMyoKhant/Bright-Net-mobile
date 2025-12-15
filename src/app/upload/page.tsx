@@ -45,6 +45,8 @@ export default function CreatePage() {
               </CardContent>
             </Card>
           </Link>
+
+          <AdBanner />
           
            <Link href="/upload/music">
             <Card className="w-full cursor-pointer hover:shadow-lg transition-shadow border-2 border-primary/50 hover:border-primary">
