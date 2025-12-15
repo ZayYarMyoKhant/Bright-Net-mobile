@@ -70,18 +70,19 @@ const AudioPlayer = ({ track }: { track: Track }) => {
         ws.load(track.audio_url);
 
         return () => {
-            try {
-                // This is the robust way to clean up to avoid AbortError in React 18 Strict Mode
-                ws.unAll();
-                ws.destroy();
-            } catch (e) {
-                // In some rare race conditions, destroy() might still throw.
-                // We can safely ignore AbortError during cleanup.
-                if (e instanceof Error && e.name === 'AbortError') {
-                    // This is an expected error during cleanup in React 18 Strict Mode, so we can ignore it.
-                } else {
-                    // For any other unexpected errors, we might want to see them.
-                    console.error("Error destroying wavesurfer:", e);
+            if (ws) {
+                if (typeof ws.unAll === 'function') {
+                    ws.unAll();
+                }
+                try {
+                    ws.destroy();
+                } catch (e) {
+                    if (e instanceof Error && e.name === 'AbortError') {
+                        // This is an expected error during cleanup in React 18 Strict Mode, so we can ignore it.
+                    } else {
+                        // For any other unexpected errors, we might want to see them.
+                        console.error("Error destroying wavesurfer:", e);
+                    }
                 }
             }
         };
