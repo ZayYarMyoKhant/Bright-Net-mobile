@@ -21,7 +21,7 @@ type Notification = {
   recipient_id: string;
   type: 'new_comment' | 'new_follower';
   is_read: boolean;
-  target_id: string | null; // Can be comment_id etc. (remains for other notification types)
+  target_id: string | null; // For follower notifications etc.
   target_post_id: number | null; // For comments on posts
   created_at: string;
   actor: Profile;
