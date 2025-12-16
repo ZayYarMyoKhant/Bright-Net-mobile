@@ -5,7 +5,7 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Loader2, Users, Send, BookOpen, MoreVertical, Trash2, Mic, ImagePlus, Smile, X, StopCircle, CheckCheck, UserPlus, BookOpenText } from "lucide-react";
+import { ArrowLeft, Loader2, Users, Send, BookOpen, MoreVertical, Trash2, Mic, ImagePlus, Smile, X, StopCircle, CheckCheck, UserPlus, BookOpenText, Pencil } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { User } from "@supabase/supabase-js";
@@ -291,6 +291,8 @@ export default function IndividualClassPageContent({ initialData }: { initialDat
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [isSheetOpen, setIsSheetOpen] = useState(false);
+    
+    const isCreator = currentUser?.id === classData?.creator_id;
 
 
     useEffect(() => {
@@ -436,6 +438,19 @@ export default function IndividualClassPageContent({ initialData }: { initialDat
         }
     };
     
+    const handleDeleteClass = async () => {
+        if (!classData) return;
+
+        const { error } = await supabase.rpc('delete_class', { p_class_id: classData.id });
+        if(error) {
+            toast({ variant: "destructive", title: "Failed to delete class", description: error.message });
+        } else {
+            toast({ title: "Class Deleted", description: "The class has been permanently deleted." });
+            router.push('/class');
+            router.refresh();
+        }
+    };
+
     const startRecording = async () => {
         try {
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -527,17 +542,19 @@ export default function IndividualClassPageContent({ initialData }: { initialDat
                 </div>
                 {isEnrolled ? (
                     <div className="flex items-center">
-                        <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
-                            <SheetTrigger asChild>
-                                <Button variant="outline" size="sm">
-                                    <UserPlus className="h-4 w-4 md:mr-2" />
-                                    <span className="hidden md:inline">Add Member</span>
-                                </Button>
-                            </SheetTrigger>
-                            <SheetContent className="p-0 flex flex-col">
-                                <AddMemberSheet classId={classData.id} currentUser={currentUser} onOpenChange={setIsSheetOpen} isOpen={isSheetOpen} />
-                            </SheetContent>
-                        </Sheet>
+                        {isCreator && (
+                            <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
+                                <SheetTrigger asChild>
+                                    <Button variant="outline" size="sm">
+                                        <UserPlus className="h-4 w-4 md:mr-2" />
+                                        <span className="hidden md:inline">Add Member</span>
+                                    </Button>
+                                </SheetTrigger>
+                                <SheetContent className="p-0 flex flex-col">
+                                    <AddMemberSheet classId={classData.id} currentUser={currentUser} onOpenChange={setIsSheetOpen} isOpen={isSheetOpen} />
+                                </SheetContent>
+                            </Sheet>
+                        )}
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                                 <Button variant="ghost" size="icon">
@@ -545,26 +562,55 @@ export default function IndividualClassPageContent({ initialData }: { initialDat
                                 </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent>
-                                <AlertDialog>
-                                    <AlertDialogTrigger asChild>
-                                        <DropdownMenuItem className="text-destructive" onSelect={(e) => e.preventDefault()}>
-                                            <Trash2 className="mr-2 h-4 w-4" />
-                                            <span>Leave Class</span>
+                                {isCreator ? (
+                                    <>
+                                        <DropdownMenuItem onSelect={() => router.push(`/class/${classData.id}/edit`)}>
+                                            <Pencil className="mr-2 h-4 w-4" />
+                                            <span>Edit Class</span>
                                         </DropdownMenuItem>
-                                    </AlertDialogTrigger>
-                                    <AlertDialogContent>
-                                        <AlertDialogHeader>
-                                            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                                            <AlertDialogDescription>
-                                                This will remove you from the class. You can rejoin later from the search page.
-                                            </AlertDialogDescription>
-                                        </AlertDialogHeader>
-                                        <AlertDialogFooter>
-                                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                            <AlertDialogAction onClick={handleLeaveClass} className="bg-destructive hover:bg-destructive/80">Confirm</AlertDialogAction>
-                                        </AlertDialogFooter>
-                                    </AlertDialogContent>
-                                </AlertDialog>
+                                        <AlertDialog>
+                                            <AlertDialogTrigger asChild>
+                                                <DropdownMenuItem className="text-destructive" onSelect={(e) => e.preventDefault()}>
+                                                    <Trash2 className="mr-2 h-4 w-4" />
+                                                    <span>Leave & Delete Class</span>
+                                                </DropdownMenuItem>
+                                            </AlertDialogTrigger>
+                                            <AlertDialogContent>
+                                                <AlertDialogHeader>
+                                                    <AlertDialogTitle>Are you sure you want to leave & delete class?</AlertDialogTitle>
+                                                    <AlertDialogDescription>
+                                                        This will permanently delete this class for everyone. This action cannot be undone.
+                                                    </AlertDialogDescription>
+                                                </AlertDialogHeader>
+                                                <AlertDialogFooter>
+                                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                    <AlertDialogAction onClick={handleDeleteClass} className="bg-destructive hover:bg-destructive/80">Sure</AlertDialogAction>
+                                                </AlertDialogFooter>
+                                            </AlertDialogContent>
+                                        </AlertDialog>
+                                    </>
+                                ) : (
+                                    <AlertDialog>
+                                        <AlertDialogTrigger asChild>
+                                            <DropdownMenuItem className="text-destructive" onSelect={(e) => e.preventDefault()}>
+                                                <Trash2 className="mr-2 h-4 w-4" />
+                                                <span>Leave Class</span>
+                                            </DropdownMenuItem>
+                                        </AlertDialogTrigger>
+                                        <AlertDialogContent>
+                                            <AlertDialogHeader>
+                                                <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                                <AlertDialogDescription>
+                                                    This will remove you from the class. You can rejoin later from the search page.
+                                                </AlertDialogDescription>
+                                            </AlertDialogHeader>
+                                            <AlertDialogFooter>
+                                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                <AlertDialogAction onClick={handleLeaveClass} className="bg-destructive hover:bg-destructive/80">Confirm</AlertDialogAction>
+                                            </AlertDialogFooter>
+                                        </AlertDialogContent>
+                                    </AlertDialog>
+                                )}
                             </DropdownMenuContent>
                         </DropdownMenu>
                     </div>
@@ -680,5 +726,7 @@ export default function IndividualClassPageContent({ initialData }: { initialDat
         </div>
     );
 }
+
+    
 
     
