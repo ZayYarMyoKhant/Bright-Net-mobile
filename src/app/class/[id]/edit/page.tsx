@@ -66,7 +66,7 @@ export default function EditClassPage({ params }: { params: { id: string } }) {
 
         const { data: memberData, error: memberError } = await supabase
             .from('class_members')
-            .select('user_id, profiles!inner(*)')
+            .select('user_id, profiles:user_id(*)')
             .eq('class_id', classId);
 
         if (memberError) {
@@ -219,5 +219,3 @@ export default function EditClassPage({ params }: { params: { id: string } }) {
         </div>
     );
 }
-
-    
