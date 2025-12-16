@@ -15,7 +15,6 @@ import Link from 'next/link';
 import { Avatar } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import WaveSurfer from 'wavesurfer.js';
 import { AdBanner } from '@/components/ad-banner';
 
 type Track = {
@@ -30,57 +29,42 @@ type Track = {
 };
 
 const AudioPlayer = ({ track }: { track: Track }) => {
-    const waveformRef = useRef<HTMLDivElement>(null);
-    const wavesurferRef = useRef<WaveSurfer | null>(null);
+    const audioRef = useRef<HTMLAudioElement>(null);
     const [isPlaying, setIsPlaying] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
     const { toast } = useToast();
 
     useEffect(() => {
-        if (!waveformRef.current) return;
+        const audio = audioRef.current;
+        if (!audio) return;
 
-        const ws = WaveSurfer.create({
-            container: waveformRef.current,
-            waveColor: 'hsl(var(--muted-foreground))',
-            progressColor: 'hsl(var(--primary))',
-            barWidth: 3,
-            barGap: 2,
-            barRadius: 3,
-            height: 40,
-            cursorWidth: 0,
-        });
+        const handleCanPlay = () => setIsLoading(false);
+        const handlePlay = () => setIsPlaying(true);
+        const handlePause = () => setIsPlaying(false);
+        const handleEnded = () => setIsPlaying(false);
 
-        wavesurferRef.current = ws;
-
-        ws.on('ready', () => {
-            setIsLoading(false);
-        });
-
-        ws.on('play', () => setIsPlaying(true));
-        ws.on('pause', () => setIsPlaying(false));
-        ws.on('finish', () => setIsPlaying(false));
-        
-        ws.on('error', (err) => {
-            console.error("Wavesurfer error:", err);
-            toast({ variant: "destructive", title: "Audio Error", description: "Could not load the track." });
-            setIsLoading(false);
-        });
-        
-        ws.load(track.audio_url);
+        audio.addEventListener('canplay', handleCanPlay);
+        audio.addEventListener('play', handlePlay);
+        audio.addEventListener('pause', handlePause);
+        audio.addEventListener('ended', handleEnded);
 
         return () => {
-            // This cleanup function makes the destroy call idempotent and respects React Strict Mode.
-            if (wavesurferRef.current) {
-                wavesurferRef.current.unAll();
-                wavesurferRef.current.destroy();
-                wavesurferRef.current = null;
-            }
+            audio.removeEventListener('canplay', handleCanPlay);
+            audio.removeEventListener('play', handlePlay);
+            audio.removeEventListener('pause', handlePause);
+            audio.removeEventListener('ended', handleEnded);
         };
-    }, [track.audio_url, toast]);
+    }, []);
+
 
     const handlePlayPause = () => {
-        if (wavesurferRef.current) {
-            wavesurferRef.current.playPause();
+        const audio = audioRef.current;
+        if (audio) {
+            if (audio.paused) {
+                audio.play().catch(e => console.error("Audio play failed:", e));
+            } else {
+                audio.pause();
+            }
         }
     };
     
@@ -115,7 +99,8 @@ const AudioPlayer = ({ track }: { track: Track }) => {
                          <Button variant="ghost" size="icon" onClick={handlePlayPause} disabled={isLoading} className="h-8 w-8 flex-shrink-0">
                             {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
                         </Button>
-                        <div ref={waveformRef} className="w-full min-w-0" />
+                        <audio ref={audioRef} src={track.audio_url} preload="metadata"></audio>
+                        <p className="text-xs text-muted-foreground">Click to play</p>
                     </div>
                 </div>
                 <Button variant="ghost" size="icon" onClick={handleDownload}>
