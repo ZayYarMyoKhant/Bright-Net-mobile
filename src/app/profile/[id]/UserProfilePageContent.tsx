@@ -123,15 +123,6 @@ export default function UserProfilePageContent({ initialData, params }: { initia
             setIsFollowing(false); // Revert UI on error
         } else {
             setProfile(p => p ? {...p, followers: p.followers + 1} : null);
-            // Manually insert notification from the client-side
-            const { error: notificationError } = await supabase.from('notifications').insert({
-                recipient_id: profile.id,
-                actor_id: currentUser.id,
-                type: 'new_follower'
-            });
-            if (notificationError) {
-                console.error("Error creating follow notification:", notificationError);
-            }
         }
     } else {
         // Unfollow
