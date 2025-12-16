@@ -119,7 +119,7 @@ export default function UserProfilePageContent({ initialData, params }: { initia
             follower_id: currentUser.id,
         });
         if (error) {
-            toast({ variant: 'destructive', title: 'Error', description: 'Could not follow user.' });
+            toast({ variant: 'destructive', title: 'Could not follow user.', description: error.message });
             setIsFollowing(false); // Revert UI on error
         } else {
             setProfile(p => p ? {...p, followers: p.followers + 1} : null);
@@ -131,7 +131,7 @@ export default function UserProfilePageContent({ initialData, params }: { initia
             follower_id: currentUser.id,
         });
          if (error) {
-            toast({ variant: 'destructive', title: 'Error', description: 'Could not unfollow user.' });
+            toast({ variant: 'destructive', title: 'Could not unfollow user.', description: error.message });
             setIsFollowing(true); // Revert UI on error
         } else {
             setProfile(p => p ? {...p, followers: p.followers - 1} : null);
