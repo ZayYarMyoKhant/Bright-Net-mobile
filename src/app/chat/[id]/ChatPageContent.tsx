@@ -122,7 +122,7 @@ const ChatMessage = ({ message, isSender, isPinned, onReply, onDelete, onEdit, o
      useEffect(() => {
         const observer = new IntersectionObserver(
             async ([entry]) => {
-                if (entry.isIntersecting && !isSender && currentUser) {
+                if (entry.isIntersecting && !isSender && currentUser && !message.id.startsWith('temp_')) {
                     const { error } = await supabase.from('direct_message_read_status').insert({
                         message_id: message.id,
                         user_id: currentUser.id
@@ -398,38 +398,22 @@ export default function ChatPageContent({ initialData, params }: { initialData: 
   useEffect(() => {
     if (!conversationId || !currentUser || !otherUser) return;
     
-    const realtimeChannel = supabase.channel(`chat-${conversationId}`, {
-        config: {
-            presence: {
-                key: currentUser.id,
-            },
-        },
-    });
+    const realtimeChannel = supabase.channel(`chat-${conversationId}`);
 
     realtimeChannel
       .on<DirectMessage>(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'direct_messages', filter: `conversation_id=eq.${conversationId}` },
-        async (payload) => {
+        (payload) => {
            const newMessagePayload = payload.new as DirectMessage;
            
-           if (messages.some(msg => msg.id === newMessagePayload.id)) {
+           if (messages.some(msg => msg.id === newMessagePayload.id) || newMessagePayload.sender_id === currentUser.id) {
                return;
            }
            
-           if (newMessagePayload.sender_id === currentUser.id) {
-               return;
-           }
-
-            const { data: profileData, error: profileError } = await supabase.from('profiles').select('*').eq('id', newMessagePayload.sender_id).single();
-            if (profileError) {
-                console.error("Could not fetch profile for new message", profileError);
-                return;
-            }
-
            const fullMessage: DirectMessage = {
                ...newMessagePayload,
-               profiles: profileData as Profile, 
+               profiles: otherUser as Profile, 
                direct_message_reactions: [],
                is_seen_by_other: false,
            };
@@ -448,9 +432,7 @@ export default function ChatPageContent({ initialData, params }: { initialData: 
       .on('postgres_changes', { event: '*', schema: 'public', table: 'pinned_messages', filter: `conversation_id=eq.${conversationId}`},
          async (payload) => {
             if (payload.eventType === 'INSERT') {
-                const newPin = payload.new as { message_id: string };
-                const { data, error } = await supabase.from('pinned_messages').select('*, direct_messages!inner(*, profiles!inner(*))').eq('id', payload.new.id).single();
-
+                const { data } = await supabase.from('pinned_messages').select('*, direct_messages!inner(*, profiles!inner(*))').eq('id', payload.new.id).single();
                 if (data && !pinnedMessages.some(p => p.id === data.id)) {
                     setPinnedMessages(prev => [...prev, data as PinnedMessage]);
                 }
@@ -486,14 +468,16 @@ export default function ChatPageContent({ initialData, params }: { initialData: 
           }
       )
       .on('postgres_changes',
-          { event: 'INSERT', schema: 'public', table: 'direct_message_read_status', filter: `user_id=eq.${params.id}` },
+          { event: 'INSERT', schema: 'public', table: 'direct_message_read_status', filter: `conversation_id=eq.${conversationId}` },
           (payload) => {
-            setMessages(prev => prev.map(msg => {
-                if (msg.sender_id === currentUser.id && !msg.is_seen_by_other && new Date(msg.created_at) <= new Date(payload.new.read_at)) {
-                    return { ...msg, is_seen_by_other: true };
-                }
-                return msg;
-            }));
+            if (payload.new.user_id === otherUser.id) {
+                 setMessages(prev => prev.map(msg => {
+                    if (msg.sender_id === currentUser.id && !msg.is_seen_by_other && new Date(msg.created_at) <= new Date(payload.new.read_at)) {
+                        return { ...msg, is_seen_by_other: true };
+                    }
+                    return msg;
+                }));
+            }
           }
       )
       .on('postgres_changes',
@@ -523,34 +507,31 @@ export default function ChatPageContent({ initialData, params }: { initialData: 
       )
       .on('presence', { event: 'sync' }, () => {
         const presenceState = realtimeChannel.presenceState();
-        const otherUserPresence = Object.keys(presenceState).some(key => key === otherUser?.id);
-        if (otherUserPresence && presenceState[otherUser.id as string]) {
-            // @ts-ignore
-            const isTyping = presenceState[otherUser.id as string][0]?.is_typing || false;
+        if (otherUser.id in presenceState) {
+            const isTyping = (presenceState[otherUser.id] as any[])[0]?.is_typing || false;
             setOtherUserActivity(isTyping ? 'typing' : 'online');
         }
       })
-      .on('presence', { event: 'join' }, ({ key, newPresences }) => {
+      .on('presence', { event: 'join' }, ({ key }) => {
         if (key === otherUser?.id) setOtherUserActivity('online');
       })
-      .on('presence', { event: 'leave' }, ({ key, leftPresences }) => {
+      .on('presence', { event: 'leave' }, ({ key }) => {
         if (key === otherUser?.id) setOtherUserActivity('offline');
       })
       .subscribe(async (status) => {
         if (status === 'SUBSCRIBED') {
-          await realtimeChannel.track({ is_typing: isTyping });
+          await realtimeChannel.track({ is_typing: isTyping, user_id: currentUser.id });
           await supabase.from('profiles').update({ active_conversation_id: conversationId }).eq('id', currentUser.id);
         }
       });
     
     return () => {
       supabase.removeChannel(realtimeChannel);
-      // When leaving the chat, clear the active conversation
       if(currentUser) {
         supabase.from('profiles').update({ active_conversation_id: null }).eq('id', currentUser.id).then();
       }
     };
-  }, [conversationId, supabase, currentUser, params.id, otherUser, isTyping, currentUserProfile, messages, pinnedMessages]);
+  }, [conversationId, supabase, currentUser, params.id, otherUser, isTyping, messages, pinnedMessages]);
 
 
   // Effect for determining the final displayed status string
@@ -560,10 +541,10 @@ export default function ChatPageContent({ initialData, params }: { initialData: 
     const twoMinutesAgo = subMinutes(new Date(), 2);
     const isOtherUserOnline = otherUser.show_active_status && otherUser.last_seen && isBefore(twoMinutesAgo, new Date(otherUser.last_seen));
 
-    if (isOtherUserOnline) {
-        if (otherUserActivity === 'typing') {
-             // 'typing' has highest priority
-        } else if (otherUser.active_conversation_id && otherUser.active_conversation_id !== conversationId) {
+    if (otherUserActivity === 'typing') {
+        // 'typing' has highest priority, do nothing
+    } else if (isOtherUserOnline) {
+        if (otherUser.active_conversation_id && otherUser.active_conversation_id !== conversationId) {
             setOtherUserActivity('busy');
         } else {
             setOtherUserActivity('online');
@@ -675,6 +656,7 @@ export default function ChatPageContent({ initialData, params }: { initialData: 
       is_shared_post: false,
     };
     
+    setMessages(prev => [...prev, tempMessage]);
     setNewMessage("");
     setReplyingTo(null);
     const tempMediaFile = mediaFile;
@@ -714,7 +696,7 @@ export default function ChatPageContent({ initialData, params }: { initialData: 
     }).select().single();
     
     // Replace temp message with real one from DB
-    setMessages(prev => prev.map(m => m.id === tempId ? { ...m, ...newMessageData, profiles: tempMessage.profiles } : m));
+    setMessages(prev => prev.map(m => m.id === tempId ? { ...m, id: (newMessageData as any).id, created_at: (newMessageData as any).created_at, is_seen_by_other: false, profiles: tempMessage.profiles } : m));
 
     if (insertError) {
         toast({ variant: "destructive", title: "Failed to send message", description: insertError.message });

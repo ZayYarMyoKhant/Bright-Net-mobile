@@ -21,7 +21,6 @@ async function getOrCreateConversation(
 
         if (userConvosError) throw userConvosError;
         if (!userConvos) {
-             // This should not happen if user is logged in
              return { error: "Could not fetch user conversations." };
         }
 
@@ -35,33 +34,27 @@ async function getOrCreateConversation(
                 .in('conversation_id', convoIds);
             
             if (otherUserConvosError) throw otherUserConvosError;
+            
+            const sharedConvoIds = otherUserConvos.map(c => c.conversation_id);
 
-            // Find a matching conversation ID
-            if (otherUserConvos && otherUserConvos.length > 0) {
-                 const matchingConvoId = userConvos.find(uc => 
-                    otherUserConvos.some(ouc => ouc.conversation_id === uc.conversation_id)
-                 )?.conversation_id;
+            if (sharedConvoIds.length > 0) {
+                 const { data: convoParticipants, error: countError } = await supabase
+                    .from('conversation_participants')
+                    .select('conversation_id', { count: 'exact' })
+                    .in('conversation_id', sharedConvoIds);
+                
+                if(countError) throw countError;
 
-                 if (matchingConvoId) {
-                    // Check if it's a 2-person chat
-                    const { count, error: countError } = await supabase
-                        .from('conversation_participants')
-                        .select('*', { count: 'exact', head: true })
-                        .eq('conversation_id', matchingConvoId);
+                const twoPersonChats = convoParticipants.reduce((acc, { conversation_id }) => {
+                    acc[conversation_id] = (acc[conversation_id] || 0) + 1;
+                    return acc;
+                }, {} as Record<string, number>);
 
-                    if (countError) throw countError;
-
-                    if (count === 2) {
-                        const { data: convoDetails, error: convoDetailsError } = await supabase
-                            .from('conversations')
-                            .select('id')
-                            .eq('id', matchingConvoId)
-                            .single();
-                        
-                        if (convoDetailsError) throw convoDetailsError;
-                        return convoDetails;
+                for(const convoId in twoPersonChats) {
+                    if(twoPersonChats[convoId] === 2) {
+                        return { id: convoId };
                     }
-                 }
+                }
             }
         }
     } catch(e: any) {
@@ -102,18 +95,18 @@ async function getOrCreateSelfConversation(
      try {
         const { data: userConvos, error: userConvosError } = await supabase
             .from('conversation_participants')
-            .select('conversation:conversation_id(id)')
+            .select('conversation_id')
             .eq('user_id', currentUser.id);
 
         if (userConvosError) throw userConvosError;
         if (!userConvos) return { error: "Could not fetch user conversations." };
 
-        const convoIds = userConvos.map(c => c.conversation?.id).filter(Boolean) as string[];
+        const convoIds = userConvos.map(c => c.conversation_id);
         
         if (convoIds.length > 0) {
             const { data: convoParticipants, error: participantsError } = await supabase
                 .from('conversation_participants')
-                .select('conversation_id, user_id')
+                .select('conversation_id, user_id', { count: 'exact' })
                 .in('conversation_id', convoIds);
             
             if (participantsError) throw participantsError;
@@ -124,8 +117,8 @@ async function getOrCreateSelfConversation(
             }
             
             for (const convo of userConvos) {
-                if(convo.conversation && conversationCounts[convo.conversation.id] === 1) {
-                    return { id: convo.conversation.id };
+                if(conversationCounts[convo.conversation_id] === 1) {
+                    return { id: convo.conversation_id };
                 }
             }
         }
