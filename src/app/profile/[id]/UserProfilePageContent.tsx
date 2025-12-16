@@ -103,33 +103,44 @@ export default function UserProfilePageContent({ initialData, params }: { initia
   }, [profile?.id, supabase]);
   
   const handleFollowToggle = async () => {
-    if (!currentUser) {
-        toast({ variant: 'destructive', title: 'Please log in', description: 'You need to be logged in to follow users.' });
-        return;
+    if (!currentUser || !profile) {
+      toast({ variant: 'destructive', title: 'Please log in', description: 'You need to be logged in to follow users.' });
+      return;
     }
-    if (!profile) return;
+    if (isOwnProfile) return;
 
     const newFollowingState = !isFollowing;
     setIsFollowing(newFollowingState);
 
     if (newFollowingState) {
-        // Follow
+        // Follow action
         const { error: followError } = await supabase.from('followers').insert({
             user_id: profile.id,
             follower_id: currentUser.id,
         });
+        
         if (followError) {
             toast({ variant: 'destructive', title: 'Could not follow user.', description: followError.message });
             setIsFollowing(false); // Revert UI on error
         } else {
             setProfile(p => p ? {...p, followers: p.followers + 1} : null);
+            // Send notification from the client-side
+            const { error: notificationError } = await supabase.from('notifications').insert({
+                recipient_id: profile.id,
+                actor_id: currentUser.id,
+                type: 'new_follower'
+            });
+            if (notificationError) {
+                console.error("Failed to send follow notification:", notificationError);
+            }
         }
     } else {
-        // Unfollow
+        // Unfollow action
         const { error } = await supabase.from('followers').delete().match({
             user_id: profile.id,
             follower_id: currentUser.id,
         });
+
          if (error) {
             toast({ variant: 'destructive', title: 'Could not unfollow user.', description: error.message });
             setIsFollowing(true); // Revert UI on error
