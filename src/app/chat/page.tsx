@@ -228,7 +228,7 @@ export default function ChatListPage() {
             </div>
           ) : (
             <div className="divide-y p-4 space-y-4">
-                <Link href="/bliss-zone/chat-zmt">
+                <Link href="/tool/chat-zmt">
                     <div className="p-4 flex items-center gap-4 hover:bg-muted/50 border border-primary rounded-lg">
                         <div className="flex-1 overflow-hidden">
                              <p className="font-semibold">ZMT Thinking model</p>
@@ -308,3 +308,5 @@ export default function ChatListPage() {
     </>
   );
 }
+
+    
