@@ -33,7 +33,8 @@ export default function ToolPage() {
         {
             title: "ZMT image generation model",
             icon: <ImageIcon className="h-6 w-6 text-blue-500" />,
-            disabled: true,
+            href: "/tool/image-generation",
+            disabled: false,
         },
     ];
 
@@ -73,12 +74,14 @@ export default function ToolPage() {
                         
                          <div className="space-y-4">
                             {comingSoonFeatures.map((feature) => (
-                                <Button key={feature.title} variant="outline" className="w-full h-auto justify-start p-4 border-blue-500/50" disabled={feature.disabled}>
-                                    <div className="flex items-center gap-4">
-                                         {feature.icon}
-                                         <span className="font-semibold">{feature.title}</span>
-                                    </div>
-                                </Button>
+                                <Link key={feature.title} href={feature.href || "#"} className={feature.disabled ? "pointer-events-none" : ""}>
+                                    <Button variant="outline" className="w-full h-auto justify-start p-4 border-blue-500/50" disabled={feature.disabled}>
+                                        <div className="flex items-center gap-4">
+                                            {feature.icon}
+                                            <span className="font-semibold">{feature.title}</span>
+                                        </div>
+                                    </Button>
+                                </Link>
                             ))}
                         </div>
                     </div>
@@ -92,5 +95,3 @@ export default function ToolPage() {
         </>
     );
 }
-
-    
