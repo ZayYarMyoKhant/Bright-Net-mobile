@@ -65,7 +65,7 @@ export default function UserProfilePageContent({ initialData, params }: { initia
   const [error, setError] = useState<string | null>(initialData.error);
   
   const [isFollowing, setIsFollowing] = useState(initialData.profile?.is_following ?? false);
-  const [isTogglingFollow, setIsTogglingFollow] = useState(false); // Loading state for follow button
+  const [isTogglingFollow, setIsTogglingFollow] = useState(false);
   const isOwnProfile = currentUser?.id === profile?.id;
 
   useEffect(() => {
@@ -110,10 +110,22 @@ export default function UserProfilePageContent({ initialData, params }: { initia
     }
     if (isOwnProfile) return;
 
-    setIsTogglingFollow(true); // Disable button
-    const newFollowingState = !isFollowing;
+    setIsTogglingFollow(true);
 
-    if (newFollowingState) {
+    if (isFollowing) {
+        // Unfollow action
+        const { error: unfollowError } = await supabase.from('followers').delete().match({
+            user_id: profile.id,
+            follower_id: currentUser.id,
+        });
+
+        if (unfollowError) {
+            toast({ variant: 'destructive', title: 'Could not unfollow user.', description: unfollowError.message });
+        } else {
+            setIsFollowing(false);
+            setProfile(p => p ? {...p, followers: p.followers - 1} : null);
+        }
+    } else {
         // Follow action
         const { error: followError } = await supabase.from('followers').insert({
             user_id: profile.id,
@@ -126,22 +138,10 @@ export default function UserProfilePageContent({ initialData, params }: { initia
             setIsFollowing(true);
             setProfile(p => p ? {...p, followers: p.followers + 1} : null);
         }
-    } else {
-        // Unfollow action
-        const { error } = await supabase.from('followers').delete().match({
-            user_id: profile.id,
-            follower_id: currentUser.id,
-        });
-
-         if (error) {
-            toast({ variant: 'destructive', title: 'Could not unfollow user.', description: error.message });
-        } else {
-            setIsFollowing(false);
-            setProfile(p => p ? {...p, followers: p.followers - 1} : null);
-        }
     }
-    setIsTogglingFollow(false); // Re-enable button
+    setIsTogglingFollow(false);
   };
+
 
   if (error) {
     return (
