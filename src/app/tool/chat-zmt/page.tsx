@@ -4,7 +4,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { ArrowLeft, Send, Loader2, Bot, ClipboardCopy } from 'lucide-react';
+import { ArrowLeft, Send, Loader2, ClipboardCopy } from 'lucide-react';
 import Link from 'next/link';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
@@ -24,7 +24,7 @@ type Message = {
 
 export default function ChatZMTPage() {
     const [messages, setMessages] = useState<Message[]>([
-        { sender: 'ai', text: "Hello! I'm ZMT AI." }
+        { sender: 'ai', text: "Hello! I'm ZMT AI. How can I help you today?" }
     ]);
     const [input, setInput] = useState('');
     const [loading, setLoading] = useState(false);
@@ -66,7 +66,9 @@ export default function ChatZMTPage() {
             }
             const data = await response.json();
             
-            const aiMessage: Message = { sender: 'ai', text: data.response || "Sorry, I couldn't get a response." };
+            // Correctly access the nested response text
+            const aiResponseText = data.result?.response || "Sorry, I couldn't get a response.";
+            const aiMessage: Message = { sender: 'ai', text: aiResponseText };
             setMessages(prev => [...prev, aiMessage]);
 
         } catch (error) {
@@ -87,7 +89,7 @@ export default function ChatZMTPage() {
     return (
         <div className="flex h-dvh flex-col bg-background text-foreground">
             <header className="flex h-16 flex-shrink-0 items-center justify-between bg-blue-600 text-white px-4">
-                <Link href="/chat">
+                <Link href="/tool">
                     <Button variant="ghost" size="icon" className="hover:bg-white/20">
                         <ArrowLeft className="h-5 w-5" />
                     </Button>
@@ -101,6 +103,12 @@ export default function ChatZMTPage() {
                     <div className="p-4 space-y-6">
                         {messages.map((msg, index) => (
                             <div key={index} className={cn("flex items-start gap-3", msg.sender === 'user' ? 'justify-end' : 'justify-start')}>
+                                {msg.sender === 'ai' && (
+                                    <Avatar className="h-8 w-8">
+                                        <AvatarImage src="https://blbqaojfppwybkjqiyeb.supabase.co/storage/v1/object/public/avatars/2522ae18-27b2-4a7b-a24c-59752b04c86b-1725595914619_sticker.webp" alt="AI Avatar" />
+                                        <AvatarFallback>AI</AvatarFallback>
+                                    </Avatar>
+                                )}
                                  <Tooltip>
                                     <TooltipTrigger asChild>
                                         <div 
@@ -110,7 +118,7 @@ export default function ChatZMTPage() {
                                             )}
                                             onClick={() => handleCopy(msg.text)}
                                         >
-                                            <p className="text-sm">{msg.text}</p>
+                                            <p className="text-sm whitespace-pre-wrap">{msg.text}</p>
                                         </div>
                                     </TooltipTrigger>
                                     <TooltipContent>
@@ -121,6 +129,10 @@ export default function ChatZMTPage() {
                         ))}
                         {loading && (
                              <div className="flex items-start gap-3 justify-start">
+                                 <Avatar className="h-8 w-8">
+                                    <AvatarImage src="https://blbqaojfppwybkjqiyeb.supabase.co/storage/v1/object/public/avatars/2522ae18-27b2-4a7b-a24c-59752b04c86b-1725595914619_sticker.webp" alt="AI Avatar" />
+                                    <AvatarFallback>AI</AvatarFallback>
+                                </Avatar>
                                 <div className="max-w-sm rounded-lg px-4 py-2 bg-muted flex items-center">
                                     <Loader2 className="h-5 w-5 animate-spin" />
                                 </div>
@@ -147,5 +159,3 @@ export default function ChatZMTPage() {
         </div>
     );
 }
-
-    
