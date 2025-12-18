@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useContext } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,12 +11,14 @@ import { countries } from "@/lib/data";
 import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import Link from "next/link";
+import { MultiAccountContext } from "@/hooks/use-multi-account";
 
 
 export default function LoginPage() {
   const router = useRouter();
   const supabase = createClient();
   const { toast } = useToast();
+  const multiAccount = useContext(MultiAccountContext);
 
   const [countryCode, setCountryCode] = useState("95");
   const [phoneNumber, setPhoneNumber] = useState("");
@@ -34,7 +36,7 @@ export default function LoginPage() {
 
     const fullPhoneNumber = `+${countryCode}${phoneNumber}`;
 
-    const { error } = await supabase.auth.signInWithPassword({
+    const { data, error } = await supabase.auth.signInWithPassword({
       phone: fullPhoneNumber,
       password: password,
     });
@@ -45,13 +47,14 @@ export default function LoginPage() {
         title: "Sign in failed",
         description: error.message,
       });
-    } else {
-       toast({
-        title: "Signed In Successfully!",
-        description: "Welcome back!",
-      });
-      router.push("/home");
-      router.refresh();
+    } else if (data.session && multiAccount) {
+        await multiAccount.addOrSwitchAccount(data.session);
+        toast({
+          title: "Signed In Successfully!",
+          description: "Welcome back!",
+        });
+        router.push("/home");
+        router.refresh();
     }
     setLoading(false);
   };

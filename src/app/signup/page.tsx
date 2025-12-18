@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useContext } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,12 +11,14 @@ import { countries } from "@/lib/data";
 import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import Link from "next/link";
+import { MultiAccountContext } from "@/hooks/use-multi-account";
 
 
 export default function SignUpPage() {
   const router = useRouter();
   const supabase = createClient();
   const { toast } = useToast();
+  const multiAccount = useContext(MultiAccountContext);
 
   const [countryCode, setCountryCode] = useState("95");
   const [phoneNumber, setPhoneNumber] = useState("");
@@ -34,7 +36,6 @@ export default function SignUpPage() {
 
     const fullPhoneNumber = `+${countryCode}${phoneNumber}`;
 
-    // This is a simplified flow for prototype purposes.
     const { data, error } = await supabase.auth.signUp({
       phone: fullPhoneNumber,
       password: password,
@@ -46,7 +47,8 @@ export default function SignUpPage() {
         title: "Sign up failed",
         description: error.message,
       });
-    } else if (data.user) {
+    } else if (data.session && multiAccount) {
+       await multiAccount.addOrSwitchAccount(data.session);
        toast({
         title: "Account created!",
         description: "Redirecting to profile setup...",

@@ -1,12 +1,12 @@
 
 "use client";
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useContext } from 'react';
 import { useRouter } from 'next/navigation';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Grid3x3, Settings, UserPlus, Clapperboard, Loader2, CameraOff, Eye } from "lucide-react";
+import { Grid3x3, Settings, UserPlus, Clapperboard, Loader2, CameraOff, Eye, ChevronDown, Plus, Check } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { BottomNav } from '@/components/bottom-nav';
@@ -15,6 +15,15 @@ import { createClient } from '@/lib/supabase/client';
 import type { Post, Profile } from '@/lib/data';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { MultiAccountContext, StoredAccount } from '@/hooks/use-multi-account';
 
 type ProfileData = Profile & {
   following: number;
@@ -27,24 +36,20 @@ export default function ProfilePage() {
   const supabase = createClient();
   const { toast } = useToast();
   
+  const multiAccount = useContext(MultiAccountContext);
+
   const [user, setUser] = useState<ProfileData | null>(null);
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
   const [requestCount, setRequestCount] = useState(0);
 
-  const fetchUserData = useCallback(async () => {
-    const { data: { user: authUser } } = await supabase.auth.getUser();
-
-    if (!authUser) {
-      router.push('/signup');
-      setLoading(false);
-      return;
-    }
+  const fetchUserData = useCallback(async (userId?: string) => {
+    if (!userId) return;
 
     const { data: profileData, error: profileError } = await supabase
       .from('profiles')
       .select('*')
-      .eq('id', authUser.id)
+      .eq('id', userId)
       .single();
 
     if (profileError || !profileData) {
@@ -58,7 +63,7 @@ export default function ProfilePage() {
     }
 
     const { data: statsData, error: statsError } = await supabase
-      .rpc('get_user_stats', { user_id_param: authUser.id })
+      .rpc('get_user_stats', { user_id_param: userId })
       .single();
 
     if (statsError) {
@@ -72,7 +77,7 @@ export default function ProfilePage() {
     });
     setRequestCount(statsData?.pending_request_count || 0);
 
-    const { data: postDataRes, error: postError } = await supabase.from('posts').select('*').eq('user_id', authUser.id).order('created_at', { ascending: false });
+    const { data: postDataRes, error: postError } = await supabase.from('posts').select('*').eq('user_id', userId).order('created_at', { ascending: false });
     if (postError) {
         toast({ variant: 'destructive', title: 'Error loading posts', description: postError.message });
     } else {
@@ -84,25 +89,41 @@ export default function ProfilePage() {
   
   useEffect(() => {
     setLoading(true);
-    fetchUserData();
-
-    const channel = supabase.channel('profile-page-realtime')
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'followers'
-      }, (payload) => {
-        fetchUserData();
-      })
-      .subscribe();
-      
-    return () => {
-        supabase.removeChannel(channel);
+    if(multiAccount?.currentAccount) {
+        fetchUserData(multiAccount.currentAccount.id);
+    } else if (multiAccount && !multiAccount.isLoading) {
+        router.push('/signup');
     }
-  }, [fetchUserData, supabase]);
+
+    if (multiAccount?.currentAccount?.id) {
+        const channel = supabase.channel('profile-page-realtime')
+          .on('postgres_changes', {
+            event: '*',
+            schema: 'public',
+            table: 'followers',
+            filter: `user_id=eq.${multiAccount.currentAccount.id}`
+          }, (payload) => {
+            fetchUserData(multiAccount.currentAccount?.id);
+          })
+          .subscribe();
+          
+        return () => {
+            supabase.removeChannel(channel);
+        }
+    }
+  }, [fetchUserData, multiAccount?.currentAccount, multiAccount?.isLoading, router, supabase]);
 
 
-  if (loading) {
+  const handleSwitchAccount = async (account: StoredAccount) => {
+      if (multiAccount) {
+          await multiAccount.switchAccount(account.id);
+          setLoading(true);
+          router.refresh();
+      }
+  };
+
+
+  if (loading || multiAccount?.isLoading) {
     return (
       <>
         <div className="flex h-full flex-col bg-background text-foreground pb-16 items-center justify-center">
@@ -141,7 +162,34 @@ export default function ProfilePage() {
                 </Badge>
             )}
           </Link>
-          <h1 className="font-bold">{user.username}</h1>
+
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="flex items-center gap-1 text-base font-bold">
+                    {user.username}
+                    <ChevronDown className="h-4 w-4" />
+                </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent className="w-64">
+                <DropdownMenuLabel>Switch account</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {multiAccount && multiAccount.accounts.map((acc) => (
+                     <DropdownMenuItem key={acc.id} onClick={() => handleSwitchAccount(acc)} className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                            <Avatar className="h-8 w-8" profile={acc} />
+                            <span className="font-semibold">{acc.username}</span>
+                        </div>
+                        {acc.id === multiAccount.currentAccount?.id && <Check className="h-4 w-4" />}
+                    </DropdownMenuItem>
+                ))}
+                 <DropdownMenuSeparator />
+                 <DropdownMenuItem onClick={() => router.push('/signup')}>
+                    <Plus className="mr-2 h-4 w-4" />
+                    <span>Add account</span>
+                 </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
           <div className="flex items-center">
             <Link href="/profile/viewers">
               <Button variant="ghost" size="icon">

@@ -20,6 +20,7 @@ import { useToast } from '@/hooks/use-toast';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Bell } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { MultiAccountProvider, MultiAccountContext } from '@/hooks/use-multi-account';
 
 
 const ptSans = PT_Sans({
@@ -29,34 +30,20 @@ const ptSans = PT_Sans({
 });
 
 function AppLayout({ children }: { children: React.ReactNode }) {
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const multiAccount = useContext(MultiAccountContext);
+  const currentUser = multiAccount?.currentAccount ?? null;
   const supabase = createClient();
   const isOffline = useContext(OfflineContext);
   const { toast } = useToast();
   const router = useRouter();
   const [showNotificationDialog, setShowNotificationDialog] = useState(false);
 
-  useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      setCurrentUser(session?.user ?? null);
-    });
-
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      setCurrentUser(user);
-    });
-
-    return () => {
-      subscription?.unsubscribe();
-    };
-  }, [supabase.auth]);
-
   // Real-time user presence heartbeat
   useEffect(() => {
     let presenceInterval: NodeJS.Timeout | undefined;
 
     const updatePresence = async () => {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
+        if (currentUser) {
             await supabase.rpc('update_user_presence');
         }
     };
@@ -109,21 +96,20 @@ function AppLayout({ children }: { children: React.ReactNode }) {
   }, [currentUser, router, toast]);
 
   const registerPushToken = async () => {
+    if (!currentUser) return;
     try {
       await PushNotifications.register();
       
       PushNotifications.addListener('registration', async (token: Token) => {
         console.info('Push registration success, token: ', token.value);
-        if (currentUser) {
-          const { error } = await supabase.from('push_notification_tokens').upsert({
+        const { error } = await supabase.from('push_notification_tokens').upsert({
             user_id: currentUser.id,
             token: token.value,
             device_type: Capacitor.getPlatform(),
-          }, { onConflict: 'user_id, token' });
+        }, { onConflict: 'user_id, token' });
 
-          if (error) {
+        if (error) {
             console.error('Failed to save push token:', error);
-          }
         }
       });
 
@@ -202,9 +188,11 @@ export default function RootLayout({
       >
         <OfflineProvider>
           <LanguageProvider>
-            <AppLayout>
-              {children}
-            </AppLayout>
+            <MultiAccountProvider>
+              <AppLayout>
+                {children}
+              </AppLayout>
+            </MultiAccountProvider>
             <Toaster />
           </LanguageProvider>
         </OfflineProvider>

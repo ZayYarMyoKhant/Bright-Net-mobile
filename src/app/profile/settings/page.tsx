@@ -20,13 +20,15 @@ import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "@/context/language-context";
 import { createClient } from "@/lib/supabase/client";
 import { AdBanner } from "@/components/ad-banner";
+import { useContext } from "react";
+import { MultiAccountContext } from "@/hooks/use-multi-account";
 
 
 export default function SettingsPage() {
     const router = useRouter();
     const { toast } = useToast();
     const { t } = useTranslation();
-    const supabase = createClient();
+    const multiAccount = useContext(MultiAccountContext);
 
     const settingsItems = [
         { icon: User, label: t('settings.account'), href: "/profile/settings/account" },
@@ -37,19 +39,13 @@ export default function SettingsPage() {
 
 
     const handleLogout = async () => {
-       const { error } = await supabase.auth.signOut();
-       if (error) {
-           toast({
-                variant: "destructive",
-                title: "Logout Failed",
-                description: error.message,
-           });
-       } else {
-           toast({
+       if (multiAccount && multiAccount.currentAccount) {
+           await multiAccount.removeAccount(multiAccount.currentAccount.id);
+            toast({
                 title: "Logged Out",
-                description: "You have been successfully logged out.",
+                description: "You have been successfully logged out from this account.",
            });
-           router.push('/signup');
+           router.push('/home'); // Go to home, it will pick the next available account
            router.refresh();
        }
     };
@@ -98,11 +94,11 @@ export default function SettingsPage() {
                             <AlertDialogHeader>
                                 <AlertDialogTitle>{t('settings.logoutConfirmTitle')}</AlertDialogTitle>
                                 <AlertDialogDescription>
-                                    {t('settings.logoutConfirmDesc')}
+                                    This will remove this account from this device. You can log in again later.
                                 </AlertDialogDescription>
                             </AlertDialogHeader>
                             <AlertDialogFooter>
-                                <AlertDialogCancel>{t('settings.cancel')}</AlertDialogCancel>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
                                 <AlertDialogAction onClick={handleLogout}>{t('settings.confirmLogout')}</AlertDialogAction>
                             </AlertDialogFooter>
                         </AlertDialogContent>
