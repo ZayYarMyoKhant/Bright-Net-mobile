@@ -13,7 +13,7 @@ import { useToast } from "@/hooks/use-toast";
 import Link from "next/link";
 
 
-export default function SignUpPage() {
+export default function LoginPage() {
   const router = useRouter();
   const supabase = createClient();
   const { toast } = useToast();
@@ -28,14 +28,13 @@ export default function SignUpPage() {
     return countries.find(c => c.code === countryCode);
   }, [countryCode]);
 
-  const handleSignUp = async (e: React.FormEvent) => {
+  const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
     const fullPhoneNumber = `+${countryCode}${phoneNumber}`;
 
-    // This is a simplified flow for prototype purposes.
-    const { data, error } = await supabase.auth.signUp({
+    const { error } = await supabase.auth.signInWithPassword({
       phone: fullPhoneNumber,
       password: password,
     });
@@ -43,15 +42,16 @@ export default function SignUpPage() {
     if (error) {
       toast({
         variant: "destructive",
-        title: "Sign up failed",
+        title: "Sign in failed",
         description: error.message,
       });
-    } else if (data.user) {
+    } else {
        toast({
-        title: "Account created!",
-        description: "Redirecting to profile setup...",
+        title: "Signed In Successfully!",
+        description: "Welcome back!",
       });
-      router.push("/profile/setup");
+      router.push("/home");
+      router.refresh();
     }
     setLoading(false);
   };
@@ -61,11 +61,11 @@ export default function SignUpPage() {
     <div className="flex h-dvh flex-col items-center justify-center bg-background p-4">
         <div className="w-full max-w-sm">
             <div className="text-center mb-8">
-                <h1 className="text-2xl font-bold">Let Bright with <span className="text-primary">Bright-Net</span></h1>
-                <p className="text-muted-foreground mt-2">Account creation</p>
+                <h1 className="text-2xl font-bold">Welcome back!</h1>
+                <p className="text-muted-foreground mt-2">Sign in to continue to <span className="text-primary font-semibold">Bright-Net</span></p>
             </div>
             
-            <form onSubmit={handleSignUp} className="space-y-6">
+            <form onSubmit={handleSignIn} className="space-y-6">
                 <div>
                     <Label htmlFor="phone">Phone number</Label>
                     <div className="flex items-center mt-1 h-10 w-full rounded-md border border-input bg-background text-sm ring-offset-background focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2">
@@ -120,15 +120,15 @@ export default function SignUpPage() {
 
                 <Button type="submit" className="w-full" disabled={loading}>
                     {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    Create account
+                    Sign In
                 </Button>
             </form>
-
+            
             <div className="mt-6 text-center text-sm">
                 <p className="text-muted-foreground">
-                    Already have an account?{' '}
-                    <Link href="/login" className="text-primary font-semibold hover:underline">
-                        Sign In
+                    Don't have an account?{' '}
+                    <Link href="/signup" className="text-primary font-semibold hover:underline">
+                        Sign Up
                     </Link>
                 </p>
             </div>
