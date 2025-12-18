@@ -65,6 +65,7 @@ export default function UserProfilePageContent({ initialData, params }: { initia
   const [error, setError] = useState<string | null>(initialData.error);
   
   const [isFollowing, setIsFollowing] = useState(initialData.profile?.is_following ?? false);
+  const [isTogglingFollow, setIsTogglingFollow] = useState(false); // Loading state for follow button
   const isOwnProfile = currentUser?.id === profile?.id;
 
   useEffect(() => {
@@ -103,14 +104,14 @@ export default function UserProfilePageContent({ initialData, params }: { initia
   }, [profile?.id, supabase]);
   
   const handleFollowToggle = async () => {
-    if (!currentUser || !profile) {
-      toast({ variant: 'destructive', title: 'Please log in', description: 'You need to be logged in to follow users.' });
+    if (!currentUser || !profile || isTogglingFollow) {
+      if (!currentUser) toast({ variant: 'destructive', title: 'Please log in', description: 'You need to be logged in to follow users.' });
       return;
     }
     if (isOwnProfile) return;
 
+    setIsTogglingFollow(true); // Disable button
     const newFollowingState = !isFollowing;
-    setIsFollowing(newFollowingState);
 
     if (newFollowingState) {
         // Follow action
@@ -121,15 +122,9 @@ export default function UserProfilePageContent({ initialData, params }: { initia
         
         if (followError) {
             toast({ variant: 'destructive', title: 'Could not follow user.', description: followError.message });
-            setIsFollowing(false); // Revert UI on error
         } else {
+            setIsFollowing(true);
             setProfile(p => p ? {...p, followers: p.followers + 1} : null);
-            // Send notification from the app side
-            await supabase.from('notifications').insert({
-                recipient_id: profile.id,
-                actor_id: currentUser.id,
-                type: 'new_follower',
-            });
         }
     } else {
         // Unfollow action
@@ -140,11 +135,12 @@ export default function UserProfilePageContent({ initialData, params }: { initia
 
          if (error) {
             toast({ variant: 'destructive', title: 'Could not unfollow user.', description: error.message });
-            setIsFollowing(true); // Revert UI on error
         } else {
+            setIsFollowing(false);
             setProfile(p => p ? {...p, followers: p.followers - 1} : null);
         }
     }
+    setIsTogglingFollow(false); // Re-enable button
   };
 
   if (error) {
@@ -235,8 +231,8 @@ export default function UserProfilePageContent({ initialData, params }: { initia
               </Link>
             ) : (
               <>
-                <Button className="flex-1" variant={isFollowing ? 'secondary' : 'default'} onClick={handleFollowToggle}>
-                    {isFollowing ? 'Following' : 'Follow'}
+                <Button className="flex-1" variant={isFollowing ? 'secondary' : 'default'} onClick={handleFollowToggle} disabled={isTogglingFollow}>
+                    {isTogglingFollow ? <Loader2 className="h-4 w-4 animate-spin" /> : isFollowing ? 'Following' : 'Follow'}
                 </Button>
                 <Link href={`/chat/${profile.id}`} className="flex-1">
                     <Button variant="outline" className="w-full">
@@ -299,3 +295,5 @@ export default function UserProfilePageContent({ initialData, params }: { initia
     </>
   );
 }
+
+    
