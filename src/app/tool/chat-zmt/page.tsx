@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/tooltip"
 
 type Message = {
+    id: number;
     sender: 'user' | 'ai';
     text: string;
     isThinking?: boolean;
@@ -25,15 +26,16 @@ type Message = {
 
 export default function ChatZMTPage() {
     const [messages, setMessages] = useState<Message[]>([
-        { sender: 'ai', text: "Hello and a warm welcome from ZMT Think AI!\nHow can I help you today?" }
+        { id: 1, sender: 'ai', text: "Hello and a warm welcome from ZMT Think AI!\nHow can I help you today?" }
     ]);
     const [input, setInput] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const { toast } = useToast();
     const scrollAreaRef = useRef<HTMLDivElement>(null);
+    const streamingIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
     useEffect(() => {
-        // Scroll to bottom when new messages are added
+        // Scroll to bottom when new messages are added or text streams
         if (scrollAreaRef.current) {
             scrollAreaRef.current.scrollTo({
                 top: scrollAreaRef.current.scrollHeight,
@@ -42,7 +44,17 @@ export default function ChatZMTPage() {
         }
     }, [messages]);
     
+    // Cleanup interval on unmount
+    useEffect(() => {
+        return () => {
+            if (streamingIntervalRef.current) {
+                clearInterval(streamingIntervalRef.current);
+            }
+        };
+    }, []);
+
     const handleCopy = (text: string) => {
+        if (isLoading) return; // Don't copy while streaming
         navigator.clipboard.writeText(text).then(() => {
             toast({ title: "Copied to clipboard" });
         }).catch(err => {
@@ -55,42 +67,62 @@ export default function ChatZMTPage() {
         e.preventDefault();
         if (!input.trim() || isLoading) return;
 
-        const userMessage: Message = { sender: 'user', text: input };
-        const thinkingMessage: Message = { sender: 'ai', text: "🤔 Thinking...", isThinking: true };
+        if (streamingIntervalRef.current) {
+            clearInterval(streamingIntervalRef.current);
+        }
 
-        setMessages(prev => [...prev, userMessage, thinkingMessage]);
+        const newUserMessage: Message = { id: Date.now(), sender: 'user', text: input };
+        const thinkingMessage: Message = { id: Date.now() + 1, sender: 'ai', text: "🤔 Thinking...", isThinking: true };
+
+        setMessages(prev => [...prev, newUserMessage, thinkingMessage]);
+        const currentInput = input;
         setInput('');
         setIsLoading(true);
 
         try {
-            const response = await fetch(`https://zmt.moemintun2381956.workers.dev/?prompt=${encodeURIComponent(input)}`);
+            const response = await fetch(`https://zmt.moemintun2381956.workers.dev/?prompt=${encodeURIComponent(currentInput)}`);
             if (!response.ok) {
                 const errorText = await response.text();
                 throw new Error(`API request failed with status ${response.status}: ${errorText}`);
             }
             
             const data = await response.json();
-            
             const aiResponseText = data.text || "Sorry, I couldn't get a response.";
-            const aiMessage: Message = { sender: 'ai', text: aiResponseText };
 
-            // Replace the "Thinking..." message with the actual response
-            setMessages(prev => prev.slice(0, -1).concat(aiMessage));
+            // Start streaming the response
+            setMessages(prev => prev.slice(0, -1)); // Remove "Thinking..." message
+            const newAiMessageId = Date.now() + 2;
+            setMessages(prev => [...prev, { id: newAiMessageId, sender: 'ai', text: '' }]);
+            
+            let charIndex = 0;
+            streamingIntervalRef.current = setInterval(() => {
+                if (charIndex < aiResponseText.length) {
+                    setMessages(prev => prev.map(msg => 
+                        msg.id === newAiMessageId 
+                            ? { ...msg, text: aiResponseText.substring(0, charIndex + 1) }
+                            : msg
+                    ));
+                    charIndex++;
+                } else {
+                    if (streamingIntervalRef.current) {
+                        clearInterval(streamingIntervalRef.current);
+                    }
+                    setIsLoading(false);
+                }
+            }, 50); // Adjust typing speed here (milliseconds per character)
 
         } catch (error) {
             console.error("AI chat error:", error);
             const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
-            const errorAiMessage: Message = { sender: 'ai', text: "Sorry, I'm having trouble connecting. Please try again later." };
+            const errorAiMessage: Message = { id: Date.now() + 2, sender: 'ai', text: "Sorry, I'm having trouble connecting. Please try again later." };
             
-            // Replace the "Thinking..." message with the error message
-            setMessages(prev => prev.slice(0, -1).concat(errorAiMessage));
+            setMessages(prev => prev.slice(0, -1).concat(errorAiMessage)); // Replace "Thinking..." with error
             
             toast({
                 variant: "destructive",
                 title: "AI Chat Error",
                 description: errorMessage,
             });
-        } finally {
             setIsLoading(false);
         }
     };
@@ -114,7 +146,7 @@ export default function ChatZMTPage() {
                  <TooltipProvider>
                     <div className="p-4 space-y-6">
                         {messages.map((msg, index) => (
-                            <div key={index} className={cn("flex items-start gap-3", msg.sender === 'user' ? 'justify-end' : 'justify-start')}>
+                            <div key={msg.id} className={cn("flex items-start gap-3", msg.sender === 'user' ? 'justify-end' : 'justify-start')}>
                                 {msg.sender === 'ai' && (
                                     <Avatar className="h-8 w-8">
                                         <AvatarImage src="https://blbqaojfppwybkjqiyeb.supabase.co/storage/v1/object/public/avatars/2522ae18-27b2-4a7b-a24c-59752b04c86b-1725595914619_sticker.webp" alt="AI Avatar" />
@@ -125,7 +157,8 @@ export default function ChatZMTPage() {
                                     <TooltipTrigger asChild>
                                         <div 
                                             className={cn(
-                                                "max-w-sm rounded-lg px-4 py-2 cursor-pointer",
+                                                "max-w-sm rounded-lg px-4 py-2",
+                                                !isLoading && 'cursor-pointer',
                                                 msg.sender === 'user' ? 'bg-primary text-primary-foreground' : 'bg-muted',
                                                 msg.isThinking && 'text-muted-foreground italic'
                                             )}
