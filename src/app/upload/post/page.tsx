@@ -6,11 +6,14 @@ import { useState, useRef, useTransition, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { ArrowLeft, Loader2 } from "lucide-react";
+import { ArrowLeft, Loader2, Wand2, Sparkles, Check } from "lucide-react";
 import Image from "next/image";
 import { useToast } from "@/hooks/use-toast";
 import { createClient } from "@/lib/supabase/client";
 import { Progress } from "@/components/ui/progress";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+
 
 function UploadPostPageContent() {
   const [caption, setCaption] = useState("");
@@ -19,6 +22,12 @@ function UploadPostPageContent() {
   const [mediaType, setMediaType] = useState<'image' | 'video' | null>(null);
   const [isPending, startTransition] = useTransition();
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
+
+  // AI Editor State
+  const [showAiEditorDialog, setShowAiEditorDialog] = useState(false);
+  const [aiEditPrompt, setAiEditPrompt] = useState("");
+  const [isEditingWithAi, setIsEditingWithAi] = useState(false);
+  const [originalMediaFile, setOriginalMediaFile] = useState<File | null>(null);
 
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -47,6 +56,7 @@ function UploadPostPageContent() {
           const fileName = `post-media-${Date.now()}.${type === 'image' ? 'jpeg' : 'mp4'}`;
           const file = new File([blob], fileName, { type: blob.type });
           setMediaFile(file);
+          setOriginalMediaFile(file); // Keep a copy of the original
         })
         .catch(err => {
             console.error("Error fetching data URL blob:", err);
@@ -58,6 +68,63 @@ function UploadPostPageContent() {
       router.push('/upload/customize');
     }
   }, [router, toast, searchParams]);
+
+  const handleAiEdit = async () => {
+    if (!originalMediaFile || !aiEditPrompt.trim()) {
+        toast({ variant: 'destructive', title: 'Missing Information', description: 'Please ensure you have an image and a prompt.' });
+        return;
+    }
+
+    setIsEditingWithAi(true);
+
+    try {
+        // 1. Upload original image to get a public URL
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) throw new Error("User not authenticated.");
+
+        const tempFilePath = `temp/${user.id}-${Date.now()}`;
+        const { data: uploadData, error: uploadError } = await supabase.storage
+            .from('posts')
+            .upload(tempFilePath, originalMediaFile);
+        
+        if (uploadError) throw new Error(`Temporary upload failed: ${uploadError.message}`);
+
+        const { data: { publicUrl } } = supabase.storage.from('posts').getPublicUrl(tempFilePath);
+
+        // 2. Call the ZMT Xian API
+        const response = await fetch(`https://image2.zmt51400.workers.dev/?imageUrl=${encodeURIComponent(publicUrl)}&prompt=${encodeURIComponent(aiEditPrompt)}`);
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`AI editing failed: ${errorText}`);
+        }
+
+        const aiResult = await response.json();
+        const editedImageUrl = aiResult?.result?.images?.[0];
+
+        if (!editedImageUrl) {
+            throw new Error('AI service did not return a valid edited image.');
+        }
+
+        // 3. Fetch the new image blob and update the state
+        const editedImageResponse = await fetch(editedImageUrl);
+        const editedImageBlob = await editedImageResponse.blob();
+        const editedImageFile = new File([editedImageBlob], `ai-edited-${Date.now()}.jpeg`, { type: 'image/jpeg' });
+
+        setMediaFile(editedImageFile);
+        setPreviewUrl(URL.createObjectURL(editedImageFile));
+        
+        toast({ title: "AI Edit Applied!", description: "Your image has been magically transformed." });
+
+    } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
+        console.error("AI Editing Error:", errorMessage);
+        toast({ variant: 'destructive', title: 'AI Edit Failed', description: errorMessage });
+    } finally {
+        setIsEditingWithAi(false);
+        setShowAiEditorDialog(false);
+        setAiEditPrompt("");
+    }
+  };
 
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -116,12 +183,41 @@ function UploadPostPageContent() {
 
   return (
     <>
+        <Dialog open={showAiEditorDialog} onOpenChange={setShowAiEditorDialog}>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle className="flex items-center gap-2"><Sparkles className="h-5 w-5 text-primary" />AI Image Editor</DialogTitle>
+                    <DialogDescription>Describe how you'd like to change the image. For example: "Make it look like a watercolor painting".</DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4">
+                     {previewUrl && mediaType === 'image' && (
+                        <div className="relative w-full aspect-square rounded-md overflow-hidden">
+                            <Image src={previewUrl} alt="Image to edit" fill className="object-contain" />
+                        </div>
+                    )}
+                    <Input 
+                        placeholder="e.g., 'Change style to cyberpunk'"
+                        value={aiEditPrompt}
+                        onChange={(e) => setAiEditPrompt(e.target.value)}
+                        disabled={isEditingWithAi}
+                    />
+                </div>
+                <DialogFooter>
+                    <Button variant="outline" onClick={() => setShowAiEditorDialog(false)} disabled={isEditingWithAi}>Cancel</Button>
+                    <Button onClick={handleAiEdit} disabled={isEditingWithAi || !aiEditPrompt.trim()}>
+                        {isEditingWithAi ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Check className="mr-2 h-4 w-4" />}
+                        Apply Edit
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+
       <div className="flex h-full flex-col bg-background text-foreground">
         <header className="flex h-16 flex-shrink-0 items-center border-b px-4 relative">
           <button onClick={() => router.back()} className="p-2 -ml-2 absolute left-4">
             <ArrowLeft className="h-5 w-5" />
           </button>
-          <h1 className="text-xl font-bold mx-auto">Create your own post</h1>
+          <h1 className="text-xl font-bold mx-auto">Create a New Post</h1>
         </header>
 
         <main className="flex-1 overflow-y-auto p-4">
@@ -158,10 +254,17 @@ function UploadPostPageContent() {
               )}
             </div>
 
+            {mediaType === 'image' && (
+                <Button variant="outline" className="w-full" onClick={() => setShowAiEditorDialog(true)} disabled={isPending}>
+                    <Wand2 className="mr-2 h-4 w-4" />
+                    AI Editor
+                </Button>
+            )}
+
             <div>
               <Textarea
                 name="caption"
-                placeholder="Write caption"
+                placeholder="Write a caption..."
                 className="min-h-[100px] text-base"
                 value={caption}
                 onChange={(e) => setCaption(e.target.value)}
