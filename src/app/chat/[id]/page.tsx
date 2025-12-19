@@ -156,8 +156,9 @@ export default async function ChatPage({ params }: { params: { id: string } }) {
   const { data: { user: currentUser } } = await supabase.auth.getUser();
 
   if (!currentUser) {
-    // Or redirect to a login page
-    return <div className="flex h-dvh w-full items-center justify-center"><p>Please log in to view chats.</p></div>;
+    // This check is important for server-side rendering, but the client-side component will also handle redirects.
+    const initialData = { otherUser: null, conversationId: null, messages: [], isBlocked: false, isBlockedBy: false, error: 'Authentication required. Please log in.', pinnedMessages: [] };
+    return <ChatPageContent params={params} initialData={initialData} />;
   }
   
   const isSelfChat = currentUser.id === otherUserId;

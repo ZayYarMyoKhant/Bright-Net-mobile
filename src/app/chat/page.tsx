@@ -193,7 +193,7 @@ export default function ChatListPage() {
     }
   }
 
-  if (!currentUser) {
+  if (!currentUser || loading) {
     return (
         <div className="flex h-dvh w-full items-center justify-center">
           <Loader2 className="h-8 w-8 animate-spin" />
@@ -230,11 +230,13 @@ export default function ChatListPage() {
         </div>
 
         <main className="flex-1 overflow-y-auto">
-          {loading ? (
-            <div className="flex h-full w-full items-center justify-center">
-              <Loader2 className="h-8 w-8 animate-spin" />
+          {conversations.length === 0 && !loading ? (
+             <div className="flex flex-col items-center justify-center text-center text-muted-foreground pt-20">
+              <MessageSquarePlus className="h-16 w-16" />
+              <h2 className="mt-4 text-lg font-semibold">No Chats Yet</h2>
+              <p className="mt-1 text-sm">Start a conversation from a user's profile.</p>
             </div>
-          ) : (
+           ) : (
             <div className="divide-y p-4 space-y-4">
                 <Link href="/tool/chat-zmt">
                     <div className="p-4 flex items-center gap-4 hover:bg-muted/50 border border-primary rounded-lg">
@@ -302,14 +304,6 @@ export default function ChatListPage() {
               })}
             </div>
           )}
-
-           {conversations.length === 0 && !loading && (
-             <div className="flex flex-col items-center justify-center text-center text-muted-foreground pt-20">
-              <MessageSquarePlus className="h-16 w-16" />
-              <h2 className="mt-4 text-lg font-semibold">No Chats Yet</h2>
-              <p className="mt-1 text-sm">Start a conversation from a user's profile.</p>
-            </div>
-           )}
         </main>
       </div>
       <BottomNav />

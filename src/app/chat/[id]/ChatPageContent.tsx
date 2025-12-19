@@ -337,7 +337,7 @@ export default function ChatPageContent({ initialData, params }: { initialData: 
   const [isBlockedBy, setIsBlockedBy] = useState(initialData.isBlockedBy);
   const [pinnedMessages, setPinnedMessages] = useState<PinnedMessage[]>(initialData.pinnedMessages);
 
-
+  const [loading, setLoading] = useState(true);
   const [newMessage, setNewMessage] = useState("");
   const [replyingTo, setReplyingTo] = useState<DirectMessage | null>(null);
   const [editingMessage, setEditingMessage] = useState<DirectMessage | null>(null);
@@ -379,6 +379,7 @@ export default function ChatPageContent({ initialData, params }: { initialData: 
         if (profile) {
             setCurrentUserProfile(profile);
         }
+        setLoading(false);
     });
   }, [supabase, router]);
 
@@ -925,6 +926,10 @@ export default function ChatPageContent({ initialData, params }: { initialData: 
   };
 
 
+  if (loading) {
+    return <div className="flex h-dvh w-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin"/></div>
+  }
+
   if (error) {
       return (
         <div className="flex h-dvh w-full items-center justify-center bg-background p-4">
@@ -932,8 +937,7 @@ export default function ChatPageContent({ initialData, params }: { initialData: 
                 <AlertTriangle className="h-4 w-4" />
                 <AlertTitle>Error</AlertTitle>
                 <AlertDescription>
-                    <p>Could not load the chat data. Here's the specific error:</p>
-                    <pre className="mt-2 whitespace-pre-wrap rounded-md bg-muted p-2 text-xs font-mono">{error}</pre>
+                    <p>{error}</p>
                     <Button onClick={() => router.back()} className="mt-4">Go Back</Button>
                 </AlertDescription>
             </Alert>
