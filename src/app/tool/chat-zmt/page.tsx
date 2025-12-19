@@ -4,29 +4,26 @@
 import { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { ArrowLeft, Send, Loader2, ClipboardCopy, Bot } from 'lucide-react';
+import { ArrowLeft, Send, Loader2, Bot } from 'lucide-react';
 import Link from 'next/link';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip"
+import Image from 'next/image';
 
 type Message = {
     id: number;
     sender: 'user' | 'ai';
-    text: string;
-    isThinking?: boolean;
+    type: 'text' | 'image';
+    text?: string;
+    imageUrl?: string;
+    isLoading?: boolean;
 }
 
 export default function ChatZMTPage() {
     const [messages, setMessages] = useState<Message[]>([
-        { id: 1, sender: 'ai', text: "Hello and a warm welcome from ZMT Think AI!\nHow can I help you today?" }
+        { id: 1, sender: 'ai', type: 'text', text: "Hello and a warm welcome from ZMT Think AI!\nHow can I help you today?" }
     ]);
     const [input, setInput] = useState('');
     const [isLoading, setIsLoading] = useState(false);
@@ -35,7 +32,6 @@ export default function ChatZMTPage() {
     const streamingIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
     useEffect(() => {
-        // Scroll to bottom when new messages are added or text streams
         if (scrollAreaRef.current) {
             scrollAreaRef.current.scrollTo({
                 top: scrollAreaRef.current.scrollHeight,
@@ -43,8 +39,7 @@ export default function ChatZMTPage() {
             });
         }
     }, [messages]);
-    
-    // Cleanup interval on unmount
+
     useEffect(() => {
         return () => {
             if (streamingIntervalRef.current) {
@@ -52,16 +47,6 @@ export default function ChatZMTPage() {
             }
         };
     }, []);
-
-    const handleCopy = (text: string) => {
-        if (isLoading) return; // Don't copy while streaming
-        navigator.clipboard.writeText(text).then(() => {
-            toast({ title: "Copied to clipboard" });
-        }).catch(err => {
-            console.error('Could not copy text: ', err);
-            toast({ variant: "destructive", title: "Copy Failed" });
-        });
-    };
 
     const handleSendMessage = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -71,16 +56,28 @@ export default function ChatZMTPage() {
             clearInterval(streamingIntervalRef.current);
         }
 
-        const newUserMessage: Message = { id: Date.now(), sender: 'user', text: input };
-        const thinkingMessage: Message = { id: Date.now() + 1, sender: 'ai', text: "🤔 Thinking...", isThinking: true };
-
-        setMessages(prev => [...prev, newUserMessage, thinkingMessage]);
+        const userMessage: Message = { id: Date.now(), sender: 'user', type: 'text', text: input };
+        setMessages(prev => [...prev, userMessage]);
         const currentInput = input;
         setInput('');
         setIsLoading(true);
 
+        const imageKeywords = ["generate", "create", "draw", "picture", "image", "show me"];
+        const isImageRequest = imageKeywords.some(keyword => currentInput.toLowerCase().includes(keyword));
+
+        if (isImageRequest) {
+            await handleImageGeneration(currentInput);
+        } else {
+            await handleTextGeneration(currentInput);
+        }
+    };
+
+    const handleTextGeneration = async (prompt: string) => {
+        const thinkingMessage: Message = { id: Date.now() + 1, sender: 'ai', type: 'text', text: "🤔 Thinking...", isLoading: true };
+        setMessages(prev => [...prev, thinkingMessage]);
+
         try {
-            const response = await fetch(`https://zmt.moemintun2381956.workers.dev/?prompt=${encodeURIComponent(currentInput)}`);
+            const response = await fetch(`https://zmt.moemintun2381956.workers.dev/?prompt=${encodeURIComponent(prompt)}`);
             if (!response.ok) {
                 const errorText = await response.text();
                 throw new Error(`API request failed with status ${response.status}: ${errorText}`);
@@ -89,10 +86,9 @@ export default function ChatZMTPage() {
             const data = await response.json();
             const aiResponseText = data.text || "Sorry, I couldn't get a response.";
 
-            // Start streaming the response
-            setMessages(prev => prev.slice(0, -1)); // Remove "Thinking..." message
+            setMessages(prev => prev.slice(0, -1)); 
             const newAiMessageId = Date.now() + 2;
-            setMessages(prev => [...prev, { id: newAiMessageId, sender: 'ai', text: '' }]);
+            setMessages(prev => [...prev, { id: newAiMessageId, sender: 'ai', type: 'text', text: '' }]);
             
             let charIndex = 0;
             streamingIntervalRef.current = setInterval(() => {
@@ -109,14 +105,14 @@ export default function ChatZMTPage() {
                     }
                     setIsLoading(false);
                 }
-            }, 50); // Adjust typing speed here (milliseconds per character)
+            }, 50);
 
         } catch (error) {
-            console.error("AI chat error:", error);
+            console.error("AI text generation error:", error);
             const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
-            const errorAiMessage: Message = { id: Date.now() + 2, sender: 'ai', text: "Sorry, I'm having trouble connecting. Please try again later." };
+            const errorAiMessage: Message = { id: Date.now() + 2, sender: 'ai', type: 'text', text: "Sorry, I'm having trouble connecting. Please try again later." };
             
-            setMessages(prev => prev.slice(0, -1).concat(errorAiMessage)); // Replace "Thinking..." with error
+            setMessages(prev => prev.slice(0, -1).concat(errorAiMessage));
             
             toast({
                 variant: "destructive",
@@ -126,6 +122,45 @@ export default function ChatZMTPage() {
             setIsLoading(false);
         }
     };
+    
+    const handleImageGeneration = async (prompt: string) => {
+        const generatingMessage: Message = { id: Date.now() + 1, sender: 'ai', type: 'text', text: "🎨 Generating image...", isLoading: true };
+        setMessages(prev => [...prev, generatingMessage]);
+
+        try {
+            const response = await fetch(`https://ai.zmt51400.workers.dev/?prompt=${encodeURIComponent(prompt)}`);
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(`API request failed with status ${response.status}: ${errorText}`);
+            }
+            
+            const data = await response.json();
+            const imageUrl = data.result_url;
+
+            if (!imageUrl || typeof imageUrl !== 'string') {
+                 throw new Error('API response did not contain a valid image URL in the `result_url` field.');
+            }
+            
+            const imageMessage: Message = { id: Date.now() + 2, sender: 'ai', type: 'image', imageUrl: imageUrl };
+            setMessages(prev => prev.slice(0, -1).concat(imageMessage)); 
+
+        } catch (error) {
+            console.error("AI image generation error:", error);
+            const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
+            const errorAiMessage: Message = { id: Date.now() + 2, sender: 'ai', type: 'text', text: "Sorry, I couldn't create the image. Please try again." };
+            
+            setMessages(prev => prev.slice(0, -1).concat(errorAiMessage));
+            
+            toast({
+                variant: "destructive",
+                title: "Image Generation Failed",
+                description: errorMessage,
+            });
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
 
     return (
         <div className="flex h-dvh flex-col bg-background text-foreground">
@@ -143,44 +178,41 @@ export default function ChatZMTPage() {
             </header>
 
             <ScrollArea className="flex-1" ref={scrollAreaRef}>
-                 <TooltipProvider>
-                    <div className="p-4 space-y-6">
-                        {messages.map((msg, index) => (
-                            <div key={msg.id} className={cn("flex items-start gap-3", msg.sender === 'user' ? 'justify-end' : 'justify-start')}>
-                                {msg.sender === 'ai' && (
-                                    <Avatar className="h-8 w-8">
-                                        <AvatarImage src="https://blbqaojfppwybkjqiyeb.supabase.co/storage/v1/object/public/avatars/2522ae18-27b2-4a7b-a24c-59752b04c86b-1725595914619_sticker.webp" alt="AI Avatar" />
-                                        <AvatarFallback>AI</AvatarFallback>
-                                    </Avatar>
+                <div className="p-4 space-y-6">
+                    {messages.map((msg) => (
+                        <div key={msg.id} className={cn("flex items-start gap-3", msg.sender === 'user' ? 'justify-end' : 'justify-start')}>
+                            {msg.sender === 'ai' && (
+                                <Avatar className="h-8 w-8">
+                                    <AvatarImage src="https://blbqaojfppwybkjqiyeb.supabase.co/storage/v1/object/public/avatars/2522ae18-27b2-4a7b-a24c-59752b04c86b-1725595914619_sticker.webp" alt="AI Avatar" />
+                                    <AvatarFallback>AI</AvatarFallback>
+                                </Avatar>
+                            )}
+                            <div 
+                                className={cn(
+                                    "max-w-sm rounded-lg",
+                                    msg.type === 'text' && "px-4 py-2",
+                                    msg.sender === 'user' ? 'bg-primary text-primary-foreground' : 'bg-muted',
+                                    msg.isLoading && 'text-muted-foreground italic'
                                 )}
-                                 <Tooltip>
-                                    <TooltipTrigger asChild>
-                                        <div 
-                                            className={cn(
-                                                "max-w-sm rounded-lg px-4 py-2",
-                                                !isLoading && 'cursor-pointer',
-                                                msg.sender === 'user' ? 'bg-primary text-primary-foreground' : 'bg-muted',
-                                                msg.isThinking && 'text-muted-foreground italic'
-                                            )}
-                                            onClick={() => handleCopy(msg.text)}
-                                        >
-                                            <p className="text-sm whitespace-pre-wrap">{msg.text}</p>
-                                        </div>
-                                    </TooltipTrigger>
-                                    <TooltipContent>
-                                        <p>Copy to clipboard</p>
-                                    </TooltipContent>
-                                </Tooltip>
+                            >
+                                {msg.type === 'text' && msg.text && (
+                                    <p className="text-sm whitespace-pre-wrap">{msg.text}</p>
+                                )}
+                                {msg.type === 'image' && msg.imageUrl && (
+                                    <div className="relative w-64 h-64 rounded-lg overflow-hidden">
+                                        <Image src={msg.imageUrl} alt="Generated image" fill className="object-cover" />
+                                    </div>
+                                )}
                             </div>
-                        ))}
-                    </div>
-                </TooltipProvider>
+                        </div>
+                    ))}
+                </div>
             </ScrollArea>
             
             <footer className="border-t p-2">
                 <form onSubmit={handleSendMessage} className="flex items-center gap-2">
                     <Input 
-                        placeholder="Ask ZMT Think..." 
+                        placeholder="Ask ZMT Think or describe an image to create..." 
                         value={input}
                         onChange={(e) => setInput(e.target.value)}
                         disabled={isLoading}
