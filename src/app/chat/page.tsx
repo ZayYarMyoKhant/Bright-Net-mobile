@@ -193,6 +193,14 @@ export default function ChatListPage() {
     }
   }
 
+  if (!currentUser) {
+    return (
+        <div className="flex h-dvh w-full items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin" />
+        </div>
+    );
+  }
+
   return (
     <>
       <div className="flex h-dvh flex-col bg-background text-foreground pb-16">
@@ -308,5 +316,3 @@ export default function ChatListPage() {
     </>
   );
 }
-
-    
