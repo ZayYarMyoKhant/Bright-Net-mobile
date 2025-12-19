@@ -36,16 +36,15 @@ export default function ImageGenerationPage() {
                 throw new Error(`API request failed: ${response.status} ${response.statusText} - ${errorText}`);
             }
 
-            // The API returns a JSON with a URL, not the image blob directly.
             const data = await response.json();
             
-            // Assuming the JSON response has a key like "url" or "imageUrl"
-            const generatedUrl = data.url || data.imageUrl;
+            // Correctly parse the nested JSON response
+            const generatedUrl = data.result;
 
             if (generatedUrl && typeof generatedUrl === 'string') {
                 setImageUrl(generatedUrl);
             } else {
-                throw new Error('API response did not contain a valid image URL.');
+                throw new Error('API response did not contain a valid image URL in the `result` field.');
             }
 
         } catch (error) {
