@@ -8,7 +8,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { ArrowLeft, Mic, Image as ImageIcon, Send, Smile, MoreVertical, MessageSquareReply, Trash2, X, Loader2, Waves, Heart, ThumbsUp, Laugh, Frown, Check, CheckCheck, Ban, Share2, AlertTriangle, StopCircle, Pencil, ClipboardCopy, Pin, PinOff, ChevronLeft, ChevronRight } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, useContext } from "react";
 import { cn } from "@/lib/utils";
 import { EmojiPicker } from "@/components/emoji-picker";
 import { useToast } from "@/hooks/use-toast";
@@ -21,6 +21,7 @@ import { useRouter } from "next/navigation";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious, type CarouselApi } from "@/components/ui/carousel";
+import { MultiAccountContext } from "@/hooks/use-multi-account";
 
 
 type Reaction = {
@@ -326,7 +327,8 @@ export default function ChatPageContent({ initialData, params }: { initialData: 
   const { toast } = useToast();
   const supabase = createClient();
   
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const multiAccount = useContext(MultiAccountContext);
+  const currentUser = multiAccount?.currentAccount?.session.user ?? null;
   const [currentUserProfile, setCurrentUserProfile] = useState<Profile | null>(null);
 
   const [otherUser, setOtherUser] = useState<OtherUserWithPresence | null>(initialData.otherUser);
@@ -337,7 +339,6 @@ export default function ChatPageContent({ initialData, params }: { initialData: 
   const [isBlockedBy, setIsBlockedBy] = useState(initialData.isBlockedBy);
   const [pinnedMessages, setPinnedMessages] = useState<PinnedMessage[]>(initialData.pinnedMessages);
 
-  const [loading, setLoading] = useState(true);
   const [newMessage, setNewMessage] = useState("");
   const [replyingTo, setReplyingTo] = useState<DirectMessage | null>(null);
   const [editingMessage, setEditingMessage] = useState<DirectMessage | null>(null);
@@ -369,19 +370,19 @@ export default function ChatPageContent({ initialData, params }: { initialData: 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    supabase.auth.getUser().then(async ({ data: { user } }) => {
-        if (!user) {
-            router.push('/signup');
-            return;
-        }
-        setCurrentUser(user);
-        const { data: profile } = await supabase.from('profiles').select('*').eq('id', user.id).single();
+    if (multiAccount?.isLoading) return;
+    if (!currentUser) {
+        router.push('/signup');
+        return;
+    }
+    const fetchProfile = async () => {
+        const { data: profile } = await supabase.from('profiles').select('*').eq('id', currentUser.id).single();
         if (profile) {
             setCurrentUserProfile(profile);
         }
-        setLoading(false);
-    });
-  }, [supabase, router]);
+    };
+    fetchProfile();
+  }, [supabase, router, currentUser, multiAccount?.isLoading]);
 
 
   useEffect(() => {
@@ -435,6 +436,7 @@ export default function ChatPageContent({ initialData, params }: { initialData: 
             if (payload.eventType === 'INSERT') {
                 const { data } = await supabase.from('pinned_messages').select('*, direct_messages!inner(*, profiles!inner(*))').eq('id', payload.new.id).single();
                 if (data && !pinnedMessages.some(p => p.id === data.id)) {
+                    // @ts-ignore
                     setPinnedMessages(prev => [...prev, data as PinnedMessage]);
                 }
             } else if (payload.eventType === 'DELETE') {
@@ -497,10 +499,14 @@ export default function ChatPageContent({ initialData, params }: { initialData: 
           { event: '*', schema: 'public', table: 'blocks' },
           (payload) => {
               if (currentUser && otherUser) {
+                  // @ts-ignore
                   if(payload.new.blocker_id === currentUser.id && payload.new.blocked_id === otherUser.id) setIsBlocked(true);
+                  // @ts-ignore
                   if(payload.new.blocker_id === otherUser.id && payload.new.blocked_id === currentUser.id) setIsBlockedBy(true);
                   if(payload.eventType === "DELETE") {
+                    // @ts-ignore
                     if(payload.old.blocker_id === currentUser.id && payload.old.blocked_id === otherUser.id) setIsBlocked(false);
+                    // @ts-ignore
                     if(payload.old.blocker_id === otherUser.id && payload.old.blocked_id === currentUser.id) setIsBlockedBy(false);
                   }
               }
@@ -767,6 +773,7 @@ export default function ChatPageContent({ initialData, params }: { initialData: 
             if (error) {
                 toast({ variant: 'destructive', title: 'Failed to pin message', description: error.message });
             } else {
+                // @ts-ignore
                 setPinnedMessages(prev => [...prev, data as PinnedMessage]);
                 toast({ title: 'Message pinned' });
             }
@@ -926,7 +933,7 @@ export default function ChatPageContent({ initialData, params }: { initialData: 
   };
 
 
-  if (loading) {
+  if (multiAccount?.isLoading) {
     return <div className="flex h-dvh w-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin"/></div>
   }
 

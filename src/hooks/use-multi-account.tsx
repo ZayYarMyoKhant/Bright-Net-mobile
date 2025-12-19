@@ -60,6 +60,23 @@ export const MultiAccountProvider = ({ children }: { children: ReactNode }) => {
     }
   }, []);
 
+  const switchAccount = useCallback(async (userId: string, currentAccounts?: StoredAccount[]) => {
+    const accountsToUse = currentAccounts || accounts;
+    const accountToSwitch = accountsToUse.find(acc => acc.id === userId);
+
+    if (accountToSwitch) {
+      const { error } = await supabase.auth.setSession(accountToSwitch.session);
+      if (error) {
+        console.error("Failed to switch session:", error);
+        // Maybe the session is expired, try to remove it
+        await removeAccount(userId);
+      } else {
+        setCurrentAccount(accountToSwitch);
+      }
+    }
+  }, [accounts, supabase.auth]);
+
+
   useEffect(() => {
     const initialize = async () => {
       setIsLoading(true);
@@ -115,22 +132,6 @@ export const MultiAccountProvider = ({ children }: { children: ReactNode }) => {
     await switchAccount(newAccount.id, updatedAccounts);
   };
 
-  const switchAccount = async (userId: string, currentAccounts?: StoredAccount[]) => {
-    const accountsToUse = currentAccounts || accounts;
-    const accountToSwitch = accountsToUse.find(acc => acc.id === userId);
-
-    if (accountToSwitch) {
-      const { error } = await supabase.auth.setSession(accountToSwitch.session);
-      if (error) {
-        console.error("Failed to switch session:", error);
-        // Maybe the session is expired, try to remove it
-        await removeAccount(userId);
-      } else {
-        setCurrentAccount(accountToSwitch);
-      }
-    }
-  };
-
   const removeAccount = async (userId: string) => {
     const updatedAccounts = accounts.filter(acc => acc.id !== userId);
     saveAccountsToStorage(updatedAccounts);
@@ -154,7 +155,7 @@ export const MultiAccountProvider = ({ children }: { children: ReactNode }) => {
     addOrSwitchAccount,
     switchAccount,
     removeAccount,
-  }), [accounts, currentAccount, isLoading, addOrSwitchAccount, switchAccount, removeAccount]);
+  }), [accounts, currentAccount, isLoading, removeAccount, switchAccount]);
 
   return (
     <MultiAccountContext.Provider value={contextValue}>

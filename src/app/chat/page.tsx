@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useContext } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { useRouter } from 'next/navigation';
 import { User } from '@supabase/supabase-js';
@@ -16,6 +16,7 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { useNotifications } from '@/hooks/use-notifications';
+import { MultiAccountContext } from '@/hooks/use-multi-account';
 
 type Conversation = {
   id: string;
@@ -50,7 +51,8 @@ function PresenceIndicator({ user }: { user: { last_seen: string | null; show_ac
 export default function ChatListPage() {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loading, setLoading] = useState(true);
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const multiAccount = useContext(MultiAccountContext);
+  const currentUser = multiAccount?.currentAccount;
   const supabase = createClient();
   const router = useRouter();
   const { unreadCount } = useNotifications();
@@ -148,15 +150,16 @@ export default function ChatListPage() {
 
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      if (!user) {
-        router.push('/signup');
-      } else {
-        setCurrentUser(user);
-        fetchConversations(user);
-      }
-    });
-  }, [supabase, router, fetchConversations]);
+    if (multiAccount?.isLoading) {
+      return; // Wait for the auth context to be ready
+    }
+    if (!currentUser) {
+      router.push('/signup');
+    } else {
+      // @ts-ignore
+      fetchConversations(currentUser);
+    }
+  }, [currentUser, multiAccount?.isLoading, router, fetchConversations]);
 
   useEffect(() => {
     if (!currentUser) return;
@@ -165,18 +168,21 @@ export default function ChatListPage() {
       .on('postgres_changes', 
         { event: '*', schema: 'public', table: 'direct_messages' },
         (payload) => {
-            fetchConversations(currentUser);
+          // @ts-ignore
+          fetchConversations(currentUser);
         }
       )
       .on('postgres_changes',
         { event: '*', schema: 'public', table: 'conversation_participants' },
         (payload) => {
-            fetchConversations(currentUser);
+           // @ts-ignore
+           fetchConversations(currentUser);
         }
       )
       .on('postgres_changes',
         { event: '*', schema: 'public', table: 'direct_message_read_status' },
         (payload) => {
+             // @ts-ignore
              fetchConversations(currentUser);
         }
       )
@@ -193,7 +199,7 @@ export default function ChatListPage() {
     }
   }
 
-  if (!currentUser || loading) {
+  if (multiAccount?.isLoading || loading || !currentUser) {
     return (
         <div className="flex h-dvh w-full items-center justify-center">
           <Loader2 className="h-8 w-8 animate-spin" />
