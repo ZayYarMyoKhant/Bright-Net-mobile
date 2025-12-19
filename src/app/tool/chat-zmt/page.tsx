@@ -4,7 +4,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { ArrowLeft, Send, Loader2, ClipboardCopy } from 'lucide-react';
+import { ArrowLeft, Send, Loader2, ClipboardCopy, Bot } from 'lucide-react';
 import Link from 'next/link';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
@@ -20,14 +20,15 @@ import {
 type Message = {
     sender: 'user' | 'ai';
     text: string;
+    isThinking?: boolean;
 }
 
 export default function ChatZMTPage() {
     const [messages, setMessages] = useState<Message[]>([
-        { sender: 'ai', text: "Hello! I'm ZMT AI. How can I help you today?" }
+        { sender: 'ai', text: "Hello and a warm welcome from ZMT Think AI!\nHow can I help you today?" }
     ]);
     const [input, setInput] = useState('');
-    const [loading, setLoading] = useState(false);
+    const [isLoading, setIsLoading] = useState(false);
     const { toast } = useToast();
     const scrollAreaRef = useRef<HTMLDivElement>(null);
 
@@ -52,37 +53,45 @@ export default function ChatZMTPage() {
 
     const handleSendMessage = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!input.trim()) return;
+        if (!input.trim() || isLoading) return;
 
         const userMessage: Message = { sender: 'user', text: input };
-        setMessages(prev => [...prev, userMessage]);
+        const thinkingMessage: Message = { sender: 'ai', text: "🤔 Thinking...", isThinking: true };
+
+        setMessages(prev => [...prev, userMessage, thinkingMessage]);
         setInput('');
-        setLoading(true);
+        setIsLoading(true);
 
         try {
             const response = await fetch(`https://zmt.moemintun2381956.workers.dev/?prompt=${encodeURIComponent(input)}`);
             if (!response.ok) {
-                throw new Error(`API request failed with status ${response.status}`);
+                const errorText = await response.text();
+                throw new Error(`API request failed with status ${response.status}: ${errorText}`);
             }
+            
             const data = await response.json();
             
-            // Correctly access the nested response text
-            const aiResponseText = data.result?.response || "Sorry, I couldn't get a response.";
+            const aiResponseText = data.text || "Sorry, I couldn't get a response.";
             const aiMessage: Message = { sender: 'ai', text: aiResponseText };
-            setMessages(prev => [...prev, aiMessage]);
+
+            // Replace the "Thinking..." message with the actual response
+            setMessages(prev => prev.slice(0, -1).concat(aiMessage));
 
         } catch (error) {
             console.error("AI chat error:", error);
             const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
+            const errorAiMessage: Message = { sender: 'ai', text: "Sorry, I'm having trouble connecting. Please try again later." };
+            
+            // Replace the "Thinking..." message with the error message
+            setMessages(prev => prev.slice(0, -1).concat(errorAiMessage));
+            
             toast({
                 variant: "destructive",
                 title: "AI Chat Error",
                 description: errorMessage,
             });
-            const errorAiMessage: Message = { sender: 'ai', text: "Sorry, I'm having trouble connecting. Please try again later." };
-            setMessages(prev => [...prev, errorAiMessage]);
         } finally {
-            setLoading(false);
+            setIsLoading(false);
         }
     };
 
@@ -94,7 +103,10 @@ export default function ChatZMTPage() {
                         <ArrowLeft className="h-5 w-5" />
                     </Button>
                 </Link>
-                <h1 className="text-xl font-bold">ZMT Thinking model</h1>
+                <div className="flex items-center gap-2">
+                    <Bot className="h-6 w-6"/>
+                    <h1 className="text-xl font-bold">ZMT Think</h1>
+                </div>
                 <div className="w-10"></div>
             </header>
 
@@ -114,7 +126,8 @@ export default function ChatZMTPage() {
                                         <div 
                                             className={cn(
                                                 "max-w-sm rounded-lg px-4 py-2 cursor-pointer",
-                                                msg.sender === 'user' ? 'bg-primary text-primary-foreground' : 'bg-muted'
+                                                msg.sender === 'user' ? 'bg-primary text-primary-foreground' : 'bg-muted',
+                                                msg.isThinking && 'text-muted-foreground italic'
                                             )}
                                             onClick={() => handleCopy(msg.text)}
                                         >
@@ -127,17 +140,6 @@ export default function ChatZMTPage() {
                                 </Tooltip>
                             </div>
                         ))}
-                        {loading && (
-                             <div className="flex items-start gap-3 justify-start">
-                                 <Avatar className="h-8 w-8">
-                                    <AvatarImage src="https://blbqaojfppwybkjqiyeb.supabase.co/storage/v1/object/public/avatars/2522ae18-27b2-4a7b-a24c-59752b04c86b-1725595914619_sticker.webp" alt="AI Avatar" />
-                                    <AvatarFallback>AI</AvatarFallback>
-                                </Avatar>
-                                <div className="max-w-sm rounded-lg px-4 py-2 bg-muted flex items-center">
-                                    <Loader2 className="h-5 w-5 animate-spin" />
-                                </div>
-                            </div>
-                        )}
                     </div>
                 </TooltipProvider>
             </ScrollArea>
@@ -145,14 +147,14 @@ export default function ChatZMTPage() {
             <footer className="border-t p-2">
                 <form onSubmit={handleSendMessage} className="flex items-center gap-2">
                     <Input 
-                        placeholder="Type your message..." 
+                        placeholder="Ask ZMT Think..." 
                         value={input}
                         onChange={(e) => setInput(e.target.value)}
-                        disabled={loading}
+                        disabled={isLoading}
                         className="flex-1"
                     />
-                    <Button type="submit" size="icon" disabled={loading || !input.trim()}>
-                        {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
+                    <Button type="submit" size="icon" disabled={isLoading || !input.trim()}>
+                        {isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
                     </Button>
                 </form>
             </footer>
