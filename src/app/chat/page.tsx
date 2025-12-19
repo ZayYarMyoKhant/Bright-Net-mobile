@@ -6,7 +6,7 @@ import { createClient } from '@/lib/supabase/client';
 import { useRouter } from 'next/navigation';
 import { User } from '@supabase/supabase-js';
 import { BottomNav } from '@/components/bottom-nav';
-import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar } from '@/components/ui/avatar';
 import { Loader2, MessageSquarePlus, Bookmark, Bot, Bell } from 'lucide-react';
 import Link from 'next/link';
 import { formatDistanceToNow, isBefore, subMinutes } from 'date-fns';
@@ -153,43 +153,39 @@ export default function ChatListPage() {
     if (multiAccount?.isLoading) {
       return; // Wait for the auth context to be ready
     }
-    if (!currentUser) {
+    if (!currentUser?.session) {
       router.push('/signup');
     } else {
-      // @ts-ignore
-      fetchConversations(currentUser);
+      fetchConversations(currentUser.session.user);
     }
   }, [currentUser, multiAccount?.isLoading, router, fetchConversations]);
 
   useEffect(() => {
     if (!currentUser) return;
 
-    const changes = supabase.channel('public:chat-list-page-changes')
+    const channel = supabase.channel('public:chat-list-page-changes')
       .on('postgres_changes', 
         { event: '*', schema: 'public', table: 'direct_messages' },
         (payload) => {
-          // @ts-ignore
-          fetchConversations(currentUser);
+          fetchConversations(currentUser.session.user);
         }
       )
       .on('postgres_changes',
         { event: '*', schema: 'public', table: 'conversation_participants' },
         (payload) => {
-           // @ts-ignore
-           fetchConversations(currentUser);
+           fetchConversations(currentUser.session.user);
         }
       )
       .on('postgres_changes',
         { event: '*', schema: 'public', table: 'direct_message_read_status' },
         (payload) => {
-             // @ts-ignore
-             fetchConversations(currentUser);
+             fetchConversations(currentUser.session.user);
         }
       )
       .subscribe();
 
     return () => {
-      supabase.removeChannel(changes);
+      supabase.removeChannel(channel);
     };
   }, [currentUser, supabase, fetchConversations]);
   
@@ -234,6 +230,21 @@ export default function ChatListPage() {
         <div className="p-4 border-b">
           <AdBanner />
         </div>
+        
+        <div className="p-4 border-b">
+          <Link href="/tool/chat-zmt">
+            <div className="p-4 flex items-center gap-4 hover:bg-muted/50 rounded-lg border border-primary/50 bg-gradient-to-br from-primary/10 to-background shadow-lg transition-shadow hover:shadow-primary/20">
+                <div className="p-2 bg-primary/20 rounded-full">
+                    <Bot className="h-6 w-6 text-primary" />
+                </div>
+                <div className="flex-1 overflow-hidden">
+                     <p className="font-semibold text-primary">ZMT Thinking AI</p>
+                     <p className="text-sm truncate text-muted-foreground">Think deeper. Answer smarter.</p>
+                </div>
+            </div>
+          </Link>
+        </div>
+
 
         <main className="flex-1 overflow-y-auto">
           {conversations.length === 0 && !loading ? (
@@ -243,16 +254,7 @@ export default function ChatListPage() {
               <p className="mt-1 text-sm">Start a conversation from a user's profile.</p>
             </div>
            ) : (
-            <div className="divide-y p-4 space-y-4">
-                <Link href="/tool/chat-zmt">
-                    <div className="p-4 flex items-center gap-4 hover:bg-muted/50 border border-primary rounded-lg">
-                        <div className="flex-1 overflow-hidden">
-                             <p className="font-semibold">ZMT Thinking model</p>
-                             <p className="text-sm truncate text-muted-foreground">Chat with ZMT Thinking model</p>
-                        </div>
-                    </div>
-                </Link>
-
+            <div className="divide-y">
               {conversations.map((convo) => {
                 if (!convo.other_user && !convo.is_self_chat) return null;
                 

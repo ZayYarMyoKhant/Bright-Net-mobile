@@ -66,7 +66,7 @@ export default function ChatZMTPage() {
             }
             const data = await response.json();
             
-            const aiMessage: Message = { sender: 'ai', text: data.response || "Sorry, I couldn't get a response." };
+            const aiMessage: Message = { sender: 'ai', text: data.result.response || "Sorry, I couldn't get a response." };
             setMessages(prev => [...prev, aiMessage]);
 
         } catch (error) {
@@ -87,7 +87,7 @@ export default function ChatZMTPage() {
     return (
         <div className="flex h-dvh flex-col bg-background text-foreground">
             <header className="flex h-16 flex-shrink-0 items-center justify-between bg-blue-600 text-white px-4">
-                <Link href="/chat">
+                <Link href="/tool">
                     <Button variant="ghost" size="icon" className="hover:bg-white/20">
                         <ArrowLeft className="h-5 w-5" />
                     </Button>
@@ -110,7 +110,7 @@ export default function ChatZMTPage() {
                                             )}
                                             onClick={() => handleCopy(msg.text)}
                                         >
-                                            <p className="text-sm">{msg.text}</p>
+                                            <p className="text-sm whitespace-pre-wrap">{msg.text}</p>
                                         </div>
                                     </TooltipTrigger>
                                     <TooltipContent>
