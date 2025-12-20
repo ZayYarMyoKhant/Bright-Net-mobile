@@ -7,13 +7,14 @@ import './globals.css';
 import { cn } from '@/lib/utils';
 import { Toaster } from '@/components/ui/toaster';
 import { LanguageProvider } from '@/context/language-context';
-import { useEffect, useState, useContext } from 'react';
+import { useEffect, useState, useContext, useRef } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { User } from '@supabase/supabase-js';
 import { TypingBattleRequestBanner } from '@/components/typing-battle-request-banner';
 import { CoupleRequestBanner } from '@/components/couple-request-banner';
 import { OfflineProvider, OfflineContext } from '@/context/offline-context';
 import OfflinePage from '@/app/offline/page';
+import { App } from '@capacitor/app';
 import { PushNotifications, Token, PermissionState, PushNotificationSchema, ActionPerformed } from '@capacitor/push-notifications';
 import { Capacitor } from '@capacitor/core';
 import { useToast } from '@/hooks/use-toast';
@@ -37,6 +38,7 @@ function AppLayout({ children }: { children: React.ReactNode }) {
   const { toast } = useToast();
   const router = useRouter();
   const [showNotificationDialog, setShowNotificationDialog] = useState(false);
+  const backButtonPressCount = useRef(0);
 
   // Real-time user presence heartbeat
   useEffect(() => {
@@ -94,6 +96,34 @@ function AppLayout({ children }: { children: React.ReactNode }) {
       addListeners();
     }
   }, [currentUser, router, toast]);
+
+    // Double press back to exit
+    useEffect(() => {
+        if (Capacitor.isNativePlatform()) {
+            App.addListener('backButton', ({ canGoBack }) => {
+                if (!canGoBack) {
+                    backButtonPressCount.current += 1;
+
+                    if (backButtonPressCount.current === 1) {
+                        toast({ description: "Press back again to exit" });
+                        setTimeout(() => {
+                            backButtonPressCount.current = 0;
+                        }, 2000); // Reset after 2 seconds
+                    } else if (backButtonPressCount.current >= 2) {
+                        App.exitApp();
+                    }
+                } else {
+                    window.history.back();
+                }
+            });
+        }
+        
+        return () => {
+           // Clean up listener if component unmounts
+           // App.removeAllListeners may be too broad if other listeners exist
+        }
+    }, [toast]);
+
 
   const registerPushToken = async () => {
     if (!currentUser) return;

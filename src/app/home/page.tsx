@@ -3,7 +3,7 @@
 
 import { Suspense, useEffect, useState, useCallback, useRef } from 'react';
 import { BottomNav } from "@/components/bottom-nav";
-import { Loader2, Headphones, Download, Play, Pause, Music, VideoOff } from "lucide-react";
+import { Loader2, Headphones, Download, Play, Pause, Music, VideoOff, Heart } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PostFeed } from '@/components/post-feed';
 import { VideoFeed } from '@/components/video-feed';
@@ -16,6 +16,8 @@ import { Avatar } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { AdBanner } from '@/components/ad-banner';
+import { User } from '@supabase/supabase-js';
+import { cn } from '@/lib/utils';
 
 type Track = {
   id: number;
@@ -26,13 +28,19 @@ type Track = {
   cover_art_url: string | null;
   created_at: string;
   profiles: Profile;
+  likes_count: number;
+  is_liked_by_user: boolean;
 };
 
-const AudioPlayer = ({ track }: { track: Track }) => {
+const AudioPlayer = ({ track: initialTrack, currentUser }: { track: Track, currentUser: User | null }) => {
     const audioRef = useRef<HTMLAudioElement>(null);
     const [isPlaying, setIsPlaying] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
     const { toast } = useToast();
+    const supabase = createClient();
+    const [likesCount, setLikesCount] = useState(initialTrack.likes_count);
+    const [isLiked, setIsLiked] = useState(initialTrack.is_liked_by_user);
+    const [isLiking, setIsLiking] = useState(false);
 
     useEffect(() => {
         const audio = audioRef.current;
@@ -70,38 +78,76 @@ const AudioPlayer = ({ track }: { track: Track }) => {
     
     const handleDownload = async () => {
         try {
-            const response = await fetch(track.audio_url);
+            const response = await fetch(initialTrack.audio_url);
             const blob = await response.blob();
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.style.display = 'none';
             a.href = url;
-            a.download = `${track.title} - ${track.artist_name || 'Unknown'}.mp3`;
+            a.download = `${initialTrack.title} - ${initialTrack.artist_name || 'Unknown'}.mp3`;
             document.body.appendChild(a);
             a.click();
             window.URL.revokeObjectURL(url);
             document.body.removeChild(a);
-            toast({ title: "Download Started", description: track.title });
+            toast({ title: "Download Started", description: initialTrack.title });
         } catch (error) {
             console.error("Download failed:", error);
             toast({ variant: "destructive", title: "Download Failed" });
         }
     };
 
+    const handleLikeToggle = async () => {
+        if (!currentUser) {
+            toast({ variant: 'destructive', title: 'You must be logged in to like tracks.' });
+            return;
+        }
+        if(isLiking) return;
+
+        setIsLiking(true);
+        const newIsLiked = !isLiked;
+        
+        // Optimistic update
+        setIsLiked(newIsLiked);
+        setLikesCount(prev => newIsLiked ? prev + 1 : prev - 1);
+
+        if (newIsLiked) {
+            const { error } = await supabase.from('track_likes').insert({ track_id: initialTrack.id, user_id: currentUser.id });
+            if (error) {
+                toast({ variant: 'destructive', title: 'Failed to like track', description: error.message });
+                setIsLiked(false);
+                setLikesCount(prev => prev - 1);
+            }
+        } else {
+            const { error } = await supabase.from('track_likes').delete().match({ track_id: initialTrack.id, user_id: currentUser.id });
+             if (error) {
+                toast({ variant: 'destructive', title: 'Failed to unlike track', description: error.message });
+                setIsLiked(true);
+                setLikesCount(prev => prev + 1);
+            }
+        }
+        setIsLiking(false);
+    }
+
     return (
         <Card className="overflow-hidden bg-muted/50 border-border">
             <CardContent className="p-3 flex items-center gap-4">
-                <Avatar className="h-10 w-10" profile={track.profiles}/>
+                <Avatar className="h-10 w-10" profile={initialTrack.profiles}/>
                 <div className="flex-1 space-y-1 overflow-hidden">
-                    <p className="font-bold truncate text-sm">{track.title}</p>
-                    <p className="text-xs text-muted-foreground truncate">{track.artist_name || track.profiles.username}</p>
+                    <p className="font-bold truncate text-sm">{initialTrack.title}</p>
+                    <p className="text-xs text-muted-foreground truncate">{initialTrack.artist_name || initialTrack.profiles.username}</p>
                     <div className="flex items-center gap-3">
                          <Button variant="ghost" size="icon" onClick={handlePlayPause} disabled={isLoading} className="h-8 w-8 flex-shrink-0">
                             {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
                         </Button>
-                        <audio ref={audioRef} src={track.audio_url} preload="metadata"></audio>
+                        <audio ref={audioRef} src={initialTrack.audio_url} preload="metadata"></audio>
                         <p className="text-xs text-muted-foreground">Click to play</p>
                     </div>
+                </div>
+                <div className="flex flex-col items-center gap-1 text-muted-foreground">
+                    <Button variant="ghost" size="icon" onClick={handleLikeToggle} disabled={isLiking}>
+                        <Heart className={cn("h-5 w-5", isLiked && "text-red-500 fill-red-500")} />
+                    </Button>
+                    <span className="text-xs font-semibold">{likesCount}</span>
                 </div>
                 <Button variant="ghost" size="icon" onClick={handleDownload}>
                     <Download className="h-5 w-5 text-muted-foreground" />
@@ -126,13 +172,15 @@ function HomePageContent() {
   const [tracks, setTracks] = useState<Track[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingTracks, setLoadingTracks] = useState(true);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
   const supabase = createClient();
   const { toast } = useToast();
   const router = useRouter();
 
   const fetchPosts = useCallback(async () => {
     setLoading(true);
-    const { data: { user: currentUser } } = await supabase.auth.getUser();
+    const { data: { user } } = await supabase.auth.getUser();
+    setCurrentUser(user);
     let query = supabase
       .from('posts')
       .select('*, profiles!posts_user_id_fkey(*), likes:post_likes(count), comments:post_comments(count)')
@@ -149,17 +197,16 @@ function HomePageContent() {
     } 
     
     if (posts) {
-        processAndSetPosts(posts, currentUser);
+        processAndSetPosts(posts, user);
     }
     setLoading(false);
   }, [supabase, toast]);
 
   const fetchTracks = useCallback(async () => {
     setLoadingTracks(true);
-    const { data, error } = await supabase
-        .from('tracks')
-        .select('*, profiles:user_id(*)')
-        .order('created_at', { ascending: false });
+     const { data: { user } } = await supabase.auth.getUser();
+     const { data, error } = await supabase
+        .rpc('get_tracks_with_likes', { p_user_id: user?.id });
 
     if (error) {
         console.error("Error fetching tracks:", error);
@@ -228,7 +275,7 @@ function HomePageContent() {
                     </div>
                 ) : tracks.length > 0 ? (
                     tracks.map((track) => (
-                        <AudioPlayer key={track.id} track={track} />
+                        <AudioPlayer key={track.id} track={track} currentUser={currentUser} />
                     ))
                 ) : (
                     <div className="flex flex-col items-center justify-center text-center text-muted-foreground pt-20">
