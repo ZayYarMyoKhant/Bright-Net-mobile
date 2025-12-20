@@ -48,6 +48,12 @@ const nextConfig: NextConfig = {
         port: '',
         pathname: '/**',
       },
+      {
+        protocol: 'https',
+        hostname: 'ai.zmt51400.workers.dev',
+        port: '',
+        pathname: '/**',
+      },
     ],
   },
 };
