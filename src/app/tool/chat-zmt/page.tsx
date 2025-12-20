@@ -11,6 +11,7 @@ import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import Image from 'next/image';
+import { useRouter } from 'next/navigation';
 
 type Message = {
     id: number;
@@ -28,6 +29,7 @@ export default function ChatZMTPage() {
     const [input, setInput] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const { toast } = useToast();
+    const router = useRouter();
     const scrollAreaRef = useRef<HTMLDivElement>(null);
     const streamingIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -160,6 +162,10 @@ export default function ChatZMTPage() {
             setIsLoading(false);
         }
     };
+    
+    const handleViewImage = (imageUrl: string) => {
+        router.push(`/search/image/${encodeURIComponent(imageUrl)}`);
+    }
 
 
     return (
@@ -199,9 +205,9 @@ export default function ChatZMTPage() {
                                     <p className="text-sm whitespace-pre-wrap">{msg.text}</p>
                                 )}
                                 {msg.type === 'image' && msg.imageUrl && (
-                                    <div className="relative w-64 h-64 rounded-lg overflow-hidden">
+                                     <button onClick={() => handleViewImage(msg.imageUrl!)} className="relative w-64 h-64 rounded-lg overflow-hidden block">
                                         <Image src={msg.imageUrl} alt="Generated image" fill className="object-cover" />
-                                    </div>
+                                     </button>
                                 )}
                             </div>
                         </div>

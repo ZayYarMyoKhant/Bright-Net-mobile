@@ -3,7 +3,7 @@
 
 import { BottomNav } from "@/components/bottom-nav";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
-import { Heart, Calculator, Image as ImageIcon } from "lucide-react";
+import { Heart, Calculator, Image as ImageIcon, Bot } from "lucide-react";
 import Link from "next/link";
 import { AdBanner } from "@/components/ad-banner";
 import { Button } from "@/components/ui/button";
@@ -29,15 +29,6 @@ export default function ToolPage() {
         },
     ];
     
-    const comingSoonFeatures = [
-        {
-            title: "ZMT image generation model",
-            icon: <ImageIcon className="h-6 w-6 text-blue-500" />,
-            href: "/tool/image-generation",
-            disabled: false,
-        },
-    ];
-
     return (
         <>
             <div className="flex h-dvh flex-col bg-background text-foreground pb-16">
@@ -72,18 +63,6 @@ export default function ToolPage() {
                             ))}
                         </div>
                         
-                         <div className="space-y-4">
-                            {comingSoonFeatures.map((feature) => (
-                                <Link key={feature.title} href={feature.href || "#"} className={feature.disabled ? "pointer-events-none" : ""}>
-                                    <Button variant="outline" className="w-full h-auto justify-start p-4 border-blue-500/50" disabled={feature.disabled}>
-                                        <div className="flex items-center gap-4">
-                                            {feature.icon}
-                                            <span className="font-semibold">{feature.title}</span>
-                                        </div>
-                                    </Button>
-                                </Link>
-                            ))}
-                        </div>
                     </div>
                     <div className="flex-grow"></div>
                     <div className="pt-4 flex-shrink-0">

@@ -127,7 +127,7 @@ function UploadPostPageContent() {
   };
 
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!mediaFile) {
       toast({ variant: "destructive", title: "No media selected", description: "Please select a file to upload." });
@@ -255,7 +255,7 @@ function UploadPostPageContent() {
             </div>
 
             {mediaType === 'image' && (
-                <Button variant="outline" className="w-full" onClick={() => setShowAiEditorDialog(true)} disabled={isPending}>
+                <Button type="button" variant="outline" className="w-full" onClick={() => setShowAiEditorDialog(true)} disabled={isPending}>
                     <Wand2 className="mr-2 h-4 w-4" />
                     AI Editor
                 </Button>
