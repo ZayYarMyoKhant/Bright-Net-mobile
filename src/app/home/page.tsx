@@ -204,18 +204,39 @@ function HomePageContent() {
 
   const fetchTracks = useCallback(async () => {
     setLoadingTracks(true);
-     const { data: { user } } = await supabase.auth.getUser();
-     const { data, error } = await supabase
-        .rpc('get_tracks_with_likes', { p_user_id: user?.id });
+    const { data: { user } } = await supabase.auth.getUser();
+
+    const { data, error } = await supabase
+        .from('tracks')
+        .select(`
+            *,
+            profiles:user_id(*),
+            likes:track_likes(count)
+        `)
+        .order('created_at', { ascending: false });
 
     if (error) {
         console.error("Error fetching tracks:", error);
         setTracks([]);
     } else {
-        setTracks(data as Track[]);
+        const trackIds = data.map(t => t.id);
+        const { data: userLikes } = user ? await supabase
+            .from('track_likes')
+            .select('track_id')
+            .eq('user_id', user.id)
+            .in('track_id', trackIds) : { data: [] };
+        
+        const likedTrackIds = new Set(userLikes?.map(like => like.track_id));
+
+        const processedTracks: Track[] = data.map((track: any) => ({
+            ...track,
+            likes_count: track.likes[0]?.count || 0,
+            is_liked_by_user: likedTrackIds.has(track.id)
+        }));
+        setTracks(processedTracks);
     }
     setLoadingTracks(false);
-  }, [supabase]);
+}, [supabase]);
 
 
   const processAndSetPosts = async (posts: any[], currentUser: any) => {
