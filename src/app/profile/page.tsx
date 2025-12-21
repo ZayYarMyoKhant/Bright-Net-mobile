@@ -38,7 +38,7 @@ const ProfileHeader = ({ profile, postsCount }: { profile: ProfileData; postsCou
     // Premium Design (profile_design is null)
     if (profile.profile_design === null) {
         return (
-            <div className={cn(baseClasses, "bg-gradient-to-br from-cyan-900/50 via-black to-sky-900/50 animated-gradient")}>
+            <div className={cn(baseClasses, "bg-gradient-to-br from-cyan-900/80 via-black to-sky-900/80 animated-gradient")}>
                 <div className="absolute top-0 left-0 w-full h-full overflow-hidden z-0">
                     {[...Array(5)].map((_, i) => (
                         <div key={i} className="absolute bg-white/10 rounded-full animate-[float-particles_15s_ease-in-out_infinite]" style={{ width: `${Math.random() * 2 + 1}px`, height: `${Math.random() * 2 + 1}px`, left: `${Math.random() * 100}%`, animationDelay: `${Math.random() * 15}s` }} />
@@ -70,7 +70,7 @@ const ProfileHeader = ({ profile, postsCount }: { profile: ProfileData; postsCou
     // Luxury Design (profile_design is true)
     if (profile.profile_design === true) {
         return (
-             <div className={cn(baseClasses, "bg-gradient-to-br from-amber-900/50 via-black to-yellow-900/50 animated-gradient")}>
+             <div className={cn(baseClasses, "bg-gradient-to-br from-amber-800/80 via-black to-yellow-800/80 animated-gradient")}>
                  <div className="absolute top-0 left-0 w-full h-full overflow-hidden z-0">
                     {[...Array(5)].map((_, i) => (
                         <div key={i} className="absolute bg-yellow-300/20 rounded-full animate-[float-particles_12s_ease-in-out_infinite]" style={{ width: `${Math.random() * 2 + 1}px`, height: `${Math.random() * 2 + 1}px`, left: `${Math.random() * 100}%`, animationDelay: `${Math.random() * 12}s` }} />
