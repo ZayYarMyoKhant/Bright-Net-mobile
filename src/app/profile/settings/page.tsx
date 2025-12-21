@@ -13,14 +13,14 @@ import {
     AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, User, Shield, Globe, Ban, ChevronRight, LogOut } from "lucide-react";
+import { ArrowLeft, User, Shield, Globe, Ban, ChevronRight, LogOut, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "@/context/language-context";
 import { createClient } from "@/lib/supabase/client";
 import { AdBanner } from "@/components/ad-banner";
-import { useContext } from "react";
+import { useContext, useState } from "react";
 import { MultiAccountContext } from "@/hooks/use-multi-account";
 
 
@@ -29,6 +29,8 @@ export default function SettingsPage() {
     const { toast } = useToast();
     const { t } = useTranslation();
     const multiAccount = useContext(MultiAccountContext);
+    const supabase = createClient();
+    const [isDeleting, setIsDeleting] = useState(false);
 
     const settingsItems = [
         { icon: User, label: t('settings.account'), href: "/profile/settings/account" },
@@ -48,6 +50,23 @@ export default function SettingsPage() {
            router.push('/home'); // Go to home, it will pick the next available account
            router.refresh();
        }
+    };
+    
+    const handleDeleteAccount = async () => {
+        setIsDeleting(true);
+        const { error } = await supabase.rpc('delete_user_account');
+        
+        if (error) {
+            toast({ variant: 'destructive', title: 'Deletion Failed', description: error.message });
+            setIsDeleting(false);
+        } else {
+             if (multiAccount && multiAccount.currentAccount) {
+                await multiAccount.removeAccount(multiAccount.currentAccount.id);
+             }
+             toast({ title: 'Account Deleted', description: 'Your account has been permanently deleted.' });
+             router.push('/signup');
+             router.refresh();
+        }
     };
 
 
@@ -78,6 +97,33 @@ export default function SettingsPage() {
                                 </div>
                             </Link>
                         ))}
+                         <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                                 <div
+                                    className="flex cursor-pointer items-center justify-between p-4 hover:bg-muted/50 text-destructive"
+                                >
+                                    <div className="flex items-center gap-4">
+                                        <Trash2 className="h-6 w-6" />
+                                        <span className="font-medium">Delete Account</span>
+                                    </div>
+                                    <ChevronRight className="h-5 w-5" />
+                                </div>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                                <AlertDialogHeader>
+                                    <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                        This action cannot be undone. This will permanently delete your account and remove all of your data from our servers.
+                                    </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                    <AlertDialogAction onClick={handleDeleteAccount} disabled={isDeleting} className="bg-destructive hover:bg-destructive/80">
+                                        {isDeleting ? 'Deleting...' : 'Delete'}
+                                    </AlertDialogAction>
+                                </AlertDialogFooter>
+                            </AlertDialogContent>
+                        </AlertDialog>
                     </div>
                 </div>
 

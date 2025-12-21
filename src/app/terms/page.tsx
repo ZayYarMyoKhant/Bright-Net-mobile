@@ -37,8 +37,16 @@ export default function TermsOfUsePage() {
                         <p>Our Service allows you to post, link, store, share and otherwise make available certain information, text, graphics, videos, or other material ("Content"). You are responsible for the Content that you post to the Service, including its legality, reliability, and appropriateness.</p>
                         <p>You retain any and all of your rights to any Content you submit, post or display on or through the Service and you are responsible for protecting those rights. We take no responsibility and assume no liability for Content you or any third-party posts on or through the Service.</p>
                         <p>You may not post content that is illegal, obscene, defamatory, threatening, infringing of intellectual property rights, invasive of privacy or otherwise injurious to third parties.</p>
+                        
+                        <h2>3. Artificial Intelligence (AI) Features</h2>
+                        <p>Our application utilizes artificial intelligence to provide certain features, such as the "ZMT Think" chat and image generation capabilities. When you use these features, your input (such as text prompts) may be processed by third-party AI models to generate a response.</p>
+                        <ul>
+                            <li>You understand that AI-generated content may not always be accurate, complete, or appropriate. We are not responsible for any consequences arising from your use of or reliance on AI-generated content.</li>
+                            <li>Do not submit any sensitive or personal information in your prompts to the AI features.</li>
+                        </ul>
 
-                        <h2>3. Prohibited Uses</h2>
+
+                        <h2>4. Prohibited Uses</h2>
                         <p>You agree not to use the Service:</p>
                         <ul>
                             <li>In any way that violates any applicable national or international law or regulation.</li>
@@ -47,23 +55,23 @@ export default function TermsOfUsePage() {
                             <li>To impersonate or attempt to impersonate the Company, a Company employee, another user, or any other person or entity.</li>
                         </ul>
 
-                        <h2>4. Intellectual Property</h2>
+                        <h2>5. Intellectual Property</h2>
                         <p>The Service and its original content (excluding Content provided by users), features and functionality are and will remain the exclusive property of Bright-Net and its licensors. The Service is protected by copyright, trademark, and other laws of both the Myanmar and foreign countries.</p>
 
-                        <h2>5. Links To Other Web Sites</h2>
+                        <h2>6. Links To Other Web Sites</h2>
                         <p>Our Service may contain links to third-party web sites or services that are not owned or controlled by Bright-Net.</p>
                         <p>Bright-Net has no control over, and assumes no responsibility for, the content, privacy policies, or practices of any third party web sites or services. We do not warrant the offerings of any of these entities/individuals or their websites.</p>
 
-                        <h2>6. Termination</h2>
+                        <h2>7. Termination</h2>
                         <p>We may terminate or suspend your account and bar access to the Service immediately, without prior notice or liability, under our sole discretion, for any reason whatsoever and without limitation, including but not limited to a breach of the Terms.</p>
-
-                        <h2>7. Governing Law</h2>
-                        <p>These Terms shall be governed and construed in accordance with the laws of Myanmar, without regard to its conflict of law provisions.</p>
                         
-                        <h2>8. Changes To Service</h2>
+                        <h2>8. Account Deletion</h2>
+                        <p>You have the right to delete your account at any time through the settings page in the application. Please be aware that account deletion is permanent and irreversible. All your data, including your profile, posts, comments, and messages, will be permanently removed from our servers.</p>
+
+                        <h2>9. Changes To Service</h2>
                         <p>We reserve the right to withdraw or amend our Service, and any service or material we provide via the Service, in our sole discretion without notice. We will not be liable if for any reason all or any part of the Service is unavailable at any time or for any period.</p>
                         
-                        <h2>9. Contact Us</h2>
+                        <h2>10. Contact Us</h2>
                         <p>If you have any questions about these Terms, please contact us at: zeyarzeyarmyokhant@gmail.com</p>
 
                     </CardContent>
