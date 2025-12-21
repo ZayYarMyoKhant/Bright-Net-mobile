@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useState, useEffect, useCallback, useContext } from 'react';
@@ -28,7 +29,7 @@ import { MultiAccountContext, StoredAccount } from '@/hooks/use-multi-account';
 type ProfileData = Profile & {
   following: number;
   followers: number;
-  profile_design: boolean | null; // Changed to boolean | null
+  profile_design: boolean | null;
 };
 
 const ProfileHeader = ({ profile, postsCount }: { profile: ProfileData; postsCount: number }) => {
@@ -37,15 +38,23 @@ const ProfileHeader = ({ profile, postsCount }: { profile: ProfileData; postsCou
     // Premium Design (profile_design is null)
     if (profile.profile_design === null) {
         return (
-            <div className={cn(baseClasses, "bg-gradient-to-br from-blue-400/20 to-purple-500/20 animated-gradient text-white shadow-lg border-b border-blue-300/30")}>
-                <div className="absolute top-0 left-0 w-full h-full overflow-hidden z-0">
-                    {[...Array(5)].map((_, i) => (
-                        <div key={i} className="absolute bg-white/30 rounded-full animate-[float-particles_10s_ease-in-out_infinite]" style={{ width: `${Math.random() * 3 + 1}px`, height: `${Math.random() * 3 + 1}px`, left: `${Math.random() * 100}%`, animationDelay: `${Math.random() * 10}s` }} />
+            <div className={cn(baseClasses, "bg-gradient-to-br from-cyan-500 to-blue-500 animated-gradient text-white shadow-lg border-b border-blue-300/30")}>
+                 <div className="absolute top-0 left-0 w-full h-full overflow-hidden z-0">
+                    {[...Array(10)].map((_, i) => (
+                        <div key={i} className="absolute bg-white/20 rounded-full animate-[float-particles_15s_ease-in-out_infinite]" style={{ width: `${Math.random() * 3 + 1}px`, height: `${Math.random() * 3 + 1}px`, left: `${Math.random() * 100}%`, animationDelay: `${Math.random() * 15}s` }} />
                     ))}
                     <div className="absolute top-0 left-0 w-1/2 h-full bg-gradient-to-r from-white/10 to-transparent animate-[shimmer-streak_8s_ease-in-out_infinite] delay-1000" />
                 </div>
+                
+                 <div className="absolute top-4 left-4 h-24 w-24 text-cyan-200/50 opacity-50 -z-1">
+                    <svg fill="currentColor" viewBox="0 0 20 20"><path d="M10 15a5 5 0 1 0 0-10 5 5 0 0 0 0 10Zm0-12a7 7 0 1 1 0 14 7 7 0 0 1 0-14Z"></path></svg>
+                </div>
+                 <div className="absolute bottom-4 right-4 h-24 w-24 text-blue-200/50 opacity-50 -z-1 transform scale-x-[-1]">
+                    <svg fill="currentColor" viewBox="0 0 20 20"><path d="M10 15a5 5 0 1 0 0-10 5 5 0 0 0 0 10Zm0-12a7 7 0 1 1 0 14 7 7-0 0 1 0-14Z"></path></svg>
+                </div>
+
                  <div className="relative z-10 flex flex-col items-center">
-                    <Avatar className="h-24 w-24 border-4 border-cyan-300/80 shadow-cyan-300/20 shadow-2xl" profile={profile}></Avatar>
+                    <Avatar className="h-24 w-24 shadow-cyan-300/20 shadow-2xl" profile={profile}></Avatar>
                     <h2 className={cn("mt-3 text-xl", profile.is_verified && "font-bold text-white bg-gradient-to-r from-cyan-500 to-blue-500 rounded-md px-2 py-1")}>{profile.full_name}</h2>
                     <p className="text-sm text-blue-100/80">@{profile.username}</p>
                     <p className="mt-2 text-center text-sm text-blue-50/90">{profile.bio}</p>
@@ -62,15 +71,23 @@ const ProfileHeader = ({ profile, postsCount }: { profile: ProfileData; postsCou
     // Luxury Design (profile_design is true)
     if (profile.profile_design === true) {
         return (
-             <div className={cn(baseClasses, "bg-gradient-to-br from-yellow-800/30 via-black to-yellow-900/20 animated-gradient text-white shadow-lg border-b border-yellow-500/30")}>
+             <div className={cn(baseClasses, "bg-gradient-to-br from-yellow-800 via-black to-yellow-900 animated-gradient text-white shadow-lg border-b border-yellow-500/30")}>
                  <div className="absolute top-0 left-0 w-full h-full overflow-hidden z-0">
-                    {[...Array(5)].map((_, i) => (
-                        <div key={i} className="absolute bg-yellow-300/50 rounded-full animate-[float-particles_12s_ease-in-out_infinite]" style={{ width: `${Math.random() * 2 + 1}px`, height: `${Math.random() * 2 + 1}px`, left: `${Math.random() * 100}%`, animationDelay: `${Math.random() * 12}s` }} />
+                    {[...Array(10)].map((_, i) => (
+                        <div key={i} className="absolute bg-yellow-300/30 rounded-full animate-[float-particles_12s_ease-in-out_infinite]" style={{ width: `${Math.random() * 2 + 1}px`, height: `${Math.random() * 2 + 1}px`, left: `${Math.random() * 100}%`, animationDelay: `${Math.random() * 12}s` }} />
                     ))}
                     <div className="absolute top-0 left-0 w-1/2 h-full bg-gradient-to-r from-yellow-400/10 to-transparent animate-[shimmer-streak_6s_ease-in-out_infinite]" />
                 </div>
+                
+                 <div className="absolute top-2 left-2 h-20 w-20 text-yellow-300/50 opacity-30 -z-1">
+                    <svg fill="currentColor" viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+                </div>
+                <div className="absolute bottom-2 right-2 h-20 w-20 text-yellow-300/50 opacity-30 -z-1 transform scale-x-[-1]">
+                    <svg fill="currentColor" viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+                </div>
+                
                  <div className="relative z-10 flex flex-col items-center">
-                    <Avatar className="h-24 w-24 border-4 border-yellow-400/80 shadow-yellow-400/20 shadow-2xl" profile={profile}></Avatar>
+                    <Avatar className="h-24 w-24 shadow-yellow-400/20 shadow-2xl" profile={profile}></Avatar>
                     <h2 className={cn("mt-3 text-xl", profile.is_verified && "font-bold text-white bg-gradient-to-r from-cyan-500 to-blue-500 rounded-md px-2 py-1")}>{profile.full_name}</h2>
                     <p className="text-sm text-yellow-100/80">@{profile.username}</p>
                     <p className="mt-2 text-center text-sm text-yellow-50/90">{profile.bio}</p>
