@@ -59,22 +59,22 @@ const ProfileHeader = ({ profile, postsCount }: { profile: ProfileData; postsCou
     const isProfileOnline = profile?.show_active_status && profile?.last_seen && isBefore(subMinutes(new Date(), 2), new Date(profile.last_seen));
     const profileLastSeen = profile?.show_active_status && profile?.last_seen ? formatDistanceToNow(new Date(profile.last_seen), { addSuffix: true }) : null;
 
-    const baseClasses = "relative overflow-hidden flex flex-col items-center p-4 rounded-b-3xl mb-4";
+    const baseClasses = "relative overflow-hidden flex flex-col items-center p-4 rounded-b-3xl mb-4 bg-black text-white shadow-lg";
     
     // Premium Design (profile_design is null)
     if (profile.profile_design === null) {
         return (
-            <div className={cn(baseClasses, "bg-gradient-to-br from-cyan-400 to-sky-500 animated-gradient text-white shadow-lg")}>
+            <div className={cn(baseClasses, "bg-gradient-to-br from-cyan-900/50 via-black to-sky-900/50 animated-gradient")}>
                 <div className="absolute top-0 left-0 w-full h-full overflow-hidden z-0">
                     {[...Array(5)].map((_, i) => (
                         <div key={i} className="absolute bg-white/10 rounded-full animate-[float-particles_15s_ease-in-out_infinite]" style={{ width: `${Math.random() * 2 + 1}px`, height: `${Math.random() * 2 + 1}px`, left: `${Math.random() * 100}%`, animationDelay: `${Math.random() * 15}s` }} />
                     ))}
                     <div className="absolute top-0 left-0 w-1/2 h-full bg-gradient-to-r from-white/10 to-transparent animate-[shimmer-streak_8s_ease-in-out_infinite] delay-1000" />
                 </div>
-                 <div className="absolute top-2 left-2 h-20 w-20 text-cyan-200/50 opacity-50 -z-1">
+                 <div className="absolute top-2 left-2 h-20 w-20 text-cyan-200/30 opacity-30 -z-1">
                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z" opacity="0.2"/><path d="M12 4c-4.41 0-8 3.59-8 8s3.59 8 8 8 8-3.59 8-8-3.59-8-8-8zm0 14c-3.31 0-6-2.69-6-6s2.69-6 6-6 6 2.69 6 6-2.69 6-6 6z" opacity="0.3"/></svg>
                 </div>
-                 <div className="absolute -top-8 -right-8 h-32 w-32 text-blue-200/50 opacity-20 -z-1 transform scale-x-[-1]">
+                 <div className="absolute -top-8 -right-8 h-32 w-32 text-blue-200/30 opacity-20 -z-1 transform scale-x-[-1]">
                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z" opacity="0.2"/><path d="M12 4c-4.41 0-8 3.59-8 8s3.59 8 8 8 8-3.59 8-8-3.59-8-8-8zm0 14c-3.31 0-6-2.69-6-6s2.69-6 6-6 6 2.69 6 6-2.69 6-6 6z" opacity="0.3"/></svg>
                 </div>
 
@@ -86,12 +86,12 @@ const ProfileHeader = ({ profile, postsCount }: { profile: ProfileData; postsCou
                         <PresenceIndicator user={profile} />
                     </div>
                     <h2 className={cn("mt-3 text-xl", profile.is_verified && "font-bold text-white bg-gradient-to-r from-cyan-500 to-blue-500 rounded-md px-2 py-1")}>{profile.full_name}</h2>
-                    <p className="text-sm text-blue-100/80">@{profile.username}</p>
+                    <p className="text-sm text-blue-100/70">@{profile.username}</p>
                     {isProfileOnline 
                         ? <p className="text-xs text-green-300 mt-1">Online</p>
-                        : profileLastSeen && <p className="text-xs text-blue-200/70 mt-1">Active {profileLastSeen}</p>
+                        : profileLastSeen && <p className="text-xs text-blue-200/60 mt-1">Active {profileLastSeen}</p>
                     }
-                    <p className="mt-2 text-center text-sm text-blue-50/90">{profile.bio}</p>
+                    <p className="mt-2 text-center text-sm text-blue-50/80">{profile.bio}</p>
                  </div>
                  <div className="relative z-10 mt-6 grid grid-cols-3 gap-4 text-center w-full max-w-sm">
                     <Link href={`/profile/${profile.id}/following`}><div><p className="font-bold text-lg">{profile.following}</p><p className="text-xs text-blue-200/70">Following</p></div></Link>
@@ -105,7 +105,7 @@ const ProfileHeader = ({ profile, postsCount }: { profile: ProfileData; postsCou
     // Luxury Design (profile_design is true)
     if (profile.profile_design === true) {
         return (
-             <div className={cn(baseClasses, "bg-gradient-to-br from-amber-400 via-yellow-500 to-amber-500 animated-gradient text-white shadow-lg")}>
+             <div className={cn(baseClasses, "bg-gradient-to-br from-amber-900/50 via-black to-yellow-900/50 animated-gradient")}>
                  <div className="absolute top-0 left-0 w-full h-full overflow-hidden z-0">
                     {[...Array(5)].map((_, i) => (
                         <div key={i} className="absolute bg-yellow-300/20 rounded-full animate-[float-particles_12s_ease-in-out_infinite]" style={{ width: `${Math.random() * 2 + 1}px`, height: `${Math.random() * 2 + 1}px`, left: `${Math.random() * 100}%`, animationDelay: `${Math.random() * 12}s` }} />
@@ -113,10 +113,10 @@ const ProfileHeader = ({ profile, postsCount }: { profile: ProfileData; postsCou
                     <div className="absolute top-0 left-0 w-1/2 h-full bg-gradient-to-r from-yellow-300/10 to-transparent animate-[shimmer-streak_6s_ease-in-out_infinite]" />
                 </div>
                 
-                 <div className="absolute top-2 left-2 h-20 w-20 text-yellow-300/50 opacity-30 -z-1">
+                 <div className="absolute top-2 left-2 h-20 w-20 text-yellow-300/30 opacity-30 -z-1">
                     <svg viewBox="0 0 100 100" fill="currentColor"><path d="M50,2.5C23.7,2.5,2.5,23.7,2.5,50S23.7,97.5,50,97.5,97.5,76.3,97.5,50,76.3,2.5,50,2.5Zm0,90C28.2,92.5,10,74.3,10,50S28.2,7.5,50,7.5,90,25.7,90,50,71.8,92.5,50,92.5Z"/><path d="M50,15c-19.3,0-35,15.7-35,35S30.7,85,50,85,85,69.3,85,50,69.3,15,50,15Zm0,60c-13.8,0-25-11.2-25-25s11.2-25,25-25,25,11.2,25,25S63.8,75,50,75Z"/></svg>
                 </div>
-                <div className="absolute bottom-2 right-2 h-20 w-20 text-yellow-300/50 opacity-30 -z-1 transform scale-x-[-1]">
+                <div className="absolute bottom-2 right-2 h-20 w-20 text-yellow-300/30 opacity-30 -z-1 transform scale-x-[-1]">
                     <svg viewBox="0 0 100 100" fill="currentColor"><path d="M50,2.5C23.7,2.5,2.5,23.7,2.5,50S23.7,97.5,50,97.5,97.5,76.3,97.5,50,76.3,2.5,50,2.5Zm0,90C28.2,92.5,10,74.3,10,50S28.2,7.5,50,7.5,90,25.7,90,50,71.8,92.5,50,92.5Z"/><path d="M50,15c-19.3,0-35,15.7-35,35S30.7,85,50,85,85,69.3,85,50,69.3,15,50,15Zm0,60c-13.8,0-25-11.2-25-25s11.2-25,25-25,25,11.2,25,25S63.8,75,50,75Z"/></svg>
                 </div>
 
@@ -128,12 +128,12 @@ const ProfileHeader = ({ profile, postsCount }: { profile: ProfileData; postsCou
                         <PresenceIndicator user={profile} />
                     </div>
                     <h2 className={cn("mt-3 text-xl", profile.is_verified && "font-bold text-white bg-gradient-to-r from-cyan-500 to-blue-500 rounded-md px-2 py-1")}>{profile.full_name}</h2>
-                    <p className="text-sm text-yellow-100/80">@{profile.username}</p>
+                    <p className="text-sm text-yellow-100/70">@{profile.username}</p>
                     {isProfileOnline 
                         ? <p className="text-xs text-green-300 mt-1">Online</p>
-                        : profileLastSeen && <p className="text-xs text-yellow-200/70 mt-1">Active {profileLastSeen}</p>
+                        : profileLastSeen && <p className="text-xs text-yellow-200/60 mt-1">Active {profileLastSeen}</p>
                     }
-                    <p className="mt-2 text-center text-sm text-yellow-50/90">{profile.bio}</p>
+                    <p className="mt-2 text-center text-sm text-yellow-50/80">{profile.bio}</p>
                 </div>
                  <div className="relative z-10 mt-6 grid grid-cols-3 gap-4 text-center w-full max-w-sm">
                     <Link href={`/profile/${profile.id}/following`}><div><p className="font-bold text-lg">{profile.following}</p><p className="text-xs text-yellow-200/70">Following</p></div></Link>
