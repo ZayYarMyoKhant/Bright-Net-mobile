@@ -110,4 +110,29 @@
     animation: fade-in-2 2s ease-in-out forwards;
     animation-delay: 1s;
   }
+
+  /* Keyframes for floating particles */
+  @keyframes float-particles {
+    0% { transform: translateY(0) translateX(0); opacity: 1; }
+    100% { transform: translateY(-100px) translateX(20px); opacity: 0; }
+  }
+
+  /* Keyframes for shimmering light streaks */
+  @keyframes shimmer-streak {
+    0% { transform: translateX(-100%) skewX(-20deg); opacity: 0.3; }
+    50% { opacity: 0.8; }
+    100% { transform: translateX(200%) skewX(-20deg); opacity: 0; }
+  }
+  
+  /* Keyframes for subtle background gradient animation */
+  @keyframes gradient-animation {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+  }
+
+  .animated-gradient {
+    background-size: 200% 200%;
+    animation: gradient-animation 15s ease infinite;
+  }
 }

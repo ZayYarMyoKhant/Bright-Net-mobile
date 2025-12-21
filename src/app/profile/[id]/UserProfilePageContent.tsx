@@ -5,7 +5,7 @@ import { useEffect, useState, useCallback } from "react";
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Grid3x3, Clapperboard, ArrowLeft, CameraOff, Loader2, MoreVertical, Trash2, Lock, AlertTriangle, MessageCircle } from "lucide-react";
+import { Grid3x3, Clapperboard, ArrowLeft, CameraOff, Loader2, MoreVertical, Trash2, Lock, AlertTriangle, MessageCircle, Sparkles } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { BottomNav } from '@/components/bottom-nav';
@@ -27,6 +27,7 @@ type ProfileData = Profile & {
   last_seen: string | null;
   show_active_status: boolean;
   is_in_relationship: boolean;
+  profile_design: 'premium' | 'luxury' | null;
 };
 
 type InitialProfileData = {
@@ -52,6 +53,120 @@ function PresenceIndicator({ user }: { user: ProfileData | null }) {
 
     return null;
 }
+
+const ProfileHeader = ({ profile, postsCount }: { profile: ProfileData; postsCount: number }) => {
+    const isProfileOnline = profile?.show_active_status && profile?.last_seen && isBefore(subMinutes(new Date(), 2), new Date(profile.last_seen));
+    const profileLastSeen = profile?.show_active_status && profile?.last_seen ? formatDistanceToNow(new Date(profile.last_seen), { addSuffix: true }) : null;
+
+    const baseClasses = "relative overflow-hidden flex flex-col items-center p-4 rounded-b-3xl mb-4";
+    
+    if (profile.profile_design === 'premium') {
+        return (
+            <div className={cn(baseClasses, "bg-gradient-to-br from-blue-400/20 to-purple-500/20 animated-gradient text-white shadow-lg border-b border-blue-300/30")}>
+                <div className="absolute top-0 left-0 w-full h-full overflow-hidden z-0">
+                    {[...Array(5)].map((_, i) => (
+                        <div key={i} className="absolute bg-white/30 rounded-full animate-[float-particles_10s_ease-in-out_infinite]" style={{ width: `${Math.random() * 3 + 1}px`, height: `${Math.random() * 3 + 1}px`, left: `${Math.random() * 100}%`, animationDelay: `${Math.random() * 10}s` }} />
+                    ))}
+                    <div className="absolute top-0 left-0 w-1/2 h-full bg-gradient-to-r from-white/10 to-transparent animate-[shimmer-streak_8s_ease-in-out_infinite] delay-1000" />
+                </div>
+                 <div className="relative z-10 flex flex-col items-center">
+                    <div className="relative">
+                        <Link href={`/search/image/${encodeURIComponent(profile.avatar_url)}`}>
+                             <Avatar className="h-24 w-24 border-4 border-cyan-300/80 shadow-cyan-300/20 shadow-2xl" profile={profile}></Avatar>
+                        </Link>
+                        <PresenceIndicator user={profile} />
+                    </div>
+                    <h2 className={cn("mt-3 text-xl", profile.is_verified && "font-bold text-white bg-gradient-to-r from-cyan-500 to-blue-500 rounded-md px-2 py-1")}>{profile.full_name}</h2>
+                    <p className="text-sm text-blue-100/80">@{profile.username}</p>
+                    {isProfileOnline 
+                        ? <p className="text-xs text-green-300 mt-1">Online</p>
+                        : profileLastSeen && <p className="text-xs text-blue-200/70 mt-1">Active {profileLastSeen}</p>
+                    }
+                    <p className="mt-2 text-center text-sm text-blue-50/90">{profile.bio}</p>
+                 </div>
+                 <div className="relative z-10 mt-6 grid grid-cols-3 gap-4 text-center w-full max-w-sm">
+                    <Link href={`/profile/${profile.id}/following`}><div><p className="font-bold text-lg">{profile.following}</p><p className="text-xs text-blue-200/70">Following</p></div></Link>
+                    <Link href={`/profile/${profile.id}/followers`}><div><p className="font-bold text-lg">{profile.followers}</p><p className="text-xs text-blue-200/70">Followers</p></div></Link>
+                    <div><p className="font-bold text-lg">{postsCount}</p><p className="text-xs text-blue-200/70">Posts</p></div>
+                </div>
+            </div>
+        );
+    }
+    
+    if (profile.profile_design === 'luxury') {
+        return (
+             <div className={cn(baseClasses, "bg-gradient-to-br from-yellow-800/30 via-black to-yellow-900/20 animated-gradient text-white shadow-lg border-b border-yellow-500/30")}>
+                 <div className="absolute top-0 left-0 w-full h-full overflow-hidden z-0">
+                    {[...Array(5)].map((_, i) => (
+                        <div key={i} className="absolute bg-yellow-300/50 rounded-full animate-[float-particles_12s_ease-in-out_infinite]" style={{ width: `${Math.random() * 2 + 1}px`, height: `${Math.random() * 2 + 1}px`, left: `${Math.random() * 100}%`, animationDelay: `${Math.random() * 12}s` }} />
+                    ))}
+                    <div className="absolute top-0 left-0 w-1/2 h-full bg-gradient-to-r from-yellow-400/10 to-transparent animate-[shimmer-streak_6s_ease-in-out_infinite]" />
+                </div>
+                 <div className="relative z-10 flex flex-col items-center">
+                    <div className="relative">
+                        <Link href={`/search/image/${encodeURIComponent(profile.avatar_url)}`}>
+                            <Avatar className="h-24 w-24 border-4 border-yellow-400/80 shadow-yellow-400/20 shadow-2xl" profile={profile}></Avatar>
+                        </Link>
+                        <PresenceIndicator user={profile} />
+                    </div>
+                    <h2 className={cn("mt-3 text-xl", profile.is_verified && "font-bold text-white bg-gradient-to-r from-cyan-500 to-blue-500 rounded-md px-2 py-1")}>{profile.full_name}</h2>
+                    <p className="text-sm text-yellow-100/80">@{profile.username}</p>
+                    {isProfileOnline 
+                        ? <p className="text-xs text-green-300 mt-1">Online</p>
+                        : profileLastSeen && <p className="text-xs text-yellow-200/70 mt-1">Active {profileLastSeen}</p>
+                    }
+                    <p className="mt-2 text-center text-sm text-yellow-50/90">{profile.bio}</p>
+                </div>
+                 <div className="relative z-10 mt-6 grid grid-cols-3 gap-4 text-center w-full max-w-sm">
+                    <Link href={`/profile/${profile.id}/following`}><div><p className="font-bold text-lg">{profile.following}</p><p className="text-xs text-yellow-200/70">Following</p></div></Link>
+                    <Link href={`/profile/${profile.id}/followers`}><div><p className="font-bold text-lg">{profile.followers}</p><p className="text-xs text-yellow-200/70">Followers</p></div></Link>
+                    <div><p className="font-bold text-lg">{postsCount}</p><p className="text-xs text-yellow-200/70">Posts</p></div>
+                </div>
+            </div>
+        );
+    }
+    
+    // Default design
+    return (
+        <div className="p-4">
+          <div className="flex flex-col items-center">
+            <div className="relative">
+                <Link href={`/search/image/${encodeURIComponent(profile.avatar_url)}`}>
+                    <Avatar className="h-24 w-24 border-2 border-primary" profile={profile}>
+                    </Avatar>
+                </Link>
+              <PresenceIndicator user={profile} />
+            </div>
+            <h2 className={cn("mt-3 text-xl", profile.is_verified && "font-bold text-white bg-gradient-to-r from-cyan-500 to-blue-500 rounded-md px-2 py-1")}>{profile.full_name}</h2>
+            <p className="text-sm text-muted-foreground">@{profile.username}</p>
+            {isProfileOnline 
+                ? <p className="text-xs text-green-500 mt-1">Online</p>
+                : profileLastSeen && <p className="text-xs text-muted-foreground mt-1">Active {profileLastSeen}</p>
+            }
+            <p className="mt-2 text-center text-sm">{profile.bio}</p>
+          </div>
+
+          <div className="mt-6 grid grid-cols-3 gap-4 text-center">
+            <Link href={`/profile/${profile.id}/following`}>
+              <div>
+                <p className="font-bold">{profile.following}</p>
+                <p className="text-sm text-muted-foreground">Following</p>
+              </div>
+            </Link>
+             <Link href={`/profile/${profile.id}/followers`}>
+              <div>
+                <p className="font-bold">{profile.followers}</p>
+                <p className="text-sm text-muted-foreground">Followers</p>
+              </div>
+            </Link>
+            <div>
+              <p className="font-bold">{postsCount}</p>
+              <p className="text-sm text-muted-foreground">Posts</p>
+            </div>
+          </div>
+        </div>
+    );
+};
 
 
 export default function UserProfilePageContent({ initialData, params }: { initialData: InitialProfileData, params: { id: string } }) {
@@ -173,12 +288,10 @@ export default function UserProfilePageContent({ initialData, params }: { initia
   }
   
   const canViewContent = !profile.is_private || isFollowing || isOwnProfile;
-  const isProfileOnline = profile?.show_active_status && profile?.last_seen && isBefore(subMinutes(new Date(), 2), new Date(profile.last_seen));
-  const profileLastSeen = profile?.show_active_status && profile?.last_seen ? formatDistanceToNow(new Date(profile.last_seen), { addSuffix: true }) : null;
 
   return (
     <>
-      <div className="flex h-full flex-col bg-background text-foreground pb-16">
+      <div className="flex h-dvh flex-col bg-background text-foreground pb-16">
         <header className="flex h-16 flex-shrink-0 items-center justify-between border-b px-4">
           <Button variant="ghost" size="icon" onClick={() => router.back()}>
             <ArrowLeft className="h-5 w-5" />
@@ -187,44 +300,10 @@ export default function UserProfilePageContent({ initialData, params }: { initia
           <div className="w-10"></div>
         </header>
 
-        <main className="flex-1 overflow-y-auto p-4">
-          <div className="flex flex-col items-center">
-            <div className="relative">
-                <Link href={`/search/image/${encodeURIComponent(profile.avatar_url)}`}>
-                    <Avatar className="h-24 w-24 border-2 border-primary" profile={profile}>
-                    </Avatar>
-                </Link>
-              <PresenceIndicator user={profile} />
-            </div>
-            <h2 className={cn("mt-3 text-xl", profile.is_verified && "font-bold text-white bg-gradient-to-r from-cyan-500 to-blue-500 rounded-md px-2 py-1")}>{profile.full_name}</h2>
-            <p className="text-sm text-muted-foreground">@{profile.username}</p>
-            {isProfileOnline 
-                ? <p className="text-xs text-green-500 mt-1">Online</p>
-                : profileLastSeen && <p className="text-xs text-muted-foreground mt-1">Active {profileLastSeen}</p>
-            }
-            <p className="mt-2 text-center text-sm">{profile.bio}</p>
-          </div>
+        <main className="flex-1 overflow-y-auto">
+            <ProfileHeader profile={profile} postsCount={posts.length} />
 
-          <div className="mt-6 grid grid-cols-3 gap-4 text-center">
-            <Link href={`/profile/${profile.id}/following`}>
-              <div>
-                <p className="font-bold">{profile.following}</p>
-                <p className="text-sm text-muted-foreground">Following</p>
-              </div>
-            </Link>
-             <Link href={`/profile/${profile.id}/followers`}>
-              <div>
-                <p className="font-bold">{profile.followers}</p>
-                <p className="text-sm text-muted-foreground">Followers</p>
-              </div>
-            </Link>
-            <div>
-              <p className="font-bold">{posts.length}</p>
-              <p className="text-sm text-muted-foreground">Posts</p>
-            </div>
-          </div>
-
-          <div className="mt-4 flex items-center gap-2">
+          <div className="mt-4 flex items-center gap-2 px-4">
             {isOwnProfile ? (
               <Link href="/profile/edit" className="w-full">
                 <Button variant="outline" className="w-full">Edit Profile</Button>
@@ -295,5 +374,3 @@ export default function UserProfilePageContent({ initialData, params }: { initia
     </>
   );
 }
-
-    

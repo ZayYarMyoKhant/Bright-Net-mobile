@@ -46,6 +46,7 @@ export default async function UserProfilePage({ params }: { params: { id: string
       show_active_status: profileData.show_active_status,
       is_in_relationship: profileData.is_in_relationship,
       is_verified: profileData.is_verified,
+      profile_design: profileData.profile_design,
     },
     posts: postsRes.data || [],
     error: null,
