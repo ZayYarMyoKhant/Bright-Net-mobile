@@ -53,7 +53,7 @@ const ProfileHeader = ({ profile, postsCount }: { profile: ProfileData; postsCou
                 </div>
 
                  <div className="relative z-10 flex flex-col items-center">
-                    <Avatar className="h-24 w-24 shadow-cyan-300/20 shadow-2xl" profile={profile}></Avatar>
+                    <Avatar className="h-24 w-24" profile={profile}></Avatar>
                     <h2 className={cn("mt-3 text-xl", profile.is_verified && "font-bold text-white bg-gradient-to-r from-cyan-500 to-blue-500 rounded-md px-2 py-1")}>{profile.full_name}</h2>
                     <p className="text-sm text-blue-100/80">@{profile.username}</p>
                     <p className="mt-2 text-center text-sm text-blue-50/90">{profile.bio}</p>
@@ -86,7 +86,7 @@ const ProfileHeader = ({ profile, postsCount }: { profile: ProfileData; postsCou
                 </div>
                 
                  <div className="relative z-10 flex flex-col items-center">
-                    <Avatar className="h-24 w-24 shadow-yellow-400/20 shadow-2xl" profile={profile}></Avatar>
+                    <Avatar className="h-24 w-24" profile={profile}></Avatar>
                     <h2 className={cn("mt-3 text-xl", profile.is_verified && "font-bold text-white bg-gradient-to-r from-cyan-500 to-blue-500 rounded-md px-2 py-1")}>{profile.full_name}</h2>
                     <p className="text-sm text-yellow-100/80">@{profile.username}</p>
                     <p className="mt-2 text-center text-sm text-yellow-50/90">{profile.bio}</p>

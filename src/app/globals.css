@@ -102,15 +102,6 @@
     }
   }
 
-  .animate-fade-in-1 {
-    animation: fade-in-1 2s ease-in-out forwards;
-  }
-
-  .animate-fade-in-2 {
-    animation: fade-in-2 2s ease-in-out forwards;
-    animation-delay: 1s;
-  }
-
   /* Keyframes for floating particles */
   @keyframes float-particles {
     0% { transform: translateY(0) translateX(0); opacity: 1; }

@@ -81,7 +81,7 @@ const ProfileHeader = ({ profile, postsCount }: { profile: ProfileData; postsCou
                  <div className="relative z-10 flex flex-col items-center">
                     <div className="relative">
                         <Link href={`/search/image/${encodeURIComponent(profile.avatar_url)}`}>
-                             <Avatar className="h-24 w-24 shadow-cyan-300/20 shadow-2xl" profile={profile}></Avatar>
+                             <Avatar className="h-24 w-24" profile={profile}></Avatar>
                         </Link>
                         <PresenceIndicator user={profile} />
                     </div>
@@ -123,7 +123,7 @@ const ProfileHeader = ({ profile, postsCount }: { profile: ProfileData; postsCou
                  <div className="relative z-10 flex flex-col items-center">
                     <div className="relative">
                         <Link href={`/search/image/${encodeURIComponent(profile.avatar_url)}`}>
-                            <Avatar className="h-24 w-24 shadow-yellow-400/20 shadow-2xl" profile={profile}></Avatar>
+                            <Avatar className="h-24 w-24" profile={profile}></Avatar>
                         </Link>
                         <PresenceIndicator user={profile} />
                     </div>
