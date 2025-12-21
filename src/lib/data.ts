@@ -10,7 +10,7 @@ export type Profile = {
   is_verified?: boolean;
   active_conversation_id?: string | null;
   allow_push_notifications?: boolean;
-  profile_design?: 'premium' | 'luxury' | null;
+  profile_design?: boolean | null;
 };
 
 export type Comment = {

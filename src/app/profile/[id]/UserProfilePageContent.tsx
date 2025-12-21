@@ -27,7 +27,7 @@ type ProfileData = Profile & {
   last_seen: string | null;
   show_active_status: boolean;
   is_in_relationship: boolean;
-  profile_design: 'premium' | 'luxury' | null;
+  profile_design: boolean | null; // Changed to boolean | null
 };
 
 type InitialProfileData = {
@@ -60,7 +60,8 @@ const ProfileHeader = ({ profile, postsCount }: { profile: ProfileData; postsCou
 
     const baseClasses = "relative overflow-hidden flex flex-col items-center p-4 rounded-b-3xl mb-4";
     
-    if (profile.profile_design === 'premium') {
+    // Premium Design (profile_design is null)
+    if (profile.profile_design === null) {
         return (
             <div className={cn(baseClasses, "bg-gradient-to-br from-blue-400/20 to-purple-500/20 animated-gradient text-white shadow-lg border-b border-blue-300/30")}>
                 <div className="absolute top-0 left-0 w-full h-full overflow-hidden z-0">
@@ -93,7 +94,8 @@ const ProfileHeader = ({ profile, postsCount }: { profile: ProfileData; postsCou
         );
     }
     
-    if (profile.profile_design === 'luxury') {
+    // Luxury Design (profile_design is true)
+    if (profile.profile_design === true) {
         return (
              <div className={cn(baseClasses, "bg-gradient-to-br from-yellow-800/30 via-black to-yellow-900/20 animated-gradient text-white shadow-lg border-b border-yellow-500/30")}>
                  <div className="absolute top-0 left-0 w-full h-full overflow-hidden z-0">
@@ -126,7 +128,7 @@ const ProfileHeader = ({ profile, postsCount }: { profile: ProfileData; postsCou
         );
     }
     
-    // Default design
+    // Standard Design (profile_design is false or undefined)
     return (
         <div className="p-4">
           <div className="flex flex-col items-center">

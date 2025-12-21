@@ -12,6 +12,10 @@ import { useToast } from "@/hooks/use-toast";
 import { createClient } from "@/lib/supabase/client";
 import { User } from "@supabase/supabase-js";
 import { PhotoCropper } from "@/components/photo-cropper";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
+
+type ProfileDesignValue = 'standard' | 'premium' | 'luxury';
 
 export default function EditProfilePage() {
   const router = useRouter();
@@ -25,6 +29,7 @@ export default function EditProfilePage() {
   const [fullName, setFullName] = useState("");
   const [username, setUsername] = useState("");
   const [bio, setBio] = useState("");
+  const [profileDesign, setProfileDesign] = useState<ProfileDesignValue>('standard');
   
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -48,6 +53,16 @@ export default function EditProfilePage() {
                 setUsername(profile.username || '');
                 setBio(profile.bio || '');
                 setPreviewUrl(profile.avatar_url || null);
+
+                // Map database value to UI value
+                if (profile.profile_design === true) {
+                    setProfileDesign('luxury');
+                } else if (profile.profile_design === null) {
+                    setProfileDesign('premium');
+                } else {
+                    setProfileDesign('standard');
+                }
+
             } else if (error && error.code !== 'PGRST116') {
                  toast({ variant: 'destructive', title: 'Error', description: 'Failed to load profile data.' });
             }
@@ -101,6 +116,16 @@ export default function EditProfilePage() {
         publicAvatarUrl = urlData.publicUrl;
     }
 
+    // Map UI value back to database value
+    let dbProfileDesign: boolean | null;
+    if (profileDesign === 'luxury') {
+        dbProfileDesign = true;
+    } else if (profileDesign === 'premium') {
+        dbProfileDesign = null;
+    } else {
+        dbProfileDesign = false;
+    }
+
     const { error: profileError } = await supabase.from('profiles').upsert({
         id: user.id,
         username,
@@ -108,6 +133,7 @@ export default function EditProfilePage() {
         bio,
         avatar_url: publicAvatarUrl,
         updated_at: new Date().toISOString(),
+        profile_design: dbProfileDesign,
     });
 
     setSaving(false);
@@ -157,16 +183,29 @@ export default function EditProfilePage() {
               
               <div className="space-y-4">
                   <div>
-                      <label className="text-sm font-medium" htmlFor="full_name">Name</label>
+                      <Label className="text-sm font-medium" htmlFor="full_name">Name</Label>
                       <Input id="full_name" name="full_name" value={fullName} onChange={(e) => setFullName(e.target.value)} className="mt-1"/>
                   </div>
                   <div>
-                      <label className="text-sm font-medium" htmlFor="username">Username</label>
+                      <Label className="text-sm font-medium" htmlFor="username">Username</Label>
                       <Input id="username" name="username" value={username} onChange={(e) => setUsername(e.target.value)} className="mt-1"/>
                   </div>
                   <div>
-                      <label className="text-sm font-medium" htmlFor="bio">Bio</label>
+                      <Label className="text-sm font-medium" htmlFor="bio">Bio</Label>
                       <Textarea id="bio" name="bio" value={bio} onChange={(e) => setBio(e.target.value)} className="mt-1"/>
+                  </div>
+                  <div>
+                      <Label className="text-sm font-medium">Profile Design</Label>
+                      <Select value={profileDesign} onValueChange={(value) => setProfileDesign(value as ProfileDesignValue)}>
+                          <SelectTrigger className="w-full mt-1">
+                              <SelectValue placeholder="Select a design" />
+                          </SelectTrigger>
+                          <SelectContent>
+                              <SelectItem value="standard">Standard</SelectItem>
+                              <SelectItem value="premium">Premium (Blue)</SelectItem>
+                              <SelectItem value="luxury">Luxury (Gold)</SelectItem>
+                          </SelectContent>
+                      </Select>
                   </div>
               </div>
               
