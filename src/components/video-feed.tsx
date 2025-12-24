@@ -128,7 +128,7 @@ const VideoPost = ({ post, isActive }: { post: Post; isActive: boolean }) => {
                 loop
                 playsInline
                 muted={isMuted}
-                className="w-full h-full object-cover"
+                className="w-full h-full object-contain"
                 preload="auto"
                 loading="lazy"
             />
