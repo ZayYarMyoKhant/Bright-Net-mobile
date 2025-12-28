@@ -79,7 +79,7 @@ export default function SplashPage() {
       </div>
       <div className="absolute bottom-8 text-center">
           <p className="text-sm text-muted-foreground">
-              power by <span className="font-semibold text-blue-500">BMC & ZMT</span>
+              power by <span className="font-semibold text-blue-500">ULife & ZMT</span>
           </p>
       </div>
     </div>

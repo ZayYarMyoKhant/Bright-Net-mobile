@@ -25,7 +25,7 @@ export default function PrivacyPolicyPage() {
                     <CardContent className="prose prose-sm md:prose-base max-w-none dark:prose-invert">
                         <p><strong>Last Updated:</strong> {new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
 
-                        <p>Welcome to Bright-Net. We are committed to protecting your privacy. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our mobile application (the "App"). Please read this privacy policy carefully. If you do not agree with the terms of this privacy policy, please do not access the application.</p>
+                        <p>Welcome to Bright-Net, a social networking platform founded by ZayYarMyoKhant. We are committed to protecting your privacy. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our mobile application (the "App"). Please read this privacy policy carefully. If you do not agree with the terms of this privacy policy, please do not access the application.</p>
 
                         <h2>1. INFORMATION WE COLLECT</h2>
                         <p>We may collect information about you in a variety of ways. The information we may collect via the App depends on the content and materials you use, and includes:</p>
