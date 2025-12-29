@@ -60,36 +60,41 @@ export function useAdMob() {
 
   const showInterstitial = useCallback(async () => {
     if (!isInitialized) return;
-
-    const listener = AdMob.addListener(InterstitialAdPluginEvents.Dismissed, () => {
-      prepareInterstitial();
-      listener.remove();
-    });
-
+    
     try {
       await AdMob.showInterstitial();
     } catch (e) {
       console.error("Error showing interstitial:", e);
     }
-  }, [isInitialized, prepareInterstitial]);
+  }, [isInitialized]);
 
   useEffect(() => {
     // This entire block runs only on the client-side
     initializeAdMob();
-  }, [initializeAdMob]);
-  
-  useEffect(() => {
-    if (isInitialized) {
-      showBanner();
-      prepareInterstitial();
+    
+    const setupAds = async () => {
+        if (Capacitor.isNativePlatform() && isInitialized) {
+            await showBanner();
+            await prepareInterstitial();
+
+             const listener = AdMob.addListener(InterstitialAdPluginEvents.Dismissed, () => {
+                prepareInterstitial();
+             });
+             
+             return () => {
+                listener.remove();
+             }
+        }
     }
+    
+    setupAds();
     
     return () => {
       if (Capacitor.isNativePlatform()) {
         AdMob.hideBanner().catch(error => console.error("Error hiding banner:", error));
       }
     };
-  }, [isInitialized, showBanner, prepareInterstitial]);
+  }, [isInitialized, initializeAdMob, showBanner, prepareInterstitial]);
 
 
   return { showInterstitial, isInitialized };
