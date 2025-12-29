@@ -19,9 +19,9 @@ import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "@/context/language-context";
 import { createClient } from "@/lib/supabase/client";
-import { AdBanner } from "@/components/ad-banner";
 import { useContext, useState } from "react";
 import { MultiAccountContext } from "@/hooks/use-multi-account";
+import { NativeAd } from "@/components/native-ad";
 
 
 export default function SettingsPage() {
@@ -128,7 +128,7 @@ export default function SettingsPage() {
                 </div>
 
                 <div className="p-4 space-y-4">
-                     <AdBanner />
+                     <NativeAd />
                     <AlertDialog>
                         <AlertDialogTrigger asChild>
                              <Button variant="outline" className="w-full justify-between">

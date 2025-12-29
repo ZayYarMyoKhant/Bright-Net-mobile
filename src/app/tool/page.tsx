@@ -5,7 +5,7 @@ import { BottomNav } from "@/components/bottom-nav";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import { Heart, Calculator, Image as ImageIcon, Bot } from "lucide-react";
 import Link from "next/link";
-import { AdBanner } from "@/components/ad-banner";
+import { NativeAd } from "@/components/native-ad";
 import { Button } from "@/components/ui/button";
 
 export default function ToolPage() {
@@ -66,7 +66,7 @@ export default function ToolPage() {
                     </div>
                     <div className="flex-grow"></div>
                     <div className="pt-4 flex-shrink-0">
-                        <AdBanner />
+                        <NativeAd />
                     </div>
                 </main>
             </div>

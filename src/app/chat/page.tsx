@@ -11,12 +11,12 @@ import { Loader2, MessageSquarePlus, Bookmark, Bot, Bell } from 'lucide-react';
 import Link from 'next/link';
 import { formatDistanceToNow, isBefore, subMinutes } from 'date-fns';
 import { Profile } from '@/lib/data';
-import { AdBanner } from '@/components/ad-banner';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { useNotifications } from '@/hooks/use-notifications';
 import { MultiAccountContext } from '@/hooks/use-multi-account';
+import { NativeAd } from '@/components/native-ad';
 
 type Conversation = {
   id: string;
@@ -228,7 +228,7 @@ export default function ChatListPage() {
         </header>
 
         <div className="p-4 border-b">
-          <AdBanner />
+          <NativeAd />
         </div>
         
         <div className="p-4 border-b">
