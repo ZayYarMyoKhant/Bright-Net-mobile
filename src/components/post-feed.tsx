@@ -30,7 +30,7 @@ export function PostFeed({ posts, loading }: { posts: Post[], loading: boolean }
     itemsWithAds.push(<PostCard key={post.id} post={post} />);
     // Insert a Native Ad after every 3 posts
     if ((index + 1) % 3 === 0) {
-      itemsWithAds.push(<NativeAd key={`ad-${index}`} />);
+      itemsWithAds.push(<div key={`ad-wrapper-${index}`} className="my-4"><NativeAd key={`ad-${index}`} /></div>);
     }
   });
 

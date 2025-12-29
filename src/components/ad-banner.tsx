@@ -8,5 +8,5 @@ export function AdBanner() {
   
   // The banner is positioned absolutely by the plugin, so we don't need to render anything here.
   // We can return a placeholder div with a fixed height to reserve space if needed.
-  return <div id="admob-banner-container" style={{ height: '50px' }} />;
+  return <div id="admob-banner-container" className="h-[50px] w-full" />;
 }

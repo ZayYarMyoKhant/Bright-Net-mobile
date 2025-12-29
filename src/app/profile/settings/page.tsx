@@ -128,7 +128,7 @@ export default function SettingsPage() {
                 </div>
 
                 <div className="p-4 space-y-4">
-                     <AdBanner />
+                    <AdBanner />
                     <AlertDialog>
                         <AlertDialogTrigger asChild>
                              <Button variant="outline" className="w-full justify-between">

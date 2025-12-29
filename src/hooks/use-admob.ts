@@ -8,12 +8,16 @@ import { useCallback, useEffect, useState } from 'react';
 const BANNER_AD_ID = 'ca-app-pub-2750761696337886/2202360537';
 const INTERSTITIAL_AD_ID = 'ca-app-pub-2750761696337886/8823609202';
 
+// State to prevent multiple initializations
+let isAdMobInitialized = false;
+
 export function useAdMob() {
-  const [isInitialized, setIsInitialized] = useState(false);
+  const [isInitialized, setIsInitialized] = useState(isAdMobInitialized);
 
   // Initialize AdMob
   useEffect(() => {
-    if (Capacitor.isNativePlatform() && !isInitialized) {
+    if (Capacitor.isNativePlatform() && !isAdMobInitialized) {
+      isAdMobInitialized = true; // Set flag immediately to prevent race conditions
       AdMob.initialize({
         testingDevices: [],
         initializeForTesting: false,
@@ -21,20 +25,28 @@ export function useAdMob() {
         setIsInitialized(true);
       }).catch(error => console.error("AdMob initialization error:", error));
     }
-  }, [isInitialized]);
+  }, []);
 
   // Show Banner Ad
   useEffect(() => {
     if (!isInitialized) return;
 
-    const options: BannerAdOptions = {
-      adId: BANNER_AD_ID,
-      adSize: BannerAdSize.ADAPTIVE_BANNER,
-      position: BannerAdPosition.BOTTOM_CENTER,
-      margin: 0,
-      isTesting: false,
+    const showBanner = async () => {
+        const options: BannerAdOptions = {
+          adId: BANNER_AD_ID,
+          adSize: BannerAdSize.ADAPTIVE_BANNER,
+          position: BannerAdPosition.BOTTOM_CENTER,
+          margin: 0,
+          isTesting: false,
+        };
+        try {
+            await AdMob.showBanner(options);
+        } catch (error) {
+            console.error("Banner ad error:", error);
+        }
     };
-    AdMob.showBanner(options).catch(error => console.error("Banner ad error:", error));
+    
+    showBanner();
 
     return () => {
       AdMob.hideBanner().catch(error => console.error("Error hiding banner:", error));
@@ -62,7 +74,7 @@ export function useAdMob() {
     // Add a listener to re-prepare the ad for the next time
     const listener = AdMob.addListener(InterstitialAdPluginEvents.Dismissed, () => {
         prepareInterstitial();
-        listener.remove();
+        if(listener) listener.remove();
     });
 
     try {
