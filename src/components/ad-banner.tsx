@@ -2,11 +2,18 @@
 "use client";
 
 import { useAdMob } from '@/hooks/use-admob';
+import { Capacitor } from '@capacitor/core';
+import { useEffect } from 'react';
 
 export function AdBanner() {
-  useAdMob(); // This hook will initialize AdMob and show the banner
+  // The useAdMob hook handles showing the banner. We just need to call it.
+  useAdMob(); 
   
-  // The banner is positioned absolutely by the plugin, so we don't need to render anything here.
-  // We can return a placeholder div with a fixed height to reserve space if needed.
-  return <div id="admob-banner-container" className="h-[50px] w-full" />;
+  // This component will only render a placeholder on native platforms
+  // to reserve space for the banner ad, which has a height of ~50px.
+  if (!Capacitor.isNativePlatform()) {
+    return null;
+  }
+
+  return <div id="admob-banner-container" className="h-[50px] w-full flex-shrink-0" />;
 }
