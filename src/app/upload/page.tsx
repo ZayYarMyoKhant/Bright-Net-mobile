@@ -15,8 +15,9 @@ export default function CreatePage() {
           <h1 className="text-xl font-bold">Let's Create</h1>
         </header>
 
+        <AdBanner />
+        
         <main className="flex-1 overflow-y-auto p-4 space-y-6">
-          <AdBanner />
 
           <Link href="/upload/customize">
             <Card className="w-full cursor-pointer hover:shadow-lg transition-shadow border-2 border-primary/50 hover:border-primary">
