@@ -16,7 +16,7 @@ import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { useNotifications } from '@/hooks/use-notifications';
 import { MultiAccountContext } from '@/hooks/use-multi-account';
-import { NativeAd } from '@/components/native-ad';
+import { AdBanner } from '@/components/ad-banner';
 
 type Conversation = {
   id: string;
@@ -228,7 +228,7 @@ export default function ChatListPage() {
         </header>
 
         <div className="p-4 border-b">
-          <NativeAd />
+          <AdBanner />
         </div>
         
         <div className="p-4 border-b">
@@ -238,7 +238,7 @@ export default function ChatListPage() {
                     <Bot className="h-6 w-6 text-primary" />
                 </div>
                 <div className="flex-1 overflow-hidden">
-                     <p className="font-semibold text-primary">ZMT Thinking AI</p>
+                     <p className="font-semibold text-primary">ZMT Think AI</p>
                      <p className="text-sm truncate text-muted-foreground">Think deeper. Answer smarter.</p>
                 </div>
             </div>

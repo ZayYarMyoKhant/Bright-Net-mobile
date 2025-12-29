@@ -5,7 +5,7 @@ import { BottomNav } from "@/components/bottom-nav";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PlusCircle, BookOpen, Music } from "lucide-react";
 import Link from "next/link";
-import { NativeAd } from "@/components/native-ad";
+import { AdBanner } from "@/components/ad-banner";
 
 export default function CreatePage() {
   return (
@@ -30,7 +30,7 @@ export default function CreatePage() {
             </Card>
           </Link>
 
-          <NativeAd />
+          <AdBanner />
 
           <Link href="/upload/class">
             <Card className="w-full cursor-pointer hover:shadow-lg transition-shadow border-2 border-primary/50 hover:border-primary">
@@ -46,7 +46,6 @@ export default function CreatePage() {
             </Card>
           </Link>
 
-          <NativeAd />
           
            <Link href="/upload/music">
             <Card className="w-full cursor-pointer hover:shadow-lg transition-shadow border-2 border-primary/50 hover:border-primary">

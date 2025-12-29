@@ -21,7 +21,7 @@ import { useTranslation } from "@/context/language-context";
 import { createClient } from "@/lib/supabase/client";
 import { useContext, useState } from "react";
 import { MultiAccountContext } from "@/hooks/use-multi-account";
-import { NativeAd } from "@/components/native-ad";
+import { AdBanner } from "@/components/ad-banner";
 
 
 export default function SettingsPage() {
@@ -128,7 +128,7 @@ export default function SettingsPage() {
                 </div>
 
                 <div className="p-4 space-y-4">
-                     <NativeAd />
+                     <AdBanner />
                     <AlertDialog>
                         <AlertDialogTrigger asChild>
                              <Button variant="outline" className="w-full justify-between">

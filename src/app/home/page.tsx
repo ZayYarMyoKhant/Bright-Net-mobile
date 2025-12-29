@@ -15,7 +15,6 @@ import Link from 'next/link';
 import { Avatar } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { AdBanner } from '@/components/ad-banner';
 import { User } from '@supabase/supabase-js';
 import { cn } from '@/lib/utils';
 
