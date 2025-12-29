@@ -226,6 +226,10 @@ export default function ChatListPage() {
             )}
            </div>
         </header>
+
+        <div className="p-2 border-b">
+            <AdBanner />
+        </div>
         
         <div className="p-4 border-b">
           <Link href="/tool/chat-zmt">

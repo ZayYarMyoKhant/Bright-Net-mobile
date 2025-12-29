@@ -8,6 +8,11 @@ const config: CapacitorConfig = {
   server: {
     url: 'https://bright-net-mobile.vercel.app',
     cleartext: true
+  },
+  plugins: {
+    CapacitorAdMob: {
+      appId: 'ca-app-pub-2750761696337886~8419627987',
+    },
   }
 };
 
