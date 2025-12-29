@@ -3,7 +3,7 @@ import { PostCard } from "./post-card";
 import type { Post } from "@/lib/data";
 import { CameraOff, Loader2 } from "lucide-react";
 import React from "react";
-import { AdBanner } from "./ad-banner";
+import { NativeAd } from "./native-ad";
 
 export function PostFeed({ posts, loading }: { posts: Post[], loading: boolean }) {
 
@@ -28,9 +28,9 @@ export function PostFeed({ posts, loading }: { posts: Post[], loading: boolean }
   const itemsWithAds: React.ReactNode[] = [];
   posts.forEach((post, index) => {
     itemsWithAds.push(<PostCard key={post.id} post={post} />);
-    // Insert an Ad Banner after every 3 posts
+    // Insert a Native Ad after every 3 posts
     if ((index + 1) % 3 === 0) {
-      itemsWithAds.push(<div key={`ad-wrapper-${index}`} className="my-4"><AdBanner key={`ad-${index}`} /></div>);
+      itemsWithAds.push(<div key={`ad-wrapper-${index}`} className="my-4"><NativeAd key={`ad-${index}`} /></div>);
     }
   });
 
