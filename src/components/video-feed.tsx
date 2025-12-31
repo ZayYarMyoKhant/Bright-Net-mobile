@@ -13,27 +13,12 @@ import {
 } from "@/components/ui/sheet"
 import { CommentSheet } from "./comment-sheet";
 import { ShareSheet } from "./share-sheet";
-import { NativeAd } from "./native-ad";
 import { cn } from '@/lib/utils';
 import type { Post } from '@/lib/data';
 import { useToast } from '@/hooks/use-toast';
 import { createClient } from '@/lib/supabase/client';
 import { User } from '@supabase/supabase-js';
 import { Card } from './ui/card';
-
-const AdPost = () => {
-    return (
-        <div className="relative h-full w-full flex-shrink-0 bg-black flex flex-col items-center justify-center p-4">
-             <Card className="w-full max-w-md bg-muted/20 border-muted/30 text-white">
-                <div className="p-4 flex items-center gap-3">
-                    <Info className="h-5 w-5 text-blue-400" />
-                    <p className="text-sm font-semibold">Sponsored Content</p>
-                </div>
-                <NativeAd />
-            </Card>
-        </div>
-    )
-}
 
 const VideoPost = ({ post, isActive }: { post: Post; isActive: boolean }) => {
     const [isLiked, setIsLiked] = useState(post.isLiked);
@@ -197,13 +182,11 @@ export function VideoFeed({ posts, loading }: { posts: Post[], loading: boolean 
     const touchStartY = useRef(0);
     const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-    const items: { type: 'post' | 'ad'; component: React.ReactElement }[] = [];
-    posts.forEach((post, index) => {
-        items.push({ type: 'post', component: <VideoPost key={post.id} post={post} isActive={false} /> });
-        if ((index + 1) % 3 === 0 && index < posts.length - 1) {
-            items.push({ type: 'ad', component: <AdPost key={`ad-${index}`} /> });
-        }
-    });
+    const items = posts.map(post => ({
+        type: 'post' as const,
+        component: <VideoPost key={post.id} post={post} isActive={false} />
+    }));
+
 
     const handleWheel = (e: React.WheelEvent) => {
         if (isScrolling) return;
