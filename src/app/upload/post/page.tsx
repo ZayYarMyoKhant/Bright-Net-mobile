@@ -13,7 +13,6 @@ import { createClient } from "@/lib/supabase/client";
 import { Progress } from "@/components/ui/progress";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { useAdMob } from "@/hooks/use-admob";
 
 
 function UploadPostPageContent() {
@@ -34,7 +33,6 @@ function UploadPostPageContent() {
   const searchParams = useSearchParams();
   const { toast } = useToast();
   const supabase = createClient();
-  const { showInterstitial } = useAdMob();
 
   useEffect(() => {
     const mediaDataUrl = searchParams.get('mediaUrl');
@@ -78,7 +76,6 @@ function UploadPostPageContent() {
     }
 
     setIsEditingWithAi(true);
-    await showInterstitial(); // Show interstitial ad while AI is processing
 
     try {
         // 1. Upload original image to get a public URL

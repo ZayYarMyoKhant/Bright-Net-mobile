@@ -10,7 +10,6 @@ import { Loader2, BookOpen } from 'lucide-react';
 import Link from 'next/link';
 import { Avatar } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { AdBanner } from '@/components/ad-banner';
 
 type ClassSummary = {
   id: string;
@@ -48,8 +47,6 @@ export default function ClassListPage() {
         <header className="flex h-16 flex-shrink-0 items-center justify-center bg-primary text-primary-foreground px-4">
           <h1 className="text-xl font-bold">Explore Classes</h1>
         </header>
-
-        <AdBanner />
 
         <main className="flex-1 overflow-y-auto p-4">
           {loading ? (

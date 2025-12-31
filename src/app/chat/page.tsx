@@ -16,7 +16,6 @@ import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { useNotifications } from '@/hooks/use-notifications';
 import { MultiAccountContext } from '@/hooks/use-multi-account';
-import { AdBanner } from '@/components/ad-banner';
 
 type Conversation = {
   id: string;
@@ -227,7 +226,6 @@ export default function ChatListPage() {
            </div>
         </header>
 
-        <AdBanner />
         
         <div className="p-4 border-b">
           <Link href="/tool/chat-zmt">

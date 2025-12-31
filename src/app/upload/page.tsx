@@ -5,7 +5,6 @@ import { BottomNav } from "@/components/bottom-nav";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PlusCircle, BookOpen, Music } from "lucide-react";
 import Link from "next/link";
-import { AdBanner } from "@/components/ad-banner";
 
 export default function CreatePage() {
   return (
@@ -15,7 +14,6 @@ export default function CreatePage() {
           <h1 className="text-xl font-bold">Let's Create</h1>
         </header>
 
-        <AdBanner />
         
         <main className="flex-1 overflow-y-auto p-4 space-y-6">
 

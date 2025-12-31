@@ -21,7 +21,6 @@ import { useTranslation } from "@/context/language-context";
 import { createClient } from "@/lib/supabase/client";
 import { useContext, useState } from "react";
 import { MultiAccountContext } from "@/hooks/use-multi-account";
-import { AdBanner } from "@/components/ad-banner";
 
 
 export default function SettingsPage() {
@@ -148,7 +147,6 @@ export default function SettingsPage() {
                             </AlertDialogFooter>
                         </AlertDialogContent>
                     </AlertDialog>
-                    <AdBanner />
                 </div>
             </main>
         </div>
