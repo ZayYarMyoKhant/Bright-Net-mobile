@@ -23,7 +23,6 @@ import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious, type CarouselApi } from "@/components/ui/carousel";
 import { MultiAccountContext } from "@/hooks/use-multi-account";
 import { motion, AnimatePresence } from 'framer-motion';
-import { Broom, Rocket } from "@/components/icons";
 
 
 type Reaction = {
@@ -196,8 +195,8 @@ const ChatMessage = ({ message, isSender, isPinned, onReply, onDelete, onEdit, o
         {!isDeleting && (
           <motion.div
             layout
-            initial={isTempMessage ? { opacity: 0 } : { opacity: 1, x: 0 }}
-            animate={{ opacity: 1, x: 0, transition: { delay: isTempMessage ? 0.2 : 0, duration: 0.3 } }}
+            initial={isTempMessage ? { opacity: 0, x: 100 } : { opacity: 1, x: 0 }}
+            animate={{ opacity: 1, x: 0, transition: { duration: 0.5, ease: "easeOut" } }}
             exit={{ opacity: 0, x: isSender ? 200 : -200, transition: { duration: 0.5 } }}
             className={cn("flex items-start gap-3", isSender ? "justify-end" : "justify-start")}
             ref={msgRef} 
@@ -209,16 +208,6 @@ const ChatMessage = ({ message, isSender, isPinned, onReply, onDelete, onEdit, o
                 </Link>
             )}
             <div className="group relative max-w-xs">
-                {isTempMessage && (
-                    <motion.div 
-                        className="absolute -left-4 top-1/2 -translate-y-1/2 z-20"
-                        initial={{ x: -100, opacity: 0 }}
-                        animate={{ x: 100, opacity: [0.5, 1, 0] }}
-                        transition={{ duration: 0.7, ease: "easeInOut" }}
-                    >
-                        <Rocket className="h-6 w-6 text-primary" />
-                    </motion.div>
-                )}
                 
                 <div className={cn(
                     "rounded-lg",
@@ -342,17 +331,17 @@ const ChatMessage = ({ message, isSender, isPinned, onReply, onDelete, onEdit, o
                     )}
                 </div>
             </div>
-            {isDeleting && (
-                <motion.div
-                    initial={{ opacity: 0, scale: 0.5 }}
-                    animate={{ opacity: 1, scale: 1, x: isSender ? -20 : 20 }}
-                    transition={{ duration: 0.3 }}
-                    className="absolute inset-0 flex items-center justify-center pointer-events-none"
-                >
-                    <Broom className="h-8 w-8 text-destructive animate-pulse" />
-                </motion.div>
-            )}
           </motion.div>
+        )}
+         {isDeleting && (
+            <motion.div
+                initial={{ opacity: 0, scale: 0.5 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 0.3 }}
+                className="absolute inset-0 flex items-center justify-center text-4xl pointer-events-none"
+            >
+                🧹
+            </motion.div>
         )}
       </AnimatePresence>
     )
