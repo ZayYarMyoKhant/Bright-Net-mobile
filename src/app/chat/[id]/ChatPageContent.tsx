@@ -111,6 +111,7 @@ const ChatMessage = ({ message, isSender, isPinned, onReply, onDelete, onEdit, o
     const msgRef = useRef<HTMLDivElement>(null);
     const supabase = createClient();
     const { toast } = useToast();
+    const isTempMessage = isSender && message.id.startsWith('temp_');
     
     const aggregatedReactions = message.direct_message_reactions.reduce((acc, reaction) => {
         if (!acc[reaction.emoji]) {
@@ -195,10 +196,9 @@ const ChatMessage = ({ message, isSender, isPinned, onReply, onDelete, onEdit, o
         {!isDeleting && (
           <motion.div
             layout
-            initial={isSender ? { opacity: 0, x: 100 } : { opacity: 1, x: 0 }}
-            animate={{ opacity: 1, x: 0 }}
+            initial={isTempMessage ? { opacity: 0 } : { opacity: 1, x: 0 }}
+            animate={{ opacity: 1, x: 0, transition: { delay: isTempMessage ? 0.2 : 0, duration: 0.3 } }}
             exit={{ opacity: 0, x: isSender ? 200 : -200, transition: { duration: 0.5 } }}
-            transition={{ type: "spring", stiffness: 150, damping: 20 }}
             className={cn("flex items-start gap-3", isSender ? "justify-end" : "justify-start")}
             ref={msgRef} 
             id={`message-${message.id}`}
@@ -209,12 +209,12 @@ const ChatMessage = ({ message, isSender, isPinned, onReply, onDelete, onEdit, o
                 </Link>
             )}
             <div className="group relative max-w-xs">
-                {isSender && message.id.startsWith('temp_') && (
+                {isTempMessage && (
                     <motion.div 
-                        className="absolute -left-8 top-1/2 -translate-y-1/2 z-20"
-                        initial={{ x: -100, y: 0, rotate: -45, opacity: 0 }}
-                        animate={{ x: 0, y: 0, rotate: 0, opacity: 1 }}
-                        transition={{ duration: 0.5, delay: 0.2 }}
+                        className="absolute -left-4 top-1/2 -translate-y-1/2 z-20"
+                        initial={{ x: -100, opacity: 0 }}
+                        animate={{ x: 100, opacity: [0.5, 1, 0] }}
+                        transition={{ duration: 0.7, ease: "easeInOut" }}
                     >
                         <Rocket className="h-6 w-6 text-primary" />
                     </motion.div>
@@ -335,7 +335,7 @@ const ChatMessage = ({ message, isSender, isPinned, onReply, onDelete, onEdit, o
                  <div className="flex items-center justify-end gap-1.5 px-2 py-0.5 mt-1">
                     {message.is_edited && <span className="text-xs text-muted-foreground">(edited)</span>}
                     <span className="text-xs text-muted-foreground">{timeAgo}</span>
-                    {isSender && (
+                    {isSender && !isTempMessage && (
                       message.is_seen_by_other 
                         ? <CheckCheck className="h-4 w-4 text-blue-500" /> 
                         : <Check className="h-4 w-4 text-muted-foreground" />
