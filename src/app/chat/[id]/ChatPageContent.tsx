@@ -406,16 +406,20 @@ export default function ChatPageContent({ initialData, params }: { initialData: 
       .on<DirectMessage>(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'direct_messages', filter: `conversation_id=eq.${conversationId}` },
-        (payload) => {
+        async (payload) => {
            const newMessagePayload = payload.new as DirectMessage;
            
            if (messages.some(msg => msg.id === newMessagePayload.id) || newMessagePayload.sender_id === currentUser.id) {
                return;
            }
+
+           const { data: profile, error } = await supabase.from('profiles').select('*').eq('id', newMessagePayload.sender_id).single();
+
+           if(error || !profile) return;
            
            const fullMessage: DirectMessage = {
                ...newMessagePayload,
-               profiles: otherUser as Profile, 
+               profiles: profile, 
                direct_message_reactions: [],
                is_seen_by_other: false,
            };

@@ -164,7 +164,7 @@ export default function ChatListPage() {
 
     const channel = supabase.channel('public:chat-list-page-changes')
       .on('postgres_changes', 
-        { event: '*', schema: 'public', table: 'direct_messages' },
+        { event: 'INSERT', schema: 'public', table: 'direct_messages' },
         (payload) => {
           fetchConversations(currentUser.session.user);
         }
@@ -176,7 +176,7 @@ export default function ChatListPage() {
         }
       )
       .on('postgres_changes',
-        { event: '*', schema: 'public', table: 'direct_message_read_status' },
+        { event: 'INSERT', schema: 'public', table: 'direct_message_read_status' },
         (payload) => {
              fetchConversations(currentUser.session.user);
         }
