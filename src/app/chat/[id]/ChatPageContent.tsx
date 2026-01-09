@@ -22,6 +22,8 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious, type CarouselApi } from "@/components/ui/carousel";
 import { MultiAccountContext } from "@/hooks/use-multi-account";
+import { motion, AnimatePresence } from 'framer-motion';
+import { Broom, Rocket } from "@/components/icons";
 
 
 type Reaction = {
@@ -103,7 +105,7 @@ function PresenceIndicator({ user }: { user: OtherUserWithPresence | null }) {
 }
 
 
-const ChatMessage = ({ message, isSender, isPinned, onReply, onDelete, onEdit, onReaction, onPin, currentUser }: { message: DirectMessage, isSender: boolean, isPinned: boolean, onReply: (message: DirectMessage) => void, onDelete: (messageId: string) => void, onEdit: (message: DirectMessage) => void, onReaction: (messageId: string, emoji: string) => void, onPin: (messageId: string, isPinned: boolean) => void, currentUser: User | null }) => {
+const ChatMessage = ({ message, isSender, isPinned, onReply, onDelete, onEdit, onReaction, onPin, currentUser, isDeleting }: { message: DirectMessage, isSender: boolean, isPinned: boolean, onReply: (message: DirectMessage) => void, onDelete: (messageId: string) => void, onEdit: (message: DirectMessage) => void, onReaction: (messageId: string, emoji: string) => void, onPin: (messageId: string, isPinned: boolean) => void, currentUser: User | null, isDeleting: boolean }) => {
     
     const timeAgo = formatDistanceToNow(new Date(message.created_at), { addSuffix: true });
     const msgRef = useRef<HTMLDivElement>(null);
@@ -189,13 +191,34 @@ const ChatMessage = ({ message, isSender, isPinned, onReply, onDelete, onEdit, o
 
 
     return (
-        <div ref={msgRef} id={`message-${message.id}`} className={`flex items-start gap-3 ${isSender ? 'justify-end' : 'justify-start'}`}>
+      <AnimatePresence>
+        {!isDeleting && (
+          <motion.div
+            layout
+            initial={isSender ? { opacity: 0, x: 100 } : { opacity: 1, x: 0 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: isSender ? 200 : -200, transition: { duration: 0.5 } }}
+            transition={{ type: "spring", stiffness: 150, damping: 20 }}
+            className={cn("flex items-start gap-3", isSender ? "justify-end" : "justify-start")}
+            ref={msgRef} 
+            id={`message-${message.id}`}
+          >
             {!isSender && (
                 <Link href={`/profile/${message.profiles.id}`}>
                     <Avatar className="h-8 w-8" profile={message.profiles} />
                 </Link>
             )}
             <div className="group relative max-w-xs">
+                {isSender && message.id.startsWith('temp_') && (
+                    <motion.div 
+                        className="absolute -left-8 top-1/2 -translate-y-1/2 z-20"
+                        initial={{ x: -100, y: 0, rotate: -45, opacity: 0 }}
+                        animate={{ x: 0, y: 0, rotate: 0, opacity: 1 }}
+                        transition={{ duration: 0.5, delay: 0.2 }}
+                    >
+                        <Rocket className="h-6 w-6 text-primary" />
+                    </motion.div>
+                )}
                 
                 <div className={cn(
                     "rounded-lg",
@@ -319,7 +342,19 @@ const ChatMessage = ({ message, isSender, isPinned, onReply, onDelete, onEdit, o
                     )}
                 </div>
             </div>
-        </div>
+            {isDeleting && (
+                <motion.div
+                    initial={{ opacity: 0, scale: 0.5 }}
+                    animate={{ opacity: 1, scale: 1, x: isSender ? -20 : 20 }}
+                    transition={{ duration: 0.3 }}
+                    className="absolute inset-0 flex items-center justify-center pointer-events-none"
+                >
+                    <Broom className="h-8 w-8 text-destructive animate-pulse" />
+                </motion.div>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
     )
 }
 export default function ChatPageContent({ initialData, params }: { initialData: InitialChatData, params: { id: string } }) {
@@ -346,6 +381,7 @@ export default function ChatPageContent({ initialData, params }: { initialData: 
   const [mediaPreview, setMediaPreview] = useState<string | null>(null);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [sending, setSending] = useState(false);
+  const [deletingMessageId, setDeletingMessageId] = useState<string | null>(null);
 
   // Advanced presence
   const [isTyping, setIsTyping] = useState(false);
@@ -572,11 +608,18 @@ export default function ChatPageContent({ initialData, params }: { initialData: 
   };
   
   const handleDelete = async (messageId: string) => {
-    setMessages(prev => prev.filter(msg => msg.id !== messageId));
-    const { error } = await supabase.from('direct_messages').delete().eq('id', messageId);
-    if (error) {
-        toast({ variant: 'destructive', title: "Failed to delete message."});
-    }
+    setDeletingMessageId(messageId);
+
+    // Wait for the animation to play before removing from state and DB
+    setTimeout(async () => {
+        setMessages(prev => prev.filter(msg => msg.id !== messageId));
+        const { error } = await supabase.from('direct_messages').delete().eq('id', messageId);
+        if (error) {
+            toast({ variant: 'destructive', title: "Failed to delete message."});
+            // Consider re-fetching messages on error to restore state
+        }
+        setDeletingMessageId(null);
+    }, 500); // Should match the exit animation duration
   };
 
   const handleEdit = (message: DirectMessage) => {
@@ -1085,7 +1128,7 @@ export default function ChatPageContent({ initialData, params }: { initialData: 
         )}
         {messages.map((msg) => {
             const isPinned = pinnedMessages.some(p => p.message_id === msg.id);
-            return <ChatMessage key={msg.id} message={msg} isSender={msg.sender_id === currentUser?.id} isPinned={isPinned} onReply={handleReply} onDelete={handleDelete} onEdit={handleEdit} onReaction={handleReaction} onPin={handlePinMessage} currentUser={currentUser}/>
+            return <ChatMessage key={msg.id} message={msg} isSender={msg.sender_id === currentUser?.id} isPinned={isPinned} onReply={handleReply} onDelete={handleDelete} onEdit={handleEdit} onReaction={handleReaction} onPin={handlePinMessage} currentUser={currentUser} isDeleting={deletingMessageId === msg.id} />
         })}
         <div ref={messagesEndRef} />
       </main>
