@@ -20,8 +20,9 @@ import { Capacitor } from '@capacitor/core';
 import { useToast } from '@/hooks/use-toast';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Bell } from 'lucide-react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { MultiAccountProvider, MultiAccountContext } from '@/hooks/use-multi-account';
+import { AnimatePresence, motion } from 'framer-motion';
 
 
 const ptSans = PT_Sans({
@@ -37,6 +38,7 @@ function AppLayout({ children }: { children: React.ReactNode }) {
   const isOffline = useContext(OfflineContext);
   const { toast } = useToast();
   const router = useRouter();
+  const pathname = usePathname();
   const [showNotificationDialog, setShowNotificationDialog] = useState(false);
   const backButtonPressCount = useRef(0);
 
@@ -199,7 +201,18 @@ function AppLayout({ children }: { children: React.ReactNode }) {
       <div className="relative h-dvh w-full md:h-screen overflow-hidden">
           {currentUser && <TypingBattleRequestBanner userId={currentUser.id} />}
           {currentUser && <CoupleRequestBanner userId={currentUser.id} />}
-          {children}
+          <AnimatePresence mode="wait">
+            <motion.div key={pathname} className="h-full w-full">
+                <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -20 }}
+                    transition={{ duration: 0.3, ease: "easeInOut" }}
+                >
+                    {children}
+                </motion.div>
+            </motion.div>
+          </AnimatePresence>
       </div>
     </>
   );
