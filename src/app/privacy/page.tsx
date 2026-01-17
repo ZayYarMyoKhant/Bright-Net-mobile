@@ -20,57 +20,70 @@ export default function PrivacyPolicyPage() {
             <main className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8">
                 <Card>
                     <CardHeader>
-                        <CardTitle>Privacy Policy</CardTitle>
+                        <CardTitle>Privacy Policy for Bright Net Social Network</CardTitle>
                     </CardHeader>
                     <CardContent className="prose prose-sm md:prose-base max-w-none dark:prose-invert">
-                        <p><strong>Last Updated:</strong> {new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
-
-                        <p>Welcome to Bright-Net, a social networking platform founded by ZayYarMyoKhant. We are committed to protecting your privacy. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our mobile application (the "App"). Please read this privacy policy carefully. If you do not agree with the terms of this privacy policy, please do not access the application.</p>
-
-                        <h2>1. INFORMATION WE COLLECT</h2>
-                        <p>We may collect information about you in a variety of ways. The information we may collect via the App depends on the content and materials you use, and includes:</p>
-                        <ul>
-                            <li><strong>Personal Data:</strong> Personally identifiable information, such as your full name, username, phone number, and profile picture that you voluntarily give to us when you register with the App or when you choose to participate in various activities related to the App, such as chat and posting content.</li>
-                            <li><strong>User-Generated Content:</strong> We collect the content you create on the App, including photos, videos, captions, comments, direct messages, and information in your user profile (like your bio).</li>
-                            <li><strong>Derivative Data:</strong> Information our servers automatically collect when you access the App, such as your interactions with the service, including following users, liking posts, and usage data.</li>
-                             <li><strong>Presence Information:</strong> We collect information about your online status and last seen activity to share with other users, as governed by your privacy settings.</li>
-                            <li><strong>Data from Third-Party Services:</strong> We may use third-party advertising companies, such as Adsterra, to serve ads when you visit the App. These companies may use information about your visits to the App and other websites that are contained in web cookies in order to provide advertisements about goods and services of interest to you.</li>
-                        </ul>
-
-                        <h2>2. HOW WE USE YOUR INFORMATION</h2>
-                        <p>Having accurate information about you permits us to provide you with a smooth, efficient, and customized experience. Specifically, we may use information collected about you via the App to:</p>
-                        <ul>
-                            <li>Create and manage your account.</li>
-                            <li>Enable user-to-user communications (e.g., chat, comments).</li>
-                            <li>Display your profile and posts to other users.</li>
-                            <li>Personalize and improve your experience.</li>
-                            <li>Monitor and analyze usage and trends to improve the App's functionality.</li>
-                            <li>Provide and deliver the products and services you request, process transactions, and send you related information.</li>
-                            <li>Serve relevant advertisements to you.</li>
-                        </ul>
-
-                        <h2>3. DISCLOSURE OF YOUR INFORMATION</h2>
-                        <p>We may share information we have collected about you in certain situations. Your information may be disclosed as follows:</p>
-                        <ul>
-                            <li><strong>By Law or to Protect Rights:</strong> If we believe the release of information about you is necessary to respond to legal process, to investigate or remedy potential violations of our policies, or to protect the rights, property, and safety of others, we may share your information as permitted or required by any applicable law, rule, or regulation.</li>
-                            <li><strong>Publicly-Visible Information:</strong> Your username, profile photo, and bio are visible to all users of the App. Your posts and comments are also public.</li>
-                            <li><strong>Third-Party Service Providers:</strong> We may share your information with third parties that perform services for us or on our behalf, including data analysis, hosting services (like Supabase), and advertising.</li>
-                        </ul>
-
-                        <h2>4. DATA SECURITY</h2>
-                        <p>We use administrative, technical, and physical security measures to help protect your personal information. We utilize Supabase as our backend provider, which employs industry-standard security practices. While we have taken reasonable steps to secure the personal information you provide to us, please be aware that despite our efforts, no security measures are perfect or impenetrable, and no method of data transmission can be guaranteed against any interception or other type of misuse.</p>
-
-                        <h2>5. DATA RETENTION</h2>
-                        <p>We will retain your personal information for as long as your account is active or as needed to provide you services, comply with our legal obligations, resolve disputes, and enforce our agreements. You can delete your account or certain content through the App's interface.</p>
-
-                        <h2>6. POLICY FOR CHILDREN</h2>
-                        <p>We do not knowingly solicit information from or market to children under the age of 13. If you become aware of any data we have collected from children under age 13, please contact us using the contact information provided below.</p>
+                        <p><strong>Last Updated:</strong> January 17, 2026</p>
+                        <p>Bright Net ("the App," "we," "us," or "our") is a social networking platform developed and operated in a strategic partnership with ULife Communication. We are dedicated to protecting the privacy of our users while maintaining a safe, ethical, and transparent digital environment.</p>
+                        <p>This Privacy Policy outlines how we collect, store, and process your information, as well as the strict code of conduct required to maintain a membership in our community.</p>
                         
-                        <h2>7. CHANGES TO THIS PRIVACY POLICY</h2>
-                        <p>We may update this Privacy Policy from time to time in order to reflect, for example, changes to our practices or for other operational, legal, or regulatory reasons. We will notify you of any changes by updating the "Last Updated" date of this Privacy Policy.</p>
+                        <h2>1. Information Collection and Usage</h2>
+                        <p>To provide a personalized social experience, we collect the following types of information:</p>
+                        <ul>
+                            <li><strong>Account Information:</strong> When you register, we collect your name, email address, phone number, and profile identifiers.</li>
+                            <li><strong>User-Generated Content:</strong> This includes posts, photos, videos, comments, and messages.</li>
+                            <li><strong>Technical Data:</strong> We collect IP addresses, device types, operating system versions, and app usage statistics to optimize performance and security.</li>
+                            <li><strong>Purpose:</strong> All data is used to provide service functionality, ensure user safety, and improve the features offered by Bright Net and ULife Communication.</li>
+                        </ul>
 
-                        <h2>8. CONTACT US</h2>
-                        <p>If you have questions or comments about this Privacy Policy, please contact us at: zeyarzeyarmyokhant@gmail.com</p>
+                        <h2>2. Children’s Privacy (Special Protection)</h2>
+                        <p>Bright Net recognizes the high importance of protecting the privacy of young children.</p>
+                        <ul>
+                            <li><strong>Age Restriction:</strong> Our services are not intended for children under the age of 13. We do not knowingly collect personal data from children under 13.</li>
+                            <li><strong>Parental Oversight:</strong> For users between the ages of 13 and 18, we strongly recommend parental supervision.</li>
+                            <li><strong>Data Deletion:</strong> If we discover that a child under 13 has provided us with personal information without verified parental consent, we will delete that information and terminate the associated account immediately.</li>
+                        </ul>
+
+                        <h2>3. User Conduct and Content Integrity</h2>
+                        <p>By using Bright Net, you agree to adhere to the following strict guidelines. This platform is built on the foundation of Truth and Morality.</p>
+                        <ul>
+                            <li><strong>Ethical Usage:</strong> All users must act with integrity and follow moral standards. Using the App for illegal or malicious purposes is strictly prohibited.</li>
+                            <li><strong>Prohibited Content:</strong> We have a zero-tolerance policy for:
+                                <ul className="list-disc pl-5 mt-2">
+                                    <li>Hate Speech & Violence: Content that promotes hatred, discrimination, or physical threats.</li>
+                                    <li>Misinformation (Fake News): The intentional distribution of false information that may cause public alarm or harm.</li>
+                                    <li>Inappropriate Media: Any images, videos, or texts that are indecent, immoral, or pornographic.</li>
+                                </ul>
+                            </li>
+                            <li><strong>Privacy Rights:</strong> You are strictly forbidden from sharing the private or sensitive information of other individuals without their explicit, prior consent.</li>
+                            <li><strong>Intellectual Property:</strong> Users must respect copyright laws. Do not post content (music, art, videos) that you do not own unless you have permission from the rightful owner.</li>
+                            <li><strong>Anti-Fraud & Spam:</strong> Users shall not engage in scams, phishing, fraudulent schemes, or the distribution of unsolicited spam.</li>
+                        </ul>
+
+                        <h2>4. Community Respect and Administration</h2>
+                         <ul>
+                            <li><strong>Respectful Interaction:</strong> All members must treat others with dignity. Harassment, cyberbullying, and verbal abuse will not be tolerated.</li>
+                            <li><strong>Administrative Authority:</strong> To maintain community safety, Bright Net administrators reserve the absolute right to monitor, review, and remove any content deemed inappropriate without prior notice.</li>
+                            <li><strong>Account Sanctions:</strong> Violating any of these policies may result in immediate penalties, including temporary suspension or permanent banning of the account, depending on the severity of the violation.</li>
+                        </ul>
+
+                        <h2>5. Data Security and Sharing</h2>
+                        <p>We prioritize the security of your data through encryption and industry-standard safety protocols.</p>
+                        <ul>
+                            <li><strong>Partnership Sharing:</strong> As a co-founded entity, data may be shared between Bright Net and ULife Communication solely for technical operations and service enhancement.</li>
+                            <li><strong>No Third-Party Sales:</strong> We do not sell, rent, or trade your personal information to third-party advertisers.</li>
+                            <li><strong>Legal Disclosure:</strong> We may disclose your information if required to do so by law or in response to valid requests by public authorities.</li>
+                        </ul>
+
+                        <h2>6. Amendments to the Policy</h2>
+                        <p>Bright Net reserves the right to modify, update, or change these Privacy Policies at any time to reflect changes in the law or our services. Users are encouraged to review this page periodically. Continued use of the App after changes are posted constitutes your formal acceptance of the new terms.</p>
+
+                        <h2>7. Contact and Support</h2>
+                        <p>If you have questions, concerns, or wish to report a policy violation, please reach out to our administration team:</p>
+                         <ul>
+                            <li><strong>Co-Founding Partner:</strong> ULife Communication</li>
+                            <li><strong>Official Contact Email:</strong> zeyarzeyarmyokhant@gmail.com</li>
+                        </ul>
 
                     </CardContent>
                 </Card>
