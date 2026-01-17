@@ -102,12 +102,12 @@ function AppLayout({ children }: { children: React.ReactNode }) {
     // Double press back to exit
     useEffect(() => {
         if (Capacitor.isNativePlatform()) {
-            App.addListener('backButton', ({ canGoBack }) => {
+            const listener = App.addListener('backButton', ({ canGoBack }) => {
                 if (!canGoBack) {
                     backButtonPressCount.current += 1;
 
                     if (backButtonPressCount.current === 1) {
-                        toast({ description: "Press back again to exit" });
+                        toast({ description: "Press back again to exit", duration: 2000 });
                         setTimeout(() => {
                             backButtonPressCount.current = 0;
                         }, 2000); // Reset after 2 seconds
@@ -118,11 +118,10 @@ function AppLayout({ children }: { children: React.ReactNode }) {
                     window.history.back();
                 }
             });
-        }
-        
-        return () => {
-           // Clean up listener if component unmounts
-           // App.removeAllListeners may be too broad if other listeners exist
+            
+            return () => {
+                listener.remove();
+            }
         }
     }, [toast]);
 
