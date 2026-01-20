@@ -14,7 +14,7 @@ const config: CapacitorConfig = {
   },
   android: {
     versionCode: 5,
-    versionName: "1.1.0"
+    versionName: "1.2.0"
   }
 };
 
