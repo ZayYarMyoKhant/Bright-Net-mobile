@@ -1,7 +1,7 @@
 
 workflows:
   android-build:
-    name: Android Release Build
+    name: Android Release Build (APK)
     environment:
       node: 20
       java: 21
@@ -57,9 +57,9 @@ workflows:
               }
           "
           echo "$SIGNING_CONFIG" >> $BUILD_GRADLE_PATH
-      - name: Build Android Release AAB
+      - name: Build Android Release APK
         script: |
-          cd android && ./gradlew bundleRelease
+          cd android && ./gradlew assembleRelease
     artifacts:
-      - android/app/build/outputs/bundle/release/app-release.aab
+      - android/app/build/outputs/apk/release/app-release.apk
 
