@@ -1,13 +1,15 @@
 
 workflows:
   android-build:
-    name: Android Release Build (APK)
+    name: Android Release Build (AAB)
     environment:
       node: 20
       java: 21
       groups:
         - supabase_keys
         - signing
+      vars:
+        PACKAGE_NAME: "1.1.0"
     scripts:
       - name: Install dependencies
         script: npm install
@@ -17,20 +19,20 @@ workflows:
           echo "NEXT_PUBLIC_SUPABASE_ANON_KEY=$NEXT_PUBLIC_SUPABASE_ANON_KEY" >> .env
       - name: Build web assets
         script: npm run build
-      - name: Create out directory for Capacitor
-        script: mkdir -p out
-      - name: Add Android Platform
+      - name: Clean and Add Android Platform
         script: |
           rm -rf ./android
           npx cap add android
       - name: Sync Capacitor Project
         script: npx cap sync android
-      - name: Force Update Version in build.gradle
+      - name: Update Version Code and Name
         script: |
           BUILD_GRADLE_PATH="android/app/build.gradle"
-          sed -i 's/versionCode [0-9]\+/versionCode 6/' $BUILD_GRADLE_PATH
-          sed -i 's/versionName "[^"]*"/versionName "1.1.0"/' $BUILD_GRADLE_PATH
-          echo "Forced versionCode to 6 and versionName to 1.1.0 in build.gradle"
+          # Use Codemagic's built-in BUILD_NUMBER for versionCode
+          sed -i "s/versionCode [0-9]\+/versionCode $BUILD_NUMBER/" $BUILD_GRADLE_PATH
+          # Use the PACKAGE_NAME variable and BUILD_NUMBER for versionName
+          sed -i "s/versionName \".*\"/versionName \"$PACKAGE_NAME.$BUILD_NUMBER\"/" $BUILD_GRADLE_PATH
+          echo "Updated to VersionCode: $BUILD_NUMBER and VersionName: $PACKAGE_NAME.$BUILD_NUMBER"
       - name: Decode Keystore File
         script: echo $CM_KEYSTORE | base64 --decode > $CM_BUILD_DIR/keystore.jks
       - name: Create 'gradle.properties' for Signing
@@ -63,8 +65,8 @@ workflows:
               }
           "
           echo "$SIGNING_CONFIG" >> $BUILD_GRADLE_PATH
-      - name: Build Android Release APK
+      - name: Build Android Release AAB
         script: |
-          cd android && ./gradlew assembleRelease
+          cd android && ./gradlew bundleRelease
     artifacts:
-      - android/app/build/outputs/apk/release/app-release.apk
+      - android/app/build/outputs/bundle/release/*.aab
