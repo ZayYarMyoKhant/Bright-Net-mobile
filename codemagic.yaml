@@ -25,6 +25,12 @@ workflows:
           npx cap add android
       - name: Sync Capacitor Project
         script: npx cap sync android
+      - name: Force Update Version in build.gradle
+        script: |
+          BUILD_GRADLE_PATH="android/app/build.gradle"
+          sed -i 's/versionCode [0-9]\+/versionCode 6/' $BUILD_GRADLE_PATH
+          sed -i 's/versionName "[^"]*"/versionName "1.1.0"/' $BUILD_GRADLE_PATH
+          echo "Forced versionCode to 6 and versionName to 1.1.0 in build.gradle"
       - name: Decode Keystore File
         script: echo $CM_KEYSTORE | base64 --decode > $CM_BUILD_DIR/keystore.jks
       - name: Create 'gradle.properties' for Signing
@@ -62,4 +68,3 @@ workflows:
           cd android && ./gradlew assembleRelease
     artifacts:
       - android/app/build/outputs/apk/release/app-release.apk
-
