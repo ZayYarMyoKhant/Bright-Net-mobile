@@ -24,7 +24,10 @@ workflows:
           rm -rf ./android
           npx cap add android
       - name: Sync Capacitor Project
-        script: npx cap sync android
+        script: |
+          # Manually create the assets directory to prevent sync errors.
+          mkdir -p android/app/src/main/assets
+          npx cap sync android
       - name: Update Version Code and Name
         script: |
           BUILD_GRADLE_PATH="android/app/build.gradle"
