@@ -11,10 +11,6 @@ const config: CapacitorConfig = {
   },
   plugins: {
 
-  },
-  android: {
-    versionCode: 6,
-    versionName: "1.1.0"
   }
 };
 
