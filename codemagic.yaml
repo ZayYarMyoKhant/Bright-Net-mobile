@@ -21,8 +21,8 @@ workflows:
         script: npm run build
       - name: Sync Capacitor Project
         script: |
-          # Use 'sync' which is idempotent: it updates if the platform exists,
-          # and creates it if it doesn't. This handles all CI scenarios.
+          # Ensure the assets directory exists before syncing to prevent ENOENT errors.
+          mkdir -p android/app/src/main/assets
           npx cap sync android
       - name: Update Version Code and Name
         script: |
@@ -76,4 +76,5 @@ workflows:
           cd android && ./gradlew bundleRelease
     artifacts:
       - android/app/build/outputs/bundle/release/*.aab
+
 
