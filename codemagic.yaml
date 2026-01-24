@@ -64,9 +64,10 @@ workflows:
               }
           "
           echo "$SIGNING_CONFIG" >> $BUILD_GRADLE_PATH
+      - name: Make gradlew executable
+        script: chmod +x android/gradlew
       - name: Build Android Release AAB
         script: |
           cd android && ./gradlew bundleRelease
     artifacts:
       - android/app/build/outputs/bundle/release/*.aab
-
