@@ -21,9 +21,8 @@ workflows:
         script: npm run build
       - name: Sync Capacitor Project
         script: |
-          # Manually create the assets directory to prevent sync errors.
-          mkdir -p android/app/src/main/assets
-          npx cap sync android
+          # Add the Android platform. This creates the folder if missing and syncs assets.
+          npx cap add android
       - name: Update Version Code and Name
         script: |
           BUILD_GRADLE_PATH="android/app/build.gradle"
@@ -71,3 +70,4 @@ workflows:
           cd android && ./gradlew bundleRelease
     artifacts:
       - android/app/build/outputs/bundle/release/*.aab
+
