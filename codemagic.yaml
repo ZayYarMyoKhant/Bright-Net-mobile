@@ -19,16 +19,19 @@ workflows:
           echo "NEXT_PUBLIC_SUPABASE_ANON_KEY=$NEXT_PUBLIC_SUPABASE_ANON_KEY" >> .env
       - name: Build web assets
         script: npm run build
-      - name: Recreate Android Platform
+      - name: Recreate and Sync Android Platform
         script: |
-          # This is the most crucial step to ensure a clean and reliable build.
-          # 1. Remove the android directory to clear any cached or inconsistent state from previous builds.
+          # 1. Clean Slate: Remove any old android directory to prevent conflicts.
           rm -rf android
-          # 2. Add the Android platform from scratch. This reliably creates the entire project structure, including gradlew.
+          
+          # 2. Add Platform: This command creates the native Android project structure.
           npx cap add android
-      - name: Sync Capacitor Project
-        script: |
-          # Sync web assets into the newly created Android project.
+          
+          # 3. Explicitly Ensure Assets Directory: A failsafe to prevent the ENOENT error.
+          #    This guarantees the target directory exists before the sync command runs.
+          mkdir -p android/app/src/main/assets
+          
+          # 4. Sync Configs: This copies capacitor.config.json into the assets directory.
           npx cap sync android
       - name: Update Version Code and Name
         script: |
@@ -82,6 +85,7 @@ workflows:
           cd android && ./gradlew bundleRelease
     artifacts:
       - android/app/build/outputs/bundle/release/*.aab
+
 
 
 
