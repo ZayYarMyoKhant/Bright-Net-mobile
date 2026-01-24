@@ -19,10 +19,6 @@ workflows:
           echo "NEXT_PUBLIC_SUPABASE_ANON_KEY=$NEXT_PUBLIC_SUPABASE_ANON_KEY" >> .env
       - name: Build web assets
         script: npm run build
-      - name: Clean and Add Android Platform
-        script: |
-          rm -rf ./android
-          npx cap add android
       - name: Sync Capacitor Project
         script: |
           # Manually create the assets directory to prevent sync errors.
@@ -73,3 +69,4 @@ workflows:
           cd android && ./gradlew bundleRelease
     artifacts:
       - android/app/build/outputs/bundle/release/*.aab
+
