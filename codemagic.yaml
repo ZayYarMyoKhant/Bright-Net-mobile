@@ -21,8 +21,9 @@ workflows:
         script: npm run build
       - name: Sync Capacitor Project
         script: |
-          # Add the Android platform. This creates the folder if missing and syncs assets.
-          npx cap add android
+          # Use 'sync' which is idempotent: it updates if the platform exists,
+          # and creates it if it doesn't. This handles all CI scenarios.
+          npx cap sync android
       - name: Update Version Code and Name
         script: |
           BUILD_GRADLE_PATH="android/app/build.gradle"
@@ -30,7 +31,9 @@ workflows:
           sed -i "s/versionCode [0-9]\+/versionCode $BUILD_NUMBER/" $BUILD_GRADLE_PATH
           # Use the PACKAGE_NAME variable and BUILD_NUMBER for versionName
           sed -i "s/versionName \".*\"/versionName \"$PACKAGE_NAME.$BUILD_NUMBER\"/" $BUILD_GRADLE_PATH
-          echo "Updated to VersionCode: $BUILD_NUMBER and VersionName: $PACKAGE_NAME.$BUILD_NUMBER"
+          echo "Checking updated build.gradle:"
+          grep "versionCode" $BUILD_GRADLE_PATH
+          grep "versionName" $BUILD_GRADLE_PATH
       - name: Decode Keystore File
         script: echo $CM_KEYSTORE | base64 --decode > $CM_BUILD_DIR/keystore.jks
       - name: Create 'gradle.properties' for Signing
@@ -43,26 +46,29 @@ workflows:
       - name: Add Signing Config to build.gradle
         script: |
           BUILD_GRADLE_PATH="android/app/build.gradle"
-          SIGNING_CONFIG="
-              android {
-                  signingConfigs {
-                      release {
-                          if (project.hasProperty('MY_RELEASE_KEYSTORE_FILE')) {
-                              storeFile file(MY_RELEASE_KEYSTORE_FILE)
-                              storePassword MY_RELEASE_KEYSTORE_PASSWORD
-                              keyAlias MY_RELEASE_KEY_ALIAS
-                              keyPassword MY_RELEASE_KEY_PASSWORD
-                          }
-                      }
-                  }
-                  buildTypes {
-                      release {
-                          signingConfig signingConfigs.release
-                      }
-                  }
-              }
-          "
-          echo "$SIGNING_CONFIG" >> $BUILD_GRADLE_PATH
+          # Check if signing config already exists to prevent duplication
+          if ! grep -q "signingConfigs.release" "$BUILD_GRADLE_PATH"; then
+            SIGNING_CONFIG="
+                android {
+                    signingConfigs {
+                        release {
+                            if (project.hasProperty('MY_RELEASE_KEYSTORE_FILE')) {
+                                storeFile file(MY_RELEASE_KEYSTORE_FILE)
+                                storePassword MY_RELEASE_KEYSTORE_PASSWORD
+                                keyAlias MY_RELEASE_KEY_ALIAS
+                                keyPassword MY_RELEASE_KEY_PASSWORD
+                            }
+                        }
+                    }
+                    buildTypes {
+                        release {
+                            signingConfig signingConfigs.release
+                        }
+                    }
+                }
+            "
+            echo "$SIGNING_CONFIG" >> $BUILD_GRADLE_PATH
+          fi
       - name: Make gradlew executable
         script: chmod +x android/gradlew
       - name: Build Android Release AAB
