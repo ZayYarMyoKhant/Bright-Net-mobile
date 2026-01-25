@@ -8,8 +8,6 @@ workflows:
       groups:
         - supabase_keys
         - signing
-      vars:
-        PACKAGE_NAME: "1.1.0"
     scripts:
       - name: Install dependencies
         script: npm install
@@ -38,54 +36,21 @@ workflows:
           BUILD_GRADLE_PATH="android/app/build.gradle"
           # Use Codemagic's built-in BUILD_NUMBER for versionCode
           sed -i "s/versionCode [0-9]\+/versionCode $BUILD_NUMBER/" $BUILD_GRADLE_PATH
-          # Use the PACKAGE_NAME variable and BUILD_NUMBER for versionName
-          sed -i "s/versionName \".*\"/versionName \"$PACKAGE_NAME.$BUILD_NUMBER\"/" $BUILD_GRADLE_PATH
+          # Use a fixed prefix and the BUILD_NUMBER for versionName
+          sed -i "s/versionName \".*\"/versionName \"1.1.$BUILD_NUMBER\"/" $BUILD_GRADLE_PATH
           echo "Checking updated build.gradle:"
           grep "versionCode" $BUILD_GRADLE_PATH
           grep "versionName" $BUILD_GRADLE_PATH
       - name: Decode Keystore File
         script: echo $CM_KEYSTORE | base64 --decode > $CM_BUILD_DIR/keystore.jks
-      - name: Create 'gradle.properties' for Signing
-        script: |
-          PROPERTIES_PATH="android/gradle.properties"
-          echo "MY_RELEASE_KEYSTORE_FILE=$CM_BUILD_DIR/keystore.jks" >> $PROPERTIES_PATH
-          echo "MY_RELEASE_KEYSTORE_PASSWORD=$CM_KEYSTORE_PASSWORD" >> $PROPERTIES_PATH
-          echo "MY_RELEASE_KEY_ALIAS=$CM_KEY_ALIAS" >> $PROPERTIES_PATH
-          echo "MY_RELEASE_KEY_PASSWORD=$CM_KEY_ALIAS_PASSWORD" >> $PROPERTIES_PATH
-      - name: Add Signing Config to build.gradle
-        script: |
-          BUILD_GRADLE_PATH="android/app/build.gradle"
-          # Check if signing config already exists to prevent duplication
-          if ! grep -q "signingConfigs.release" "$BUILD_GRADLE_PATH"; then
-            SIGNING_CONFIG="
-                android {
-                    signingConfigs {
-                        release {
-                            if (project.hasProperty('MY_RELEASE_KEYSTORE_FILE')) {
-                                storeFile file(MY_RELEASE_KEYSTORE_FILE)
-                                storePassword MY_RELEASE_KEYSTORE_PASSWORD
-                                keyAlias MY_RELEASE_KEY_ALIAS
-                                keyPassword MY_RELEASE_KEY_PASSWORD
-                            }
-                        }
-                    }
-                    buildTypes {
-                        release {
-                            signingConfig signingConfigs.release
-                        }
-                    }
-                }
-            "
-            echo "$SIGNING_CONFIG" >> $BUILD_GRADLE_PATH
-          fi
       - name: Make gradlew executable
         script: chmod +x android/gradlew
       - name: Build Android Release AAB
         script: |
-          cd android && ./gradlew bundleRelease
+          cd android && ./gradlew bundleRelease \
+            -Pandroid.injected.signing.store.file=$CM_BUILD_DIR/keystore.jks \
+            -Pandroid.injected.signing.store.password=$CM_KEYSTORE_PASSWORD \
+            -Pandroid.injected.signing.key.alias=$CM_KEY_ALIAS \
+            -Pandroid.injected.signing.key.password=$CM_KEY_ALIAS_PASSWORD
     artifacts:
       - android/app/build/outputs/bundle/release/*.aab
-
-
-
-
