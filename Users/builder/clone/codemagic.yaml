@@ -25,7 +25,7 @@ workflows:
           # 2. Add Platform: Creates the native Android project structure.
           npx cap add android
           
-          # 3. Sync Platform: This is the crucial step. It copies web assets (from the 'out' dir if it exists)
+          # 3. Sync Platform: This is the crucial step. It copies web assets
           #    and creates Capacitor's config files (like capacitor.settings.gradle) in the native project.
           npx cap sync android
       - name: Update Version Code and Name
