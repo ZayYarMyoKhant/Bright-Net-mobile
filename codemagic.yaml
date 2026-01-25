@@ -17,20 +17,18 @@ workflows:
           echo "NEXT_PUBLIC_SUPABASE_ANON_KEY=$NEXT_PUBLIC_SUPABASE_ANON_KEY" >> .env
       - name: Build web assets
         script: npm run build
-      - name: Add or Sync Android Platform
+      - name: Recreate Android Platform
         script: |
-          # This script handles two cases:
-          # 1. If the 'android' directory doesn't exist (clean build), it adds it.
-          # 2. If it exists (cached build), it syncs it, preserving the previous state.
-          if [ ! -d "android" ]; then
-            echo "Android directory not found. Adding platform from scratch."
-            npx cap add android
-          else
-            echo "Android directory found. Syncing existing platform."
-            # Failsafe: Ensure assets directory exists before syncing, in case of a corrupted cache.
-            mkdir -p android/app/src/main/assets
-            npx cap sync android
-          fi
+          # Force a clean slate to ensure a predictable environment.
+          rm -rf android
+          npx cap add android
+      - name: Update Version Code and Name
+        script: |
+          # Use the build number as the version code. This is crucial as the project is recreated.
+          sed -i.bak "s/versionCode 1/versionCode $BUILD_NUMBER/" android/app/build.gradle
+          # Create a human-readable version name from the build number
+          VERSION_NAME=$(echo "1.0.$BUILD_NUMBER" | cut -d'.' -f1-3)
+          sed -i.bak "s/versionName \"1.0\"/versionName \"$VERSION_NAME\"/" android/app/build.gradle
       - name: Decode Keystore File
         script: echo $CM_KEYSTORE | base64 --decode > $CM_BUILD_DIR/keystore.jks
       - name: Make gradlew executable
