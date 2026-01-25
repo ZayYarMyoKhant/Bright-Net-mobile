@@ -22,12 +22,17 @@ workflows:
           # 1. Clean Slate: Remove any old android directory to prevent conflicts.
           rm -rf android
           
-          # 2. Add Platform: This command creates the native Android project structure.
+          # 2. Add Platform: Creates the native Android project structure.
           npx cap add android
           
-          # 3. Sync Configs: This copies capacitor.config.json and other necessary files.
-          #    This step is crucial for creating capacitor.settings.gradle.
+          # 3. Sync Platform: This is the crucial step. It copies web assets (from the 'out' dir if it exists)
+          #    and creates Capacitor's config files (like capacitor.settings.gradle) in the native project.
           npx cap sync android
+      - name: Update Version Code and Name
+        script: |
+          # Set explicit version code and name as requested.
+          sed -i.bak "s/versionCode 1/versionCode 5/" android/app/build.gradle
+          sed -i.bak "s/versionName \"1.0\"/versionName \"1.2.0\"/" android/app/build.gradle
       - name: Decode Keystore File
         script: echo $CM_KEYSTORE | base64 --decode > $CM_BUILD_DIR/keystore.jks
       - name: Make gradlew executable
