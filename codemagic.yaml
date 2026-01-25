@@ -17,20 +17,20 @@ workflows:
           echo "NEXT_PUBLIC_SUPABASE_ANON_KEY=$NEXT_PUBLIC_SUPABASE_ANON_KEY" >> .env
       - name: Build web assets
         script: npm run build
-      - name: Recreate and Sync Android Platform
+      - name: Add or Sync Android Platform
         script: |
-          # 1. Clean Slate: Remove any old android directory to prevent conflicts.
-          rm -rf android
-          
-          # 2. Add Platform: This command creates the native Android project structure.
-          npx cap add android
-          
-          # 3. Explicitly Ensure Assets Directory: A failsafe to prevent the ENOENT error.
-          #    This guarantees the target directory exists before the sync command runs.
-          mkdir -p android/app/src/main/assets
-          
-          # 4. Sync Configs: This copies capacitor.config.json into the assets directory.
-          npx cap sync android
+          # This script handles two cases:
+          # 1. If the 'android' directory doesn't exist (clean build), it adds it.
+          # 2. If it exists (cached build), it syncs it, preserving the previous versionCode.
+          if [ ! -d "android" ]; then
+            echo "Android directory not found. Adding platform from scratch."
+            npx cap add android
+          else
+            echo "Android directory found. Syncing existing platform."
+            # Failsafe: Ensure assets directory exists before syncing, in case of a corrupted cache.
+            mkdir -p android/app/src/main/assets
+            npx cap sync android
+          fi
       - name: Update Version Code and Name
         script: |
           BUILD_GRADLE_PATH="android/app/build.gradle"
@@ -54,3 +54,4 @@ workflows:
             -Pandroid.injected.signing.key.password=$CM_KEY_ALIAS_PASSWORD
     artifacts:
       - android/app/build/outputs/bundle/release/*.aab
+
