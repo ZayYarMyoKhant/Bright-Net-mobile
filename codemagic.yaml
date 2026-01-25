@@ -19,10 +19,14 @@ workflows:
         script: npm run build
       - name: Recreate and Sync Android Platform
         script: |
-          # Force a clean slate, then add and sync the platform.
-          # This ensures a consistent environment and all Capacitor config files are created.
+          # 1. Clean Slate: Remove any old android directory to prevent conflicts.
           rm -rf android
+          
+          # 2. Add Platform: Creates the native Android project structure.
           npx cap add android
+          
+          # 3. Sync Platform: This is the crucial step. It copies web assets (from the 'out' dir)
+          #    and creates Capacitor's config files (like capacitor.settings.gradle) in the native project.
           npx cap sync android
       - name: Update Version Code and Name
         script: |

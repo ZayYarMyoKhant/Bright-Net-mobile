@@ -2,6 +2,7 @@
 import type {NextConfig} from 'next';
 
 const nextConfig: NextConfig = {
+  output: 'export', // This is the crucial change for Capacitor
   /* config options here */
   typescript: {
     ignoreBuildErrors: true,
