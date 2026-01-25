@@ -1,0 +1,53 @@
+
+"use client";
+
+import { BottomNav } from "@/components/bottom-nav";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { PlusCircle, BookOpen, Music } from "lucide-react";
+import Link from "next/link";
+
+export default function CreatePage() {
+  return (
+    <>
+      <div className="flex h-dvh flex-col bg-background text-foreground pb-16">
+        <header className="flex h-16 flex-shrink-0 items-center justify-center bg-primary text-primary-foreground px-4 text-center">
+          <h1 className="text-xl font-bold">Let's Create</h1>
+        </header>
+
+        
+        <main className="flex-1 overflow-y-auto p-4 space-y-6">
+
+          <Link href="/upload/customize">
+            <Card className="w-full cursor-pointer hover:shadow-lg transition-shadow border-2 border-primary/50 hover:border-primary">
+                <CardContent className="p-6">
+                    <div className="flex items-center gap-4">
+                        <PlusCircle className="h-10 w-10 text-primary" />
+                        <div>
+                            <CardTitle className="text-lg">Create a New Post</CardTitle>
+                            <p className="text-sm text-muted-foreground mt-1">Share a photo or video with your friends.</p>
+                        </div>
+                    </div>
+                </CardContent>
+            </Card>
+          </Link>
+          
+           <Link href="/upload/music">
+            <Card className="w-full cursor-pointer hover:shadow-lg transition-shadow border-2 border-primary/50 hover:border-primary">
+              <CardContent className="p-6">
+                <div className="flex items-center gap-4">
+                    <Music className="h-10 w-10 text-primary" />
+                    <div>
+                        <CardTitle className="text-lg">Upload a New Track</CardTitle>
+                        <p className="text-sm text-muted-foreground mt-1">Share your favorite music or audio clips.</p>
+                    </div>
+                </div>
+              </CardContent>
+            </Card>
+          </Link>
+          
+        </main>
+      </div>
+      <BottomNav />
+    </>
+  );
+}
