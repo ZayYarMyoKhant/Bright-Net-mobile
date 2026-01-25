@@ -17,11 +17,13 @@ workflows:
           echo "NEXT_PUBLIC_SUPABASE_ANON_KEY=$NEXT_PUBLIC_SUPABASE_ANON_KEY" >> .env
       - name: Build web assets
         script: npm run build
-      - name: Recreate Android Platform
+      - name: Recreate and Sync Android Platform
         script: |
-          # Force a clean slate to ensure a predictable environment.
+          # Force a clean slate, then add and sync the platform.
+          # This ensures a consistent environment and all Capacitor config files are created.
           rm -rf android
           npx cap add android
+          npx cap sync android
       - name: Update Version Code and Name
         script: |
           # Use the build number as the version code. This is crucial as the project is recreated.
