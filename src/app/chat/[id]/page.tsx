@@ -6,6 +6,10 @@ import { cookies } from 'next/headers';
 import { Loader2 } from 'lucide-react';
 import ChatPageContent from './ChatPageContent';
 
+export async function generateStaticParams() {
+  return []
+}
+
 async function getOrCreateConversation(
     supabase: ReturnType<typeof createClient>,
     currentUser: { id: string },

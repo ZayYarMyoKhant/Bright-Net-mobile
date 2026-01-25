@@ -7,6 +7,10 @@ import { BottomNav } from "@/components/bottom-nav";
 import { createClient } from "@/lib/supabase/server";
 import { cookies } from "next/headers";
 
+export async function generateStaticParams() {
+  return []
+}
+
 // This is the Server Page component that handles the route.
 export default async function UserProfilePage({ params }: { params: { id: string } }) {
   const supabase = createClient(cookies());

@@ -42,6 +42,19 @@ function AppLayout({ children }: { children: React.ReactNode }) {
   const [showNotificationDialog, setShowNotificationDialog] = useState(false);
   const backButtonPressCount = useRef(0);
 
+  // Service Worker Registration
+  useEffect(() => {
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('/sw.js').then(registration => {
+                console.log('Service Worker registered: ', registration);
+            }).catch(registrationError => {
+                console.error('Service Worker registration failed: ', registrationError);
+            });
+        });
+    }
+  }, []);
+
   // Real-time user presence heartbeat
   useEffect(() => {
     let presenceInterval: NodeJS.Timeout | undefined;
@@ -225,6 +238,11 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="dark">
+        <head>
+            <link rel="manifest" href="/manifest.json" />
+            <link rel="icon" href="/icon.svg" type="image/svg+xml" />
+            <meta name="theme-color" content="#3B82F6" />
+        </head>
       <body
         className={cn('font-headline antialiased bg-background', ptSans.variable)}
       >

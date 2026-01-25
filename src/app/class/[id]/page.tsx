@@ -7,6 +7,10 @@ import { Loader2 } from "lucide-react";
 import IndividualClassPageContent from "./IndividualClassPageContent";
 import { Profile } from "@/lib/data";
 
+export async function generateStaticParams() {
+  return []
+}
+
 // This is the Server Page component that handles the route.
 export default async function IndividualClassPage({ params }: { params: { id:string } }) {
   const supabase = createClient();
