@@ -21,7 +21,7 @@ workflows:
         script: |
           # This script handles two cases:
           # 1. If the 'android' directory doesn't exist (clean build), it adds it.
-          # 2. If it exists (cached build), it syncs it, preserving the previous versionCode.
+          # 2. If it exists (cached build), it syncs it, preserving the previous state.
           if [ ! -d "android" ]; then
             echo "Android directory not found. Adding platform from scratch."
             npx cap add android
@@ -31,16 +31,6 @@ workflows:
             mkdir -p android/app/src/main/assets
             npx cap sync android
           fi
-      - name: Update Version Code and Name
-        script: |
-          BUILD_GRADLE_PATH="android/app/build.gradle"
-          # Use Codemagic's built-in BUILD_NUMBER for versionCode
-          sed -i "s/versionCode [0-9]\+/versionCode $BUILD_NUMBER/" $BUILD_GRADLE_PATH
-          # Use a fixed prefix and the BUILD_NUMBER for versionName
-          sed -i "s/versionName \".*\"/versionName \"1.1.$BUILD_NUMBER\"/" $BUILD_GRADLE_PATH
-          echo "Checking updated build.gradle:"
-          grep "versionCode" $BUILD_GRADLE_PATH
-          grep "versionName" $BUILD_GRADLE_PATH
       - name: Decode Keystore File
         script: echo $CM_KEYSTORE | base64 --decode > $CM_BUILD_DIR/keystore.jks
       - name: Make gradlew executable
@@ -54,4 +44,3 @@ workflows:
             -Pandroid.injected.signing.key.password=$CM_KEY_ALIAS_PASSWORD
     artifacts:
       - android/app/build/outputs/bundle/release/*.aab
-
