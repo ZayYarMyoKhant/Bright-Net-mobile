@@ -1,17 +1,53 @@
+// AppVersion: 1.2.0 (5)
 
-// A simple service worker for caching
-self.addEventListener('install', (event) => {
-  // Caching is disabled for now to ensure fresh content.
-  // This can be enabled later with a proper caching strategy.
-  self.skipWaiting();
+const CACHE_NAME = 'bright-net-cache-v1.2.0';
+const urlsToCache = [
+  '/',
+  '/home',
+  '/search',
+  '/upload',
+  '/tool',
+  '/chat',
+  '/profile',
+  '/offline',
+  '/icon.svg',
+  '/manifest.json'
+];
+
+self.addEventListener('install', event => {
+  event.waitUntil(
+    caches.open(CACHE_NAME)
+      .then(cache => {
+        console.log('Opened cache');
+        return cache.addAll(urlsToCache);
+      })
+  );
 });
 
-self.addEventListener('fetch', (event) => {
-  // Network-first strategy
+self.addEventListener('fetch', event => {
   event.respondWith(
-    fetch(event.request).catch(() => {
-      // If the network fails, you could try to serve from cache if available.
-      // return caches.match(event.request);
+    caches.match(event.request)
+      .then(response => {
+        if (response) {
+          return response;
+        }
+        return fetch(event.request);
+      }
+    )
+  );
+});
+
+self.addEventListener('activate', event => {
+  const cacheWhitelist = [CACHE_NAME];
+  event.waitUntil(
+    caches.keys().then(cacheNames => {
+      return Promise.all(
+        cacheNames.map(cacheName => {
+          if (cacheWhitelist.indexOf(cacheName) === -1) {
+            return caches.delete(cacheName);
+          }
+        })
+      );
     })
   );
 });
