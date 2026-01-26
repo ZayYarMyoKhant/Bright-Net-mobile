@@ -1,4 +1,3 @@
-
 "use client";
 
 import { Suspense, useState, useTransition, useEffect, useCallback } from "react";
@@ -9,10 +8,7 @@ import {
   Search,
   Loader2,
   Users,
-  Clapperboard,
   CameraOff,
-  MessageSquare,
-  BookOpen
 } from "lucide-react";
 import Link from "next/link";
 import { Input } from "@/components/ui/input";
@@ -21,11 +17,8 @@ import { createClient } from "@/lib/supabase/client";
 import { Avatar } from "@/components/ui/avatar";
 import { Post, Profile } from "@/lib/data";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import Image from "next/image";
 import { PostCard } from "@/components/post-card";
 import { VideoFeed } from "@/components/video-feed";
-import { Card, CardContent } from "@/components/ui/card";
-import { User as AuthUser } from "@supabase/supabase-js";
 
 
 function SearchBar() {
