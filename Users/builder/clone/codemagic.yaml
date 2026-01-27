@@ -28,29 +28,6 @@ workflows:
           # 3. Sync Platform: This is the crucial step. It copies web assets
           #    and creates Capacitor's config files (like capacitor.settings.gradle) in the native project.
           npx cap sync android
-      - name: Update Version Code and Name
-        script: |
-          # Extract version info from sw.js
-          VERSION_LINE=$(grep "AppVersion:" public/sw.js)
-          if [ -z "$VERSION_LINE" ]; then
-            echo "Error: Could not find 'AppVersion:' line in public/sw.js"
-            exit 1
-          fi
-          
-          VERSION_NAME=$(echo "$VERSION_LINE" | sed -n 's/.*AppVersion: \([^ ]*\) .*/\1/p')
-          VERSION_CODE=$(echo "$VERSION_LINE" | sed -n 's/.*(\(.*\)).*/\1/p')
-          
-          if [ -z "$VERSION_NAME" ] || [ -z "$VERSION_CODE" ]; then
-            echo "Error: Could not extract version from public/sw.js. Line was: $VERSION_LINE"
-            exit 1
-          fi
-
-          echo "Using Version Name: $VERSION_NAME from sw.js"
-          echo "Using Version Code: $VERSION_CODE from sw.js"
-
-          # Update build.gradle
-          sed -i.bak "s/versionCode 1/versionCode $VERSION_CODE/" android/app/build.gradle
-          sed -i.bak "s/versionName \"1.0\"/versionName \"$VERSION_NAME\"/" android/app/build.gradle
       - name: Decode Keystore File
         script: echo $CM_KEYSTORE | base64 --decode > $CM_BUILD_DIR/keystore.jks
       - name: Make gradlew executable
