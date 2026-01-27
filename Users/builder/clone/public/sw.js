@@ -1,17 +1,12 @@
 // AppVersion: 1.2.0 (5)
+// This is a basic service worker for PWA capabilities.
 
-const CACHE_NAME = 'bright-net-cache-v1.2.0';
+const CACHE_NAME = 'bright-net-cache-v1';
 const urlsToCache = [
   '/',
   '/home',
-  '/search',
-  '/upload',
-  '/tool',
-  '/chat',
-  '/profile',
-  '/offline',
+  '/manifest.json',
   '/icon.svg',
-  '/manifest.json'
 ];
 
 self.addEventListener('install', event => {
@@ -31,11 +26,29 @@ self.addEventListener('fetch', event => {
         if (response) {
           return response;
         }
-        return fetch(event.request);
-      }
-    )
-  );
+
+        const fetchRequest = event.request.clone();
+
+        return fetch(fetchRequest).then(
+          response => {
+            if (!response || response.status !== 200 || response.type !== 'basic') {
+              return response;
+            }
+
+            const responseToCache = response.clone();
+
+            caches.open(CACHE_NAME)
+              .then(cache => {
+                cache.put(event.request, responseToCache);
+              });
+
+            return response;
+          }
+        );
+      })
+    );
 });
+
 
 self.addEventListener('activate', event => {
   const cacheWhitelist = [CACHE_NAME];
