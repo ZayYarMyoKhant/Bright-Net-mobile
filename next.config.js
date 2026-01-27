@@ -1,12 +1,12 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-
   typescript: {
     ignoreBuildErrors: true,
   },
   eslint: {
-    ignoreDurin {
-    unoptimized: true,
+    ignoreDuringBuilds: true,
+  },
+  images: {
     remotePatterns: [
       {
         protocol: 'https',
