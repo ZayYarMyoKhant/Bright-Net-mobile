@@ -8,6 +8,8 @@ workflows:
       groups:
         - supabase_keys
         - signing
+        - VERSION_CODE
+        - VERSION_NAME
     scripts:
       - name: Install dependencies
         script: npm install
@@ -28,6 +30,16 @@ workflows:
           # 3. Sync Platform: This is the crucial step. It copies web assets
           #    and creates Capacitor's config files (like capacitor.settings.gradle) in the native project.
           npx cap sync android
+      - name: Set Android version
+        script: |
+          # This script updates the version in build.gradle using env vars
+          # Make sure VERSION_CODE and VERSION_NAME groups are defined in Codemagic
+          VERSION_CODE_VALUE=${VERSION_CODE:-1}
+          VERSION_NAME_VALUE=${VERSION_NAME:-1.0.0}
+          GRADLE_FILE=android/app/build.gradle
+          # Use awk for safer replacement across different environments
+          awk -v code="$VERSION_CODE_VALUE" '/versionCode/ {$2=code} 1' $GRADLE_FILE > tmp && mv tmp $GRADLE_FILE
+          awk -v name="\"$VERSION_NAME_VALUE\"" '/versionName/ {$2=name} 1' $GRADLE_FILE > tmp && mv tmp $GRADLE_FILE
       - name: Decode Keystore File
         script: echo $CM_KEYSTORE | base64 --decode > $CM_BUILD_DIR/keystore.jks
       - name: Make gradlew executable
