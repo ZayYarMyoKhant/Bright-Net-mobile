@@ -10,6 +10,7 @@ workflows:
         - signing
         - VERSION_CODE
         - VERSION_NAME
+        - app_url
     scripts:
       - name: Install dependencies
         script: npm install
@@ -17,8 +18,11 @@ workflows:
         script: |
           echo "NEXT_PUBLIC_SUPABASE_URL=$NEXT_PUBLIC_SUPABASE_URL" >> .env
           echo "NEXT_PUBLIC_SUPABASE_ANON_KEY=$NEXT_PUBLIC_SUPABASE_ANON_KEY" >> .env
+          echo "NEXT_PUBLIC_APP_URL=$NEXT_PUBLIC_APP_URL" >> .env
       - name: Build web assets
         script: npm run build
+      - name: Create dummy web asset directory for Capacitor
+        script: mkdir -p out && touch out/index.html
       - name: Clean and Sync Android Platform
         script: |
           # 1. Clean Slate: Remove any old android directory to prevent conflicts.
@@ -51,4 +55,3 @@ workflows:
             -Pandroid.injected.signing.key.password=$CM_KEY_ALIAS_PASSWORD
     artifacts:
       - android/app/build/outputs/bundle/release/*.aab
-

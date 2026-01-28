@@ -7,10 +7,6 @@ import { Loader2 } from "lucide-react";
 import IndividualClassPageContent from "./IndividualClassPageContent";
 import { Profile } from "@/lib/data";
 
-export async function generateStaticParams() {
-  return []
-}
-
 // This is the Server Page component that handles the route.
 export default async function IndividualClassPage({ params }: { params: { id:string } }) {
   const supabase = createClient();
@@ -42,7 +38,7 @@ export default async function IndividualClassPage({ params }: { params: { id:str
       .eq('class_id', classId)
       .eq('user_id', user.id) : Promise.resolve({ count: 0, error: null });
 
-  const [classInfoRes, studentCountRes, isEnrolledRes] = await Promise.all([classInfoPromise, studentCountPromise, isEnrolledPromise]);
+  const [classInfoRes, studentCountRes, isEnrolledRes] = await Promise.all([classInfoPromise, studentCountPromise, isEnrolledRes]);
 
   const { data: classInfo, error: classError } = classInfoRes;
   

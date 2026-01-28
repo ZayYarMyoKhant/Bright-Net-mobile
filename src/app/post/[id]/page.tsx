@@ -7,10 +7,6 @@ import { createClient } from "@/lib/supabase/server";
 import { cookies } from "next/headers";
 import type { Post, Profile } from "@/lib/data";
 
-export async function generateStaticParams() {
-  return []
-}
-
 type ViewerProfile = Pick<Profile, 'id' | 'avatar_url'>;
 
 type PostWithViewers = Post & {
