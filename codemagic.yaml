@@ -1,7 +1,7 @@
 
 workflows:
   android-build:
-    name: Android Release Build (AAB)
+    name: Android Release Build (APK)
     environment:
       node: 20
       java: 21
@@ -17,9 +17,9 @@ workflows:
         script: |
           echo "NEXT_PUBLIC_SUPABASE_URL=$NEXT_PUBLIC_SUPABASE_URL" >> .env
           echo "NEXT_PUBLIC_SUPABASE_ANON_KEY=$NEXT_PUBLIC_SUPABASE_ANON_KEY" >> .env
-      - name: Build and Export web assets
-        script: npm run export
-      - name: Recreate Android Platform and Sync
+      - name: Build web assets
+        script: npm run build
+      - name: Clean and Sync Android Platform
         script: |
           # 1. Clean Slate: Remove any old android directory to prevent conflicts.
           rm -rf android
@@ -27,11 +27,8 @@ workflows:
           # 2. Add Platform: Creates the native Android project structure.
           npx cap add android
           
-          # 3. Copy web assets and config files.
-          npx cap copy android
-
-          # 4. Update native plugins
-          npx cap update android
+          # 3. Sync web assets and native plugins.
+          npx cap sync android
       - name: Set Android Version
         script: |
           # This script injects the version code and name from Codemagic environment variables
@@ -45,14 +42,12 @@ workflows:
         script: echo $CM_KEYSTORE | base64 --decode > $CM_BUILD_DIR/keystore.jks
       - name: Make gradlew executable
         script: chmod +x android/gradlew
-      - name: Build Android Release AAB
+      - name: Build Android Release APK
         script: |
-          cd android && ./gradlew bundleRelease \
+          cd android && ./gradlew assembleRelease \
             -Pandroid.injected.signing.store.file=$CM_BUILD_DIR/keystore.jks \
             -Pandroid.injected.signing.store.password=$CM_KEYSTORE_PASSWORD \
             -Pandroid.injected.signing.key.alias=$CM_KEY_ALIAS \
             -Pandroid.injected.signing.key.password=$CM_KEY_ALIAS_PASSWORD
     artifacts:
-      - android/app/build/outputs/bundle/release/*.aab
-
-
+      - android/app/build/outputs/apk/release/*.apk
