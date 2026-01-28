@@ -13,7 +13,7 @@ import {
     AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, User, Shield, Globe, Ban, ChevronRight, LogOut, Trash2, Loader2 } from "lucide-react";
+import { ArrowLeft, User, Shield, Globe, Ban, ChevronRight, LogOut, Trash2, Loader2, LifeBuoy } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
@@ -36,6 +36,7 @@ export default function SettingsPage() {
         { icon: Shield, label: t('settings.privacy'), href: "/profile/settings/privacy" },
         { icon: Globe, label: t('settings.language'), href: "/profile/settings/language" },
         { icon: Ban, label: t('settings.blocked'), href: "/profile/settings/blocked" },
+        { icon: LifeBuoy, label: "Service Center", href: "/profile/settings/service-center" },
     ];
 
 

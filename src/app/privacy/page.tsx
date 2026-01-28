@@ -80,10 +80,10 @@ export default function PrivacyPolicyPage() {
                         <p>Bright Net reserves the right to modify, update, or change these Privacy Policies at any time to reflect changes in the law or our services. Users are encouraged to review this page periodically. Continued use of the App after changes are posted constitutes your formal acceptance of the new terms.</p>
 
                         <h2>7. Contact and Support</h2>
-                        <p>If you have any questions, concerns, or wish to report a policy violation, please reach out to our administration team:</p>
+                        <p>If you have any questions, concerns, wish to provide feedback, or need to report a policy violation, please reach out to our administration team:</p>
                          <ul>
                             <li><strong>Co-Founding Partner:</strong> ULife Communication</li>
-                            <li><strong>Official Contact Email:</strong> zeyarzeyarmyokhant@gmail.com</li>
+                            <li><strong>Official Feedback & Support Email:</strong> zeyarzeyarmyokhant@gmail.com</li>
                         </ul>
 
                     </CardContent>
