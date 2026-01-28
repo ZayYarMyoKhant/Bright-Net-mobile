@@ -17,9 +17,9 @@ workflows:
         script: |
           echo "NEXT_PUBLIC_SUPABASE_URL=$NEXT_PUBLIC_SUPABASE_URL" >> .env
           echo "NEXT_PUBLIC_SUPABASE_ANON_KEY=$NEXT_PUBLIC_SUPABASE_ANON_KEY" >> .env
-      - name: Build web assets
-        script: npm run build
-      - name: Recreate and Sync Android Platform
+      - name: Build and Export web assets
+        script: npm run export
+      - name: Recreate Android Platform and Sync
         script: |
           # 1. Clean Slate: Remove any old android directory to prevent conflicts.
           rm -rf android
@@ -27,9 +27,11 @@ workflows:
           # 2. Add Platform: Creates the native Android project structure.
           npx cap add android
           
-          # 3. Sync Platform: This is the crucial step. It copies web assets (from the 'out' dir)
-          #    and creates Capacitor's config files (like capacitor.settings.gradle) in the native project.
-          npx cap sync android
+          # 3. Copy web assets and config files.
+          npx cap copy android
+
+          # 4. Update native plugins
+          npx cap update android
       - name: Set Android Version
         script: |
           # This script injects the version code and name from Codemagic environment variables
@@ -52,4 +54,5 @@ workflows:
             -Pandroid.injected.signing.key.password=$CM_KEY_ALIAS_PASSWORD
     artifacts:
       - android/app/build/outputs/bundle/release/*.aab
+
 
