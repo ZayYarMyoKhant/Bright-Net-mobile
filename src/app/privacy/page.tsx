@@ -36,12 +36,13 @@ export default function PrivacyPolicyPage() {
                             <li><strong>Purpose:</strong> All data is used to provide service functionality, ensure user safety, and improve the features offered by Bright Net and ULife Communication.</li>
                         </ul>
 
-                        <h2>2. Children’s Privacy (Special Protection)</h2>
-                        <p>Bright Net recognizes the high importance of protecting the privacy of young children.</p>
+                        <h2>2. Child Safety & Children’s Privacy</h2>
+                        <p>Bright-Net is intended for a general audience and is <strong>not directed at children under the age of 13</strong> (or the equivalent minimum age in the relevant jurisdiction). We take the safety of children very seriously and strictly prohibit the use of our service by anyone under this age.</p>
                         <ul>
-                            <li><strong>Age Restriction:</strong> Our services are not intended for children under the age of 13. We do not knowingly collect personal data from children under 13.</li>
-                            <li><strong>Parental Oversight:</strong> For users between the ages of 13 and 18, we strongly recommend parental supervision.</li>
-                            <li><strong>Data Deletion:</strong> If we discover that a child under 13 has provided us with personal information without verified parental consent, we will delete that information and terminate the associated account immediately.</li>
+                            <li><strong>Age Verification & Prohibition:</strong> We do not knowingly collect, use, or disclose personal information from children under 13. During registration, users are required to confirm they meet the minimum age requirement. If we become aware that we have inadvertently collected personal information from a child under 13 without verifiable parental consent, we will take immediate steps to delete that information and terminate the child's account.</li>
+                            <li><strong>Content Inappropriate for Children:</strong> Our platform allows for user-generated content and social interaction that may not be suitable for children. We strictly moderate against content that is sexually suggestive, violent, or otherwise exploitative of minors.</li>
+                            <li><strong>Parental Rights & Control:</strong> Parents or legal guardians who believe their child under 13 has created an account and provided us with personal information can contact us at our official support email (zeyarzeyarmyokhant@gmail.com). We will promptly delete the account and all associated data upon verification of the request.</li>
+                            <li><strong>Reporting Child Endangerment:</strong> We encourage our community to report any content or behavior that they believe endangers a child or violates our policies regarding minors. Reports can be made through our support email. All such reports are treated with the highest priority.</li>
                         </ul>
 
                         <h2>3. User Conduct and Content Integrity</h2>
@@ -79,7 +80,7 @@ export default function PrivacyPolicyPage() {
                         <p>Bright Net reserves the right to modify, update, or change these Privacy Policies at any time to reflect changes in the law or our services. Users are encouraged to review this page periodically. Continued use of the App after changes are posted constitutes your formal acceptance of the new terms.</p>
 
                         <h2>7. Contact and Support</h2>
-                        <p>If you have questions, concerns, or wish to report a policy violation, please reach out to our administration team:</p>
+                        <p>If you have any questions, concerns, or wish to report a policy violation, please reach out to our administration team:</p>
                          <ul>
                             <li><strong>Co-Founding Partner:</strong> ULife Communication</li>
                             <li><strong>Official Contact Email:</strong> zeyarzeyarmyokhant@gmail.com</li>

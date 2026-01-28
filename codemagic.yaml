@@ -8,6 +8,8 @@ workflows:
       groups:
         - supabase_keys
         - signing
+        -VERSION_CODE
+        -VERSION_NAME
     scripts:
       - name: Install dependencies
         script: npm install
