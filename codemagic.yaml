@@ -1,7 +1,7 @@
 
 workflows:
   android-build:
-    name: Android Release Build (APK)
+    name: Android Release Build (AAB)
     environment:
       node: 20
       java: 21
@@ -42,12 +42,13 @@ workflows:
         script: echo $CM_KEYSTORE | base64 --decode > $CM_BUILD_DIR/keystore.jks
       - name: Make gradlew executable
         script: chmod +x android/gradlew
-      - name: Build Android Release APK
+      - name: Build Android Release Bundle (AAB)
         script: |
-          cd android && ./gradlew assembleRelease \
+          cd android && ./gradlew bundleRelease \
             -Pandroid.injected.signing.store.file=$CM_BUILD_DIR/keystore.jks \
             -Pandroid.injected.signing.store.password=$CM_KEYSTORE_PASSWORD \
             -Pandroid.injected.signing.key.alias=$CM_KEY_ALIAS \
             -Pandroid.injected.signing.key.password=$CM_KEY_ALIAS_PASSWORD
     artifacts:
-      - android/app/build/outputs/apk/release/*.apk
+      - android/app/build/outputs/bundle/release/*.aab
+
