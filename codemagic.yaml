@@ -30,6 +30,15 @@ workflows:
           # 3. Sync Platform: This is the crucial step. It copies web assets (from the 'out' dir)
           #    and creates Capacitor's config files (like capacitor.settings.gradle) in the native project.
           npx cap sync android
+      - name: Set Android Version
+        script: |
+          # This script injects the version code and name from Codemagic environment variables
+          # into the Android project's build.gradle file. It runs after 'cap sync' to avoid being overwritten.
+          echo "Setting Android version in build.gradle..."
+          awk -v new_code="$VERSION_CODE" '/versionCode/ { $2 = new_code } 1' android/app/build.gradle > android/app/build.gradle.tmp && mv android/app/build.gradle.tmp android/app/build.gradle
+          awk -v new_name="$VERSION_NAME" '/versionName/ { $2 = "\"" new_name "\"" } 1' android/app/build.gradle > android/app/build.gradle.tmp && mv android/app/build.gradle.tmp android/app/build.gradle
+          echo "Successfully updated android/app/build.gradle with:"
+          grep "versionCode\|versionName" android/app/build.gradle
       - name: Decode Keystore File
         script: echo $CM_KEYSTORE | base64 --decode > $CM_BUILD_DIR/keystore.jks
       - name: Make gradlew executable
@@ -43,3 +52,4 @@ workflows:
             -Pandroid.injected.signing.key.password=$CM_KEY_ALIAS_PASSWORD
     artifacts:
       - android/app/build/outputs/bundle/release/*.aab
+
