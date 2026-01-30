@@ -36,7 +36,13 @@ export default function PrivacyPolicyPage() {
                             <li><strong>Purpose:</strong> All data is used to provide service functionality, ensure user safety, and improve the features offered by Bright Net and ULife Communication.</li>
                         </ul>
 
-                        <h2>2. Child Safety & Children’s Privacy</h2>
+                        <h2>2. Child Safety & CSAE Prohibition Standards</h2>
+                        <p><strong>Zero Tolerance for CSAE:</strong> Bright-Net and ULife Communication have a zero-tolerance policy regarding Child Sexual Abuse Material (CSAM) and Child Sexual Abuse and Exploitation (CSAE). We strictly prohibit the creation, uploading, or sharing of any content that exploits or abuses children.</p>
+                        <p><strong>Compliance with Laws:</strong> We comply with all applicable child safety laws and regulations, including the reporting of illegal content to relevant law enforcement authorities and organizations such as NCMEC (National Center for Missing & Exploited Children).</p>
+                        <p><strong>Reporting Mechanism:</strong> Bright-Net provides an in-app reporting mechanism where users can flag inappropriate content or behavior. All reports related to child safety are treated with the highest priority and addressed immediately.</p>
+                        <p><strong>Point of Contact:</strong> For any concerns specifically related to child safety, users and authorities can contact our designated Child Safety Point of Contact at: zeyarzeyarmyokhant@gmail.com</p>
+
+                        <h2>3. Child Safety & Children’s Privacy</h2>
                         
                         <h3>Children’s Privacy</h3>
                         <p>Our social networking app is not intended for children under the age of 13 (or the minimum age required by applicable local laws). Users must confirm their age before creating an account.</p>
@@ -87,7 +93,7 @@ export default function PrivacyPolicyPage() {
                             <li>Applicable local and international child safety regulations</li>
                         </ul>
 
-                        <h2>3. User Conduct and Content Integrity</h2>
+                        <h2>4. User Conduct and Content Integrity</h2>
                         <p>By using Bright Net, you agree to adhere to the following strict guidelines. This platform is built on the foundation of Truth and Morality.</p>
                         <ul>
                             <li><strong>Ethical Usage:</strong> All users must act with integrity and follow moral standards. Using the App for illegal or malicious purposes is strictly prohibited.</li>
@@ -103,14 +109,14 @@ export default function PrivacyPolicyPage() {
                             <li><strong>Anti-Fraud & Spam:</strong> Users shall not engage in scams, phishing, fraudulent schemes, or the distribution of unsolicited spam.</li>
                         </ul>
 
-                        <h2>4. Community Respect and Administration</h2>
+                        <h2>5. Community Respect and Administration</h2>
                          <ul>
                             <li><strong>Respectful Interaction:</strong> All members must treat others with dignity. Harassment, cyberbullying, and verbal abuse will not be tolerated.</li>
                             <li><strong>Administrative Authority:</strong> To maintain community safety, Bright Net administrators reserve the absolute right to monitor, review, and remove any content deemed inappropriate without prior notice.</li>
                             <li><strong>Account Sanctions:</strong> Violating any of these policies may result in immediate penalties, including temporary suspension or permanent banning of the account, depending on the severity of the violation.</li>
                         </ul>
 
-                        <h2>5. Data Security and Sharing</h2>
+                        <h2>6. Data Security and Sharing</h2>
                         <p>We prioritize the security of your data through encryption and industry-standard safety protocols.</p>
                         <ul>
                             <li><strong>Partnership Sharing:</strong> As a co-founded entity, data may be shared between Bright Net and ULife Communication solely for technical operations and service enhancement.</li>
@@ -118,10 +124,10 @@ export default function PrivacyPolicyPage() {
                             <li><strong>Legal Disclosure:</strong> We may disclose your information if required to do so by law or in response to valid requests by public authorities.</li>
                         </ul>
 
-                        <h2>6. Amendments to the Policy</h2>
+                        <h2>7. Amendments to the Policy</h2>
                         <p>Bright Net reserves the right to modify, update, or change these Privacy Policies at any time to reflect changes in the law or our services. Users are encouraged to review this page periodically. Continued use of the App after changes are posted constitutes your formal acceptance of the new terms.</p>
 
-                        <h2>7. Contact and Support</h2>
+                        <h2>8. Contact and Support</h2>
                         <p>If you have any questions, concerns, wish to provide feedback, or need to report a policy violation, please reach out to our administration team:</p>
                          <ul>
                             <li><strong>Co-Founding Partner:</strong> ULife Communication</li>
