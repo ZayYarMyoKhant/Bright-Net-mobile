@@ -37,12 +37,54 @@ export default function PrivacyPolicyPage() {
                         </ul>
 
                         <h2>2. Child Safety & Children’s Privacy</h2>
-                        <p>Bright-Net is intended for a general audience and is <strong>not directed at children under the age of 13</strong> (or the equivalent minimum age in the relevant jurisdiction). We take the safety of children very seriously and strictly prohibit the use of our service by anyone under this age.</p>
+                        
+                        <h3>Children’s Privacy</h3>
+                        <p>Our social networking app is not intended for children under the age of 13 (or the minimum age required by applicable local laws). Users must confirm their age before creating an account.</p>
+                        <p>We do not knowingly collect, use, or store personal information from children under 13. If we discover that a child has provided personal data without verified parental consent, we will immediately delete such information from our systems.</p>
+                        <p>Parents or legal guardians who believe that their child has used our app in violation of this policy may contact us, and we will take appropriate action.</p>
+                        
+                        <h3>Child Safety Measures</h3>
+                        <p>To protect children and minors, our app enforces strict safety standards:</p>
                         <ul>
-                            <li><strong>Age Verification & Prohibition:</strong> We do not knowingly collect, use, or disclose personal information from children under 13. During registration, users are required to confirm they meet the minimum age requirement. If we become aware that we have inadvertently collected personal information from a child under 13 without verifiable parental consent, we will take immediate steps to delete that information and terminate the child's account.</li>
-                            <li><strong>Content Inappropriate for Children:</strong> Our platform allows for user-generated content and social interaction that may not be suitable for children. We strictly moderate against content that is sexually suggestive, violent, or otherwise exploitative of minors.</li>
-                            <li><strong>Parental Rights & Control:</strong> Parents or legal guardians who believe their child under 13 has created an account and provided us with personal information can contact us at our official support email (zeyarzeyarmyokhant@gmail.com). We will promptly delete the account and all associated data upon verification of the request.</li>
-                            <li><strong>Reporting Child Endangerment:</strong> We encourage our community to report any content or behavior that they believe endangers a child or violates our policies regarding minors. Reports can be made through our support email. All such reports are treated with the highest priority.</li>
+                            <li>Users under 13 years old are not permitted to register or use the app.</li>
+                            <li>Sexual content, nudity, pornography, grooming, exploitation, abuse, or any 18+ content is strictly prohibited.</li>
+                            <li>We do not allow content that promotes violence, self-harm, harassment, hate speech, or bullying involving minors.</li>
+                            <li>Direct messaging (chat) and public interactions are monitored through community guidelines and moderation systems.</li>
+                            <li>Users can report and block accounts, messages, posts, or comments that violate child safety rules.</li>
+                            <li>Reported content related to child safety is reviewed promptly, and appropriate action is taken, including content removal and account suspension.</li>
+                        </ul>
+                        
+                        <h3>Chat, Posts, and User-Generated Content</h3>
+                        <p>Our app allows users to:</p>
+                        <ul>
+                            <li>Send private messages (chat)</li>
+                            <li>Create public posts</li>
+                            <li>Comment on posts</li>
+                        </ul>
+                        <p>To maintain a safe environment:</p>
+                        <ul>
+                            <li>We actively prohibit any form of inappropriate interaction with minors.</li>
+                            <li>Automated and manual moderation tools are used to detect harmful or abusive behavior.</li>
+                            <li>Accounts engaging in child exploitation, grooming, or sexual communication involving minors will be permanently banned and reported to relevant authorities when required by law.</li>
+                        </ul>
+
+                        <h3>Data Collection and Use</h3>
+                        <p>We do not knowingly collect the following data from children:</p>
+                        <ul>
+                            <li>Full names or identification details</li>
+                            <li>Phone numbers or email addresses</li>
+                            <li>Location data</li>
+                            <li>Images, videos, or audio recordings</li>
+                            <li>Chat messages or behavioral data intended for targeted profiling</li>
+                        </ul>
+                        <p>If such data is collected unintentionally, it will be deleted immediately upon discovery.</p>
+
+                        <h3>Legal Compliance</h3>
+                        <p>We are committed to complying with all applicable child protection and privacy laws, including but not limited to:</p>
+                        <ul>
+                            <li>Google Play Families Policy</li>
+                            <li>Children’s Online Privacy Protection Act (COPPA)</li>
+                            <li>Applicable local and international child safety regulations</li>
                         </ul>
 
                         <h2>3. User Conduct and Content Integrity</h2>
