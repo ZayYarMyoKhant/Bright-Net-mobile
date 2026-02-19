@@ -2,19 +2,27 @@
 "use client";
 
 import { BottomNav } from "@/components/bottom-nav";
-import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
-import { Heart, Calculator } from "lucide-react";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Heart, Calculator, Bot } from "lucide-react";
 import Link from "next/link";
 
 export default function BlissZonePage() {
     
     const features = [
         {
+            title: "ZMT Think AI",
+            description: "Think deeper. Answer smarter with AI.",
+            icon: <Bot className="h-8 w-8 text-blue-500" />,
+            href: "/tool/chat-zmt",
+            color: "bg-blue-500/10 border-blue-500/20 shadow-lg",
+            disabled: false,
+        },
+        {
             title: "Loving Couple",
             description: "Keep track of your special anniversary.",
             icon: <Heart className="h-8 w-8 text-pink-500" />,
             href: "/bliss-zone/anniversary",
-            color: "bg-primary/10 border-primary/20",
+            color: "bg-pink-500/10 border-pink-500/20",
             disabled: false,
         },
         {
@@ -42,7 +50,7 @@ export default function BlissZonePage() {
                             </CardHeader>
                             <CardContent>
                                 <p className="text-muted-foreground">
-                                    Connect with your loved one and build your journey.
+                                    Explore tools and connect with your loved ones.
                                 </p>
                             </CardContent>
                         </Card>
@@ -50,7 +58,7 @@ export default function BlissZonePage() {
                         <div className="space-y-4">
                             {features.map((feature) => (
                                  <Link key={feature.title} href={feature.disabled ? "#" : feature.href} className={feature.disabled ? "pointer-events-none" : ""}>
-                                    <Card className={`hover:bg-muted/50 ${feature.disabled && "opacity-50"} ${feature.color}`}>
+                                    <Card className={`hover:bg-muted/50 transition-all ${feature.disabled && "opacity-50"} ${feature.color}`}>
                                         <CardHeader className="flex flex-row items-center gap-4 space-y-0 pb-2">
                                             {feature.icon}
                                             <CardTitle>{feature.title}</CardTitle>
