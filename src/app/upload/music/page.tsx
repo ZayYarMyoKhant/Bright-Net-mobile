@@ -47,7 +47,13 @@ export default function UploadMusicPage() {
   const handleWatchAd = () => {
     setShowRewardAdDialog(false);
     if (typeof window !== 'undefined' && window.show_10630894) {
-        window.show_10630894().then(executeUpload).catch(executeUpload);
+        // Use Promise.resolve to catch potential timeouts
+        Promise.resolve(window.show_10630894())
+          .then(executeUpload)
+          .catch((e) => {
+            console.warn("Reward ad failed or timed out, proceeding with upload:", e);
+            executeUpload();
+          });
     } else {
         executeUpload();
     }

@@ -59,7 +59,13 @@ function UploadPostPageContent() {
   const handleWatchAd = () => {
     setShowRewardAdDialog(false);
     if (typeof window !== 'undefined' && window.show_10630894) {
-        window.show_10630894().then(executePost).catch(executePost);
+        // Use Promise.resolve to catch potential timeouts
+        Promise.resolve(window.show_10630894())
+          .then(executePost)
+          .catch((e) => {
+            console.warn("Reward ad failed or timed out, proceeding with upload:", e);
+            executePost();
+          });
     } else {
         executePost();
     }
