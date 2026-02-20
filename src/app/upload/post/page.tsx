@@ -12,6 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import { createClient } from "@/lib/supabase/client";
 import { Progress } from "@/components/ui/progress";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 
 
@@ -28,6 +29,9 @@ function UploadPostPageContent() {
   const [aiEditPrompt, setAiEditPrompt] = useState("");
   const [isEditingWithAi, setIsEditingWithAi] = useState(false);
   const [originalMediaFile, setOriginalMediaFile] = useState<File | null>(null);
+
+  // Rewarded Ad State
+  const [showRewardAdDialog, setShowRewardAdDialog] = useState(false);
 
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -126,14 +130,7 @@ function UploadPostPageContent() {
     }
   };
 
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!mediaFile) {
-      toast({ variant: "destructive", title: "No media selected", description: "Please select a file to upload." });
-      return;
-    }
-
+  const executePost = () => {
     startTransition(async () => {
       setUploadProgress(0);
       const { data: { user } } = await supabase.auth.getUser();
@@ -143,6 +140,8 @@ function UploadPostPageContent() {
         return;
       }
       
+      if (!mediaFile) return;
+
       const fileExtension = mediaFile.type.split('/')[1] || (mediaFile.type.startsWith('image') ? 'jpg' : 'mp4');
       const fileName = `${user.id}-${Date.now()}.${fileExtension}`;
       const filePath = `public/${fileName}`;
@@ -181,8 +180,52 @@ function UploadPostPageContent() {
     });
   };
 
+  const handleWatchAd = () => {
+    setShowRewardAdDialog(false);
+    if (typeof window !== 'undefined' && window.show_10630894) {
+        window.show_10630894().then(() => {
+            console.log('User has seen an ad!');
+            executePost();
+        }).catch((err: any) => {
+            console.error("Ad failed:", err);
+            executePost(); // Proceed anyway
+        });
+    } else {
+        executePost();
+    }
+  };
+
+  const handleSkipAd = () => {
+    setShowRewardAdDialog(false);
+    executePost();
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!mediaFile) {
+      toast({ variant: "destructive", title: "No media selected", description: "Please select a file to upload." });
+      return;
+    }
+    setShowRewardAdDialog(true);
+  };
+
   return (
     <>
+        <AlertDialog open={showRewardAdDialog} onOpenChange={setShowRewardAdDialog}>
+            <AlertDialogContent>
+                <AlertDialogHeader>
+                    <AlertDialogTitle>I want to watch Reward ads</AlertDialogTitle>
+                    <AlertDialogDescription>
+                        Watching a short ad helps support the app while we process your post.
+                    </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                    <AlertDialogCancel onClick={handleSkipAd}>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleWatchAd}>Watch</AlertDialogAction>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
+
         <Dialog open={showAiEditorDialog} onOpenChange={setShowAiEditorDialog}>
             <DialogContent>
                 <DialogHeader>
@@ -243,6 +286,7 @@ function UploadPostPageContent() {
                       fill
                       className="object-contain"
                       data-ai-hint="user upload"
+                      priority
                     />
                   )}
                 </>

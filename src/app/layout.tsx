@@ -23,7 +23,8 @@ import { Bell } from 'lucide-react';
 import { useRouter, usePathname } from 'next/navigation';
 import { MultiAccountProvider, MultiAccountContext } from '@/hooks/use-multi-account';
 import { AnimatePresence, motion } from 'framer-motion';
-
+import { AdsHandler } from '@/components/ads-handler';
+import Script from 'next/script';
 
 const ptSans = PT_Sans({
   subsets: ['latin'],
@@ -190,6 +191,7 @@ function AppLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <>
+      <AdsHandler />
       <AlertDialog open={showNotificationDialog} onOpenChange={setShowNotificationDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -242,6 +244,12 @@ export default function RootLayout({
             <link rel="manifest" href="/manifest.json" />
             <link rel="icon" href="/icon.svg" type="image/svg+xml" />
             <meta name="theme-color" content="#3B82F6" />
+            <Script
+              src="//libtl.com/sdk.js"
+              data-zone="10630894"
+              data-sdk="show_10630894"
+              strategy="beforeInteractive"
+            />
         </head>
       <body
         className={cn('font-headline antialiased bg-background', ptSans.variable)}

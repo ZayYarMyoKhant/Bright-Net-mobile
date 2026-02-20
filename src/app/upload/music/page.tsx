@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ArrowLeft, Loader2, Music, UploadCloud } from "lucide-react";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import Link from "next/link";
 import { useToast } from "@/hooks/use-toast";
 import { createClient } from "@/lib/supabase/client";
@@ -16,6 +17,7 @@ export default function UploadMusicPage() {
   const [audioFile, setAudioFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const [showRewardAdDialog, setShowRewardAdDialog] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
@@ -42,13 +44,7 @@ export default function UploadMusicPage() {
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!title || !audioFile) {
-      toast({ variant: "destructive", title: "Missing Fields", description: "Please provide a title and select an audio file." });
-      return;
-    }
-
+  const executeUpload = () => {
     startTransition(async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
@@ -56,6 +52,8 @@ export default function UploadMusicPage() {
         return;
       }
       
+      if (!audioFile) return;
+
       const fileExtension = audioFile.name.split('.').pop() || 'mp3';
       const safeFileName = `${user.id}-track-${Date.now()}.${fileExtension}`;
       const filePath = `public/${safeFileName}`;
@@ -94,8 +92,52 @@ export default function UploadMusicPage() {
     });
   };
 
+  const handleWatchAd = () => {
+    setShowRewardAdDialog(false);
+    if (typeof window !== 'undefined' && window.show_10630894) {
+        window.show_10630894().then(() => {
+            console.log('User seen rewarded ad');
+            executeUpload();
+        }).catch((err: any) => {
+            console.error("Rewarded ad error:", err);
+            executeUpload();
+        });
+    } else {
+        executeUpload();
+    }
+  };
+
+  const handleSkipAd = () => {
+    setShowRewardAdDialog(false);
+    executeUpload();
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!title || !audioFile) {
+      toast({ variant: "destructive", title: "Missing Fields", description: "Please provide a title and select an audio file." });
+      return;
+    }
+    setShowRewardAdDialog(true);
+  };
+
   return (
     <div className="flex h-full flex-col bg-background text-foreground">
+      <AlertDialog open={showRewardAdDialog} onOpenChange={setShowRewardAdDialog}>
+            <AlertDialogContent>
+                <AlertDialogHeader>
+                    <AlertDialogTitle>I want to watch Reward ads</AlertDialogTitle>
+                    <AlertDialogDescription>
+                        Would you like to watch a short ad to support our service while uploading?
+                    </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                    <AlertDialogCancel onClick={handleSkipAd}>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleWatchAd}>Watch</AlertDialogAction>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
+
       <header className="flex h-16 flex-shrink-0 items-center border-b px-4 relative">
         <Link href="/upload" className="p-2 -ml-2 absolute left-4">
           <ArrowLeft className="h-5 w-5" />
