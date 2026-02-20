@@ -22,9 +22,8 @@ export function BottomNav() {
   const specialItem = navItems.find(item => item.isSpecial);
   const regularItems = navItems.filter(item => !item.isSpecial);
   
-  const midPoint = Math.floor(regularItems.length / 2);
-  const leftItems = regularItems.slice(0, midPoint);
-  const rightItems = regularItems.slice(midPoint);
+  const leftItems = regularItems.slice(0, 2); // Home, Search
+  const rightItems = regularItems.slice(2);   // Bliss Zone, Profile
 
   return (
     <footer className="fixed bottom-0 left-0 right-0 z-10 border-t bg-background/80 backdrop-blur-sm md:hidden">

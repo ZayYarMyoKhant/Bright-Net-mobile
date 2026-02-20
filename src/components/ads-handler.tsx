@@ -14,12 +14,10 @@ export function AdsHandler() {
   const pathname = usePathname();
 
   useEffect(() => {
-    // These are the main root pages where we want to trigger ads on entry/transition
     const mainPages = ['/home', '/search', '/upload', '/bliss-zone', '/profile'];
     
-    if (mainPages.some(page => pathname.startsWith(item => page === pathname || (page !== '/home' && pathname.startsWith(page))))) {
-        // Initialize/Trigger In-App Interstitial
-        if (typeof window !== 'undefined' && window.show_10630894) {
+    if (mainPages.some(page => pathname === page || (page !== '/home' && pathname.startsWith(page)))) {
+        if (typeof window !== 'undefined' && window.show_10630894 && typeof window.show_10630894 === 'function') {
             try {
                 window.show_10630894({
                     type: 'inApp',

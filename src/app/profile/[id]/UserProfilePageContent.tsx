@@ -36,131 +36,34 @@ type InitialProfileData = {
 }
 
 function PresenceIndicator({ user }: { user: ProfileData | null }) {
-    if (!user || !user.show_active_status || !user.last_seen) {
-        return null;
-    }
-
+    if (!user || !user.show_active_status || !user.last_seen) return null;
     const twoMinutesAgo = subMinutes(new Date(), 2);
     const isOnline = isBefore(twoMinutesAgo, new Date(user.last_seen));
-
-    if (isOnline) {
-         return (
-            <div className="absolute bottom-0 right-0 h-4 w-4 rounded-full bg-green-500 border-2 border-background" />
-         )
-    }
-
+    if (isOnline) return <div className="absolute bottom-0 right-0 h-4 w-4 rounded-full bg-green-500 border-2 border-background" />;
     return null;
 }
 
 const ProfileHeader = ({ profile, postsCount }: { profile: ProfileData; postsCount: number }) => {
     const isProfileOnline = profile?.show_active_status && profile?.last_seen && isBefore(subMinutes(new Date(), 2), new Date(profile.last_seen));
     const profileLastSeen = profile?.show_active_status && profile?.last_seen ? formatDistanceToNow(new Date(profile.last_seen), { addSuffix: true }) : null;
-
     const baseClasses = "relative overflow-hidden flex flex-col items-center p-4 rounded-b-3xl mb-4 bg-black text-white shadow-lg";
-    
-    if (profile.profile_design === null) {
-        return (
-            <div className={cn(baseClasses, "bg-gradient-to-br from-cyan-900/80 via-black to-sky-900/80 animated-gradient")}>
-                <div className="absolute top-0 left-0 w-full h-full overflow-hidden z-0">
-                    {[...Array(5)].map((_, i) => (
-                        <div key={i} className="absolute bg-white/10 rounded-full animate-[float-particles_15s_ease-in-out_infinite]" style={{ width: `${Math.random() * 2 + 1}px`, height: `${Math.random() * 2 + 1}px`, left: `${Math.random() * 100}%`, animationDelay: `${Math.random() * 15}s` }} />
-                    ))}
-                    <div className="absolute top-0 left-0 w-1/2 h-full bg-gradient-to-r from-white/10 to-transparent animate-[shimmer-streak_8s_ease-in-out_infinite] delay-1000" />
-                </div>
-                 <div className="relative z-10 flex flex-col items-center">
-                    <div className="relative">
-                        <Link href={`/search/image/${encodeURIComponent(profile.avatar_url)}`}>
-                             <Avatar className="h-24 w-24" profile={profile}></Avatar>
-                        </Link>
-                        <PresenceIndicator user={profile} />
-                    </div>
-                    <h2 className={cn("mt-3 text-xl", profile.is_verified && "font-bold text-white bg-gradient-to-r from-cyan-500 to-blue-500 rounded-md px-2 py-1")}>{profile.full_name}</h2>
-                    <p className="text-sm text-blue-100/70">@{profile.username}</p>
-                    {isProfileOnline 
-                        ? <p className="text-xs text-green-300 mt-1">Online</p>
-                        : profileLastSeen && <p className="text-xs text-blue-200/60 mt-1">Active {profileLastSeen}</p>
-                    }
-                    <p className="mt-2 text-center text-sm text-blue-50/80">{profile.bio}</p>
-                 </div>
-                 <div className="relative z-10 mt-6 grid grid-cols-3 gap-4 text-center w-full max-w-sm">
-                    <Link href={`/profile/${profile.id}/following`}><div><p className="font-bold text-lg">{profile.following}</p><p className="text-xs text-blue-200/70">Following</p></div></Link>
-                    <Link href={`/profile/${profile.id}/followers`}><div><p className="font-bold text-lg">{profile.followers}</p><p className="text-xs text-blue-200/70">Followers</p></div></Link>
-                    <div><p className="font-bold text-lg">{postsCount}</p><p className="text-xs text-blue-200/70">Posts</p></div>
-                </div>
-            </div>
-        );
-    }
-    
-    if (profile.profile_design === true) {
-        return (
-             <div className={cn(baseClasses, "bg-gradient-to-br from-amber-800/80 via-black to-yellow-800/80 animated-gradient")}>
-                 <div className="absolute top-0 left-0 w-full h-full overflow-hidden z-0">
-                    {[...Array(5)].map((_, i) => (
-                        <div key={i} className="absolute bg-yellow-300/20 rounded-full animate-[float-particles_12s_ease-in-out_infinite]" style={{ width: `${Math.random() * 2 + 1}px`, height: `${Math.random() * 2 + 1}px`, left: `${Math.random() * 100}%`, animationDelay: `${Math.random() * 12}s` }} />
-                    ))}
-                    <div className="absolute top-0 left-0 w-1/2 h-full bg-gradient-to-r from-yellow-300/10 to-transparent animate-[shimmer-streak_6s_ease-in-out_infinite]" />
-                </div>
-                 <div className="relative z-10 flex flex-col items-center">
-                    <div className="relative">
-                        <Link href={`/search/image/${encodeURIComponent(profile.avatar_url)}`}>
-                            <Avatar className="h-24 w-24" profile={profile}></Avatar>
-                        </Link>
-                        <PresenceIndicator user={profile} />
-                    </div>
-                    <h2 className={cn("mt-3 text-xl", profile.is_verified && "font-bold text-white bg-gradient-to-r from-cyan-500 to-blue-500 rounded-md px-2 py-1")}>{profile.full_name}</h2>
-                    <p className="text-sm text-yellow-100/70">@{profile.username}</p>
-                    {isProfileOnline 
-                        ? <p className="text-xs text-green-300 mt-1">Online</p>
-                        : profileLastSeen && <p className="text-xs text-yellow-200/60 mt-1">Active {profileLastSeen}</p>
-                    }
-                    <p className="mt-2 text-center text-sm text-yellow-50/80">{profile.bio}</p>
-                </div>
-                 <div className="relative z-10 mt-6 grid grid-cols-3 gap-4 text-center w-full max-w-sm">
-                    <Link href={`/profile/${profile.id}/following`}><div><p className="font-bold text-lg">{profile.following}</p><p className="text-xs text-yellow-200/70">Following</p></div></Link>
-                    <Link href={`/profile/${profile.id}/followers`}><div><p className="font-bold text-lg">{profile.followers}</p><p className="text-xs text-yellow-200/70">Followers</p></div></Link>
-                    <div><p className="font-bold text-lg">{postsCount}</p><p className="text-xs text-yellow-200/70">Posts</p></div>
-                </div>
-            </div>
-        );
-    }
-    
     return (
-        <div className="p-4">
-          <div className="flex flex-col items-center">
-            <div className="relative">
-                <Link href={`/search/image/${encodeURIComponent(profile.avatar_url)}`}>
-                    <Avatar className="h-24 w-24" profile={profile}>
-                    </Avatar>
-                </Link>
-              <PresenceIndicator user={profile} />
+        <div className={cn(baseClasses, profile.profile_design === true ? "bg-gradient-to-br from-amber-800/80 via-black to-yellow-800/80" : profile.profile_design === null ? "bg-gradient-to-br from-cyan-900/80 via-black to-sky-900/80" : "bg-muted")}>
+            <div className="relative z-10 flex flex-col items-center">
+                <div className="relative">
+                    <Avatar className="h-24 w-24" profile={profile} />
+                    <PresenceIndicator user={profile} />
+                </div>
+                <h2 className={cn("mt-3 text-xl", profile.is_verified && "font-bold text-white bg-gradient-to-r from-cyan-500 to-blue-500 rounded-md px-2 py-1")}>{profile.full_name}</h2>
+                <p className="text-sm opacity-70">@{profile.username}</p>
+                {isProfileOnline ? <p className="text-xs text-green-300 mt-1">Online</p> : profileLastSeen && <p className="text-xs opacity-60 mt-1">Active {profileLastSeen}</p>}
+                <p className="mt-2 text-center text-sm px-4">{profile.bio}</p>
             </div>
-            <h2 className={cn("mt-3 text-xl", profile.is_verified && "font-bold text-white bg-gradient-to-r from-cyan-500 to-blue-500 rounded-md px-2 py-1")}>{profile.full_name}</h2>
-            <p className="text-sm text-muted-foreground">@{profile.username}</p>
-            {isProfileOnline 
-                ? <p className="text-xs text-green-500 mt-1">Online</p>
-                : profileLastSeen && <p className="text-xs text-muted-foreground mt-1">Active {profileLastSeen}</p>
-            }
-            <p className="mt-2 text-center text-sm">{profile.bio}</p>
-          </div>
-
-          <div className="mt-6 grid grid-cols-3 gap-4 text-center">
-            <Link href={`/profile/${profile.id}/following`}>
-              <div>
-                <p className="font-bold">{profile.following}</p>
-                <p className="text-sm text-muted-foreground">Following</p>
-              </div>
-            </Link>
-             <Link href={`/profile/${profile.id}/followers`}>
-              <div>
-                <p className="font-bold">{profile.followers}</p>
-                <p className="text-sm text-muted-foreground">Followers</p>
-              </div>
-            </Link>
-            <div>
-              <p className="font-bold">{postsCount}</p>
-              <p className="text-sm text-muted-foreground">Posts</p>
+            <div className="relative z-10 mt-6 grid grid-cols-3 gap-4 text-center w-full max-w-sm">
+                <Link href={`/profile/${profile.id}/following`}><div><p className="font-bold text-lg">{profile.following}</p><p className="text-xs opacity-70">Following</p></div></Link>
+                <Link href={`/profile/${profile.id}/followers`}><div><p className="font-bold text-lg">{profile.followers}</p><p className="text-xs opacity-70">Followers</p></div></Link>
+                <div><p className="font-bold text-lg">{postsCount}</p><p className="text-xs opacity-70">Posts</p></div>
             </div>
-          </div>
         </div>
     );
 };
@@ -169,157 +72,53 @@ export default function UserProfilePageContent({ initialData, params }: { initia
   const router = useRouter();
   const supabase = createClient();
   const { toast } = useToast();
-  
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<ProfileData | null>(initialData.profile);
-  const [posts, setPosts] = useState<Post[]>(initialData.posts);
-  const [error, setError] = useState<string | null>(initialData.error);
-  
+  const [posts] = useState<Post[]>(initialData.posts);
   const [isFollowing, setIsFollowing] = useState(initialData.profile?.is_following ?? false);
   const [isTogglingFollow, setIsTogglingFollow] = useState(false);
-  const isOwnProfile = currentUser?.id === profile?.id;
 
   useEffect(() => {
-      supabase.auth.getUser().then(({data: { user }}) => {
-          setCurrentUser(user);
-      });
+      supabase.auth.getUser().then(({data: { user }}) => setCurrentUser(user));
   }, [supabase]);
 
   const handleFollowToggle = async () => {
     if (!currentUser || !profile || isTogglingFollow) return;
-    if (isOwnProfile) return;
-
     setIsTogglingFollow(true);
-
     if (isFollowing) {
-        const { error: unfollowError } = await supabase.from('followers').delete().match({
-            user_id: profile.id,
-            follower_id: currentUser.id,
-        });
-
-        if (unfollowError) {
-            toast({ variant: 'destructive', title: 'Could not unfollow user.', description: unfollowError.message });
-        } else {
-            setIsFollowing(false);
-            setProfile(p => p ? {...p, followers: p.followers - 1} : null);
-        }
+        const { error } = await supabase.from('followers').delete().match({ user_id: profile.id, follower_id: currentUser.id });
+        if (!error) { setIsFollowing(false); setProfile(p => p ? {...p, followers: p.followers - 1} : null); }
     } else {
-        const { error: followError } = await supabase.from('followers').insert({
-            user_id: profile.id,
-            follower_id: currentUser.id,
-        });
-        
-        if (followError) {
-            toast({ variant: 'destructive', title: 'Could not follow user.', description: followError.message });
-        } else {
-            setIsFollowing(true);
-            setProfile(p => p ? {...p, followers: p.followers + 1} : null);
-        }
+        const { error } = await supabase.from('followers').insert({ user_id: profile.id, follower_id: currentUser.id });
+        if (!error) { setIsFollowing(true); setProfile(p => p ? {...p, followers: p.followers + 1} : null); }
     }
     setIsTogglingFollow(false);
   };
 
-  if (error) {
-    return (
-      <>
-        <div className="flex h-dvh w-full items-center justify-center bg-background p-4">
-             <Alert variant="destructive" className="max-w-lg">
-                <AlertTriangle className="h-4 w-4" />
-                <AlertTitle>Error</AlertTitle>
-                <AlertDescription>
-                    <p>{error}</p>
-                    <Button onClick={() => router.back()} className="mt-4">Go Back</Button>
-                </AlertDescription>
-            </Alert>
-        </div>
-        <BottomNav />
-      </>
-    )
-  }
-
-  if (!profile) {
-    return (
-         <>
-            <div className="flex h-dvh w-full items-center justify-center text-center">
-                 <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-            </div>
-            <BottomNav />
-        </>
-    )
-  }
+  if (!profile) return <div className="flex h-dvh w-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div>;
   
+  const isOwnProfile = currentUser?.id === profile.id;
   const canViewContent = !profile.is_private || isFollowing || isOwnProfile;
 
   return (
     <>
       <div className="flex h-dvh flex-col bg-background text-foreground pb-16">
         <header className="flex h-16 flex-shrink-0 items-center justify-between border-b px-4">
-          <Button variant="ghost" size="icon" onClick={() => router.back()}>
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
+          <Button variant="ghost" size="icon" onClick={() => router.back()}><ArrowLeft className="h-5 w-5" /></Button>
           <h1 className="font-bold">{profile.username}</h1>
           <div className="w-10"></div>
         </header>
-
         <main className="flex-1 overflow-y-auto">
             <ProfileHeader profile={profile} postsCount={posts.length} />
-
-          <div className="mt-4 flex items-center gap-2 px-4">
-            {isOwnProfile ? (
-              <Link href="/profile/edit" className="w-full">
-                <Button variant="outline" className="w-full">Edit Profile</Button>
-              </Link>
-            ) : (
-              <Button className="w-full" variant={isFollowing ? 'secondary' : 'default'} onClick={handleFollowToggle} disabled={isTogglingFollow}>
-                  {isTogglingFollow ? <Loader2 className="h-4 w-4 animate-spin" /> : isFollowing ? 'Following' : 'Follow'}
-              </Button>
-            )}
-          </div>
-
-          <Tabs defaultValue="posts" className="mt-6">
-            <TabsList className="grid w-full grid-cols-1">
-              <TabsTrigger value="posts">
-                <Grid3x3 className="mr-2 h-4 w-4" />
-                Posts
-              </TabsTrigger>
-            </TabsList>
-            <TabsContent value="posts">
-             {canViewContent ? (
-                posts.length > 0 ? (
-                    <div className="grid grid-cols-3 gap-1 mt-4">
-                        {posts.map((post) => (
-                        <div key={post.id} className="group relative aspect-square w-full bg-muted">
-                            <Link href={`/post/${post.id}`} className="block h-full w-full">
-                                {post.media_type === 'video' ? (
-                                    <video src={post.media_url} className="h-full w-full object-cover" />
-                                ) : (
-                                    <Image
-                                        src={post.media_url}
-                                        alt={`Post by ${profile.username}`}
-                                        fill
-                                        className="object-cover h-full w-full"
-                                        data-ai-hint="lifestyle content"
-                                    />
-                                )}
-                            </Link>
-                        </div>
-                        ))}
-                    </div>
-                ) : (
-                    <div className="flex flex-col items-center justify-center pt-10 text-center text-muted-foreground">
-                    <CameraOff className="h-12 w-12" />
-                    <p className="mt-4 text-sm">{isOwnProfile ? "You have no posts yet." : "This user has no posts yet."}</p>
-                    </div>
-                )
-             ) : (
-                <div className="flex flex-col items-center justify-center pt-10 text-center text-muted-foreground border-t mt-4">
-                    <Lock className="h-12 w-12 mt-4" />
-                    <p className="mt-4 font-semibold">This Account is Private</p>
-                    <p className="text-sm">Follow this account to see their photos and videos.</p>
-                </div>
-             )}
-            </TabsContent>
-          </Tabs>
+            <div className="mt-4 px-4">
+                {isOwnProfile ? <Link href="/profile/edit" className="w-full"><Button variant="outline" className="w-full">Edit Profile</Button></Link> : <Button className="w-full" variant={isFollowing ? 'secondary' : 'default'} onClick={handleFollowToggle} disabled={isTogglingFollow}>{isTogglingFollow ? <Loader2 className="h-4 w-4 animate-spin" /> : isFollowing ? 'Following' : 'Follow'}</Button>}
+            </div>
+            <Tabs defaultValue="posts" className="mt-6">
+                <TabsList className="grid w-full grid-cols-1"><TabsTrigger value="posts"><Grid3x3 className="mr-2 h-4 w-4" />Posts</TabsTrigger></TabsList>
+                <TabsContent value="posts">
+                    {canViewContent ? (posts.length > 0 ? <div className="grid grid-cols-3 gap-1 mt-4">{posts.map((post) => <Link href={`/post/${post.id}`} key={post.id} className="aspect-square relative"><Image src={post.media_url} alt="post" fill className="object-cover" /></Link>)}</div> : <div className="text-center pt-10 text-muted-foreground"><CameraOff className="h-12 w-12 mx-auto" /><p className="mt-2">No posts yet.</p></div>) : <div className="text-center pt-10 text-muted-foreground"><Lock className="h-12 w-12 mx-auto" /><p className="mt-4 font-semibold">This Account is Private</p></div>}
+                </TabsContent>
+            </Tabs>
         </main>
       </div>
       <BottomNav />

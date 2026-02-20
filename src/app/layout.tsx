@@ -43,7 +43,6 @@ function AppLayout({ children }: { children: React.ReactNode }) {
   const [showNotificationDialog, setShowNotificationDialog] = useState(false);
   const backButtonPressCount = useRef(0);
 
-  // Service Worker Registration
   useEffect(() => {
     if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
@@ -56,21 +55,17 @@ function AppLayout({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  // Real-time user presence heartbeat
   useEffect(() => {
     let presenceInterval: NodeJS.Timeout | undefined;
-
     const updatePresence = async () => {
         if (currentUser) {
             await supabase.rpc('update_user_presence');
         }
     };
-
     if (currentUser) {
-        updatePresence(); // Initial update
-        presenceInterval = setInterval(updatePresence, 30000); // Update every 30 seconds
+        updatePresence();
+        presenceInterval = setInterval(updatePresence, 30000);
     }
-
     return () => {
         if (presenceInterval) {
             clearInterval(presenceInterval);
@@ -78,7 +73,6 @@ function AppLayout({ children }: { children: React.ReactNode }) {
     };
 }, [currentUser, supabase]);
 
-  // Push Notification Registration
   useEffect(() => {
     if (Capacitor.isNativePlatform() && currentUser) {
       const checkAndRequestPushPermissions = async () => {
@@ -92,39 +86,33 @@ function AppLayout({ children }: { children: React.ReactNode }) {
       
       const addListeners = () => {
         PushNotifications.addListener('pushNotificationReceived', (notification: PushNotificationSchema) => {
-            console.log('Push received: ', notification);
             toast({
                 title: notification.title || "New Notification",
                 description: notification.body || "",
             });
         });
-
         PushNotifications.addListener('pushNotificationActionPerformed', (notification: ActionPerformed) => {
-            console.log('Push action performed: ', notification.notification);
             const url = notification.notification.data?.url;
             if (url) {
                 router.push(url);
             }
         });
       }
-      
       checkAndRequestPushPermissions();
       addListeners();
     }
   }, [currentUser, router, toast]);
 
-    // Double press back to exit
     useEffect(() => {
         if (Capacitor.isNativePlatform()) {
             const listener = App.addListener('backButton', ({ canGoBack }) => {
                 if (!canGoBack) {
                     backButtonPressCount.current += 1;
-
                     if (backButtonPressCount.current === 1) {
                         toast({ description: "Press back again to exit", duration: 2000 });
                         setTimeout(() => {
                             backButtonPressCount.current = 0;
-                        }, 2000); // Reset after 2 seconds
+                        }, 2000);
                     } else if (backButtonPressCount.current >= 2) {
                         App.exitApp();
                     }
@@ -132,37 +120,23 @@ function AppLayout({ children }: { children: React.ReactNode }) {
                     window.history.back();
                 }
             });
-            
             return () => {
                 listener.remove();
             }
         }
     }, [toast]);
 
-
   const registerPushToken = async () => {
     if (!currentUser) return;
     try {
       await PushNotifications.register();
-      
       PushNotifications.addListener('registration', async (token: Token) => {
-        console.info('Push registration success, token: ', token.value);
         const { error } = await supabase.from('push_notification_tokens').upsert({
             user_id: currentUser.id,
             token: token.value,
             device_type: Capacitor.getPlatform(),
         }, { onConflict: 'user_id, token' });
-
-        if (error) {
-            console.error('Failed to save push token:', error);
-        }
       });
-
-      PushNotifications.addListener('registrationError', (err: any) => {
-        console.error('Push registration error: ', err.error);
-        toast({ variant: 'destructive', title: 'Push Notification Error', description: 'Failed to register for push notifications.' });
-      });
-
     } catch (e) {
       console.error('Error in registration process', e);
     }
@@ -173,17 +147,11 @@ function AppLayout({ children }: { children: React.ReactNode }) {
         const permStatus = await PushNotifications.requestPermissions();
         if (permStatus.receive === 'granted') {
             await registerPushToken();
-        } else {
-            toast({ variant: 'destructive', title: 'Notifications Denied', description: 'You will not receive push notifications.' });
         }
-    } catch (error) {
-        console.error("Error requesting push permissions", error);
-        toast({ variant: 'destructive', title: 'Permission Error', description: 'Could not request push notification permissions.' });
     } finally {
         setShowNotificationDialog(false);
     }
   };
-
 
   if (isOffline) {
     return <OfflinePage />;
@@ -231,7 +199,6 @@ function AppLayout({ children }: { children: React.ReactNode }) {
     </>
   );
 }
-
 
 export default function RootLayout({
   children,
