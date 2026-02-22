@@ -1,7 +1,10 @@
 
 "use client";
 
-// All Monetag and Popunder ads have been removed.
+/**
+ * AdsHandler component has been retired as all Monetag and Popunder ads 
+ * are removed from the application.
+ */
 export function AdsHandler() {
   return null;
 }
