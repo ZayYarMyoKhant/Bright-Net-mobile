@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useRef, useEffect } from 'react';
@@ -86,7 +85,7 @@ const VideoPost = ({ post, isActive }: { post: Post; isActive: boolean }) => {
             setLikesCount(prev => prev - 1);
           }
         } else {
-          const { error } = await supabase.from('post_likes').delete().match({ post_id: post.id, user_id: currentUser.id });
+          const { error = null } = await supabase.from('post_likes').delete().match({ post_id: post.id, user_id: currentUser.id });
           if (error) {
             toast({ variant: "destructive", title: "Failed to unlike post", description: error.message });
             setIsLiked(true);

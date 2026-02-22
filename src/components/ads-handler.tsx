@@ -1,4 +1,3 @@
-
 "use client";
 
 // This file is now empty as Monetag In-App ads were removed.
