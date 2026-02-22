@@ -2,9 +2,10 @@
 "use client";
 
 import { BottomNav } from "@/components/bottom-nav";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardTitle } from "@/components/ui/card";
 import { PlusCircle, BookOpen, Music } from "lucide-react";
 import Link from "next/link";
+import { AdsterraBanner } from "@/components/adsterra-banner";
 
 export default function CreatePage() {
   return (
@@ -14,9 +15,7 @@ export default function CreatePage() {
           <h1 className="text-xl font-bold">Let's Create</h1>
         </header>
 
-        
         <main className="flex-1 overflow-y-auto p-4 space-y-6">
-
           <Link href="/upload/customize">
             <Card className="w-full cursor-pointer hover:shadow-lg transition-shadow border-2 border-primary/50 hover:border-primary">
                 <CardContent className="p-6">
@@ -45,7 +44,6 @@ export default function CreatePage() {
             </Card>
           </Link>
 
-          
            <Link href="/upload/music">
             <Card className="w-full cursor-pointer hover:shadow-lg transition-shadow border-2 border-primary/50 hover:border-primary">
               <CardContent className="p-6">
@@ -60,6 +58,10 @@ export default function CreatePage() {
             </Card>
           </Link>
           
+          {/* Adsterra Banner above Bottom Nav */}
+          <div className="mt-auto">
+            <AdsterraBanner />
+          </div>
         </main>
       </div>
       <BottomNav />

@@ -1,11 +1,11 @@
 
 "use client";
 
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { VideoDescription } from '@/components/video-description';
 import { Avatar } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { Heart, MessageCircle, Send, Loader2, VideoOff, VolumeOff, Music, Info, Volume2, Play } from 'lucide-react';
+import { Heart, MessageCircle, Send, VideoOff, VolumeOff, Music, Volume2, Play, Loader2 } from 'lucide-react';
 import {
   Sheet,
   SheetContent,
@@ -18,7 +18,7 @@ import type { Post } from '@/lib/data';
 import { useToast } from '@/hooks/use-toast';
 import { createClient } from '@/lib/supabase/client';
 import { User } from '@supabase/supabase-js';
-import { Card } from './ui/card';
+import { AdsterraNative } from './adsterra-native';
 
 const VideoPost = ({ post, isActive }: { post: Post; isActive: boolean }) => {
     const [isLiked, setIsLiked] = useState(post.isLiked);
@@ -176,16 +176,35 @@ const VideoPost = ({ post, isActive }: { post: Post; isActive: boolean }) => {
     )
 }
 
+const AdItem = () => (
+  <div className="relative h-full w-full flex-shrink-0 bg-black flex flex-col items-center justify-center p-4">
+    <div className="text-white mb-4 text-center">
+      <p className="font-bold">Sponsored Content</p>
+      <p className="text-xs opacity-70">Scroll down to see more videos</p>
+    </div>
+    <AdsterraNative />
+  </div>
+);
+
 export function VideoFeed({ posts, loading }: { posts: Post[], loading: boolean }) {
     const [currentIndex, setCurrentIndex] = useState(0);
     const [isScrolling, setIsScrolling] = useState(false);
     const touchStartY = useRef(0);
     const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-    const items = posts.map(post => ({
-        type: 'post' as const,
-        component: <VideoPost key={post.id} post={post} isActive={false} />
-    }));
+    // Insert Ads every 3 videos
+    const items = posts.flatMap((post, index) => {
+        const isThird = (index + 1) % 3 === 0;
+        const videoItem = {
+            type: 'post' as const,
+            component: <VideoPost key={`v-${post.id}`} post={post} isActive={false} />
+        };
+        const adItem = {
+            type: 'ad' as const,
+            component: <AdItem key={`ad-v-${index}`} />
+        };
+        return isThird ? [videoItem, adItem] : [videoItem];
+    });
 
 
     const handleWheel = (e: React.WheelEvent) => {
@@ -257,7 +276,10 @@ export function VideoFeed({ posts, loading }: { posts: Post[], loading: boolean 
             >
                 {items.map((item, index) => (
                     <div key={index} className="h-full w-full">
-                        {React.cloneElement(item.component, { isActive: index === currentIndex })}
+                        {item.type === 'post' 
+                          ? React.cloneElement(item.component as React.ReactElement, { isActive: index === currentIndex })
+                          : item.component
+                        }
                     </div>
                 ))}
             </div>

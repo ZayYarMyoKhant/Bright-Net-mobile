@@ -8,10 +8,7 @@ import { Button } from "@/components/ui/button";
 import {
   Search,
   Loader2,
-  Users,
-  CameraOff,
 } from "lucide-react";
-import Link from "next/link";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { createClient } from "@/lib/supabase/client";
@@ -20,6 +17,8 @@ import { Post, Profile } from "@/lib/data";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PostCard } from "@/components/post-card";
 import { VideoFeed } from "@/components/video-feed";
+import { AdsterraBanner } from "@/components/adsterra-banner";
+import Link from "next/link";
 
 function SearchBar() {
   const router = useRouter();
@@ -90,7 +89,6 @@ function PostResults() {
                 if (error) {
                     toast({ variant: 'destructive', title: "Search failed", description: error.message });
                 } else {
-                    const { data: { user: currentUser } } = await supabase.auth.getUser();
                     const allPosts: Post[] = data.map((p: any) => ({
                         id: p.id,
                         user: p.profiles,
@@ -100,7 +98,7 @@ function PostResults() {
                         created_at: p.created_at,
                         likes: p.likes[0]?.count || 0,
                         comments: p.comments[0]?.count || 0,
-                        isLiked: false // Simple view
+                        isLiked: false
                     }));
                     setImagePosts(allPosts.filter(p => p.media_type === 'image'));
                     setVideoPosts(allPosts.filter(p => p.media_type === 'video'));
@@ -178,7 +176,11 @@ function SearchPageContent() {
         <header className="flex h-16 flex-shrink-0 items-center justify-center bg-primary text-primary-foreground px-4">
           <h1 className="text-xl font-bold">Search</h1>
         </header>
-         <div className="p-4 border-b"><SearchBar /></div>
+         <div className="p-4 border-b">
+            <SearchBar />
+            {/* Adsterra Banner under header */}
+            <AdsterraBanner />
+         </div>
         <main className="flex-1 overflow-y-auto">
             {!hasQuery ? <SearchPlaceholder /> : (
                 <Tabs defaultValue="posts" className="w-full">

@@ -5,8 +5,7 @@ import { useState, useRef, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ArrowLeft, Loader2, Music, UploadCloud } from "lucide-react";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { ArrowLeft, Loader2, UploadCloud } from "lucide-react";
 import Link from "next/link";
 import { useToast } from "@/hooks/use-toast";
 import { createClient } from "@/lib/supabase/client";
@@ -16,7 +15,6 @@ export default function UploadMusicPage() {
   const [artist, setArtist] = useState("");
   const [audioFile, setAudioFile] = useState<File | null>(null);
   const [isPending, startTransition] = useTransition();
-  const [showRewardAdDialog, setShowRewardAdDialog] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
@@ -27,7 +25,7 @@ export default function UploadMusicPage() {
     if (e.target.files?.[0]) setAudioFile(e.target.files[0]);
   };
 
-  const executeUpload = () => {
+  const handleUpload = () => {
     startTransition(async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user || !audioFile) return;
@@ -44,36 +42,8 @@ export default function UploadMusicPage() {
     });
   };
 
-  const handleWatchAd = () => {
-    setShowRewardAdDialog(false);
-    if (typeof window !== 'undefined' && window.show_10630894) {
-        // Use Promise.resolve to catch potential timeouts
-        Promise.resolve(window.show_10630894())
-          .then(executeUpload)
-          .catch((e) => {
-            console.warn("Reward ad failed or timed out, proceeding with upload:", e);
-            executeUpload();
-          });
-    } else {
-        executeUpload();
-    }
-  };
-
   return (
     <div className="flex h-full flex-col bg-background text-foreground">
-      <AlertDialog open={showRewardAdDialog} onOpenChange={setShowRewardAdDialog}>
-            <AlertDialogContent>
-                <AlertDialogHeader>
-                    <AlertDialogTitle>I want to watch Reward ads</AlertDialogTitle>
-                    <AlertDialogDescription>Would you like to watch a short ad to support our service while uploading?</AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                    <AlertDialogCancel onClick={() => { setShowRewardAdDialog(false); executeUpload(); }}>Cancel</AlertDialogCancel>
-                    <AlertDialogAction onClick={handleWatchAd}>Watch</AlertDialogAction>
-                </AlertDialogFooter>
-            </AlertDialogContent>
-        </AlertDialog>
-
       <header className="flex h-16 flex-shrink-0 items-center border-b px-4 relative">
         <Link href="/upload" className="p-2 -ml-2 absolute left-4"><ArrowLeft className="h-5 w-5" /></Link>
         <h1 className="text-xl font-bold mx-auto">Upload Music</h1>
@@ -88,7 +58,7 @@ export default function UploadMusicPage() {
             <Input placeholder="Track Title" value={title} onChange={(e) => setTitle(e.target.value)} disabled={isPending} />
             <Input placeholder="Artist Name" value={artist} onChange={(e) => setArtist(e.target.value)} disabled={isPending} />
         </div>
-        <Button className="w-full" onClick={() => setShowRewardAdDialog(true)} disabled={isPending || !title || !audioFile}>
+        <Button className="w-full" onClick={handleUpload} disabled={isPending || !title || !audioFile}>
             {isPending ? <Loader2 className="animate-spin h-4 w-4" /> : "Upload"}
         </Button>
       </main>

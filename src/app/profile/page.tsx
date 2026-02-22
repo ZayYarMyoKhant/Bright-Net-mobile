@@ -24,6 +24,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { MultiAccountContext, StoredAccount } from '@/hooks/use-multi-account';
+import { AdsterraBanner } from '@/components/adsterra-banner';
 
 type ProfileData = Profile & {
   following: number;
@@ -49,7 +50,7 @@ const ProfileHeader = ({ profile, postsCount }: { profile: ProfileData; postsCou
                     <p className="text-sm text-blue-100/70">@{profile.username}</p>
                     <p className="mt-2 text-center text-sm text-blue-50/80">{profile.bio}</p>
                  </div>
-                 <div className="relative z-10 mt-6 grid grid-cols-3 gap-4 text-center w-full max-w-sm">
+                 <div className="relative z-10 mt-6 grid grid-cols-3 gap-4 text-center w-full max-sm">
                     <Link href={`/profile/${profile.id}/following`}><div><p className="font-bold text-lg">{profile.following}</p><p className="text-xs text-blue-200/70">Following</p></div></Link>
                     <Link href={`/profile/${profile.id}/followers`}><div><p className="font-bold text-lg">{profile.followers}</p><p className="text-xs text-blue-200/70">Followers</p></div></Link>
                     <div><p className="font-bold text-lg">{postsCount}</p><p className="text-xs text-blue-200/70">Posts</p></div>
@@ -73,8 +74,8 @@ const ProfileHeader = ({ profile, postsCount }: { profile: ProfileData; postsCou
                     <p className="text-sm text-yellow-100/70">@{profile.username}</p>
                     <p className="mt-2 text-center text-sm text-yellow-50/80">{profile.bio}</p>
                 </div>
-                 <div className="relative z-10 mt-6 grid grid-cols-3 gap-4 text-center w-full max-w-sm">
-                    <Link href={`/profile/${profile.id}/following`}><div><p className="font-bold text-lg">{profile.following}</p><p className="text-xs text-blue-200/70">Following</p></div></Link>
+                 <div className="relative z-10 mt-6 grid grid-cols-3 gap-4 text-center w-full max-sm">
+                    <Link href={`/profile/${profile.id}/following`}><div><p className="font-bold text-lg">{profile.following}</p><p className="text-xs text-yellow-200/70">Following</p></div></Link>
                     <Link href={`/profile/${profile.id}/followers`}><div><p className="font-bold text-lg">{profile.followers}</p><p className="text-xs text-yellow-200/70">Followers</p></div></Link>
                     <div><p className="font-bold text-lg">{postsCount}</p><p className="text-xs text-yellow-200/70">Posts</p></div>
                 </div>
@@ -305,6 +306,11 @@ export default function ProfilePage() {
               )}
             </TabsContent>
           </Tabs>
+          
+          {/* Adsterra Banner above Bottom Nav */}
+          <div className="mt-8 px-4">
+            <AdsterraBanner />
+          </div>
         </main>
       </div>
       <BottomNav />
