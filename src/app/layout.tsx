@@ -1,7 +1,6 @@
 
 "use client";
 
-import type { Metadata } from 'next';
 import { PT_Sans } from 'next/font/google';
 import './globals.css';
 import { cn } from '@/lib/utils';
@@ -9,7 +8,6 @@ import { Toaster } from '@/components/ui/toaster';
 import { LanguageProvider } from '@/context/language-context';
 import { useEffect, useState, useContext, useRef } from 'react';
 import { createClient } from '@/lib/supabase/client';
-import { User } from '@supabase/supabase-js';
 import { TypingBattleRequestBanner } from '@/components/typing-battle-request-banner';
 import { CoupleRequestBanner } from '@/components/couple-request-banner';
 import { OfflineProvider, OfflineContext } from '@/context/offline-context';
@@ -23,7 +21,6 @@ import { Bell } from 'lucide-react';
 import { useRouter, usePathname } from 'next/navigation';
 import { MultiAccountProvider, MultiAccountContext } from '@/hooks/use-multi-account';
 import { AnimatePresence, motion } from 'framer-motion';
-import Script from 'next/script';
 
 const ptSans = PT_Sans({
   subsets: ['latin'],

@@ -1,3 +1,4 @@
+
 "use client";
 
 import { Suspense, useState, useTransition, useEffect } from "react";
@@ -34,19 +35,34 @@ function UploadPostPageContent() {
   }, [searchParams]);
 
   const handlePost = () => {
+    if (isPending || !mediaFile) return;
+
     startTransition(async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user || !mediaFile) return;
 
       const path = `public/${user.id}-${Date.now()}`;
       const { error: uploadError } = await supabase.storage.from('posts').upload(path, mediaFile);
-      if (uploadError) { toast({ variant: "destructive", title: "Upload failed" }); return; }
+      if (uploadError) {
+        toast({ variant: "destructive", title: "Upload failed", description: uploadError.message });
+        return;
+      }
 
       const { data: { publicUrl } } = supabase.storage.from('posts').getPublicUrl(path);
-      await supabase.from('posts').insert({ user_id: user.id, media_url: publicUrl, media_type: mediaType, caption });
-      
-      toast({ title: "Post created!" });
-      router.push("/home");
+      const { error: insertError } = await supabase.from('posts').insert({
+        user_id: user.id,
+        media_url: publicUrl,
+        media_type: mediaType,
+        caption
+      });
+
+      if (insertError) {
+        toast({ variant: "destructive", title: "Failed to create post", description: insertError.message });
+      } else {
+        toast({ title: "Post created!" });
+        router.push("/home");
+        router.refresh();
+      }
     });
   };
 

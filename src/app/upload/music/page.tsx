@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useRef, useTransition } from "react";
@@ -25,19 +26,34 @@ export default function UploadMusicPage() {
   };
 
   const handleUpload = () => {
+    if (isPending || !title || !audioFile) return;
+
     startTransition(async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user || !audioFile) return;
 
       const path = `public/${user.id}-track-${Date.now()}`;
-      const { error } = await supabase.storage.from('music').upload(path, audioFile);
-      if (error) { toast({ variant: "destructive", title: "Upload failed" }); return; }
+      const { error: uploadError } = await supabase.storage.from('music').upload(path, audioFile);
+      if (uploadError) {
+        toast({ variant: "destructive", title: "Upload failed", description: uploadError.message });
+        return;
+      }
 
       const { data: { publicUrl } } = supabase.storage.from('music').getPublicUrl(path);
-      await supabase.from('tracks').insert({ user_id: user.id, title, artist_name: artist || "Unknown", audio_url: publicUrl });
-      
-      toast({ title: "Track uploaded!" });
-      router.push("/home");
+      const { error: insertError } = await supabase.from('tracks').insert({
+        user_id: user.id,
+        title,
+        artist_name: artist || "Unknown",
+        audio_url: publicUrl
+      });
+
+      if (insertError) {
+        toast({ variant: "destructive", title: "Database error", description: insertError.message });
+      } else {
+        toast({ title: "Track uploaded!" });
+        router.push("/home");
+        router.refresh();
+      }
     });
   };
 
