@@ -1,3 +1,4 @@
+
 "use client";
 
 import type { Metadata } from 'next';
@@ -208,11 +209,6 @@ export default function RootLayout({
             <link rel="manifest" href="/manifest.json" />
             <link rel="icon" href="/icon.svg" type="image/svg+xml" />
             <meta name="theme-color" content="#3B82F6" />
-            {/* Adsterra Popunder */}
-            <Script
-              src="https://pl28770475.effectivegatecpm.com/11/b9/a2/11b9a2c8dba5369dfc918aa978385a25.js"
-              strategy="afterInteractive"
-            />
         </head>
       <body
         className={cn('font-headline antialiased bg-background', ptSans.variable)}
