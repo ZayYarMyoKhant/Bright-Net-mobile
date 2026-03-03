@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useRef, useEffect } from 'react';
@@ -17,6 +18,7 @@ import type { Post } from '@/lib/data';
 import { useToast } from '@/hooks/use-toast';
 import { createClient } from '@/lib/supabase/client';
 import { User } from '@supabase/supabase-js';
+import { AdsterraNative } from './adsterra-native';
 
 const VideoPost = ({ post, isActive }: { post: Post; isActive: boolean }) => {
     const [isLiked, setIsLiked] = useState(post.isLiked);
@@ -174,18 +176,39 @@ const VideoPost = ({ post, isActive }: { post: Post; isActive: boolean }) => {
     )
 }
 
+const VideoAdSlide = () => (
+  <div className="h-full w-full flex items-center justify-center bg-black p-4">
+    <div className="w-full max-w-sm">
+      <p className="text-white text-center text-sm mb-4 opacity-70">Sponsored</p>
+      <AdsterraNative />
+    </div>
+  </div>
+)
+
 export function VideoFeed({ posts, loading }: { posts: Post[], loading: boolean }) {
     const [currentIndex, setCurrentIndex] = useState(0);
     const [isScrolling, setIsScrolling] = useState(false);
     const touchStartY = useRef(0);
     const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
+    // Intersperse ads into the feed
+    const items = React.useMemo(() => {
+      const result = [];
+      for (let i = 0; i < posts.length; i++) {
+        result.push({ type: 'video', data: posts[i] });
+        if ((i + 1) % 3 === 0) {
+          result.push({ type: 'ad' });
+        }
+      }
+      return result;
+    }, [posts]);
+
     const handleWheel = (e: React.WheelEvent) => {
         if (isScrolling) return;
 
         setIsScrolling(true);
         if (e.deltaY > 0) {
-            setCurrentIndex(prev => Math.min(prev + 1, posts.length - 1));
+            setCurrentIndex(prev => Math.min(prev + 1, items.length - 1));
         } else if (e.deltaY < 0) {
             setCurrentIndex(prev => Math.max(0, prev - 1));
         }
@@ -208,7 +231,7 @@ export function VideoFeed({ posts, loading }: { posts: Post[], loading: boolean 
             setIsScrolling(true);
             if (deltaY > 0) {
                 // Swiping up
-                setCurrentIndex(prev => Math.min(prev + 1, posts.length - 1));
+                setCurrentIndex(prev => Math.min(prev + 1, items.length - 1));
             } else {
                 // Swiping down
                 setCurrentIndex(prev => Math.max(0, prev - 1));
@@ -226,7 +249,7 @@ export function VideoFeed({ posts, loading }: { posts: Post[], loading: boolean 
         )
     }
 
-    if (posts.length === 0) {
+    if (items.length === 0) {
         return (
             <div className="flex flex-col h-full w-full items-center justify-center pt-20 text-center text-muted-foreground">
                  <VideoOff className="h-12 w-12" />
@@ -247,9 +270,13 @@ export function VideoFeed({ posts, loading }: { posts: Post[], loading: boolean 
                 className="h-full w-full transition-transform duration-500 ease-out"
                 style={{ transform: `translateY(-${currentIndex * 100}%)` }}
             >
-                {posts.map((post, index) => (
-                    <div key={post.id} className="h-full w-full">
-                        <VideoPost post={post} isActive={index === currentIndex} />
+                {items.map((item, index) => (
+                    <div key={index} className="h-full w-full">
+                        {item.type === 'video' ? (
+                          <VideoPost post={item.data as Post} isActive={index === currentIndex} />
+                        ) : (
+                          <VideoAdSlide />
+                        )}
                     </div>
                 ))}
             </div>

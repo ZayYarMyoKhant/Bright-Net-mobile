@@ -1,9 +1,11 @@
+
 "use client";
 
 import { BottomNav } from "@/components/bottom-nav";
 import { Card, CardContent, CardTitle } from "@/components/ui/card";
 import { PlusCircle, BookOpen, Music } from "lucide-react";
 import Link from "next/link";
+import { AdsterraBanner } from "@/components/adsterra-banner";
 
 export default function CreatePage() {
   return (
@@ -55,6 +57,10 @@ export default function CreatePage() {
               </CardContent>
             </Card>
           </Link>
+          
+          <div className="mt-auto pt-4">
+            <AdsterraBanner />
+          </div>
         </main>
       </div>
       <BottomNav />
