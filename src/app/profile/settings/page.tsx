@@ -46,7 +46,7 @@ export default function SettingsPage() {
                 title: "Logged Out",
                 description: "You have been successfully logged out from this account.",
            });
-           router.push('/home'); // Go to home, it will pick the next available account
+           router.push('/home');
            router.refresh();
        }
     };
@@ -76,7 +76,6 @@ export default function SettingsPage() {
                     <ArrowLeft className="h-5 w-5" />
                 </Link>
                 <h1 className="mx-auto text-xl font-bold">{t('settings.title')}</h1>
-                {/* Spacer to balance the header */}
                 <div className="w-5 h-5"></div>
             </header>
 
@@ -117,7 +116,7 @@ export default function SettingsPage() {
                                 </AlertDialogHeader>
                                 <AlertDialogFooter>
                                     <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                    <AlertDialogAction onClick={handleDeleteAccount} disabled={isDeleting} className="bg-destructive hover:bg-destructive/80">
+                                    <AlertDialogAction onClick={handleDeleteAccount} disabled={isDeleting} className="bg-destructive hover:bg-destructive/90">
                                         {isDeleting ? <><Loader2 className="mr-2 h-4 w-4 animate-spin"/> Deleting...</> : 'Delete'}
                                     </AlertDialogAction>
                                 </AlertDialogFooter>

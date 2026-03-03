@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useCallback, useContext } from 'react';
@@ -22,7 +21,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/menu";
+} from "@/components/ui/dropdown-menu";
 import { MultiAccountContext, StoredAccount } from '@/hooks/use-multi-account';
 
 type ProfileData = Profile & {
@@ -146,11 +145,11 @@ export default function ProfilePage() {
     }
 
     const { data: statsData, error: statsError } = await supabase
-      .rpc('get_user_stats', { user_id_param: userId })
+      .rpc('get_user_stats', { user_id: userId })
       .single();
 
     if (statsError) {
-        toast({ variant: 'destructive', title: 'Error loading stats', description: statsError.message });
+        console.error('Error loading stats:', statsError.message);
     }
     
     setUser({

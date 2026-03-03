@@ -93,6 +93,7 @@ function PostResults() {
                         created_at: p.created_at,
                         likes: p.likes[0]?.count || 0,
                         comments: p.comments[0]?.count || 0,
+                        views: 0,
                         isLiked: false
                     }));
                     setImagePosts(allPosts.filter(p => p.media_type === 'image'));

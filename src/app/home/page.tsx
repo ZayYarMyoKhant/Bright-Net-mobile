@@ -2,7 +2,7 @@
 
 import { Suspense, useEffect, useState, useCallback, useRef } from 'react';
 import { BottomNav } from "@/components/bottom-nav";
-import { Loader2, Headphones, Download, Play, Pause, Music, VideoOff, Heart } from "lucide-react";
+import { Loader2, Headphones, Download, Play, Pause, Music, Heart } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PostFeed } from '@/components/post-feed';
 import { VideoFeed } from '@/components/video-feed';
@@ -82,11 +82,8 @@ const AudioPlayer = ({ track: initialTrack, currentUser }: { track: Track, curre
             a.style.display = 'none';
             a.href = url;
             a.download = `${initialTrack.title} - ${initialTrack.artist_name || 'Unknown'}.mp3`;
-            document.body.appendChild(a);
             a.click();
             window.URL.revokeObjectURL(url);
-            document.body.removeChild(a);
-            toast({ title: "Download Started", description: initialTrack.title });
         } catch (error) {
             console.error("Download failed:", error);
             toast({ variant: "destructive", title: "Download Failed" });
@@ -103,21 +100,18 @@ const AudioPlayer = ({ track: initialTrack, currentUser }: { track: Track, curre
         setIsLiking(true);
         const newIsLiked = !isLiked;
         
-        // Optimistic update
         setIsLiked(newIsLiked);
         setLikesCount(prev => newIsLiked ? prev + 1 : prev - 1);
 
         if (newIsLiked) {
             const { error } = await supabase.from('track_likes').insert({ track_id: initialTrack.id, user_id: currentUser.id });
             if (error) {
-                toast({ variant: 'destructive', title: 'Failed to like track', description: error.message });
                 setIsLiked(false);
                 setLikesCount(prev => prev - 1);
             }
         } else {
             const { error } = await supabase.from('track_likes').delete().match({ track_id: initialTrack.id, user_id: currentUser.id });
              if (error) {
-                toast({ variant: 'destructive', title: 'Failed to unlike track', description: error.message });
                 setIsLiked(true);
                 setLikesCount(prev => prev + 1);
             }
@@ -188,7 +182,6 @@ function HomePageContent() {
     
     if (error) {
       console.error("Error fetching posts:", error);
-      toast({ variant: "destructive", title: "Failed to fetch posts", description: error.message });
       setLoading(false);
       return;
     } 
@@ -197,7 +190,7 @@ function HomePageContent() {
         processAndSetPosts(posts, user);
     }
     setLoading(false);
-  }, [supabase, toast]);
+  }, [supabase]);
 
   const fetchTracks = useCallback(async () => {
     setLoadingTracks(true);
@@ -255,6 +248,7 @@ function HomePageContent() {
         created_at: post.created_at,
         likes: post.likes[0]?.count || 0,
         comments: post.comments[0]?.count || 0,
+        views: 0,
         isLiked: likedPostIds.has(post.id),
       }));
 
