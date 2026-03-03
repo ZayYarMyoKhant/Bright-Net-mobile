@@ -16,7 +16,6 @@ import { Post, Profile } from "@/lib/data";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PostCard } from "@/components/post-card";
 import { VideoFeed } from "@/components/video-feed";
-import { AdsterraBanner } from "@/components/adsterra-banner";
 import Link from "next/link";
 
 function SearchBar() {
@@ -177,8 +176,6 @@ function SearchPageContent() {
         </header>
          <div className="p-4 border-b">
             <SearchBar />
-            {/* Adsterra Banner under header */}
-            <AdsterraBanner />
          </div>
         <main className="flex-1 overflow-y-auto">
             {!hasQuery ? <SearchPlaceholder /> : (

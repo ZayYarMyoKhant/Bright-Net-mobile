@@ -1,9 +1,7 @@
-
 "use client";
 
 /**
- * AdsHandler has been fully removed to ensure no popunders or Monetag scripts are active.
- * Only Banner and Native ads are allowed.
+ * AdsHandler has been fully removed to ensure no intrusive ads are triggered.
  */
 export function AdsHandler() {
   return null;

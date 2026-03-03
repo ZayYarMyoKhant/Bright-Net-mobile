@@ -23,7 +23,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { MultiAccountContext, StoredAccount } from '@/hooks/use-multi-account';
-import { AdsterraBanner } from '@/components/adsterra-banner';
 
 type ProfileData = Profile & {
   following: number;
@@ -305,11 +304,6 @@ export default function ProfilePage() {
               )}
             </TabsContent>
           </Tabs>
-          
-          {/* Adsterra Banner above Bottom Nav */}
-          <div className="mt-8 px-4">
-            <AdsterraBanner />
-          </div>
         </main>
       </div>
       <BottomNav />
