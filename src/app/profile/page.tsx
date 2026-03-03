@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useCallback, useContext } from 'react';
@@ -21,7 +22,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+} from "@/components/menu";
 import { MultiAccountContext, StoredAccount } from '@/hooks/use-multi-account';
 
 type ProfileData = Profile & {
@@ -160,11 +161,16 @@ export default function ProfilePage() {
     });
     setRequestCount(statsData?.pending_request_count || 0);
 
-    const { data: postDataRes, error: postError } = await supabase.from('posts').select('*').eq('id_param', userId).order('created_at', { ascending: false });
+    const { data: postDataRes, error: postError } = await supabase
+      .from('posts')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false });
+
     if (postError) {
         toast({ variant: 'destructive', title: 'Error loading posts', description: postError.message });
     } else {
-        setPosts(postDataRes as Post[]);
+        setPosts(postDataRes as unknown as Post[]);
     }
 
     setLoading(false);
