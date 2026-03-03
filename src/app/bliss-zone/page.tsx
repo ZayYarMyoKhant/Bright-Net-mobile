@@ -5,7 +5,6 @@ import { BottomNav } from "@/components/bottom-nav";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Heart, Calculator, Bot } from "lucide-react";
 import Link from "next/link";
-import { AdsterraBanner } from "@/components/adsterra-banner";
 
 export default function BlissZonePage() {
     
@@ -45,8 +44,6 @@ export default function BlissZonePage() {
 
                 <main className="flex-1 overflow-y-auto p-4 flex flex-col">
                     <div className="space-y-4">
-                        <AdsterraBanner />
-                        
                         <Card className="bg-primary/10 border-primary/20">
                              <CardHeader>
                                 <CardTitle>Welcome to Your Happy Place</CardTitle>

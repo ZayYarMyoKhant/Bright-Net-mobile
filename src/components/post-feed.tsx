@@ -5,7 +5,6 @@ import { PostCard } from "./post-card";
 import type { Post } from "@/lib/data";
 import { CameraOff, Loader2 } from "lucide-react";
 import React from "react";
-import { AdsterraNative } from "./adsterra-native";
 
 export function PostFeed({ posts, loading }: { posts: Post[], loading: boolean }) {
 
@@ -29,11 +28,8 @@ export function PostFeed({ posts, loading }: { posts: Post[], loading: boolean }
 
   return (
     <div className="w-full max-w-lg mx-auto py-4 space-y-4">
-      {posts.map((post, index) => (
-        <React.Fragment key={post.id}>
-          <PostCard post={post} />
-          {(index + 1) % 3 === 0 && <AdsterraNative />}
-        </React.Fragment>
+      {posts.map((post) => (
+        <PostCard key={post.id} post={post} />
       ))}
     </div>
   );

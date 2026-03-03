@@ -18,7 +18,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PostCard } from "@/components/post-card";
 import { VideoFeed } from "@/components/video-feed";
 import Link from "next/link";
-import { AdsterraBanner } from "@/components/adsterra-banner";
 
 function SearchBar() {
   const router = useRouter();
@@ -178,7 +177,6 @@ function SearchPageContent() {
         </header>
          <div className="p-4 border-b">
             <SearchBar />
-            <AdsterraBanner />
          </div>
         <main className="flex-1 overflow-y-auto">
             {!hasQuery ? <SearchPlaceholder /> : (
