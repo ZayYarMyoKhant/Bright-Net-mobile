@@ -1,4 +1,3 @@
-
 'use client';
 
 import { Suspense, useEffect, useState, useCallback, useRef } from 'react';
@@ -11,7 +10,6 @@ import { createClient } from '@/lib/supabase/client';
 import type { Post, Profile } from '@/lib/data';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
 import { Avatar } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -246,7 +244,7 @@ function HomePageContent() {
         .eq('user_id', currentUser.id)
         .in('post_id', postIds) : { data: [] };
       
-      const likedPostIds = new Set(userLikes?.map(like => like.post_id));
+      const likedPostIds = new Set(userLikes?.map(like => (like as any).post_id));
 
       const processedPosts: Post[] = posts.map((post: any) => ({
         id: post.id,

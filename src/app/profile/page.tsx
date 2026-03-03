@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useCallback, useContext } from 'react';
@@ -161,7 +160,7 @@ export default function ProfilePage() {
     });
     setRequestCount(statsData?.pending_request_count || 0);
 
-    const { data: postDataRes, error: postError } = await supabase.from('posts').select('*').eq('user_id', userId).order('created_at', { ascending: false });
+    const { data: postDataRes, error: postError } = await supabase.from('posts').select('*').eq('id_param', userId).order('created_at', { ascending: false });
     if (postError) {
         toast({ variant: 'destructive', title: 'Error loading posts', description: postError.message });
     } else {
