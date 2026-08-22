@@ -1,14 +1,15 @@
 
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Plus, ArrowLeft, Clock, ClipboardCheck, X } from "lucide-react";
+import { Plus, ArrowLeft, ClipboardCheck, X } from "lucide-react";
 import Link from "next/link";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
+import { useRouter, useSearchParams } from "next/navigation";
 
 type ClassData = {
     id: string;
@@ -16,15 +17,28 @@ type ClassData = {
     periods: string;
 };
 
-export default function DashboardPage() {
-    const [hasSchool, setHasSchool] = useState(true); // Simulated for prototype
+export default function RootPage() {
+    const router = useRouter();
+    const searchParams = useSearchParams();
+    
+    // Simulation logic for prototype: 
+    // We check a URL param to see if a school was just "created"
+    const isJustCreated = searchParams.get("setup") === "success";
+    const [hasSchool, setHasSchool] = useState(false);
     const [schoolName, setSchoolName] = useState("အမှတ် (၁) အခြေခံပညာအထက်တန်းကျောင်း");
+    
+    useEffect(() => {
+        if (isJustCreated) {
+            setHasSchool(true);
+        }
+    }, [isJustCreated]);
+
     const [isCreating, setIsCreating] = useState(false);
     const [newClassName, setNewClassName] = useState("");
     const [newPeriods, setNewPeriods] = useState("8");
     
     const [classes, setClasses] = useState<ClassData[]>([
-        { id: "1", name: "G-12", periods: "8" },
+        { id: "1", name: "Grade 12 (A)", periods: "8" },
     ]);
 
     const handleAddClass = () => {
@@ -40,6 +54,7 @@ export default function DashboardPage() {
         setIsCreating(false);
     };
 
+    // 1. Initial Landing Page UI (If no school is set up)
     if (!hasSchool) {
         return (
             <div className="flex h-dvh flex-col bg-slate-50 p-6 items-center justify-center text-center">
@@ -47,14 +62,16 @@ export default function DashboardPage() {
                     <ClipboardCheck className="h-16 w-16 text-blue-600" />
                 </div>
                 <h1 className="text-3xl font-bold text-slate-900 mb-2">Roll Call System</h1>
-                <p className="text-slate-600 mb-8 max-w-xs text-sm">
+                <p className="text-slate-600 mb-10 max-w-xs text-sm leading-relaxed">
                     ကျောင်းအုပ်အနေဖြင့် ကျောင်းအသစ်တည်ဆောက်ပါ သို့မဟုတ် ဆရာအနေဖြင့် ရှိပြီးသားကျောင်းသို့ ဝင်ရောက်ပါ။
                 </p>
                 <div className="grid w-full gap-4 max-w-sm">
-                    <Button onClick={() => setHasSchool(true)} className="w-full h-14 text-lg bg-blue-600 hover:bg-blue-700 font-bold rounded-2xl shadow-lg shadow-blue-100">
-                        <Plus className="mr-2 h-5 w-5" /> ကျောင်းအသစ်ဖွင့်မည်
-                    </Button>
-                    <Link href="/school/join">
+                    <Link href="/school/setup" className="w-full">
+                        <Button className="w-full h-14 text-lg bg-blue-600 hover:bg-blue-700 font-bold rounded-2xl shadow-lg shadow-blue-100">
+                            <Plus className="mr-2 h-5 w-5" /> ကျောင်းအသစ်ဖွင့်မည်
+                        </Button>
+                    </Link>
+                    <Link href="/school/join" className="w-full">
                         <Button variant="outline" className="w-full h-14 text-lg border-blue-600 text-blue-600 font-bold rounded-2xl">
                              ကျောင်းသို့ဝင်မည်
                         </Button>
@@ -64,11 +81,12 @@ export default function DashboardPage() {
         );
     }
 
+    // 2. Dashboard UI (After School Setup)
     return (
         <div className="flex h-dvh flex-col bg-white overflow-hidden">
             {/* Header */}
             <header className="flex h-16 flex-shrink-0 items-center border-b px-4 bg-white sticky top-0 z-10">
-                <Button variant="ghost" size="icon" className="mr-2">
+                <Button variant="ghost" size="icon" className="mr-2" onClick={() => setHasSchool(false)}>
                     <ArrowLeft className="h-5 w-5 text-slate-600" />
                 </Button>
                 <h1 className="text-lg font-bold text-slate-900 truncate">
@@ -131,7 +149,7 @@ export default function DashboardPage() {
 
                                     <Button 
                                         onClick={handleAddClass}
-                                        className="w-full h-12 bg-blue-600 hover:bg-blue-700 font-bold rounded-xl mt-2"
+                                        className="w-full h-12 bg-blue-600 hover:bg-blue-700 font-bold rounded-xl mt-2 shadow-lg shadow-blue-200"
                                     >
                                         ဖန်တီးမည်
                                     </Button>
