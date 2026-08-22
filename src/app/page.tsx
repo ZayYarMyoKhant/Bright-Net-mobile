@@ -1,122 +1,106 @@
+
 "use client";
 
-import { useState } from "react";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Checkbox } from "@/components/ui/checkbox";
+import { useState, useEffect } from "react";
+import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { UserPlus, Save, ClipboardList } from "lucide-react";
+import { ClipboardCheck, Users, School as SchoolIcon, Plus, LogIn } from "lucide-react";
 import { BottomNav } from "@/components/bottom-nav";
+import Link from "next/link";
 
-type Student = {
-  id: string;
-  name: string;
-  rollNo: string;
-  attendance: {
-    mon: boolean;
-    tue: boolean;
-    wed: boolean;
-    thu: boolean;
-    fri: boolean;
-  };
-};
+export default function DashboardPage() {
+    // Mock user status - in a real app, this comes from DB
+    const [hasSchool, setHasSchool] = useState(false);
+    const [userRole, setUserRole] = useState<"principal" | "teacher" | null>(null);
 
-const dummyStudents: Student[] = [
-  { id: "1", name: "မောင်မောင်", rollNo: "၁", attendance: { mon: false, tue: false, wed: false, thu: false, fri: false } },
-  { id: "2", name: "မမ", rollNo: "၂", attendance: { mon: false, tue: false, wed: false, thu: false, fri: false } },
-  { id: "3", name: "ကျော်ကျော်", rollNo: "၃", attendance: { mon: false, tue: false, wed: false, thu: false, fri: false } },
-  { id: "4", name: "အေးအေး", rollNo: "၄", attendance: { mon: false, tue: false, wed: false, thu: false, fri: false } },
-  { id: "5", name: "လှလှ", rollNo: "၅", attendance: { mon: false, tue: false, wed: false, thu: false, fri: false } },
-];
+    const classes = [
+        { id: "10-A", name: "Grade 10 - A", students: 45 },
+        { id: "10-B", name: "Grade 10 - B", students: 42 },
+        { id: "11-C", name: "Grade 11 - C", students: 38 },
+    ];
 
-export default function RollCallPage() {
-  const [students, setStudents] = useState<Student[]>(dummyStudents);
+    if (!hasSchool) {
+        return (
+            <div className="flex h-dvh flex-col bg-slate-50 p-6 items-center justify-center text-center pb-24">
+                <SchoolIcon className="h-20 w-20 text-blue-600 mb-6" />
+                <h1 className="text-3xl font-bold text-slate-900 mb-2">Roll Call System မှ ကြိုဆိုပါတယ်</h1>
+                <p className="text-slate-600 mb-8 max-w-xs text-sm">
+                    ကျောင်းအုပ်အနေဖြင့် ကျောင်းအသစ်တည်ဆောက်ပါ သို့မဟုတ် ဆရာအနေဖြင့် ရှိပြီးသားကျောင်းသို့ ဝင်ရောက်ပါ။
+                </p>
+                <div className="grid w-full gap-4 max-w-sm">
+                    <Link href="/school/setup">
+                        <Button className="w-full h-14 text-lg bg-blue-600 hover:bg-blue-700 font-bold">
+                            <Plus className="mr-2 h-5 w-5" /> ကျောင်းအသစ်ဖွင့်မည်
+                        </Button>
+                    </Link>
+                    <Link href="/school/join">
+                        <Button variant="outline" className="w-full h-14 text-lg border-blue-600 text-blue-600 font-bold">
+                            <LogIn className="mr-2 h-5 w-5" /> ကျောင်းသို့ဝင်မည်
+                        </Button>
+                    </Link>
+                </div>
+                <BottomNav />
+            </div>
+        );
+    }
 
-  const toggleAttendance = (studentId: string, day: keyof Student["attendance"]) => {
-    setStudents(prev =>
-      prev.map(s =>
-        s.id === studentId
-          ? { ...s, attendance: { ...s.attendance, [day]: !s.attendance[day] } }
-          : s
-      )
+    return (
+        <div className="flex h-dvh flex-col bg-slate-50 pb-16">
+            <header className="bg-white border-b px-6 py-4 flex items-center justify-between sticky top-0 z-10">
+                <div>
+                    <h1 className="text-xl font-bold text-slate-900">အမှတ် (၁) အခြေခံပညာအထက်တန်းကျောင်း</h1>
+                    <p className="text-xs text-blue-600 font-medium">Dashboard • {userRole === 'principal' ? 'ကျောင်းအုပ်' : 'အတန်းပိုင်ဆရာ'}</p>
+                </div>
+                <Button variant="ghost" size="icon" className="rounded-full bg-slate-100">
+                    <Users className="h-5 w-5 text-slate-600" />
+                </Button>
+            </header>
+
+            <main className="flex-1 overflow-y-auto p-4 space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                    <Card className="bg-blue-600 text-white border-none shadow-md">
+                        <CardContent className="p-4 flex flex-col items-center">
+                            <p className="text-xs opacity-80 mb-1">စုစုပေါင်းအတန်း</p>
+                            <p className="text-3xl font-bold">၁၂</p>
+                        </CardContent>
+                    </Card>
+                    <Card className="bg-emerald-500 text-white border-none shadow-md">
+                        <CardContent className="p-4 flex flex-col items-center">
+                            <p className="text-xs opacity-80 mb-1">ယနေ့ရောက်ရှိ</p>
+                            <p className="text-3xl font-bold">၉၈%</p>
+                        </CardContent>
+                    </Card>
+                </div>
+
+                <div className="flex items-center justify-between pt-2">
+                    <h2 className="text-lg font-bold text-slate-800">သင်ကြားရမည့် အတန်းများ</h2>
+                    <Button variant="link" className="text-blue-600 p-0 h-auto text-sm font-bold">အားလုံးကြည့်ရန်</Button>
+                </div>
+
+                <div className="space-y-3">
+                    {classes.map((cls) => (
+                        <Link key={cls.id} href={`/attendance/${cls.id}`}>
+                            <Card className="hover:shadow-md transition-shadow active:scale-[0.98] border-none shadow-sm mb-3">
+                                <CardHeader className="p-4 flex flex-row items-center justify-between space-y-0">
+                                    <div>
+                                        <CardTitle className="text-md font-bold">{cls.name}</CardTitle>
+                                        <CardDescription className="text-xs">ကျောင်းသားဦးရေ - {cls.students}</CardDescription>
+                                    </div>
+                                    <div className="h-10 w-10 rounded-full bg-blue-50 flex items-center justify-center">
+                                        <ClipboardCheck className="h-5 w-5 text-blue-600" />
+                                    </div>
+                                </CardHeader>
+                            </Card>
+                        </Link>
+                    ))}
+                </div>
+
+                <Button className="w-full bg-white text-blue-600 border-2 border-dashed border-blue-200 hover:bg-blue-50 h-16 rounded-xl font-bold">
+                    <Plus className="mr-2 h-5 w-5" /> အတန်းသစ်ထည့်မည်
+                </Button>
+            </main>
+
+            <BottomNav />
+        </div>
     );
-  };
-
-  return (
-    <div className="flex h-dvh flex-col bg-white text-slate-900 pb-16">
-      <header className="flex h-16 flex-shrink-0 items-center justify-between border-b px-4 bg-white sticky top-0 z-10">
-        <div className="flex items-center gap-2">
-          <ClipboardList className="h-6 w-6 text-blue-600" />
-          <h1 className="text-xl font-bold">Roll Call System</h1>
-        </div>
-        <Button variant="outline" size="sm">
-          <UserPlus className="h-4 w-4 mr-2" />
-          Add Student
-        </Button>
-      </header>
-
-      <main className="flex-1 overflow-auto p-4">
-        <div className="rounded-md border bg-white shadow-sm overflow-hidden">
-          <Table>
-            <TableHeader className="bg-slate-50">
-              <TableRow>
-                <TableHead className="w-[150px] font-bold text-slate-900">ကျောင်းသားနာမည်</TableHead>
-                <TableHead className="w-[80px] font-bold text-slate-900 text-center">ခုံနံပါတ်</TableHead>
-                <TableHead className="text-center font-bold text-slate-900">တနင်္လာ</TableHead>
-                <TableHead className="text-center font-bold text-slate-900">အင်္ဂါ</TableHead>
-                <TableHead className="text-center font-bold text-slate-900">ဗုဒ္ဓဟူး</TableHead>
-                <TableHead className="text-center font-bold text-slate-900">ကြာသပတေး</TableHead>
-                <TableHead className="text-center font-bold text-slate-900">သောကြာ</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {students.map((student) => (
-                <TableRow key={student.id} className="hover:bg-slate-50">
-                  <TableCell className="font-medium">{student.name}</TableCell>
-                  <TableCell className="text-center">{student.rollNo}</TableCell>
-                  <TableCell className="text-center">
-                    <Checkbox 
-                      checked={student.attendance.mon} 
-                      onCheckedChange={() => toggleAttendance(student.id, "mon")}
-                    />
-                  </TableCell>
-                  <TableCell className="text-center">
-                    <Checkbox 
-                      checked={student.attendance.tue} 
-                      onCheckedChange={() => toggleAttendance(student.id, "tue")}
-                    />
-                  </TableCell>
-                  <TableCell className="text-center">
-                    <Checkbox 
-                      checked={student.attendance.wed} 
-                      onCheckedChange={() => toggleAttendance(student.id, "wed")}
-                    />
-                  </TableCell>
-                  <TableCell className="text-center">
-                    <Checkbox 
-                      checked={student.attendance.thu} 
-                      onCheckedChange={() => toggleAttendance(student.id, "thu")}
-                    />
-                  </TableCell>
-                  <TableCell className="text-center">
-                    <Checkbox 
-                      checked={student.attendance.fri} 
-                      onCheckedChange={() => toggleAttendance(student.id, "fri")}
-                    />
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
-
-        <div className="mt-6 flex justify-end">
-          <Button className="bg-blue-600 hover:bg-blue-700 text-white px-8">
-            <Save className="h-4 w-4 mr-2" />
-            Save Attendance
-          </Button>
-        </div>
-      </main>
-      <BottomNav />
-    </div>
-  );
 }
