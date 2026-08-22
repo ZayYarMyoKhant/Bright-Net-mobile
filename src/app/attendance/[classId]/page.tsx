@@ -5,7 +5,7 @@ import { useState } from "react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Save, ClipboardList, Share2, Printer } from "lucide-react";
+import { ArrowLeft, Save, Share2, Printer } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 
@@ -29,7 +29,7 @@ const dummyStudents: Student[] = [
 export default function AttendancePage({ params }: { params: { classId: string } }) {
   const router = useRouter();
   const [students, setStudents] = useState<Student[]>(dummyStudents);
-  const classId = params.classId;
+  const classId = decodeURIComponent(params.classId);
 
   const toggleAttendance = (studentId: string) => {
     setStudents(prev =>
@@ -42,14 +42,14 @@ export default function AttendancePage({ params }: { params: { classId: string }
   };
 
   return (
-    <div className="flex h-dvh flex-col bg-slate-50 text-slate-900 pb-16">
+    <div className="flex h-dvh flex-col bg-slate-50 text-slate-900">
       <header className="flex h-16 flex-shrink-0 items-center justify-between border-b px-4 bg-white sticky top-0 z-10 shadow-sm">
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="icon" onClick={() => router.back()}>
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div>
-            <h1 className="text-lg font-bold">Attendance - {classId}</h1>
+            <h1 className="text-lg font-bold truncate max-w-[150px]">{classId} - Attendance</h1>
             <p className="text-[10px] text-slate-500 font-medium uppercase tracking-wider">{new Date().toLocaleDateString('my-MM', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
           </div>
         </div>
