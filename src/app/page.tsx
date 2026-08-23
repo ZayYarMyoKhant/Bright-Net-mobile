@@ -21,8 +21,6 @@ export default function RootPage() {
     const router = useRouter();
     const searchParams = useSearchParams();
     
-    // Simulation logic for prototype: 
-    // We check a URL param to see if a school was just "created"
     const isJustCreated = searchParams.get("setup") === "success";
     const [hasSchool, setHasSchool] = useState(false);
     const [schoolName, setSchoolName] = useState("အမှတ် (၁) အခြေခံပညာအထက်တန်းကျောင်း");
@@ -54,7 +52,6 @@ export default function RootPage() {
         setIsCreating(false);
     };
 
-    // 1. Initial Landing Page UI (If no school is set up)
     if (!hasSchool) {
         return (
             <div className="flex h-dvh flex-col bg-slate-50 p-6 items-center justify-center text-center">
@@ -81,10 +78,8 @@ export default function RootPage() {
         );
     }
 
-    // 2. Dashboard UI (After School Setup)
     return (
         <div className="flex h-dvh flex-col bg-white overflow-hidden">
-            {/* Header */}
             <header className="flex h-16 flex-shrink-0 items-center border-b px-4 bg-white sticky top-0 z-10">
                 <Button variant="ghost" size="icon" className="mr-2" onClick={() => setHasSchool(false)}>
                     <ArrowLeft className="h-5 w-5 text-slate-600" />
@@ -96,11 +91,8 @@ export default function RootPage() {
 
             <main className="flex-1 overflow-y-auto p-4">
                 <div className="max-w-md mx-auto space-y-6">
-                    
-                    {/* Create Class Section */}
                     <div className="space-y-4">
                         <h2 className="text-xl font-bold text-slate-800 text-center">အတန်းများ ဖန်တီးပါ</h2>
-                        
                         {!isCreating ? (
                             <Card 
                                 onClick={() => setIsCreating(true)}
@@ -121,7 +113,6 @@ export default function RootPage() {
                                             <X className="h-4 w-4" />
                                         </Button>
                                     </div>
-                                    
                                     <div className="space-y-2">
                                         <Label htmlFor="className">အတန်းအမည်</Label>
                                         <Input 
@@ -132,7 +123,6 @@ export default function RootPage() {
                                             className="h-12 bg-white"
                                         />
                                     </div>
-
                                     <div className="space-y-2">
                                         <Label>အချိန်များ</Label>
                                         <Select value={newPeriods} onValueChange={setNewPeriods}>
@@ -146,7 +136,6 @@ export default function RootPage() {
                                             </SelectContent>
                                         </Select>
                                     </div>
-
                                     <Button 
                                         onClick={handleAddClass}
                                         className="w-full h-12 bg-blue-600 hover:bg-blue-700 font-bold rounded-xl mt-2 shadow-lg shadow-blue-200"
@@ -157,17 +146,13 @@ export default function RootPage() {
                             </Card>
                         )}
                     </div>
-
-                    {/* Thick Blue Separator Line */}
                     <div className="h-1.5 w-full bg-blue-600 rounded-full opacity-90 shadow-sm" />
-
-                    {/* Class List */}
                     <div className="space-y-3 pb-10">
                         {classes.length === 0 ? (
                             <p className="text-center text-slate-400 text-sm italic py-10">အတန်းများ မရှိသေးပါ။ အပေါ်တွင် ဖန်တီးပါ။</p>
                         ) : (
                             classes.map((cls) => (
-                                <Link key={cls.id} href={`/attendance/${cls.id}`}>
+                                <Link key={cls.id} href={`/attendance/${cls.id}?name=${encodeURIComponent(cls.name)}&periods=${cls.periods}`}>
                                     <Card className="hover:shadow-md transition-all active:scale-[0.98] border-none shadow-sm mb-3 bg-slate-50/50 hover:bg-slate-100/80">
                                         <CardContent className="p-5 flex items-center justify-between">
                                             <div className="flex flex-col gap-1">
