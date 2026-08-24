@@ -8,11 +8,12 @@ import { Label } from "@/components/ui/label";
 import { ArrowLeft, School as SchoolIcon, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
-import { createSchoolAction } from "@/lib/school-actions";
+import { createClient } from "@/lib/supabase/client";
 
 export default function SchoolSetupPage() {
     const router = useRouter();
     const { toast } = useToast();
+    const supabase = createClient();
     
     const [loading, setLoading] = useState(false);
     const [formData, setFormData] = useState({
@@ -33,27 +34,40 @@ export default function SchoolSetupPage() {
         setLoading(true);
 
         try {
-            const result = await createSchoolAction(formData);
+            // Direct client-side insert to avoid Server Action fetch issues in this environment
+            const { data, error } = await supabase
+                .from('rc_schools')
+                .insert([
+                    {
+                        name: formData.schoolName,
+                        principal_name: formData.principalName,
+                        location: formData.location,
+                        phone: formData.phone
+                    }
+                ])
+                .select()
+                .single();
 
-            if (result.success && result.data) {
-                // Save to local storage for persistence
-                localStorage.setItem("rc_school_id", result.data.id);
+            if (error) {
+                console.error("Database Error:", error);
+                alert("Database Error: " + error.message);
+                toast({
+                    variant: "destructive",
+                    title: "ကျောင်းတည်ဆောက်မှု မအောင်မြင်ပါ",
+                    description: error.message
+                });
+            } else if (data) {
+                localStorage.setItem("rc_school_id", data.id);
                 toast({
                     title: "အောင်မြင်ပါသည်",
                     description: "ကျောင်းအသစ်ကို အောင်မြင်စွာ တည်ဆောက်ပြီးပါပြီ။"
                 });
-                
                 router.push('/');
-            } else {
-                alert("Error: " + result.error);
-                toast({
-                    variant: "destructive",
-                    title: "ကျောင်းတည်ဆောက်မှု မအောင်မြင်ပါ",
-                    description: result.error
-                });
+                router.refresh();
             }
         } catch (err: any) {
-            alert("စနစ်ချို့ယွင်းချက်ဖြစ်ပေါ်ပါသည်- " + (err.message || "Unknown Error"));
+            console.error("Fetch Error:", err);
+            alert("System Error: " + (err.message || "Unknown connectivity error"));
         } finally {
             setLoading(false);
         }
