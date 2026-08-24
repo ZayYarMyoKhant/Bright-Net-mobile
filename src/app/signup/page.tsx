@@ -1,118 +1,97 @@
 
 "use client";
 
-import { useState, useMemo, useContext } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Eye, EyeOff, Loader2 } from "lucide-react";
-import { countries } from "@/lib/data";
+import { Eye, EyeOff, Loader2, ClipboardCheck } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import Link from "next/link";
-import { MultiAccountContext } from "@/hooks/use-multi-account";
-
 
 export default function SignUpPage() {
   const router = useRouter();
   const supabase = createClient();
   const { toast } = useToast();
-  const multiAccount = useContext(MultiAccountContext);
 
-  const [countryCode, setCountryCode] = useState("95");
-  const [phoneNumber, setPhoneNumber] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-
-  const selectedCountry = useMemo(() => {
-    return countries.find(c => c.code === countryCode);
-  }, [countryCode]);
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
-    const fullPhoneNumber = `+${countryCode}${phoneNumber}`;
-
-    const { data, error } = await supabase.auth.signUp({
-      phone: fullPhoneNumber,
+    const { error } = await supabase.auth.signUp({
+      email: email,
       password: password,
+      options: {
+          emailRedirectTo: window.location.origin,
+      }
     });
     
     if (error) {
       toast({
         variant: "destructive",
-        title: "Sign up failed",
+        title: "အကောင့်ဖွင့်မှု မအောင်မြင်ပါ",
         description: error.message,
       });
-    } else if (data.session && multiAccount) {
-       await multiAccount.addOrSwitchAccount(data.session);
-       toast({
-        title: "Account created!",
-        description: "Redirecting to profile setup...",
-      });
-      router.push("/profile/setup");
+    } else {
+        toast({
+            title: "အကောင့်ဖွင့်ခြင်း အောင်မြင်ပါသည်",
+            description: "ကျေးဇူးပြု၍ ကျောင်းအချက်အလက်များ ဆက်လက်ဖြည့်စွက်ပါ။"
+        });
+        router.push("/");
+        router.refresh();
     }
     setLoading(false);
   };
 
-
   return (
-    <div className="flex h-dvh flex-col items-center justify-center bg-background p-4">
-        <div className="w-full max-w-sm">
+    <div className="flex h-dvh flex-col items-center justify-center bg-slate-50 p-4">
+        <div className="w-full max-w-sm bg-white p-8 rounded-3xl shadow-sm border border-slate-100">
             <div className="text-center mb-8">
-                <h1 className="text-2xl font-bold">Let Bright with <span className="text-primary">Bright-Net</span></h1>
-                <p className="text-muted-foreground mt-2">Account creation</p>
+                <div className="bg-blue-50 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                    <ClipboardCheck className="h-8 w-8 text-blue-600" />
+                </div>
+                <h1 className="text-2xl font-bold text-slate-900">အကောင့်သစ်ဖွင့်ရန်</h1>
+                <p className="text-muted-foreground mt-2">Roll Call အသုံးပြုရန် အကောင့်အရင်ဖွင့်ပါ</p>
             </div>
             
             <form onSubmit={handleSignUp} className="space-y-6">
-                <div>
-                    <Label htmlFor="phone">Phone number</Label>
-                    <div className="flex items-center mt-1 h-10 w-full rounded-md border border-input bg-background text-sm ring-offset-background focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2">
-                        <div className="flex items-center h-full pl-3 pr-2 border-r">
-                           <span className="text-muted-foreground text-base">+</span>
-                            <Input
-                                type="tel"
-                                value={countryCode}
-                                onChange={(e) => setCountryCode(e.target.value.replace(/\D/g, ''))}
-                                className="w-10 border-0 bg-transparent p-0 text-base h-auto focus-visible:ring-0 focus-visible:ring-offset-0"
-                                required
-                                maxLength={4}
-                            />
-                            <span className="text-xl ml-1">
-                               {selectedCountry?.flag || '🌍'}
-                           </span>
-                        </div>
-                        <Input
-                            id="phone"
-                            type="tel"
-                            placeholder="123456789"
-                            value={phoneNumber}
-                            onChange={(e) => setPhoneNumber(e.target.value.replace(/\D/g, ''))}
-                            required
-                            className="border-0 bg-transparent h-full focus-visible:ring-0 focus-visible:ring-offset-0"
-                        />
-                    </div>
+                <div className="space-y-2">
+                    <Label htmlFor="email">Email</Label>
+                    <Input
+                        id="email"
+                        type="email"
+                        placeholder="example@gmail.com"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        required
+                        className="h-12 border-slate-200"
+                    />
                 </div>
 
-                <div>
-                    <Label htmlFor="password">Password</Label>
-                    <div className="relative mt-1">
+                <div className="space-y-2">
+                    <Label htmlFor="password">Password (အနည်းဆုံး ၆ လုံး)</Label>
+                    <div className="relative">
                         <Input
                             id="password"
                             type={showPassword ? "text" : "password"}
-                            placeholder="Enter your password"
+                            placeholder="စကားဝှက် အသစ်ထားပါ"
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
                             required
+                            className="h-12 border-slate-200 pr-10"
                         />
                         <Button
                             type="button"
                             variant="ghost"
                             size="icon"
-                            className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7"
+                            className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8"
                             onClick={() => setShowPassword(!showPassword)}
                         >
                             {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -120,17 +99,17 @@ export default function SignUpPage() {
                     </div>
                 </div>
 
-                <Button type="submit" className="w-full" disabled={loading}>
-                    {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    Create account
+                <Button type="submit" className="w-full h-12 bg-blue-600 hover:bg-blue-700 font-bold rounded-xl shadow-lg shadow-blue-100" disabled={loading}>
+                    {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                    အကောင့်ဖွင့်မည်
                 </Button>
             </form>
-
-            <div className="mt-6 text-center text-sm">
-                <p className="text-muted-foreground">
-                    Already have an account?{' '}
-                    <Link href="/login" className="text-primary font-semibold hover:underline">
-                        Sign In
+            
+            <div className="mt-8 text-center text-sm">
+                <p className="text-slate-500">
+                    အကောင့်ရှိပြီးသားလား?{' '}
+                    <Link href="/login" className="text-blue-600 font-bold hover:underline">
+                        အကောင့်ပြန်ဝင်ရန်
                     </Link>
                 </p>
             </div>

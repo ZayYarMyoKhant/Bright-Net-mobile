@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -16,6 +16,7 @@ export default function SchoolSetupPage() {
     const supabase = createClient();
     
     const [loading, setLoading] = useState(false);
+    const [userId, setUserId] = useState<string | null>(null);
     const [formData, setFormData] = useState({
         schoolName: "",
         principalName: "",
@@ -23,10 +24,22 @@ export default function SchoolSetupPage() {
         phone: ""
     });
 
+    useEffect(() => {
+        const getUserId = async () => {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) {
+                router.push('/login');
+            } else {
+                setUserId(user.id);
+            }
+        };
+        getUserId();
+    }, [supabase, router]);
+
     const handleCreate = async (e: React.FormEvent) => {
         e.preventDefault();
         
-        if (!formData.schoolName) {
+        if (!formData.schoolName || !userId) {
             toast({ variant: "destructive", title: "ကျောင်းအမည် လိုအပ်ပါသည်" });
             return;
         }
@@ -34,7 +47,6 @@ export default function SchoolSetupPage() {
         setLoading(true);
 
         try {
-            // API ကနေ တိုက်ရိုက် insert လုပ်ခြင်း
             const { data, error } = await supabase
                 .from('rc_schools')
                 .insert([
@@ -42,21 +54,16 @@ export default function SchoolSetupPage() {
                         name: formData.schoolName,
                         principal_name: formData.principalName,
                         location: formData.location,
-                        phone: formData.phone
+                        phone: formData.phone,
+                        creator_id: userId // အကောင့်ပိုင်ရှင်နှင့် ချိတ်သည်
                     }
                 ])
                 .select()
                 .single();
 
             if (error) {
-                console.error("Supabase Error:", error);
-                toast({
-                    variant: "destructive",
-                    title: "Database Error",
-                    description: error.message
-                });
+                throw error;
             } else if (data) {
-                localStorage.setItem("rc_school_id", data.id);
                 toast({
                     title: "အောင်မြင်ပါသည်",
                     description: "ကျောင်းအသစ်ကို အောင်မြင်စွာ တည်ဆောက်ပြီးပါပြီ။"
@@ -64,11 +71,11 @@ export default function SchoolSetupPage() {
                 router.push('/');
             }
         } catch (err: any) {
-            console.error("Fetch Error:", err);
+            console.error("Supabase Error:", err);
             toast({
                 variant: "destructive",
-                title: "System Error",
-                description: err.message || "Network ချိတ်ဆက်မှု ပြဿနာရှိနိုင်ပါသည်။"
+                title: "Error",
+                description: err.message || "အချက်အလက်သိမ်းဆည်းမှု မအောင်မြင်ပါ။"
             });
         } finally {
             setLoading(false);

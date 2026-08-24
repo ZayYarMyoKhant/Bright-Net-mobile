@@ -4,7 +4,7 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Plus, ArrowLeft, ClipboardCheck, X, Loader2 } from "lucide-react";
+import { Plus, ArrowLeft, ClipboardCheck, X, Loader2, LogOut } from "lucide-react";
 import Link from "next/link";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -23,6 +23,7 @@ export default function RootPage() {
     const supabase = createClient();
     
     const [loading, setLoading] = useState(true);
+    const [user, setUser] = useState<any>(null);
     const [schoolId, setSchoolId] = useState<string | null>(null);
     const [schoolName, setSchoolName] = useState("");
     
@@ -34,51 +35,44 @@ export default function RootPage() {
     const [classes, setClasses] = useState<ClassData[]>([]);
 
     useEffect(() => {
-        const checkExistingSchool = async () => {
-            const savedSchoolId = localStorage.getItem("rc_school_id");
-            if (savedSchoolId) {
-                try {
-                    const { data, error } = await supabase
-                        .from('rc_schools')
-                        .select('name')
-                        .eq('id', savedSchoolId)
-                        .single();
-                    
-                    if (data && !error) {
-                        setSchoolId(savedSchoolId);
-                        setSchoolName(data.name);
-                        // Fetch classes if the table exists
-                        fetchClasses(savedSchoolId);
-                    } else {
-                        localStorage.removeItem("rc_school_id");
-                    }
-                } catch (e) {
-                    console.error("School check error:", e);
-                    localStorage.removeItem("rc_school_id");
-                }
+        const checkAuth = async () => {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) {
+                router.push('/login');
+                return;
+            }
+            setUser(user);
+
+            // Check if user already has a school created
+            const { data: school } = await supabase
+                .from('rc_schools')
+                .select('*')
+                .eq('creator_id', user.id)
+                .single();
+            
+            if (school) {
+                setSchoolId(school.id);
+                setSchoolName(school.name);
+                fetchClasses(school.id);
             }
             setLoading(false);
         };
-        checkExistingSchool();
-    }, [supabase]);
+        checkAuth();
+    }, [supabase, router]);
 
     const fetchClasses = async (id: string) => {
-        try {
-            const { data, error } = await supabase
-                .from('rc_classes')
-                .select('*')
-                .eq('school_id', id)
-                .order('created_at', { ascending: false });
-            
-            if (data && !error) {
-                setClasses(data.map(c => ({
-                    id: c.id,
-                    name: c.name,
-                    periods: c.periods.toString()
-                })));
-            }
-        } catch (e) {
-            console.error("Classes fetch error (maybe table not created yet):", e);
+        const { data, error } = await supabase
+            .from('rc_classes')
+            .select('*')
+            .eq('school_id', id)
+            .order('created_at', { ascending: false });
+        
+        if (data && !error) {
+            setClasses(data.map(c => ({
+                id: c.id,
+                name: c.name,
+                periods: c.periods.toString()
+            })));
         }
     };
 
@@ -86,41 +80,33 @@ export default function RootPage() {
         if (!newClassName || !schoolId) return;
         setIsSavingClass(true);
 
-        try {
-            const { data, error } = await supabase
-                .from('rc_classes')
-                .insert({
-                    school_id: schoolId,
-                    name: newClassName,
-                    periods: parseInt(newPeriods)
-                })
-                .select()
-                .single();
+        const { data, error } = await supabase
+            .from('rc_classes')
+            .insert({
+                school_id: schoolId,
+                name: newClassName,
+                periods: parseInt(newPeriods)
+            })
+            .select()
+            .single();
 
-            if (data && !error) {
-                setClasses([{
-                    id: data.id,
-                    name: data.name,
-                    periods: data.periods.toString()
-                }, ...classes]);
-                setNewClassName("");
-                setNewPeriods("8");
-                setIsCreating(false);
-            } else if (error) {
-                alert("အတန်းသိမ်းဆည်းမှု မအောင်မြင်ပါ (rc_classes table ဆောက်ရန် လိုအပ်နိုင်ပါသည်) - " + error.message);
-            }
-        } catch (e: any) {
-            alert("Error: " + e.message);
-        } finally {
-            setIsSavingClass(false);
+        if (data && !error) {
+            setClasses([{
+                id: data.id,
+                name: data.name,
+                periods: data.periods.toString()
+            }, ...classes]);
+            setNewClassName("");
+            setIsCreating(false);
+        } else if (error) {
+            alert("Error creating class: " + error.message);
         }
+        setIsSavingClass(false);
     };
 
-    const handleLogout = () => {
-        localStorage.removeItem("rc_school_id");
-        setSchoolId(null);
-        setSchoolName("");
-        setClasses([]);
+    const handleSignOut = async () => {
+        await supabase.auth.signOut();
+        router.push('/login');
     };
 
     if (loading) {
@@ -134,12 +120,17 @@ export default function RootPage() {
     if (!schoolId) {
         return (
             <div className="flex h-dvh flex-col bg-slate-50 p-6 items-center justify-center text-center">
+                <div className="absolute top-4 right-4">
+                    <Button variant="ghost" size="sm" onClick={handleSignOut} className="text-slate-500">
+                        <LogOut className="h-4 w-4 mr-2" /> ထွက်မည်
+                    </Button>
+                </div>
                 <div className="bg-blue-50 p-6 rounded-3xl mb-6">
                     <ClipboardCheck className="h-16 w-16 text-blue-600" />
                 </div>
                 <h1 className="text-3xl font-bold text-slate-900 mb-2">Roll Call System</h1>
                 <p className="text-slate-600 mb-10 max-w-xs text-sm leading-relaxed">
-                    ကျောင်းအုပ်အနေဖြင့် ကျောင်းအသစ်တည်ဆောက်ပါ သို့မဟုတ် ဆရာအနေဖြင့် ရှိပြီးသားကျောင်းသို့ ဝင်ရောက်ပါ။
+                    ကျောင်းတည်ဆောက်ထားခြင်း မရှိသေးပါ။ ကျောင်းအသစ်တည်ဆောက်ပါ သို့မဟုတ် ရှိပြီးသားကျောင်းသို့ ဝင်ရောက်ပါ။
                 </p>
                 <div className="grid w-full gap-4 max-w-sm">
                     <Link href="/school/setup" className="w-full">
@@ -161,28 +152,29 @@ export default function RootPage() {
         <div className="flex h-dvh flex-col bg-white overflow-hidden">
             <header className="flex h-16 flex-shrink-0 items-center justify-between border-b px-4 bg-white sticky top-0 z-10">
                 <div className="flex items-center gap-2 overflow-hidden">
-                    <Button variant="ghost" size="icon" onClick={handleLogout} className="flex-shrink-0">
-                        <ArrowLeft className="h-5 w-5 text-slate-600" />
-                    </Button>
                     <h1 className="text-lg font-bold text-slate-900 truncate">
-                        {schoolName} အတွက် အတန်းများ
+                        {schoolName}
                     </h1>
                 </div>
+                <Button variant="ghost" size="icon" onClick={handleSignOut} className="text-slate-500">
+                    <LogOut className="h-5 w-5" />
+                </Button>
             </header>
 
             <main className="flex-1 overflow-y-auto p-4">
                 <div className="max-w-md mx-auto space-y-6">
                     <div className="space-y-4">
-                        <h2 className="text-xl font-bold text-slate-800 text-center">အတန်းများ ဖန်တီးပါ</h2>
+                        <h2 className="text-xl font-bold text-slate-800 text-center">အတန်းများ စီမံမည်</h2>
                         {!isCreating ? (
                             <Card 
                                 onClick={() => setIsCreating(true)}
-                                className="border-2 border-dashed border-slate-200 hover:border-blue-400 hover:bg-blue-50 transition-all cursor-pointer rounded-2xl group active:scale-[0.98]"
+                                className="border-2 border-dashed border-slate-200 hover:border-blue-400 hover:bg-blue-50 transition-all cursor-pointer rounded-2xl group"
                             >
                                 <CardContent className="p-10 flex flex-col items-center justify-center gap-3">
                                     <div className="h-14 w-14 rounded-full bg-slate-100 flex items-center justify-center group-hover:bg-blue-600 transition-colors">
                                         <Plus className="h-8 w-8 text-slate-400 group-hover:text-white" />
                                     </div>
+                                    <p className="text-slate-500 font-bold">အတန်းသစ်ဖန်တီးပါ</p>
                                 </CardContent>
                             </Card>
                         ) : (
@@ -208,7 +200,7 @@ export default function RootPage() {
                                         <Label>အချိန်များ</Label>
                                         <Select value={newPeriods} onValueChange={setNewPeriods}>
                                             <SelectTrigger className="h-12 bg-white">
-                                                <SelectValue placeholder="အချိန်ရွေးပါ" />
+                                                <SelectValue />
                                             </SelectTrigger>
                                             <SelectContent>
                                                 {[6, 7, 8, 9, 10, 11, 12].map((p) => (
