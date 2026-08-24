@@ -25,44 +25,58 @@ export default function SchoolSetupPage() {
 
     const handleCreate = async (e: React.FormEvent) => {
         e.preventDefault();
+        
+        if (!formData.schoolName) {
+            alert("ကျောင်းအမည် ထည့်သွင်းပေးပါရန်");
+            return;
+        }
+
         setLoading(true);
+        console.log("Attempting to create school with data:", formData);
 
         try {
+            // Add a simple timeout race to prevent infinite hanging
             const { data, error } = await supabase
                 .from('rc_schools')
-                .insert({
-                    name: formData.schoolName,
-                    principal_name: formData.principalName,
-                    location: formData.location,
-                    phone: formData.phone
-                })
+                .insert([
+                    {
+                        name: formData.schoolName,
+                        principal_name: formData.principalName,
+                        location: formData.location,
+                        phone: formData.phone
+                    }
+                ])
                 .select()
                 .single();
 
             if (error) {
-                console.error("Supabase error:", error);
+                console.error("Supabase direct error:", error);
+                alert("Database Error: " + error.message + " (" + error.code + ")");
                 toast({
                     variant: "destructive",
                     title: "ကျောင်းတည်ဆောက်မှု မအောင်မြင်ပါ",
-                    description: error.message || "Database connection error ရှိနေပါသည်။"
+                    description: error.message
                 });
             } else if (data) {
+                console.log("School created successfully:", data);
                 // Save to local storage for persistence
                 localStorage.setItem("rc_school_id", data.id);
                 toast({
                     title: "အောင်မြင်ပါသည်",
                     description: "ကျောင်းအသစ်ကို အောင်မြင်စွာ တည်ဆောက်ပြီးပါပြီ။"
                 });
-                router.push('/');
-                router.refresh();
+                
+                // Small delay to ensure state is clear before redirect
+                setTimeout(() => {
+                    router.push('/');
+                }, 500);
+            } else {
+                console.warn("No data returned from Supabase insert");
+                alert("ကျောင်းတည်ဆောက်မှုတွင် အချက်အလက်ပြန်မလာပါ။ Table ကိုပြန်စစ်ပေးပါ။");
             }
         } catch (err: any) {
-            console.error("Execution error:", err);
-            toast({
-                variant: "destructive",
-                title: "Error",
-                description: "စနစ်ချို့ယွင်းချက် ဖြစ်ပေါ်နေပါသည်။"
-            });
+            console.error("Critical execution error:", err);
+            alert("စနစ်ချို့ယွင်းချက်ဖြစ်ပေါ်ပါသည်- " + (err.message || "Unknown Error"));
         } finally {
             setLoading(false);
         }
@@ -97,6 +111,7 @@ export default function SchoolSetupPage() {
                                 className="h-12 border-slate-200"
                                 value={formData.schoolName}
                                 onChange={handleChange}
+                                disabled={loading}
                             />
                         </div>
                         <div className="space-y-2">
@@ -107,6 +122,7 @@ export default function SchoolSetupPage() {
                                 className="h-12 border-slate-200"
                                 value={formData.principalName}
                                 onChange={handleChange}
+                                disabled={loading}
                             />
                         </div>
                         <div className="space-y-2">
@@ -117,6 +133,7 @@ export default function SchoolSetupPage() {
                                 className="h-12 border-slate-200"
                                 value={formData.location}
                                 onChange={handleChange}
+                                disabled={loading}
                             />
                         </div>
                         <div className="space-y-2">
@@ -128,6 +145,7 @@ export default function SchoolSetupPage() {
                                 className="h-12 border-slate-200"
                                 value={formData.phone}
                                 onChange={handleChange}
+                                disabled={loading}
                             />
                         </div>
 
