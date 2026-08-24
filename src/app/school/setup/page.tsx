@@ -34,7 +34,7 @@ export default function SchoolSetupPage() {
         setLoading(true);
 
         try {
-            // Direct client-side insert to avoid Server Action fetch issues in this environment
+            // API ကနေ တိုက်ရိုက် insert လုပ်ခြင်း
             const { data, error } = await supabase
                 .from('rc_schools')
                 .insert([
@@ -49,11 +49,10 @@ export default function SchoolSetupPage() {
                 .single();
 
             if (error) {
-                console.error("Database Error:", error);
-                alert("Database Error: " + error.message);
+                console.error("Supabase Error:", error);
                 toast({
                     variant: "destructive",
-                    title: "ကျောင်းတည်ဆောက်မှု မအောင်မြင်ပါ",
+                    title: "Database Error",
                     description: error.message
                 });
             } else if (data) {
@@ -63,11 +62,14 @@ export default function SchoolSetupPage() {
                     description: "ကျောင်းအသစ်ကို အောင်မြင်စွာ တည်ဆောက်ပြီးပါပြီ။"
                 });
                 router.push('/');
-                router.refresh();
             }
         } catch (err: any) {
             console.error("Fetch Error:", err);
-            alert("System Error: " + (err.message || "Unknown connectivity error"));
+            toast({
+                variant: "destructive",
+                title: "System Error",
+                description: err.message || "Network ချိတ်ဆက်မှု ပြဿနာရှိနိုင်ပါသည်။"
+            });
         } finally {
             setLoading(false);
         }

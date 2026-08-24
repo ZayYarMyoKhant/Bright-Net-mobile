@@ -5,7 +5,6 @@ import { cookies } from 'next/headers'
 export function createClient() {
   const cookieStore = cookies()
   
-  // Use the correct project URL and provided API key for server-side
   const supabaseUrl = 'https://upegjqsrbxydplidsoan.supabase.co';
   const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVwZWdqcXNyYnh5ZHBsaWRzb2FuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODczODk4MjAsImV4cCI6MjEwMjk2NTgyMH0.o3GZO9LDahABIgAxjt4vCVjUxjWM4legsoIH2lQFQnc';
 
@@ -21,14 +20,14 @@ export function createClient() {
           try {
             cookieStore.set({ name, value, ...options })
           } catch (error) {
-            // The `set` method was called from a Server Component.
+            // Handle set in server components
           }
         },
         remove(name: string, options: CookieOptions) {
           try {
             cookieStore.set({ name, value: '', ...options })
           } catch (error) {
-            // The `delete` method was called from a Server Component.
+            // Handle delete in server components
           }
         },
       },

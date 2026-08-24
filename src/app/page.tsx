@@ -37,18 +37,23 @@ export default function RootPage() {
         const checkExistingSchool = async () => {
             const savedSchoolId = localStorage.getItem("rc_school_id");
             if (savedSchoolId) {
-                // Fetch directly from client to avoid Server Action routing issues
-                const { data, error } = await supabase
-                    .from('rc_schools')
-                    .select('name')
-                    .eq('id', savedSchoolId)
-                    .single();
-                
-                if (data && !error) {
-                    setSchoolId(savedSchoolId);
-                    setSchoolName(data.name);
-                    fetchClasses(savedSchoolId);
-                } else {
+                try {
+                    const { data, error } = await supabase
+                        .from('rc_schools')
+                        .select('name')
+                        .eq('id', savedSchoolId)
+                        .single();
+                    
+                    if (data && !error) {
+                        setSchoolId(savedSchoolId);
+                        setSchoolName(data.name);
+                        // Fetch classes if the table exists
+                        fetchClasses(savedSchoolId);
+                    } else {
+                        localStorage.removeItem("rc_school_id");
+                    }
+                } catch (e) {
+                    console.error("School check error:", e);
                     localStorage.removeItem("rc_school_id");
                 }
             }
@@ -58,18 +63,22 @@ export default function RootPage() {
     }, [supabase]);
 
     const fetchClasses = async (id: string) => {
-        const { data, error } = await supabase
-            .from('rc_classes')
-            .select('*')
-            .eq('school_id', id)
-            .order('created_at', { ascending: false });
-        
-        if (data && !error) {
-            setClasses(data.map(c => ({
-                id: c.id,
-                name: c.name,
-                periods: c.periods.toString()
-            })));
+        try {
+            const { data, error } = await supabase
+                .from('rc_classes')
+                .select('*')
+                .eq('school_id', id)
+                .order('created_at', { ascending: false });
+            
+            if (data && !error) {
+                setClasses(data.map(c => ({
+                    id: c.id,
+                    name: c.name,
+                    periods: c.periods.toString()
+                })));
+            }
+        } catch (e) {
+            console.error("Classes fetch error (maybe table not created yet):", e);
         }
     };
 
@@ -77,27 +86,34 @@ export default function RootPage() {
         if (!newClassName || !schoolId) return;
         setIsSavingClass(true);
 
-        const { data, error } = await supabase
-            .from('rc_classes')
-            .insert({
-                school_id: schoolId,
-                name: newClassName,
-                periods: parseInt(newPeriods)
-            })
-            .select()
-            .single();
+        try {
+            const { data, error } = await supabase
+                .from('rc_classes')
+                .insert({
+                    school_id: schoolId,
+                    name: newClassName,
+                    periods: parseInt(newPeriods)
+                })
+                .select()
+                .single();
 
-        if (data && !error) {
-            setClasses([{
-                id: data.id,
-                name: data.name,
-                periods: data.periods.toString()
-            }, ...classes]);
-            setNewClassName("");
-            setNewPeriods("8");
-            setIsCreating(false);
+            if (data && !error) {
+                setClasses([{
+                    id: data.id,
+                    name: data.name,
+                    periods: data.periods.toString()
+                }, ...classes]);
+                setNewClassName("");
+                setNewPeriods("8");
+                setIsCreating(false);
+            } else if (error) {
+                alert("အတန်းသိမ်းဆည်းမှု မအောင်မြင်ပါ (rc_classes table ဆောက်ရန် လိုအပ်နိုင်ပါသည်) - " + error.message);
+            }
+        } catch (e: any) {
+            alert("Error: " + e.message);
+        } finally {
+            setIsSavingClass(false);
         }
-        setIsSavingClass(false);
     };
 
     const handleLogout = () => {
