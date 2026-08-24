@@ -7,12 +7,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ArrowLeft, School as SchoolIcon, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { createSchoolAction } from "@/lib/school-actions";
 
 export default function SchoolSetupPage() {
     const router = useRouter();
-    const supabase = createClient();
     const { toast } = useToast();
     
     const [loading, setLoading] = useState(false);
@@ -27,55 +26,33 @@ export default function SchoolSetupPage() {
         e.preventDefault();
         
         if (!formData.schoolName) {
-            alert("ကျောင်းအမည် ထည့်သွင်းပေးပါရန်");
+            toast({ variant: "destructive", title: "ကျောင်းအမည် လိုအပ်ပါသည်" });
             return;
         }
 
         setLoading(true);
-        console.log("Attempting to create school with data:", formData);
 
         try {
-            // Add a simple timeout race to prevent infinite hanging
-            const { data, error } = await supabase
-                .from('rc_schools')
-                .insert([
-                    {
-                        name: formData.schoolName,
-                        principal_name: formData.principalName,
-                        location: formData.location,
-                        phone: formData.phone
-                    }
-                ])
-                .select()
-                .single();
+            const result = await createSchoolAction(formData);
 
-            if (error) {
-                console.error("Supabase direct error:", error);
-                alert("Database Error: " + error.message + " (" + error.code + ")");
-                toast({
-                    variant: "destructive",
-                    title: "ကျောင်းတည်ဆောက်မှု မအောင်မြင်ပါ",
-                    description: error.message
-                });
-            } else if (data) {
-                console.log("School created successfully:", data);
+            if (result.success && result.data) {
                 // Save to local storage for persistence
-                localStorage.setItem("rc_school_id", data.id);
+                localStorage.setItem("rc_school_id", result.data.id);
                 toast({
                     title: "အောင်မြင်ပါသည်",
                     description: "ကျောင်းအသစ်ကို အောင်မြင်စွာ တည်ဆောက်ပြီးပါပြီ။"
                 });
                 
-                // Small delay to ensure state is clear before redirect
-                setTimeout(() => {
-                    router.push('/');
-                }, 500);
+                router.push('/');
             } else {
-                console.warn("No data returned from Supabase insert");
-                alert("ကျောင်းတည်ဆောက်မှုတွင် အချက်အလက်ပြန်မလာပါ။ Table ကိုပြန်စစ်ပေးပါ။");
+                alert("Error: " + result.error);
+                toast({
+                    variant: "destructive",
+                    title: "ကျောင်းတည်ဆောက်မှု မအောင်မြင်ပါ",
+                    description: result.error
+                });
             }
         } catch (err: any) {
-            console.error("Critical execution error:", err);
             alert("စနစ်ချို့ယွင်းချက်ဖြစ်ပေါ်ပါသည်- " + (err.message || "Unknown Error"));
         } finally {
             setLoading(false);

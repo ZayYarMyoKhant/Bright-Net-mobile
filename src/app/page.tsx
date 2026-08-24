@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Label } from "@/components/ui/label";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { fetchSchoolById } from "@/lib/school-actions";
 
 type ClassData = {
     id: string;
@@ -37,13 +38,10 @@ export default function RootPage() {
         const checkExistingSchool = async () => {
             const savedSchoolId = localStorage.getItem("rc_school_id");
             if (savedSchoolId) {
-                const { data, error } = await supabase
-                    .from('rc_schools')
-                    .select('name')
-                    .eq('id', savedSchoolId)
-                    .single();
+                // Use Server Action to check school to avoid client-side fetch issues
+                const data = await fetchSchoolById(savedSchoolId);
                 
-                if (data && !error) {
+                if (data) {
                     setSchoolId(savedSchoolId);
                     setSchoolName(data.name);
                     fetchClasses(savedSchoolId);
@@ -54,7 +52,7 @@ export default function RootPage() {
             setLoading(false);
         };
         checkExistingSchool();
-    }, [supabase]);
+    }, []);
 
     const fetchClasses = async (id: string) => {
         const { data, error } = await supabase
