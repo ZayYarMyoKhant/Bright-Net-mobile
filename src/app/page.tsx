@@ -4,12 +4,13 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Plus, ArrowLeft, ClipboardCheck, X } from "lucide-react";
+import { Plus, ArrowLeft, ClipboardCheck, X, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
+import { createClient } from "@/lib/supabase/client";
 
 type ClassData = {
     id: string;
@@ -19,40 +20,101 @@ type ClassData = {
 
 export default function RootPage() {
     const router = useRouter();
-    const searchParams = useSearchParams();
+    const supabase = createClient();
     
-    const isJustCreated = searchParams.get("setup") === "success";
-    const [hasSchool, setHasSchool] = useState(false);
-    const [schoolName, setSchoolName] = useState("အမှတ် (၁) အခြေခံပညာအထက်တန်းကျောင်း");
+    const [loading, setLoading] = useState(true);
+    const [schoolId, setSchoolId] = useState<string | null>(null);
+    const [schoolName, setSchoolName] = useState("");
     
-    useEffect(() => {
-        if (isJustCreated) {
-            setHasSchool(true);
-        }
-    }, [isJustCreated]);
-
     const [isCreating, setIsCreating] = useState(false);
     const [newClassName, setNewClassName] = useState("");
     const [newPeriods, setNewPeriods] = useState("8");
+    const [isSavingClass, setIsSavingClass] = useState(false);
     
-    const [classes, setClasses] = useState<ClassData[]>([
-        { id: "1", name: "Grade 12 (A)", periods: "8" },
-    ]);
+    const [classes, setClasses] = useState<ClassData[]>([]);
 
-    const handleAddClass = () => {
-        if (!newClassName) return;
-        const newClass: ClassData = {
-            id: Date.now().toString(),
-            name: newClassName,
-            periods: newPeriods
+    useEffect(() => {
+        const checkExistingSchool = async () => {
+            const savedSchoolId = localStorage.getItem("rc_school_id");
+            if (savedSchoolId) {
+                const { data, error } = await supabase
+                    .from('rc_schools')
+                    .select('name')
+                    .eq('id', savedSchoolId)
+                    .single();
+                
+                if (data && !error) {
+                    setSchoolId(savedSchoolId);
+                    setSchoolName(data.name);
+                    fetchClasses(savedSchoolId);
+                } else {
+                    localStorage.removeItem("rc_school_id");
+                }
+            }
+            setLoading(false);
         };
-        setClasses([...classes, newClass]);
-        setNewClassName("");
-        setNewPeriods("8");
-        setIsCreating(false);
+        checkExistingSchool();
+    }, [supabase]);
+
+    const fetchClasses = async (id: string) => {
+        const { data, error } = await supabase
+            .from('rc_classes')
+            .select('*')
+            .eq('school_id', id)
+            .order('created_at', { ascending: false });
+        
+        if (data && !error) {
+            setClasses(data.map(c => ({
+                id: c.id,
+                name: c.name,
+                periods: c.periods.toString()
+            })));
+        }
     };
 
-    if (!hasSchool) {
+    const handleAddClass = async () => {
+        if (!newClassName || !schoolId) return;
+        setIsSavingClass(true);
+
+        const { data, error } = await supabase
+            .from('rc_classes')
+            .insert({
+                school_id: schoolId,
+                name: newClassName,
+                periods: parseInt(newPeriods)
+            })
+            .select()
+            .single();
+
+        if (data && !error) {
+            setClasses([{
+                id: data.id,
+                name: data.name,
+                periods: data.periods.toString()
+            }, ...classes]);
+            setNewClassName("");
+            setNewPeriods("8");
+            setIsCreating(false);
+        }
+        setIsSavingClass(false);
+    };
+
+    const handleLogout = () => {
+        localStorage.removeItem("rc_school_id");
+        setSchoolId(null);
+        setSchoolName("");
+        setClasses([]);
+    };
+
+    if (loading) {
+        return (
+            <div className="flex h-dvh items-center justify-center bg-slate-50">
+                <Loader2 className="h-10 w-10 animate-spin text-blue-600" />
+            </div>
+        );
+    }
+
+    if (!schoolId) {
         return (
             <div className="flex h-dvh flex-col bg-slate-50 p-6 items-center justify-center text-center">
                 <div className="bg-blue-50 p-6 rounded-3xl mb-6">
@@ -80,13 +142,15 @@ export default function RootPage() {
 
     return (
         <div className="flex h-dvh flex-col bg-white overflow-hidden">
-            <header className="flex h-16 flex-shrink-0 items-center border-b px-4 bg-white sticky top-0 z-10">
-                <Button variant="ghost" size="icon" className="mr-2" onClick={() => setHasSchool(false)}>
-                    <ArrowLeft className="h-5 w-5 text-slate-600" />
-                </Button>
-                <h1 className="text-lg font-bold text-slate-900 truncate">
-                    {schoolName} အတွက် အတန်းများ
-                </h1>
+            <header className="flex h-16 flex-shrink-0 items-center justify-between border-b px-4 bg-white sticky top-0 z-10">
+                <div className="flex items-center gap-2 overflow-hidden">
+                    <Button variant="ghost" size="icon" onClick={handleLogout} className="flex-shrink-0">
+                        <ArrowLeft className="h-5 w-5 text-slate-600" />
+                    </Button>
+                    <h1 className="text-lg font-bold text-slate-900 truncate">
+                        {schoolName} အတွက် အတန်းများ
+                    </h1>
+                </div>
             </header>
 
             <main className="flex-1 overflow-y-auto p-4">
@@ -138,9 +202,10 @@ export default function RootPage() {
                                     </div>
                                     <Button 
                                         onClick={handleAddClass}
+                                        disabled={isSavingClass || !newClassName}
                                         className="w-full h-12 bg-blue-600 hover:bg-blue-700 font-bold rounded-xl mt-2 shadow-lg shadow-blue-200"
                                     >
-                                        ဖန်တီးမည်
+                                        {isSavingClass ? <Loader2 className="h-5 w-5 animate-spin" /> : "ဖန်တီးမည်"}
                                     </Button>
                                 </CardContent>
                             </Card>

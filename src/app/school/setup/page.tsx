@@ -5,20 +5,59 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ArrowLeft, School as SchoolIcon } from "lucide-react";
+import { ArrowLeft, School as SchoolIcon, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { createClient } from "@/lib/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 export default function SchoolSetupPage() {
     const router = useRouter();
+    const supabase = createClient();
+    const { toast } = useToast();
+    
     const [loading, setLoading] = useState(false);
+    const [formData, setFormData] = useState({
+        schoolName: "",
+        principalName: "",
+        location: "",
+        phone: ""
+    });
 
-    const handleCreate = (e: React.FormEvent) => {
+    const handleCreate = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
-        // Simulate creation by navigating to home with a success flag
-        setTimeout(() => {
-            router.push('/?setup=success');
-        }, 1500);
+
+        const { data, error } = await supabase
+            .from('rc_schools')
+            .insert({
+                name: formData.schoolName,
+                principal_name: formData.principalName,
+                location: formData.location,
+                phone: formData.phone
+            })
+            .select()
+            .single();
+
+        if (error) {
+            toast({
+                variant: "destructive",
+                title: "Error",
+                description: "ကျောင်းတည်ဆောက်ရာတွင် အမှားအယွင်းရှိနေပါသည်။"
+            });
+            setLoading(false);
+        } else if (data) {
+            // Save to local storage for persistence
+            localStorage.setItem("rc_school_id", data.id);
+            toast({
+                title: "Success",
+                description: "ကျောင်းအသစ်ကို အောင်မြင်စွာ တည်ဆောက်ပြီးပါပြီ။"
+            });
+            router.push('/');
+        }
+    };
+
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        setFormData({ ...formData, [e.target.id]: e.target.value });
     };
 
     return (
@@ -39,22 +78,49 @@ export default function SchoolSetupPage() {
                     <form onSubmit={handleCreate} className="w-full space-y-5">
                         <div className="space-y-2">
                             <Label htmlFor="schoolName" className="font-bold text-slate-700">ကျောင်းအမည် *</Label>
-                            <Input id="schoolName" placeholder="ဥပမာ - အထက (၁) အင်းစိန်" required className="h-12 border-slate-200" />
+                            <Input 
+                                id="schoolName" 
+                                placeholder="ဥပမာ - အထက (၁) အင်းစိန်" 
+                                required 
+                                className="h-12 border-slate-200"
+                                value={formData.schoolName}
+                                onChange={handleChange}
+                            />
                         </div>
                         <div className="space-y-2">
                             <Label htmlFor="principalName" className="font-bold text-slate-700">ကျောင်းအုပ် အမည်</Label>
-                            <Input id="principalName" placeholder="အမည် ဖြည့်စွက်ပါ" className="h-12 border-slate-200" />
+                            <Input 
+                                id="principalName" 
+                                placeholder="အမည် ဖြည့်စွက်ပါ" 
+                                className="h-12 border-slate-200"
+                                value={formData.principalName}
+                                onChange={handleChange}
+                            />
                         </div>
                         <div className="space-y-2">
                             <Label htmlFor="location" className="font-bold text-slate-700">တည်နေရာ / မြို့နယ်</Label>
-                            <Input id="location" placeholder="ရန်ကုန်မြို့၊ အင်းစိန်" className="h-12 border-slate-200" />
+                            <Input 
+                                id="location" 
+                                placeholder="ရန်ကုန်မြို့၊ အင်းစိန်" 
+                                className="h-12 border-slate-200"
+                                value={formData.location}
+                                onChange={handleChange}
+                            />
                         </div>
                         <div className="space-y-2">
                             <Label htmlFor="phone" className="font-bold text-slate-700">ဆက်သွယ်ရန် ဖုန်းနံပါတ်</Label>
-                            <Input id="phone" type="tel" placeholder="၀၉xxxxxxxxx" className="h-12 border-slate-200" />
+                            <Input 
+                                id="phone" 
+                                type="tel" 
+                                placeholder="၀၉xxxxxxxxx" 
+                                className="h-12 border-slate-200"
+                                value={formData.phone}
+                                onChange={handleChange}
+                            />
                         </div>
 
                         <Button type="submit" className="w-full h-14 bg-blue-600 hover:bg-blue-700 text-lg font-bold mt-4 shadow-lg shadow-blue-100" disabled={loading}>
+                            {loading ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : null}
                             {loading ? "ဆောင်ရွက်နေပါသည်..." : "ကျောင်းတည်ဆောက်မည်"}
                         </Button>
                     </form>
