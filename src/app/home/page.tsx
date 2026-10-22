@@ -1,319 +1,86 @@
-'use client';
+"use client";
 
-import { Suspense, useEffect, useState, useCallback, useRef } from 'react';
+import { useState } from "react";
+import { Input } from "@/components/ui/input";
+import { Card, CardContent } from "@/components/ui/card";
+import { Search, Plus, Home, User, MoreVertical, TrendingUp, TrendingDown } from "lucide-react";
 import { BottomNav } from "@/components/bottom-nav";
-import { Loader2, Headphones, Download, Play, Pause, Music, Heart } from "lucide-react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { PostFeed } from '@/components/post-feed';
-import { VideoFeed } from '@/components/video-feed';
-import { createClient } from '@/lib/supabase/client';
-import type { Post, Profile } from '@/lib/data';
-import { useToast } from '@/hooks/use-toast';
-import { useRouter } from 'next/navigation';
-import { Avatar } from '@/components/ui/avatar';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
-import { User } from '@supabase/supabase-js';
-import { cn } from '@/lib/utils';
 
-type Track = {
-  id: number;
-  user_id: string;
-  title: string;
-  artist_name: string | null;
-  audio_url: string;
-  cover_art_url: string | null;
-  created_at: string;
-  profiles: Profile;
-  likes_count: number;
-  is_liked_by_user: boolean;
-};
+export default function LedgerHomePage() {
+  const [searchQuery, setSearchQuery] = useState("");
 
-const AudioPlayer = ({ track: initialTrack, currentUser }: { track: Track, currentUser: User | null }) => {
-    const audioRef = useRef<HTMLAudioElement>(null);
-    const [isPlaying, setIsPlaying] = useState(false);
-    const [isLoading, setIsLoading] = useState(true);
-    const { toast } = useToast();
-    const supabase = createClient();
-    const [likesCount, setLikesCount] = useState(initialTrack.likes_count);
-    const [isLiked, setIsLiked] = useState(initialTrack.is_liked_by_user);
-    const [isLiking, setIsLiking] = useState(false);
+  // Mock data for display
+  const items = [
+    { id: 1, title: "ကုန်စုံဆိုင် ဝယ်ယူမှု", amount: 15000, type: "out", date: "ယနေ့ ၁၀:၃၀ AM" },
+    { id: 2, title: "လစာဝင်ငွေ", amount: 450000, type: "in", date: "မနေ့က ၀၉:၀၀ PM" },
+    { id: 3, title: "လျှပ်စစ်မီတာခ", amount: 25000, type: "out", date: "၂ ရက်ခန့်က" },
+    { id: 4, title: "အကြွေးရရန်", amount: 5000, type: "in", date: "၃ ရက်ခန့်က" },
+    { id: 5, title: "ကားဆီဖိုး", amount: 10000, type: "out", date: "၄ ရက်ခန့်က" },
+  ];
 
-    useEffect(() => {
-        const audio = audioRef.current;
-        if (!audio) return;
-
-        const handleCanPlay = () => setIsLoading(false);
-        const handlePlay = () => setIsPlaying(true);
-        const handlePause = () => setIsPlaying(false);
-        const handleEnded = () => setIsPlaying(false);
-
-        audio.addEventListener('canplay', handleCanPlay);
-        audio.addEventListener('play', handlePlay);
-        audio.addEventListener('pause', handlePause);
-        audio.addEventListener('ended', handleEnded);
-
-        return () => {
-            audio.removeEventListener('canplay', handleCanPlay);
-            audio.removeEventListener('play', handlePlay);
-            audio.removeEventListener('pause', handlePause);
-            audio.removeEventListener('ended', handleEnded);
-        };
-    }, []);
-
-
-    const handlePlayPause = () => {
-        const audio = audioRef.current;
-        if (audio) {
-            if (audio.paused) {
-                audio.play().catch(e => console.error("Audio play failed:", e));
-            } else {
-                audio.pause();
-            }
-        }
-    };
-    
-    const handleDownload = async () => {
-        try {
-            const response = await fetch(initialTrack.audio_url);
-            const blob = await response.blob();
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.style.display = 'none';
-            a.href = url;
-            a.download = `${initialTrack.title} - ${initialTrack.artist_name || 'Unknown'}.mp3`;
-            a.click();
-            window.URL.revokeObjectURL(url);
-        } catch (error) {
-            console.error("Download failed:", error);
-            toast({ variant: "destructive", title: "Download Failed" });
-        }
-    };
-
-    const handleLikeToggle = async () => {
-        if (!currentUser) {
-            toast({ variant: 'destructive', title: 'You must be logged in to like tracks.' });
-            return;
-        }
-        if(isLiking) return;
-
-        setIsLiking(true);
-        const newIsLiked = !isLiked;
-        
-        setIsLiked(newIsLiked);
-        setLikesCount(prev => newIsLiked ? prev + 1 : prev - 1);
-
-        if (newIsLiked) {
-            const { error } = await supabase.from('track_likes').insert({ track_id: initialTrack.id, user_id: currentUser.id });
-            if (error) {
-                setIsLiked(false);
-                setLikesCount(prev => prev - 1);
-            }
-        } else {
-            const { error } = await supabase.from('track_likes').delete().match({ track_id: initialTrack.id, user_id: currentUser.id });
-             if (error) {
-                setIsLiked(true);
-                setLikesCount(prev => prev + 1);
-            }
-        }
-        setIsLiking(false);
-    }
-
-    return (
-        <Card className="overflow-hidden bg-muted/50 border-border">
-            <CardContent className="p-3 flex items-center gap-4">
-                <Avatar className="h-10 w-10" profile={initialTrack.profiles}/>
-                <div className="flex-1 space-y-1 overflow-hidden">
-                    <p className="font-bold truncate text-sm">{initialTrack.title}</p>
-                    <p className="text-xs text-muted-foreground truncate">{initialTrack.artist_name || initialTrack.profiles.username}</p>
-                    <div className="flex items-center gap-3">
-                         <Button variant="ghost" size="icon" onClick={handlePlayPause} disabled={isLoading} className="h-8 w-8 flex-shrink-0">
-                            {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
-                        </Button>
-                        <audio ref={audioRef} src={initialTrack.audio_url} preload="metadata"></audio>
-                        <p className="text-xs text-muted-foreground">Click to play</p>
-                    </div>
-                </div>
-                <div className="flex flex-col items-center gap-1 text-muted-foreground">
-                    <Button variant="ghost" size="icon" onClick={handleLikeToggle} disabled={isLiking}>
-                        <Heart className={cn("h-5 w-5", isLiked && "text-red-500 fill-red-500")} />
-                    </Button>
-                    <span className="text-xs font-semibold">{likesCount}</span>
-                </div>
-                <Button variant="ghost" size="icon" onClick={handleDownload}>
-                    <Download className="h-5 w-5 text-muted-foreground" />
-                </Button>
-            </CardContent>
-        </Card>
-    );
-};
-
-
-function FeedFallback() {
   return (
-    <div className="flex h-full w-full items-center justify-center pt-20">
-      <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+    <div className="flex h-dvh flex-col bg-slate-50 overflow-hidden">
+      {/* Header */}
+      <header className="flex h-16 flex-shrink-0 items-center justify-between px-4 bg-deep-navy text-white sticky top-0 z-20 shadow-md">
+        <h1 className="text-xl font-bold tracking-wider">Bright-Net</h1>
+        <div className="relative w-40 md:w-64">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+          <Input 
+            placeholder="ရှာဖွေပါ..." 
+            className="h-9 pl-9 bg-white/10 border-none text-white placeholder:text-slate-400 focus-visible:ring-1 focus-visible:ring-blue-400 rounded-full"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+        </div>
+      </header>
+
+      {/* Main Content Area */}
+      <main className="flex-1 overflow-y-auto p-4 space-y-3 pb-32">
+        {items.map((item) => (
+          <Card key={item.id} className="border-none shadow-sm rounded-2xl overflow-hidden hover:shadow-md transition-all active:scale-[0.98]">
+            <CardContent className="p-4 flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className={`h-12 w-12 rounded-2xl flex items-center justify-center ${item.type === 'in' ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'}`}>
+                  {item.type === 'in' ? <TrendingUp className="h-6 w-6" /> : <TrendingDown className="h-6 w-6" />}
+                </div>
+                <div>
+                  <h3 className="font-bold text-slate-800">{item.title}</h3>
+                  <p className="text-[10px] text-slate-400 font-medium">{item.date}</p>
+                </div>
+              </div>
+              <div className="text-right">
+                <p className={`font-bold text-lg ${item.type === 'in' ? 'text-emerald-600' : 'text-rose-600'}`}>
+                  {item.type === 'in' ? '+' : '-'}{item.amount.toLocaleString()} <span className="text-xs">Ks</span>
+                </p>
+                <button className="text-slate-300">
+                  <MoreVertical className="h-4 w-4 ml-auto" />
+                </button>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </main>
+
+      {/* Total Bar and Nav Area */}
+      <div className="fixed bottom-0 left-0 right-0 z-30">
+        {/* Total Summary Bar */}
+        <div className="mx-4 mb-2">
+            <div className="bg-deep-navy text-white rounded-2xl p-4 shadow-2xl flex items-center justify-between border border-blue-900/50">
+                <div className="flex flex-col">
+                    <span className="text-[10px] text-blue-300 font-bold uppercase tracking-widest">စုစုပေါင်း အရေအတွက်</span>
+                    <span className="text-xl font-black">{items.length} <span className="text-sm font-normal opacity-70">ခု</span></span>
+                </div>
+                <div className="h-10 w-[1px] bg-blue-800" />
+                <div className="flex flex-col text-right">
+                    <span className="text-[10px] text-blue-300 font-bold uppercase tracking-widest">စုစုပေါင်း လက်ကျန်ငွေ</span>
+                    <span className="text-xl font-black text-blue-400">၄၀၀,၀၀၀ <span className="text-sm font-normal text-white opacity-70">Ks</span></span>
+                </div>
+            </div>
+        </div>
+
+        {/* Bottom Nav */}
+        <BottomNav />
+      </div>
     </div>
   );
-}
-
-function HomePageContent() {
-  const [imagePosts, setImagePosts] = useState<Post[]>([]);
-  const [videoPosts, setVideoPosts] = useState<Post[]>([]);
-  const [tracks, setTracks] = useState<Track[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [loadingTracks, setLoadingTracks] = useState(true);
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const supabase = createClient();
-  const { toast } = useToast();
-  const router = useRouter();
-
-  const fetchPosts = useCallback(async () => {
-    setLoading(true);
-    const { data: { user } } = await supabase.auth.getUser();
-    setCurrentUser(user);
-    let query = supabase
-      .from('posts')
-      .select('*, profiles!posts_user_id_fkey(*), likes:post_likes(count), comments:post_comments(count)')
-      .order('created_at', { ascending: false })
-      .limit(20);
-    
-    const { data: posts, error } = await query;
-    
-    if (error) {
-      console.error("Error fetching posts:", error);
-      setLoading(false);
-      return;
-    } 
-    
-    if (posts) {
-        processAndSetPosts(posts, user);
-    }
-    setLoading(false);
-  }, [supabase]);
-
-  const fetchTracks = useCallback(async () => {
-    setLoadingTracks(true);
-    const { data: { user } } = await supabase.auth.getUser();
-
-    const { data, error } = await supabase
-        .from('tracks')
-        .select(`
-            *,
-            profiles:user_id(*),
-            likes:track_likes(count)
-        `)
-        .order('created_at', { ascending: false });
-
-    if (error) {
-        console.error("Error fetching tracks:", error);
-        setTracks([]);
-    } else {
-        const trackIds = data.map(t => t.id);
-        const { data: userLikes } = user ? await supabase
-            .from('track_likes')
-            .select('track_id')
-            .eq('user_id', user.id)
-            .in('track_id', trackIds) : { data: [] };
-        
-        const likedTrackIds = new Set(userLikes?.map(like => like.track_id));
-
-        const processedTracks: Track[] = data.map((track: any) => ({
-            ...track,
-            likes_count: track.likes[0]?.count || 0,
-            is_liked_by_user: likedTrackIds.has(track.id)
-        }));
-        setTracks(processedTracks);
-    }
-    setLoadingTracks(false);
-}, [supabase]);
-
-
-  const processAndSetPosts = async (posts: any[], currentUser: any) => {
-      const postIds = posts.map(p => p.id);
-      const { data: userLikes } = currentUser ? await supabase
-        .from('post_likes')
-        .select('post_id')
-        .eq('user_id', currentUser.id)
-        .in('post_id', postIds) : { data: [] };
-      
-      const likedPostIds = new Set(userLikes?.map(like => (like as any).post_id));
-
-      const processedPosts: Post[] = posts.map((post: any) => ({
-        id: post.id,
-        user: post.profiles,
-        media_url: post.media_url,
-        media_type: post.media_type,
-        caption: post.caption,
-        created_at: post.created_at,
-        likes: post.likes[0]?.count || 0,
-        comments: post.comments[0]?.count || 0,
-        views: 0,
-        isLiked: likedPostIds.has(post.id),
-      }));
-
-      setImagePosts(processedPosts.filter(p => p.media_type === 'image'));
-      setVideoPosts(processedPosts.filter(p => p.media_type === 'video'));
-  }
-
-  useEffect(() => {
-    fetchPosts();
-    fetchTracks();
-  }, [fetchPosts, fetchTracks]);
-
-  return (
-    <>
-      <Tabs defaultValue="news" className="w-full">
-        <div className="flex h-dvh flex-col bg-background text-foreground pb-16">
-          <header className="fixed top-0 left-0 right-0 z-10 flex h-16 flex-shrink-0 items-center justify-center bg-background/80 px-4 text-center backdrop-blur-sm">
-              <TabsList className="grid w-full grid-cols-3">
-                  <TabsTrigger value="news">News</TabsTrigger>
-                  <TabsTrigger value="relax">
-                      <Headphones className="h-5 w-5 mr-1.5"/>
-                      Relax
-                  </TabsTrigger>
-                  <TabsTrigger value="lite">Lite</TabsTrigger>
-              </TabsList>
-          </header>
-
-          <main className="flex-1 overflow-y-auto pt-16">
-              <TabsContent value="news">
-                  <PostFeed posts={imagePosts} loading={loading} />
-              </TabsContent>
-              <TabsContent value="relax" className="p-4 space-y-4">
-                 {loadingTracks ? (
-                    <div className="flex h-full w-full items-center justify-center pt-20">
-                        <Loader2 className="h-8 w-8 animate-spin" />
-                    </div>
-                ) : tracks.length > 0 ? (
-                    tracks.map((track) => (
-                        <AudioPlayer key={track.id} track={track} currentUser={currentUser} />
-                    ))
-                ) : (
-                    <div className="flex flex-col items-center justify-center text-center text-muted-foreground pt-20">
-                        <Music className="h-16 w-16" />
-                        <h2 className="mt-4 text-lg font-semibold">No Tracks Yet</h2>
-                        <p className="mt-1 text-sm">Be the first to upload a track!</p>
-                        <Button onClick={() => router.push('/upload/music')} className="mt-4">Upload Music</Button>
-                    </div>
-                )}
-              </TabsContent>
-              <TabsContent value="lite">
-                  <VideoFeed posts={videoPosts} loading={loading} />
-              </TabsContent>
-          </main>
-        </div>
-        <BottomNav />
-      </Tabs>
-    </>
-  );
-}
-
-
-export default function HomePage() {
-    return (
-        <Suspense fallback={<FeedFallback />}>
-            <HomePageContent />
-        </Suspense>
-    )
 }

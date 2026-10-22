@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState } from "react";
@@ -6,114 +5,79 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Eye, EyeOff, Loader2, ClipboardCheck } from "lucide-react";
-import { createClient } from "@/lib/supabase/client";
-import { useToast } from "@/hooks/use-toast";
-import Link from "next/link";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { User, Phone, Lock, Save } from "lucide-react";
 
 export default function SignUpPage() {
   const router = useRouter();
-  const supabase = createClient();
-  const { toast } = useToast();
+  const [formData, setFormData] = useState({
+    name: "",
+    phone: "",
+    password: ""
+  });
 
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
-  const [loading, setLoading] = useState(false);
-
-  const handleSignUp = async (e: React.FormEvent) => {
+  const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
-
-    const { error } = await supabase.auth.signUp({
-      email: email,
-      password: password,
-      options: {
-          emailRedirectTo: window.location.origin,
-      }
-    });
-    
-    if (error) {
-      toast({
-        variant: "destructive",
-        title: "အကောင့်ဖွင့်မှု မအောင်မြင်ပါ",
-        description: error.message,
-      });
-    } else {
-        toast({
-            title: "အကောင့်ဖွင့်ခြင်း အောင်မြင်ပါသည်",
-            description: "ကျေးဇူးပြု၍ ကျောင်းအချက်အလက်များ ဆက်လက်ဖြည့်စွက်ပါ။"
-        });
-        router.push("/");
-        router.refresh();
-    }
-    setLoading(false);
+    // For prototype purposes, we'll just navigate to home
+    router.push("/home");
   };
 
   return (
-    <div className="flex h-dvh flex-col items-center justify-center bg-slate-50 p-4">
-        <div className="w-full max-w-sm bg-white p-8 rounded-3xl shadow-sm border border-slate-100">
-            <div className="text-center mb-8">
-                <div className="bg-blue-50 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                    <ClipboardCheck className="h-8 w-8 text-blue-600" />
-                </div>
-                <h1 className="text-2xl font-bold text-slate-900">အကောင့်သစ်ဖွင့်ရန်</h1>
-                <p className="text-muted-foreground mt-2">Roll Call အသုံးပြုရန် အကောင့်အရင်ဖွင့်ပါ</p>
+    <div className="flex h-dvh flex-col items-center justify-center bg-slate-50 p-6">
+      <Card className="w-full max-w-sm shadow-xl rounded-[2rem] border-none overflow-hidden">
+        <CardHeader className="bg-deep-navy text-white text-center pb-8 pt-8">
+          <CardTitle className="text-2xl font-bold">အကောင့်သစ်ဖွင့်ရန်</CardTitle>
+          <p className="text-blue-200 text-sm mt-2">စာရင်းများမှတ်သားရန် အချက်အလက်ဖြည့်ပါ</p>
+        </CardHeader>
+        <CardContent className="p-8 space-y-6 bg-white">
+          <form onSubmit={handleSave} className="space-y-5">
+            <div className="space-y-2">
+              <Label className="text-slate-600 font-bold flex items-center gap-2">
+                <User className="h-4 w-4" /> အမည်
+              </Label>
+              <Input 
+                placeholder="နာမည်ရိုက်ထည့်ပါ" 
+                className="h-12 rounded-xl bg-slate-50 border-slate-200 focus:bg-white transition-all"
+                value={formData.name}
+                onChange={(e) => setFormData({...formData, name: e.target.value})}
+                required
+              />
             </div>
-            
-            <form onSubmit={handleSignUp} className="space-y-6">
-                <div className="space-y-2">
-                    <Label htmlFor="email">Email</Label>
-                    <Input
-                        id="email"
-                        type="email"
-                        placeholder="example@gmail.com"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        required
-                        className="h-12 border-slate-200"
-                    />
-                </div>
 
-                <div className="space-y-2">
-                    <Label htmlFor="password">Password (အနည်းဆုံး ၆ လုံး)</Label>
-                    <div className="relative">
-                        <Input
-                            id="password"
-                            type={showPassword ? "text" : "password"}
-                            placeholder="စကားဝှက် အသစ်ထားပါ"
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value)}
-                            required
-                            className="h-12 border-slate-200 pr-10"
-                        />
-                        <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8"
-                            onClick={() => setShowPassword(!showPassword)}
-                        >
-                            {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                        </Button>
-                    </div>
-                </div>
-
-                <Button type="submit" className="w-full h-12 bg-blue-600 hover:bg-blue-700 font-bold rounded-xl shadow-lg shadow-blue-100" disabled={loading}>
-                    {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                    အကောင့်ဖွင့်မည်
-                </Button>
-            </form>
-            
-            <div className="mt-8 text-center text-sm">
-                <p className="text-slate-500">
-                    အကောင့်ရှိပြီးသားလား?{' '}
-                    <Link href="/login" className="text-blue-600 font-bold hover:underline">
-                        အကောင့်ပြန်ဝင်ရန်
-                    </Link>
-                </p>
+            <div className="space-y-2">
+              <Label className="text-slate-600 font-bold flex items-center gap-2">
+                <Phone className="h-4 w-4" /> ဖုန်းနံပါတ်
+              </Label>
+              <Input 
+                type="tel"
+                placeholder="၀၉xxxxxxxxx" 
+                className="h-12 rounded-xl bg-slate-50 border-slate-200 focus:bg-white transition-all"
+                value={formData.phone}
+                onChange={(e) => setFormData({...formData, phone: e.target.value})}
+                required
+              />
             </div>
-        </div>
+
+            <div className="space-y-2">
+              <Label className="text-slate-600 font-bold flex items-center gap-2">
+                <Lock className="h-4 w-4" /> စကားဝှက်
+              </Label>
+              <Input 
+                type="password"
+                placeholder="စကားဝှက်ရိုက်ထည့်ပါ" 
+                className="h-12 rounded-xl bg-slate-50 border-slate-200 focus:bg-white transition-all"
+                value={formData.password}
+                onChange={(e) => setFormData({...formData, password: e.target.value})}
+                required
+              />
+            </div>
+
+            <Button type="submit" className="w-full h-14 bg-deep-navy hover:bg-slate-800 text-lg font-bold rounded-2xl shadow-lg mt-4">
+              <Save className="mr-2 h-5 w-5" /> သိမ်းဆည်းမည်
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
     </div>
   );
 }
