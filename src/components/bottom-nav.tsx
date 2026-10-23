@@ -1,3 +1,4 @@
+
 "use client";
 
 import Link from "next/link";
@@ -10,7 +11,7 @@ export function BottomNav() {
 
   const navItems = [
     { href: "/home", label: 'Home', icon: Home },
-    { href: "#", label: 'Add', icon: Plus, isSpecial: true },
+    { href: "/add", label: 'Add', icon: Plus, isSpecial: true },
     { href: "/profile", label: 'Account', icon: User },
   ];
 
@@ -21,12 +22,13 @@ export function BottomNav() {
         
         if (item.isSpecial) {
           return (
-            <button
-              key={item.label}
-              className="h-12 w-12 bg-deep-navy text-white rounded-2xl flex items-center justify-center shadow-lg shadow-blue-200 active:scale-90 transition-all -mt-4 border-4 border-slate-50"
-            >
-              <item.icon className="h-7 w-7" />
-            </button>
+            <Link href={item.href} key={item.label}>
+              <button
+                className="h-12 w-12 bg-deep-navy text-white rounded-2xl flex items-center justify-center shadow-lg shadow-blue-200 active:scale-90 transition-all -mt-4 border-4 border-slate-50"
+              >
+                <item.icon className="h-7 w-7" />
+              </button>
+            </Link>
           );
         }
 
