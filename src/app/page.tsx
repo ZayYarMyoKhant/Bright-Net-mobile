@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useEffect } from "react";
@@ -9,7 +10,13 @@ export default function SplashPage() {
 
   useEffect(() => {
     const timer = setTimeout(() => {
-      router.push("/signup");
+      // Check if user info already exists in local storage
+      const userInfo = localStorage.getItem("user_info");
+      if (userInfo) {
+        router.push("/home");
+      } else {
+        router.push("/signup");
+      }
     }, 3000);
 
     return () => clearTimeout(timer);

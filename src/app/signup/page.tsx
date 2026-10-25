@@ -19,7 +19,7 @@ export default function SignUpPage() {
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
-    // Store user data locally for profile page display
+    // Store user data locally for persistent session and profile page
     localStorage.setItem("user_info", JSON.stringify(formData));
     router.push("/home");
   };

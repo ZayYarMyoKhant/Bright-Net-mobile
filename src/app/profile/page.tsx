@@ -4,7 +4,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { User, Phone, Lock, LogOut } from "lucide-react";
+import { User, Phone, LogOut } from "lucide-react";
 import { BottomNav } from "@/components/bottom-nav";
 import { Button } from "@/components/ui/button";
 
@@ -20,8 +20,9 @@ export default function AccountPage() {
   }, []);
 
   const handleLogout = () => {
+    // Clear login session and go to splash
     localStorage.removeItem("user_info");
-    router.push("/signup");
+    router.push("/");
   };
 
   return (
