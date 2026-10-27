@@ -1,7 +1,7 @@
 {
   "name": "Bright-Net Ledger",
-  "short_name": "Bright-Net",
-  "description": "Simple and secure bookkeeping app.",
+  "short_name": "BrightNet",
+  "description": "Simple Ledger App for Bright-Net",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#020617",
