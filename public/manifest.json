@@ -1,16 +1,16 @@
 {
-  "name": "Bright-Net",
+  "name": "Bright-Net Ledger",
   "short_name": "Bright-Net",
-  "description": "Bright-Net Social Network",
+  "description": "A simple and powerful ledger application for everyone.",
+  "start_url": "/home",
+  "display": "standalone",
+  "background_color": "#020617",
+  "theme_color": "#020617",
   "icons": [
     {
       "src": "/icon.svg",
       "sizes": "any",
       "type": "image/svg+xml"
     }
-  ],
-  "start_url": "/",
-  "display": "standalone",
-  "background_color": "#000000",
-  "theme_color": "#3B82F6"
+  ]
 }
